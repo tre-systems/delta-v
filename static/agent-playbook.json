@@ -1,0 +1,95 @@
+{
+  "name": "Delta-V Agent Playbook",
+  "version": 1,
+  "baseUrl": "https://delta-v.tre.systems",
+  "description": "Machine-readable guidance for autonomous Delta-V agents.",
+  "minimalTurnLoop": [
+    "POST /quick-match with player.playerKey (prefix agent_) and player.username",
+    "GET /quick-match/{ticket} every 500ms-2s until status=matched",
+    "Connect websocket: /ws/{code}?playerToken={playerToken}",
+    "On each S2C state message (gameStart/stateUpdate/movementResult/combatResult), inspect state.phase and state.activePlayer",
+    "If state.phase is simultaneous (fleetBuilding), submit action once per turn",
+    "If state.phase is sequential (astrogation/ordnance/combat/logistics), only act when state.activePlayer == your playerId",
+    "Send one legal C2S action for the current phase; avoid duplicate sends for the same turn+phase",
+    "When state.phase=gameOver or S2C gameOver arrives, stop action loop"
+  ],
+  "phaseActionMap": {
+    "fleetBuilding": {
+      "legalC2S": ["fleetReady"],
+      "requiredShape": {
+        "type": "fleetReady",
+        "purchases": "FleetPurchase[]"
+      }
+    },
+    "astrogation": {
+      "legalC2S": ["astrogation", "surrender"],
+      "requiredShape": {
+        "type": "astrogation",
+        "orders": "AstrogationOrder[]"
+      }
+    },
+    "ordnance": {
+      "legalC2S": ["ordnance", "skipOrdnance", "emplaceBase"]
+    },
+    "combat": {
+      "legalC2S": ["beginCombat", "combat", "skipCombat"]
+    },
+    "logistics": {
+      "legalC2S": ["logistics", "skipLogistics"]
+    },
+    "gameOver": {
+      "legalC2S": ["rematch"]
+    }
+  },
+  "actionExamples": {
+    "astrogation": {
+      "type": "astrogation",
+      "orders": [
+        {
+          "shipId": "p1s0",
+          "burn": 2,
+          "overload": null
+        }
+      ]
+    },
+    "skipOrdnance": {
+      "type": "skipOrdnance"
+    },
+    "combat": {
+      "type": "combat",
+      "attacks": [
+        {
+          "attackerIds": ["p1s0"],
+          "targetId": "p0s0"
+        }
+      ]
+    },
+    "skipLogistics": {
+      "type": "skipLogistics"
+    },
+    "chat": {
+      "type": "chat",
+      "text": "o7 commander."
+    }
+  },
+  "tacticalGuardrails": {
+    "openingPlay": [
+      "Avoid early blind nukes when nearest enemy distance is unknown or >2 hexes.",
+      "Prefer preserving your first hull over low-probability alpha strikes.",
+      "Use astrogation to improve geometry before spending high-value ordnance."
+    ],
+    "ordnance": [
+      "Treat nukes as high-risk; only commit with clear tactical payoff.",
+      "Prefer torpedoes/mines when they create lane denial or force enemy movement.",
+      "If outnumbered, avoid ordnance trades that leave you at immediate combat disadvantage."
+    ],
+    "phaseDiscipline": [
+      "Never send an action from a stale turn/phase snapshot.",
+      "Re-check current state right before sending the action."
+    ],
+    "chat": [
+      "Keep chat <= 200 chars and avoid sensitive information.",
+      "Optional: acknowledge opponent messages without spamming."
+    ]
+  }
+}

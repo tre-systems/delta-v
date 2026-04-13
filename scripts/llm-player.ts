@@ -41,6 +41,7 @@ interface Config {
   difficulty: AIDifficulty;
   thinkMs: number;
   decisionTimeoutMs: number;
+  verbose: boolean;
 }
 
 interface CreateGameResponse {
@@ -183,6 +184,7 @@ const parseArgs = (argv: string[]): Config => {
       1_000,
       parseIntegerFlag(getFlag('--decision-timeout-ms'), 30_000),
     ),
+    verbose: args.includes('--verbose'),
   };
 };
 
@@ -215,6 +217,7 @@ Flags:
   --difficulty            easy | normal | hard fallback policy (default: hard)
   --think-ms              Delay before acting (default: 200)
   --decision-timeout-ms   Agent timeout per turn (default: 30000)
+  --verbose               Print detailed turn/action logs
   --help                  Show this help
 `);
 };
@@ -722,12 +725,160 @@ const buildBuiltinChat = (
 interface PickActionResult {
   action: C2S;
   chat?: string;
+  reasoning: string;
 }
 
 const sanitizeChat = (raw: unknown): string | undefined => {
   if (typeof raw !== 'string') return undefined;
   const trimmed = raw.trim().slice(0, 200);
   return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const countOperationalShips = (state: GameState, owner: PlayerId): number =>
+  state.ships.filter(
+    (ship) => ship.owner === owner && ship.lifecycle !== 'destroyed',
+  ).length;
+
+const summarizeAction = (action: C2S): string => {
+  switch (action.type) {
+    case 'astrogation':
+      return `astrogation (${action.orders.length} orders)`;
+    case 'ordnance':
+      return `ordnance (${action.launches.length} launches)`;
+    case 'combat':
+      return `combat (${action.attacks.length} attacks)`;
+    case 'logistics':
+      return `logistics (${action.transfers.length} transfers)`;
+    case 'fleetReady':
+      return `fleetReady (${action.purchases.length} purchases)`;
+    default:
+      return action.type;
+  }
+};
+
+const stateActionKey = (state: GameState, playerId: PlayerId): string =>
+  [state.gameId, state.turnNumber, state.phase, playerId].join(':');
+
+const redactToken = (token: string | null): string => {
+  if (!token) return '(none)';
+  if (token.length <= 8) return '***';
+  return `${token.slice(0, 4)}...${token.slice(-4)}`;
+};
+
+const maskWsUrlToken = (url: string): string =>
+  url.replace(/playerToken=([^&]+)/, (_match, token: string) => {
+    try {
+      return `playerToken=${encodeURIComponent(redactToken(decodeURIComponent(token)))}`;
+    } catch {
+      return `playerToken=${redactToken(token)}`;
+    }
+  });
+
+const totalFuel = (state: GameState, owner: PlayerId): number =>
+  state.ships
+    .filter((ship) => ship.owner === owner && ship.lifecycle !== 'destroyed')
+    .reduce((sum, ship) => sum + ship.fuel, 0);
+
+const nearestEnemyDistanceForPlayer = (
+  state: GameState,
+  playerId: PlayerId,
+): number | null => {
+  const ownShips = state.ships.filter(
+    (ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed',
+  );
+  const enemyShips = state.ships.filter(
+    (ship) => ship.owner !== playerId && ship.lifecycle !== 'destroyed',
+  );
+  let nearest: number | null = null;
+  for (const own of ownShips) {
+    for (const enemy of enemyShips) {
+      const distance = hexDistance(own.position, enemy.position);
+      nearest = nearest === null ? distance : Math.min(nearest, distance);
+    }
+  }
+  return nearest;
+};
+
+const summarizeTactics = (
+  state: GameState,
+  playerId: PlayerId,
+  action: C2S,
+): string => {
+  const enemyId: PlayerId = playerId === 0 ? 1 : 0;
+  const ownShips = countOperationalShips(state, playerId);
+  const enemyShips = countOperationalShips(state, enemyId);
+  const ownFuel = totalFuel(state, playerId);
+  const enemyFuel = totalFuel(state, enemyId);
+  const nearest = nearestEnemyDistanceForPlayer(state, playerId);
+
+  const posture: string[] = [];
+  if (ownShips > enemyShips) posture.push('material advantage');
+  else if (ownShips < enemyShips) posture.push('material deficit');
+  else posture.push('material parity');
+
+  if (ownFuel > enemyFuel + 2) posture.push('fuel edge');
+  else if (ownFuel + 2 < enemyFuel) posture.push('fuel deficit');
+  else posture.push('fuel parity');
+
+  if (nearest !== null) {
+    if (nearest <= 2) posture.push('close engagement range');
+    else if (nearest <= 5) posture.push('mid-range geometry');
+    else posture.push('long-range approach');
+  }
+
+  let intent = 'maintain tempo';
+  switch (action.type) {
+    case 'astrogation':
+      intent = 'shape intercept geometry and future firing lanes';
+      break;
+    case 'ordnance':
+      intent = 'project threat and force opponent pathing';
+      break;
+    case 'combat':
+      intent = 'convert positional pressure into direct damage';
+      break;
+    case 'logistics':
+      intent = 'stabilize fleet endurance and sustain pressure';
+      break;
+    case 'skipCombat':
+      intent = 'avoid a low-value exchange this phase';
+      break;
+    case 'skipOrdnance':
+      intent = 'hold ammunition for a better setup';
+      break;
+    case 'skipLogistics':
+      intent = 'preserve initiative without transfer overhead';
+      break;
+    case 'fleetReady':
+      intent = 'commit opening fleet composition';
+      break;
+  }
+
+  return `${posture.join(', ')}; intent: ${intent}.`;
+};
+
+const buildChatReply = (
+  incoming: string,
+  state: GameState | null,
+  playerId: PlayerId,
+): string => {
+  const normalized = incoming.trim().toLowerCase();
+  if (normalized.includes('gg')) return 'gg, well played.';
+  if (normalized.includes('hello') || normalized.includes('hi'))
+    return 'o7 commander.';
+  if (normalized.includes('hey')) return 'hey, good luck out there.';
+  if (normalized.includes('gl')) return 'gl hf.';
+
+  if (state) {
+    const enemyId: PlayerId = playerId === 0 ? 1 : 0;
+    const ownShips = countOperationalShips(state, playerId);
+    const enemyShips = countOperationalShips(state, enemyId);
+    if (ownShips < enemyShips) return 'Copy. Repositioning for a better trade.';
+    if (ownShips > enemyShips) return 'Copy. Pressing the advantage.';
+    if (state.phase === 'astrogation') return 'Copy. Plotting next burn.';
+  }
+
+  return 'Copy.';
 };
 
 const pickAction = async (
@@ -744,7 +895,11 @@ const pickAction = async (
   const recommended = candidates[0];
   if (config.agentMode === 'builtin') {
     const chat = buildBuiltinChat(state, playerId, recommended);
-    return { action: recommended, chat };
+    return {
+      action: recommended,
+      chat,
+      reasoning: `builtin policy selected recommended candidate: ${describeCandidate(recommended, 0)}`,
+    };
   }
 
   const payload: AgentTurnInput = {
@@ -781,14 +936,28 @@ const pickAction = async (
     result.candidateIndex >= 0 &&
     result.candidateIndex < candidates.length
   ) {
-    return { action: candidates[result.candidateIndex], chat };
+    const selectedAction = candidates[result.candidateIndex];
+    const reasoning =
+      result.candidateIndex === 0
+        ? `agent selected recommended candidate: ${describeCandidate(selectedAction, result.candidateIndex)}`
+        : `agent overrode recommendation (0) and selected candidate ${result.candidateIndex}: ${describeCandidate(selectedAction, result.candidateIndex)}`;
+    return { action: selectedAction, chat, reasoning };
   }
 
   if (result.action) {
-    return { action: result.action, chat };
+    return {
+      action: result.action,
+      chat,
+      reasoning: `agent returned custom action: ${summarizeAction(result.action)}`,
+    };
   }
 
-  return { action: recommended, chat };
+  return {
+    action: recommended,
+    chat,
+    reasoning:
+      'agent response omitted a valid action; fallback to recommended candidate 0',
+  };
 };
 
 const createGame = async (config: Config): Promise<CreateGameResponse> => {
@@ -828,10 +997,54 @@ const run = async (config: Config): Promise<void> => {
   let playerId: PlayerId | -1 = -1;
   const actionKeys = new Set<string>();
   let actionInFlight = false;
+  let latestState: GameState | null = null;
+  let lastAutoReplyAt = 0;
+  let lastAutoReplySignature: string | null = null;
 
   const send = (message: C2S) => {
     if (socket.readyState !== WebSocket.OPEN) return;
+    if (config.verbose) {
+      console.log(`-> ${summarizeAction(message)}`);
+    }
     socket.send(JSON.stringify(message));
+  };
+
+  const sendForState = (message: C2S, basisState: GameState): boolean => {
+    const current = latestState;
+    if (!current) return false;
+    const isSimultaneousPhase = current.phase === 'fleetBuilding';
+    if (!isSimultaneousPhase && current.activePlayer !== playerId) {
+      if (config.verbose) {
+        console.log(
+          `turn ${basisState.turnNumber} ${basisState.phase}: skipped send, no longer our turn`,
+        );
+      }
+      return false;
+    }
+    if (
+      current.phase !== basisState.phase ||
+      current.turnNumber !== basisState.turnNumber
+    ) {
+      if (config.verbose) {
+        console.log(
+          `turn ${basisState.turnNumber} ${basisState.phase}: skipped send, state advanced to turn ${current.turnNumber} ${current.phase}`,
+        );
+      }
+      return false;
+    }
+
+    const allowedTypes = allowedActionTypesForPhase(current.phase);
+    if (!allowedTypes.has(message.type)) {
+      if (config.verbose) {
+        console.log(
+          `turn ${basisState.turnNumber} ${basisState.phase}: skipped send, action ${message.type} no longer valid for ${current.phase}`,
+        );
+      }
+      return false;
+    }
+
+    send(message);
+    return true;
   };
 
   const scheduleAction = async (state: GameState): Promise<void> => {
@@ -841,63 +1054,88 @@ const run = async (config: Config): Promise<void> => {
     const isSimultaneousPhase = state.phase === 'fleetBuilding';
     if (!isSimultaneousPhase && state.activePlayer !== playerId) return;
 
-    const actionKey = [
-      state.gameId,
-      state.turnNumber,
-      state.phase,
-      playerId,
-    ].join(':');
+    const actionKey = stateActionKey(state, playerId);
     if (actionKeys.has(actionKey)) return;
     actionKeys.add(actionKey);
 
     actionInFlight = true;
     try {
       await delay(config.thinkMs);
-      const { action, chat } = await pickAction(
+      const latestKey =
+        latestState === null
+          ? actionKey
+          : stateActionKey(latestState, playerId);
+      if (latestKey !== actionKey) {
+        if (config.verbose) {
+          console.log(
+            `turn ${state.turnNumber} ${state.phase}: skipping stale decision (latest=${latestKey})`,
+          );
+        }
+        return;
+      }
+      const { action, chat, reasoning } = await pickAction(
         config,
         gameCode,
         playerId,
         state,
       );
+      if (config.verbose) {
+        console.log(
+          `turn ${state.turnNumber} ${state.phase}: selected ${summarizeAction(action)}`,
+        );
+        console.log(
+          `turn ${state.turnNumber} ${state.phase}: reasoning ${reasoning}`,
+        );
+        console.log(
+          `turn ${state.turnNumber} ${state.phase}: tactics ${summarizeTactics(state, playerId, action)}`,
+        );
+      }
       if (chat) {
+        console.log(`chat sent: "${chat}"`);
         send({ type: 'chat', text: chat });
         await delay(100);
       }
-      const allowedTypes = allowedActionTypesForPhase(state.phase);
-      if (!allowedTypes.has(action.type)) {
+      if (!sendForState(action, state)) {
         console.warn(
-          `agent returned invalid action type "${action.type}" for phase "${state.phase}", falling back`,
+          `agent action "${action.type}" was stale or invalid for current phase, falling back`,
         );
+        const basis = latestState ?? state;
         const fallback = buildActionForDifficulty(
-          state,
+          basis,
           playerId,
           config.difficulty,
         );
-        if (fallback && allowedTypes.has(fallback.type)) {
-          send(fallback);
+        if (fallback) {
+          void sendForState(fallback, basis);
         }
-      } else {
-        send(action);
       }
     } catch (error) {
       console.warn(
         `agent decision failed, falling back to ${config.difficulty} policy:`,
         error,
       );
+      const basis = latestState ?? state;
       const fallback = buildActionForDifficulty(
-        state,
+        basis,
         playerId,
         config.difficulty,
       );
-      if (fallback) send(fallback);
+      if (fallback) void sendForState(fallback, basis);
     } finally {
       actionInFlight = false;
+      if (
+        latestState &&
+        stateActionKey(latestState, playerId) !== actionKey &&
+        latestState.phase !== 'gameOver'
+      ) {
+        void scheduleAction(latestState);
+      }
     }
   };
 
   await new Promise<void>((resolve, reject) => {
     socket.once('open', () => {
-      console.log(`connected to ${wsUrl}`);
+      console.log(`connected to ${maskWsUrlToken(wsUrl)}`);
     });
 
     socket.once('error', (error) => {
@@ -929,7 +1167,7 @@ const run = async (config: Config): Promise<void> => {
           );
           if (token) {
             console.log(
-              `reconnect token available (use with --player-token): ${token}`,
+              `reconnect token available (use with --player-token): ${redactToken(token)}`,
             );
           }
           return;
@@ -942,16 +1180,45 @@ const run = async (config: Config): Promise<void> => {
         case 'gameStart':
         case 'movementResult':
         case 'combatResult':
-        case 'stateUpdate':
-          void scheduleAction(message.state);
-          if (message.state.phase === 'gameOver') {
+        case 'stateUpdate': {
+          latestState = message.state;
+          if (config.verbose && playerId !== -1) {
+            const own = countOperationalShips(message.state, playerId);
+            const enemy = countOperationalShips(
+              message.state,
+              playerId === 0 ? 1 : 0,
+            );
             console.log(
-              `game over: winner=${message.state.outcome?.winner ?? 'draw'} reason=${message.state.outcome?.reason ?? 'unknown'}`,
+              `<- ${message.type}: turn=${message.state.turnNumber} phase=${message.state.phase} active=${message.state.activePlayer} ships you=${own} enemy=${enemy}`,
             );
           }
+          void scheduleAction(message.state);
+          if (message.state.phase === 'gameOver') {
+            const winner = message.state.outcome?.winner;
+            const reason = message.state.outcome?.reason ?? 'unknown';
+            console.log(
+              `game over: winner=${winner ?? 'draw'} reason=${reason}`,
+            );
+            if (playerId !== -1) {
+              const outcomeLabel =
+                winner === null || winner === undefined
+                  ? 'DRAW'
+                  : winner === playerId
+                    ? 'WIN'
+                    : 'LOSS';
+              console.log(
+                `result: ${outcomeLabel} (you are player ${playerId})`,
+              );
+            }
+          }
           return;
+        }
         case 'gameOver':
           console.log(`game over (message): winner=${message.winner}`);
+          if (playerId !== -1) {
+            const outcomeLabel = message.winner === playerId ? 'WIN' : 'LOSS';
+            console.log(`result: ${outcomeLabel} (you are player ${playerId})`);
+          }
           return;
         case 'error':
           console.error(
@@ -959,9 +1226,38 @@ const run = async (config: Config): Promise<void> => {
           );
           return;
         case 'chat':
+          console.log(`chat received p${message.playerId}: "${message.text}"`);
+          if (playerId !== -1 && message.playerId !== playerId) {
+            const now = Date.now();
+            const signature = `${message.playerId}:${message.text.trim().toLowerCase()}`;
+            const shouldReply =
+              signature !== lastAutoReplySignature ||
+              now - lastAutoReplyAt > 8_000;
+            if (shouldReply) {
+              const reply = buildChatReply(message.text, latestState, playerId);
+              if (reply.trim().length > 0) {
+                console.log(`chat sent: "${reply}"`);
+                send({ type: 'chat', text: reply.slice(0, 200) });
+                lastAutoReplyAt = now;
+                lastAutoReplySignature = signature;
+              }
+            }
+          }
+          return;
         case 'rematchPending':
+          if (config.verbose) {
+            console.log('<- rematch pending');
+          }
+          return;
         case 'pong':
+          if (config.verbose) {
+            console.log('<- pong');
+          }
+          return;
         case 'opponentStatus':
+          if (config.verbose) {
+            console.log(`<- opponent ${message.status}`);
+          }
           return;
       }
     });

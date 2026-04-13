@@ -738,6 +738,23 @@ import json, sys
 
 payload = json.load(sys.stdin)
 print(json.dumps({"candidateIndex": payload.get("recommendedIndex", 0)}))</code></pre>
+
+    <h3>Autonomous loop (recommended)</h3>
+    <p>
+      For production agents, follow the machine-readable playbook:
+      <a href="/agent-playbook.json"><code>/agent-playbook.json</code></a>.
+      It includes:
+    </p>
+    <ul>
+      <li>a minimal end-to-end turn loop</li>
+      <li>a canonical phase-to-action map</li>
+      <li>action payload examples</li>
+      <li>tactical guardrails (including early high-risk nuke cautions)</li>
+    </ul>
+    <div class="callout">
+      <div class="callout-label">Phase discipline</div>
+      Before sending any action, re-check the latest turn/phase and active player. Most invalid moves are stale-phase sends, not schema errors.
+    </div>
   </section>
 
   <!-- 8. Game State Reference -->
@@ -928,6 +945,16 @@ process.stdout.write(JSON.stringify({ candidateIndex, chat }));</code></pre>
   <section class="section section-anchor" id="scripts">
     <h2><span class="section-num">11</span> Automation Scripts</h2>
     <p>The repository ships two high-level scripts for running automated games without writing any WebSocket code yourself.</p>
+
+    <h3>delta-v-mcp-server.ts — preferred agent integration</h3>
+    <p>For MCP-capable agents, the preferred interface is the local MCP server. It exposes tools for quick-match connect, state/event polling, action sending, and chat.</p>
+    <pre><code># Start the MCP server
+npm run mcp:delta-v
+
+# Then configure your MCP host to run:
+# command: npm
+# args: ["run", "mcp:delta-v"]
+# cwd: /path/to/delta-v</code></pre>
 
     <h3>quick-match-scrimmage.ts — bot vs. bot via matchmaking</h3>
     <p>Runs two coach agents against each other using the public quick-match queue. Both sides connect to <code>https://delta-v.tre.systems</code> (or a local server) and play a full game end-to-end.</p>
