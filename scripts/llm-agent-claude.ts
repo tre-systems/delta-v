@@ -98,8 +98,8 @@ const SUBMIT_ACTION_TOOL: Anthropic.Tool = {
       chat: {
         type: 'string',
         description:
-          'Optional short message or taunt shown to your opponent (max 100 chars). Only include if you have something memorable to say.',
-        maxLength: 100,
+          'Optional short message or taunt shown to your opponent (max 200 chars). Only include if you have something memorable to say.',
+        maxLength: 200,
       },
     },
     required: ['candidateIndex'],
