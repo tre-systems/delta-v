@@ -391,6 +391,72 @@ describe('projectMatchSetupFromStream', () => {
     expect(player1Ship?.velocity).toEqual({ dq: 0, dr: 0 });
   });
 
+  it('refuels a landed ship on a friendly base even if the stream only includes shipLanded', () => {
+    const projected = projectMatchSetupFromStream(
+      [
+        {
+          gameId: asGameId('BIPLA-m5'),
+          seq: 1,
+          ts: 1,
+          actor: null,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Bi-Planetary',
+            turn: 1,
+            phase: 'astrogation',
+            matchSeed: 0,
+          },
+        },
+        {
+          gameId: asGameId('BIPLA-m5'),
+          seq: 2,
+          ts: 2,
+          actor: 0,
+          event: {
+            type: 'shipMoved',
+            shipId: asShipId('p0s0'),
+            from: { q: -9, r: -4 },
+            to: { q: -9, r: -4 },
+            path: [{ q: -9, r: -4 }],
+            fuelSpent: 1,
+            fuelRemaining: 3,
+            newVelocity: { dq: 1, dr: 0 },
+            lifecycle: 'active',
+            overloadUsed: true,
+            pendingGravityEffects: [],
+          },
+        },
+        {
+          gameId: asGameId('BIPLA-m5'),
+          seq: 3,
+          ts: 3,
+          actor: 0,
+          event: {
+            type: 'shipLanded',
+            shipId: asShipId('p0s0'),
+          },
+        },
+      ],
+      map,
+    );
+
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) {
+      return;
+    }
+
+    const ship = projected.value.ships.find(
+      (candidate) => candidate.id === 'p0s0',
+    );
+
+    expect(ship).toBeDefined();
+    expect(ship?.lifecycle).toBe('landed');
+    expect(ship?.fuel).toBe(SHIP_STATS[ship?.type ?? 'frigate'].fuel);
+    expect(ship?.damage.disabledTurns).toBe(0);
+    expect(ship?.overloadUsed).toBe(false);
+    expect(ship?.resuppliedThisTurn).toBe(true);
+  });
+
   it('applies ordnance launch and expiry events', () => {
     const projected = projectMatchSetupFromStream(
       [

@@ -5,6 +5,35 @@ import { getCargoUsedAfterResupply } from '../util';
 import type { ShipProjectionEvent } from './support';
 import { cloneGravityEffects, requireShip, requireState } from './support';
 
+const applyFriendlyBaseResupply = (
+  state: GameState,
+  ship: GameState['ships'][number],
+): void => {
+  const baseKey = hexKey(ship.position);
+
+  if (state.destroyedBases.includes(baseKey)) {
+    return;
+  }
+
+  if (!(state.players[ship.owner]?.bases.includes(baseKey) ?? false)) {
+    return;
+  }
+
+  const stats = SHIP_STATS[ship.type];
+
+  if (!stats) {
+    return;
+  }
+
+  ship.fuel = stats.fuel;
+  ship.cargoUsed = getCargoUsedAfterResupply(ship);
+  ship.nukesLaunchedSinceResupply = 0;
+  ship.overloadUsed = false;
+  ship.damage = { disabledTurns: 0 };
+  ship.control = 'own';
+  ship.resuppliedThisTurn = true;
+};
+
 export const projectShipEvent = (
   state: GameState | null,
   event: ShipProjectionEvent,
@@ -60,6 +89,7 @@ export const projectShipEvent = (
       projectedShip.value.lifecycle = 'landed';
       projectedShip.value.velocity = { dq: 0, dr: 0 };
       projectedShip.value.pendingGravityEffects = [];
+      applyFriendlyBaseResupply(state, projectedShip.value);
 
       return {
         ok: true,
