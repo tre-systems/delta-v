@@ -26,7 +26,9 @@
     "llm:agent:recommended": "tsx scripts/llm-agent-recommended.ts",
     "llm:agent:coach": "tsx scripts/llm-agent-coach.ts",
     "llm:agent:claude": "npx tsx scripts/llm-agent-claude.ts",
+    "mcp:delta-v": "tsx scripts/delta-v-mcp-server.ts",
     "quickmatch:scrimmage": "tsx scripts/quick-match-scrimmage.ts",
+    "quickmatch:agent": "tsx scripts/quick-match-agent.ts",
     "load:test": "tsx scripts/load-test.ts",
     "update-deps": "npx npm-check-updates -u && npm install",
     "prepare": "husky"
@@ -49,5 +51,9 @@
     "vitest": "^4.1.0",
     "wrangler": "^4.75.0",
     "ws": "^8.19.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.3.6"
   }
 }
