@@ -1,4 +1,3 @@
-// @ts-expect-error — optional peer dependency
 import Anthropic from '@anthropic-ai/sdk';
 
 // Minimal local types matching llm-player.ts AgentTurnInput
