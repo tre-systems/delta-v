@@ -138,6 +138,7 @@ const createController = () => {
   };
   const sessionApi = {
     createGame: vi.fn(),
+    startQuickMatch: vi.fn(async () => {}),
   };
   const setAIDifficulty = vi.fn();
   const exitToMenu = vi.fn();

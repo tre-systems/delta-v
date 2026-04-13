@@ -86,6 +86,21 @@ type HandleRematchDeps = {
   storage: DurableObjectStorage;
   initGame: () => Promise<void>;
   broadcast: (msg: { type: 'rematchPending' }) => void;
+  getRequiredVotes: () => Promise<number>;
+};
+
+export const getRequiredRematchVotes = (
+  roomConfig: RoomConfig | null,
+): number => {
+  if (!roomConfig) {
+    return 2;
+  }
+
+  const humanSeats = roomConfig.players.filter(
+    (player) => player.kind === 'human',
+  ).length;
+
+  return Math.max(1, humanSeats);
 };
 
 export const handleRematchRequest = async (
@@ -100,7 +115,9 @@ export const handleRematchRequest = async (
     requests.push(playerId);
   }
 
-  if (requests.length >= 2) {
+  const requiredVotes = await deps.getRequiredVotes();
+
+  if (requests.length >= requiredVotes) {
     await deps.storage.delete(GAME_DO_STORAGE_KEYS.rematchRequests);
     await deps.initGame();
     return;

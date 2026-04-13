@@ -7,6 +7,7 @@ import type { S2C } from '../../shared/types/protocol';
 import type { Renderer } from '../renderer/renderer';
 import type { UIManager } from '../ui/ui';
 import type { ActionDeps } from './action-deps';
+import { setWaitingScreenState } from './client-context-store';
 import type { ConnectionManager } from './connection';
 import type { HudController } from './hud-controller';
 import {
@@ -61,6 +62,7 @@ type MainRemoteSessionBridge = Pick<
   | 'replaceRoute'
   | 'buildGameRoute'
   | 'connect'
+  | 'setWaitingScreenState'
   | 'setState'
 >;
 
@@ -86,6 +88,7 @@ const createMainRemoteSessionBridge = (
   replaceRoute: replaceMainRoute,
   buildGameRoute,
   connect: (gameCode) => deps.connection.connect(gameCode),
+  setWaitingScreenState: (state) => setWaitingScreenState(deps.ctx, state),
   setState: deps.setState,
 });
 

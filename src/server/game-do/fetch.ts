@@ -17,6 +17,7 @@ export type GameDoFetchDeps = {
     seatOpen: [boolean, boolean],
     playerId: 0 | 1,
   ) => number;
+  isAgentSeat: (playerId: 0 | 1) => Promise<boolean>;
   saveRoomConfig: (roomConfig: RoomConfig) => Promise<void>;
   clearDisconnectMarker: () => Promise<void>;
   replacePlayerSockets: (playerId: 0 | 1) => void;
@@ -137,7 +138,12 @@ export const handleGameDoFetch = async (
       state: reconnectState,
     });
   }
-  if (!reconnectState && connectedSeatCountAfterJoin >= 2) {
+  const opponentId = playerId === 0 ? 1 : 0;
+  const shouldStartImmediately =
+    !reconnectState &&
+    (connectedSeatCountAfterJoin >= 2 || (await deps.isAgentSeat(opponentId)));
+
+  if (shouldStartImmediately) {
     deps.broadcast({ type: 'matchFound' });
     await deps.initGame();
   }

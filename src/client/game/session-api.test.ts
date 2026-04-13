@@ -37,6 +37,12 @@ const createDeps = () => {
       reconnectAttempts: 0,
       latencyMs: -1,
     }),
+    playerProfile: {
+      getProfile: vi.fn(() => ({
+        playerKey: 'playerkey1',
+        username: 'Pilot 1',
+      })),
+    },
     tokens: {
       getStoredPlayerToken: vi.fn<(code: string) => string | null>(() => null),
       storePlayerToken: vi.fn<(code: string, token: string) => void>(),
@@ -44,7 +50,9 @@ const createDeps = () => {
     },
     showToast:
       vi.fn<(msg: string, type: 'error' | 'info' | 'success') => void>(),
-    setMenuLoading: vi.fn<(loading: boolean) => void>(),
+    setMenuLoading:
+      vi.fn<(loading: boolean, kind?: 'create' | 'quickMatch') => void>(),
+    setWaitingScreenState: vi.fn<SessionApiDeps['setWaitingScreenState']>(),
     setState: vi.fn<SessionApiDeps['setState']>(),
     setScenario: vi.fn<(scenario: string) => void>(),
     connect: vi.fn<(code: string) => void>(),
@@ -108,7 +116,7 @@ describe('session-api telemetry', () => {
       'error',
     );
     expect(deps.setState).toHaveBeenCalledWith('menu');
-    expect(deps.setMenuLoading).toHaveBeenNthCalledWith(1, true);
+    expect(deps.setMenuLoading).toHaveBeenNthCalledWith(1, true, 'create');
     expect(deps.setMenuLoading).toHaveBeenLastCalledWith(false);
   });
 
@@ -227,5 +235,36 @@ describe('session-api telemetry', () => {
       reason: 'timeout',
       gameId: asGameId('GAME1'),
     });
+  });
+
+  it('blocks quick match when another tab already holds the queue lock', async () => {
+    const { deps, track } = createDeps();
+    const fetchMock = vi.fn();
+    deps.quickMatchLock = {
+      claim: vi.fn(() => ({ ok: false })),
+      heartbeat: vi.fn(),
+      release: vi.fn(),
+    };
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createSessionApi(deps);
+
+    await api.startQuickMatch();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(track).toHaveBeenNthCalledWith(1, 'quick_match_attempted', {
+      scenario: 'duel',
+    });
+    expect(track).toHaveBeenNthCalledWith(2, 'quick_match_failed', {
+      scenario: 'duel',
+      reason: 'active_in_other_tab',
+    });
+    expect(deps.showToast).toHaveBeenCalledWith(
+      'Quick Match is already active in another tab. Use a private window to join as a second local player.',
+      'error',
+    );
+    expect(deps.setState).toHaveBeenCalledWith('menu');
+    expect(deps.setMenuLoading).toHaveBeenNthCalledWith(1, true, 'quickMatch');
+    expect(deps.setMenuLoading).toHaveBeenLastCalledWith(false);
   });
 });

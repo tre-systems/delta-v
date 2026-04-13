@@ -29,6 +29,7 @@ export type GameDoAlarmDeps = {
   getCurrentGameState: () => Promise<GameState | null>;
   getGameCode: () => Promise<string>;
   getActionRng: () => Promise<() => number>;
+  runBotTurn: () => Promise<void>;
   clearDisconnectMarker: () => Promise<void>;
   rescheduleAlarm: () => Promise<void>;
   publishStateChange: (
@@ -93,6 +94,9 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
           publishStateChange: deps.publishStateChange,
           rescheduleAlarm: deps.rescheduleAlarm,
         });
+        return;
+      case 'botTurn':
+        await deps.runBotTurn();
         return;
       case 'inactivityTimeout': {
         const gameState = await deps.getCurrentGameState();

@@ -33,11 +33,19 @@ test.describe('accessibility smoke checks', () => {
     await runA11yCheck(page, ['#hud', '#helpOverlay']);
   });
 
-  test('menu buttons are keyboard-focusable and Enter activates primary navigation', async ({
+  test('menu controls are keyboard-focusable and Enter activates primary navigation', async ({
     page,
   }) => {
     await openHomePage(page);
     await waitForDisplay(page, '#menu', 'flex');
+
+    await page.keyboard.press('Tab');
+    await expect
+      .poll(async () => activeElementId(page))
+      .toBe('playerNameInput');
+
+    await page.keyboard.press('Tab');
+    await expect.poll(async () => activeElementId(page)).toBe('quickMatchBtn');
 
     await page.keyboard.press('Tab');
     await expect.poll(async () => activeElementId(page)).toBe('createBtn');

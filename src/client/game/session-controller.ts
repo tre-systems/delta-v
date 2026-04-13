@@ -16,6 +16,7 @@ import {
   setScenario,
   setSpectatorMode,
   setTransport,
+  setWaitingScreenState,
 } from './client-context-store';
 import { clearClientGameState } from './game-state-store';
 import { deriveGameStartClientState } from './network';
@@ -29,6 +30,9 @@ export interface CreatedGameSessionDeps {
   replaceRoute: (route: string) => void;
   buildGameRoute: (code: string) => string;
   connect: (code: string) => void;
+  setWaitingScreenState: (
+    state: import('../ui/screens').WaitingScreenState | null,
+  ) => void;
   setState: (state: ClientState) => void;
   trackGameCreated: (details: {
     scenario: string;
@@ -69,6 +73,9 @@ export interface SpectateGameSessionDeps {
   replaceRoute: (route: string) => void;
   buildGameRoute: (code: string) => string;
   connect: (code: string) => void;
+  setWaitingScreenState: (
+    state: import('../ui/screens').WaitingScreenState | null,
+  ) => void;
   setState: (state: ClientState) => void;
 }
 
@@ -83,6 +90,9 @@ export interface JoinGameSessionDeps {
   replaceRoute: (route: string) => void;
   buildGameRoute: (code: string) => string;
   connect: (code: string) => void;
+  setWaitingScreenState: (
+    state: import('../ui/screens').WaitingScreenState | null,
+  ) => void;
   setState: (state: ClientState) => void;
   validateJoin: (
     code: string,
@@ -106,6 +116,7 @@ export interface ExitToMenuSessionDeps {
     | 'opponentDisconnectDeadlineMs'
     | 'spectatorMode'
     | 'transport'
+    | 'waitingScreenState'
   >;
   stopPing: () => void;
   stopTurnTimer: () => void;
@@ -126,6 +137,7 @@ type RemoteSessionPrepState = Pick<
   | 'isLocalGame'
   | 'reconnectOverlayState'
   | 'opponentDisconnectDeadlineMs'
+  | 'waitingScreenState'
 >;
 
 type LocalSessionPrepState = Pick<
@@ -137,11 +149,12 @@ type LocalSessionPrepState = Pick<
   | 'reconnectAttempts'
   | 'reconnectOverlayState'
   | 'opponentDisconnectDeadlineMs'
+  | 'waitingScreenState'
 >;
 
 type ClearedRemoteSessionState = Pick<
   ClientSession,
-  'gameCode' | 'latencyMs' | 'reconnectAttempts'
+  'gameCode' | 'latencyMs' | 'reconnectAttempts' | 'waitingScreenState'
 >;
 
 const clearReconnectUiState = (ctx: SessionReconnectUiState): void => {
@@ -156,12 +169,14 @@ const prepareRemoteSession = (
   setSpectatorMode(ctx as ClientSession, spectatorMode);
   setIsLocalGame(ctx, false);
   clearReconnectUiState(ctx);
+  setWaitingScreenState(ctx, null);
 };
 
 const clearRemoteSessionState = (ctx: ClearedRemoteSessionState): void => {
   setGameCode(ctx, null);
   setLatencyMs(ctx, -1);
   resetReconnectAttempts(ctx);
+  setWaitingScreenState(ctx, null);
 };
 
 const prepareLocalSession = (ctx: LocalSessionPrepState): void => {
@@ -180,6 +195,11 @@ export const completeCreatedGameSession = (
   prepareRemoteSession(deps.ctx, false);
   setScenario(deps.ctx, scenario);
   setGameCode(deps.ctx, code);
+  deps.setWaitingScreenState({
+    kind: 'private',
+    code,
+    connecting: false,
+  });
   deps.storePlayerToken(code, playerToken);
   deps.replaceRoute(deps.buildGameRoute(code));
   deps.trackGameCreated({
@@ -253,6 +273,11 @@ export const beginSpectateGameSession = (
   prepareRemoteSession(deps.ctx as ClientSession, true);
   deps.resetTurnTelemetry();
   setGameCode(deps.ctx, code);
+  deps.setWaitingScreenState({
+    kind: 'private',
+    code,
+    connecting: true,
+  });
   deps.replaceRoute(deps.buildGameRoute(code));
   deps.setState('connecting');
   deps.connect(code);
@@ -280,6 +305,11 @@ export const beginJoinGameSession = async (
   }
   deps.resetTurnTelemetry();
   setGameCode(deps.ctx, code);
+  deps.setWaitingScreenState({
+    kind: 'private',
+    code,
+    connecting: true,
+  });
   deps.replaceRoute(deps.buildGameRoute(code));
   deps.setState('connecting');
   deps.connect(code);

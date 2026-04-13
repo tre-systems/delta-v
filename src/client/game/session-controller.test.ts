@@ -71,6 +71,7 @@ const createCreatedGameDeps = (): CreatedGameSessionDeps & {
     replaceRoute: track('replaceRoute'),
     buildGameRoute: (code) => `/game/${code}`,
     connect: track('connect'),
+    setWaitingScreenState: track('setWaitingScreenState'),
     setState: track('setState'),
     trackGameCreated: track('trackGameCreated'),
     calls,
@@ -166,6 +167,7 @@ const createJoinGameDeps = (): JoinGameSessionDeps & {
     replaceRoute: track('replaceRoute'),
     buildGameRoute: (code) => `/game/${code}`,
     connect: track('connect'),
+    setWaitingScreenState: track('setWaitingScreenState'),
     setState: track('setState'),
     validateJoin: async (_code, playerToken) => ({
       ok: true,
@@ -244,6 +246,7 @@ const createSpectateGameDeps = (): SpectateGameSessionDeps & {
     replaceRoute: track('replaceRoute'),
     buildGameRoute: (code) => `/game/${code}`,
     connect: track('connect'),
+    setWaitingScreenState: track('setWaitingScreenState'),
     setState: track('setState'),
     calls,
   };

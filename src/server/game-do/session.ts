@@ -7,6 +7,7 @@ const TURN_TIMEOUT_GRACE_MS = 500;
 
 export interface AlarmDeadlines {
   disconnectAt?: number;
+  botTurnAt?: number;
   turnTimeoutAt?: number;
   inactivityAt?: number;
 }
@@ -18,6 +19,7 @@ export interface AlarmSnapshot extends AlarmDeadlines {
 
 export type AlarmAction =
   | { type: 'disconnectExpired'; playerId: PlayerId }
+  | { type: 'botTurn' }
   | { type: 'turnTimeout' }
   | { type: 'inactivityTimeout' }
   | { type: 'reschedule' };
@@ -34,14 +36,17 @@ export const normalizeDisconnectedPlayer = (value: unknown): PlayerId | null =>
 export const readAlarmDeadlines = async (
   storage: DurableObjectStorage,
 ): Promise<AlarmDeadlines> => {
-  const [disconnectAt, turnTimeoutAt, inactivityAt] = await Promise.all([
-    storage.get<number>(GAME_DO_STORAGE_KEYS.disconnectAt),
-    storage.get<number>(GAME_DO_STORAGE_KEYS.turnTimeoutAt),
-    storage.get<number>(GAME_DO_STORAGE_KEYS.inactivityAt),
-  ]);
+  const [disconnectAt, botTurnAt, turnTimeoutAt, inactivityAt] =
+    await Promise.all([
+      storage.get<number>(GAME_DO_STORAGE_KEYS.disconnectAt),
+      storage.get<number>(GAME_DO_STORAGE_KEYS.botTurnAt),
+      storage.get<number>(GAME_DO_STORAGE_KEYS.turnTimeoutAt),
+      storage.get<number>(GAME_DO_STORAGE_KEYS.inactivityAt),
+    ]);
 
   return {
     disconnectAt,
+    botTurnAt,
     turnTimeoutAt,
     inactivityAt,
   };
@@ -79,6 +84,7 @@ export const getNextAlarmAt = (deadlines: AlarmDeadlines): number | null => {
 export const resolveAlarmAction = ({
   disconnectedPlayer,
   disconnectAt,
+  botTurnAt,
   turnTimeoutAt,
   inactivityAt,
   now,
@@ -92,6 +98,10 @@ export const resolveAlarmAction = ({
       type: 'disconnectExpired',
       playerId: disconnectedPlayer,
     };
+  }
+
+  if (botTurnAt !== undefined && now >= botTurnAt) {
+    return { type: 'botTurn' };
   }
 
   if (

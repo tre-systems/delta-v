@@ -381,6 +381,10 @@
     gap: 0.8rem;
   }
 
+  #menu .menu-surface {
+    gap: 0.65rem;
+  }
+
   .menu-logo {
     width: 64px;
     height: 64px;
@@ -419,6 +423,11 @@
 
   #menu .join-row {
     gap: 0.55rem;
+  }
+
+  .menu-surface-note {
+    font-size: 0.74rem;
+    max-width: 24ch;
   }
 
   .game-code {
