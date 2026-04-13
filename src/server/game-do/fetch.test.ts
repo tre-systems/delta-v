@@ -22,6 +22,7 @@ const makeDeps = (
     response: new Response('fail', { status: 400 }),
   }),
   getConnectedSeatCountAfterJoin: vi.fn(),
+  isAgentSeat: vi.fn().mockResolvedValue(false),
   saveRoomConfig: vi.fn(),
   clearDisconnectMarker: vi.fn(),
   replacePlayerSockets: vi.fn(),

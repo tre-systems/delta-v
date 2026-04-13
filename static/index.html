@@ -83,7 +83,13 @@
         <p class="menu-note">Plot burns, ride gravity, and outfly the other commander.</p>
       </div>
       <div class="menu-surface menu-surface-primary">
-        <button id="createBtn" class="btn btn-primary">Create Game</button>
+        <div class="menu-profile">
+          <label class="menu-profile-label" for="playerNameInput">Callsign</label>
+          <input id="playerNameInput" class="menu-profile-input" maxlength="20" placeholder="Pilot" autocapitalize="words" spellcheck="false" aria-label="Callsign">
+        </div>
+        <button id="quickMatchBtn" class="btn btn-primary">Quick Match</button>
+        <div class="menu-surface-note">Find the next available commander in the duel queue.</div>
+        <button id="createBtn" class="btn btn-secondary">Create Private Match</button>
         <div id="aiSection" class="ai-section">
           <button id="singlePlayerBtn" class="btn btn-secondary btn-ai">Play vs AI</button>
           <div class="difficulty-group">
@@ -126,10 +132,10 @@
   <!-- Waiting for opponent -->
   <div id="waiting" class="screen screen-page" hidden>
     <div class="menu-content">
-      <h2>Game Created</h2>
+      <h2 id="waitingTitle">Game Created</h2>
       <p id="waitingScenario" class="status-text" hidden></p>
       <div id="gameCode" class="game-code">-----</div>
-      <p class="status-text waiting-share-hint">Share this code with your opponent to start</p>
+      <p id="waitingShareHint" class="status-text waiting-share-hint">Share this code with your opponent to start</p>
       <button id="copyBtn" class="btn btn-secondary">Copy Link</button>
       <button id="copySpectateBtn" class="btn btn-secondary">Copy Observer Link (view-only)</button>
       <p id="waitingStatus" class="status-text waiting-status-pulse">Waiting for opponent...</p>

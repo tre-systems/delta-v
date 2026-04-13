@@ -113,11 +113,7 @@ describe('session-signals', () => {
     expect(deps.ui.setPlayerId).toHaveBeenLastCalledWith(-1);
     expect(deps.ui.showAttackButton).toHaveBeenLastCalledWith(false);
     expect(deps.ui.showFireButton).toHaveBeenLastCalledWith(false, 0);
-    expect(deps.ui.setWaitingState).toHaveBeenLastCalledWith(
-      null,
-      false,
-      'biplanetary',
-    );
+    expect(deps.ui.setWaitingState).toHaveBeenLastCalledWith(null);
     expect(deps.ui.updateLatency).toHaveBeenLastCalledWith(null);
     expect(deps.ui.updateFleetStatus).toHaveBeenLastCalledWith('');
     expect(deps.ui.updateShipList).toHaveBeenLastCalledWith(
@@ -284,22 +280,22 @@ describe('session-signals', () => {
       setWaitingState,
     });
 
-    expect(setWaitingState).toHaveBeenLastCalledWith(
-      null,
-      false,
-      'biplanetary',
-    );
+    expect(setWaitingState).toHaveBeenLastCalledWith(null);
 
     session.state = 'connecting';
-    expect(setWaitingState).toHaveBeenLastCalledWith(null, true, 'biplanetary');
+    expect(setWaitingState).toHaveBeenLastCalledWith(null);
 
-    session.gameCode = 'ROOM1';
+    session.waitingScreenState = {
+      kind: 'private',
+      code: 'ROOM1',
+      connecting: false,
+    };
     session.state = 'waitingForOpponent';
-    expect(setWaitingState).toHaveBeenLastCalledWith(
-      'ROOM1',
-      false,
-      'biplanetary',
-    );
+    expect(setWaitingState).toHaveBeenLastCalledWith({
+      kind: 'private',
+      code: 'ROOM1',
+      connecting: false,
+    });
 
     dispose();
   });

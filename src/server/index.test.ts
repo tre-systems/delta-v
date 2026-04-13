@@ -4,6 +4,10 @@ vi.mock('./game-do/game-do', () => ({
   GameDO: class GameDO {},
 }));
 
+vi.mock('./matchmaker-do', () => ({
+  MatchmakerDO: class MatchmakerDO {},
+}));
+
 import worker, {
   createRateMap,
   type Env,
@@ -25,6 +29,10 @@ type MockEnv = {
   };
   GAME: {
     idFromName: ReturnType<typeof vi.fn<(code: string) => DurableObjectId>>;
+    get: ReturnType<typeof vi.fn<(id: DurableObjectId) => DurableObjectStub>>;
+  };
+  MATCHMAKER: {
+    idFromName: ReturnType<typeof vi.fn<(name: string) => DurableObjectId>>;
     get: ReturnType<typeof vi.fn<(id: DurableObjectId) => DurableObjectStub>>;
   };
   DB: MockDb;
@@ -71,6 +79,12 @@ const createEnv = (
   const stub = {
     fetch: initFetch,
   } as unknown as DurableObjectStub;
+  const matchmakerFetch = vi.fn(async () =>
+    Response.json({ status: 'queued', ticket: 'ticket1', scenario: 'duel' }),
+  );
+  const matchmakerStub = {
+    fetch: matchmakerFetch,
+  } as unknown as DurableObjectStub;
 
   const env: MockEnv = {
     ASSETS: { fetch: assetsFetch },
@@ -80,11 +94,17 @@ const createEnv = (
       ),
       get: vi.fn(() => stub),
     },
+    MATCHMAKER: {
+      idFromName: vi.fn(
+        (name: string) => `matchmaker:${name}` as unknown as DurableObjectId,
+      ),
+      get: vi.fn(() => matchmakerStub),
+    },
     DB: mockDb(),
     ...overrides,
   };
 
-  return { env, assetsFetch, initFetch };
+  return { env, assetsFetch, initFetch, matchmakerFetch };
 };
 
 describe('server index worker', () => {
@@ -125,6 +145,36 @@ describe('server index worker', () => {
 
     expect(data.code).toBe(payload.code);
     expect(data.playerToken).toBe(payload.playerToken);
+  });
+
+  it('proxies quick-match requests to the matchmaker durable object', async () => {
+    const { env, matchmakerFetch } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/quick-match', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(env.MATCHMAKER.idFromName).toHaveBeenCalledWith('global');
+    expect(matchmakerFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'POST',
+        url: 'https://matchmaker.internal/enqueue',
+      }),
+    );
   });
 
   it('retries collisions up to 12 times before returning 503', async () => {
