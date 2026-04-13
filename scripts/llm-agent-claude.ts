@@ -1,3 +1,4 @@
+// @ts-expect-error — optional peer dependency
 import Anthropic from '@anthropic-ai/sdk';
 
 // Minimal local types matching llm-player.ts AgentTurnInput
@@ -272,7 +273,9 @@ const main = async (): Promise<void> => {
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const textContent = message.content.find((c) => c.type === 'text');
+    const textContent = message.content.find(
+      (c: { type: string }) => c.type === 'text',
+    );
     if (!textContent || textContent.type !== 'text') {
       process.stdout.write(JSON.stringify({ candidateIndex: recommended }));
       return;
