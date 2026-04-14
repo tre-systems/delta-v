@@ -144,6 +144,7 @@
       "delta_v_list_sessions",
       "delta_v_get_state",
       "delta_v_get_observation",
+      "delta_v_wait_for_turn",
       "delta_v_get_events",
       "delta_v_send_action",
       "delta_v_send_chat",
