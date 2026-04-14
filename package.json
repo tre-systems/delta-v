@@ -26,6 +26,7 @@
     "llm:agent:recommended": "tsx scripts/llm-agent-recommended.ts",
     "llm:agent:coach": "tsx scripts/llm-agent-coach.ts",
     "llm:agent:claude": "npx tsx scripts/llm-agent-claude.ts",
+    "llm:agent:groq": "tsx scripts/llm-agent-groq.ts",
     "mcp:delta-v": "tsx scripts/delta-v-mcp-server.ts",
     "quickmatch:scrimmage": "tsx scripts/quick-match-scrimmage.ts",
     "quickmatch:agent": "tsx scripts/quick-match-agent.ts",
