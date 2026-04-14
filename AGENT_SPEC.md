@@ -79,10 +79,11 @@ Honest inventory. Capability / Status / Location.
 | Quick-match scrimmage runner | Shipped | `scripts/quick-match-scrimmage.ts` |
 | `ActionGuards` submission guards | Shipped | `src/shared/types/protocol.ts`, `src/server/game-do/action-guards.ts` — server rejects stale/duplicate submissions with fresh state |
 | `actionRejected` S2C + bridge auto-retry | Shipped | `scripts/llm-player.ts` — bridge auto-stamps guards and retries on rejection |
+| Observation v2 — tactical features | Shipped | `src/shared/agent/tactical.ts` — `includeTactical: true` opt-in |
+| Observation v2 — ASCII spatial grid | Shipped | `src/shared/agent/spatial-grid.ts` — `includeSpatialGrid: true` opt-in, fog-of-war compliant |
+| Observation v2 — labeled candidates + risk | Shipped | `src/shared/agent/candidate-labels.ts` — `includeCandidateLabels: true` opt-in |
 | Remote hosted MCP endpoint | Planned | — |
-| ASCII hex grid in observation | Planned | target: observation builder |
 | `ActionResult` feedback shape | Planned | target: MCP tool result |
-| Candidate labels / reasoning / risk | Planned | target: bridge candidate builder |
 | `/coach` mid-game human-to-agent directive | Planned | target: chat handler + observation field |
 | Layered `agentToken` / `playerToken` | Planned | target: `/api/agent-token` endpoint |
 | Public agent leaderboard with Elo | Future | depends on account system |

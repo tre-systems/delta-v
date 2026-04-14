@@ -8,21 +8,6 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### Observation v2 — add tactical features, spatial grid, candidate labels
-
-**Trigger:** the shared observation builder ships the v1 `AgentTurnInput` shape
-but not the richer `Observation` from [AGENT_SPEC.md §5.2](../AGENT_SPEC.md#5-observation-model).
-
-Extend `src/shared/agent/observation.ts` to optionally emit:
-
-- `tactical` derived features (`nearestEnemyDistance`, `fuelAdvantage`, `objectiveDistance`, `enemyObjectiveDistance`, `threatAxis`, `turnsToObjective`)
-- `candidates[*].label` / `.reasoning` / `.risk` (the hard AI already produces a natural label; reasoning comes from the underlying `ai/scoring` trace when exposed)
-- `spatialGrid: string` — ASCII hex map centred on fleet centroid; directional arrows for velocity; fog-of-war compliant
-
-Add a version flag on the observation so existing bridge agents keep the v1 payload and opt-in to v2.
-
-**Files:** `src/shared/agent/observation.ts`, new `src/shared/agent/spatial-grid.ts`, expose toggle through `delta_v_get_observation` / `delta_v_wait_for_turn`
-
 ### `ActionResult` with `effects` and `nextObservation`
 
 **Trigger:** close the agent decision loop without re-fetching the world after every action.

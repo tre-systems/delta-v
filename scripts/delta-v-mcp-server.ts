@@ -310,14 +310,24 @@ server.registerTool(
   'delta_v_get_observation',
   {
     description:
-      'Get the unified agent observation for a session: candidates, legal-action metadata, prose summary, and recommendedIndex. Matches the AgentTurnInput shape sent by the stdin/HTTP bridge so the same agent code works via either path.',
+      'Get the unified agent observation for a session: candidates, legal-action metadata, prose summary, and recommendedIndex. Matches the AgentTurnInput shape sent by the stdin/HTTP bridge so the same agent code works via either path. Opt-in v2 enrichments (tactical features, ASCII spatial grid, labeled candidates with risk) cost extra tokens but help LLM agents reason without re-deriving geometry.',
     inputSchema: {
       sessionId: z.string(),
       includeSummary: z.boolean().optional(),
       includeLegalActionInfo: z.boolean().optional(),
+      includeTactical: z.boolean().optional(),
+      includeSpatialGrid: z.boolean().optional(),
+      includeCandidateLabels: z.boolean().optional(),
     },
   },
-  async ({ sessionId, includeSummary, includeLegalActionInfo }) => {
+  async ({
+    sessionId,
+    includeSummary,
+    includeLegalActionInfo,
+    includeTactical,
+    includeSpatialGrid,
+    includeCandidateLabels,
+  }) => {
     const session = getSessionOrThrow(sessionId);
     if (session.lastState === null) {
       throw new Error(
@@ -334,6 +344,9 @@ server.registerTool(
       gameCode: session.code,
       includeSummary,
       includeLegalActionInfo,
+      includeTactical,
+      includeSpatialGrid,
+      includeCandidateLabels,
     });
 
     return toolOk(
@@ -347,15 +360,26 @@ server.registerTool(
   'delta_v_wait_for_turn',
   {
     description:
-      "Block until it is the caller's turn to act (or the fleetBuilding/astrogation phase opens, which both seats can act in), then return a fresh observation. Eliminates polling for MCP agents. Respects a timeout (default 30s) and throws if the game reaches gameOver before becoming actionable.",
+      "Block until it is the caller's turn to act (or the fleetBuilding/astrogation phase opens, which both seats can act in), then return a fresh observation. Eliminates polling for MCP agents. Respects a timeout (default 30s) and throws if the game reaches gameOver before becoming actionable. Supports the same v2 enrichment toggles as delta_v_get_observation.",
     inputSchema: {
       sessionId: z.string(),
       timeoutMs: z.number().int().min(1_000).max(300_000).optional(),
       includeSummary: z.boolean().optional(),
       includeLegalActionInfo: z.boolean().optional(),
+      includeTactical: z.boolean().optional(),
+      includeSpatialGrid: z.boolean().optional(),
+      includeCandidateLabels: z.boolean().optional(),
     },
   },
-  async ({ sessionId, timeoutMs, includeSummary, includeLegalActionInfo }) => {
+  async ({
+    sessionId,
+    timeoutMs,
+    includeSummary,
+    includeLegalActionInfo,
+    includeTactical,
+    includeSpatialGrid,
+    includeCandidateLabels,
+  }) => {
     const session = getSessionOrThrow(sessionId);
     const deadline = Date.now() + (timeoutMs ?? 30_000);
 
@@ -373,6 +397,9 @@ server.registerTool(
             gameCode: session.code,
             includeSummary,
             includeLegalActionInfo,
+            includeTactical,
+            includeSpatialGrid,
+            includeCandidateLabels,
           });
           return toolOk(
             `Actionable observation for session ${sessionId} (turn ${state.turnNumber}, phase ${state.phase}).`,
