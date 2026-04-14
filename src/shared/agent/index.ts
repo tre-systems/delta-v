@@ -3,6 +3,11 @@
 // legal-action metadata, and the prose summary agents see.
 
 export {
+  type ActionEffect,
+  type ActionEffectsResult,
+  computeActionEffects,
+} from './action-effects';
+export {
   type LabeledCandidate,
   labelCandidate,
   labelCandidates,

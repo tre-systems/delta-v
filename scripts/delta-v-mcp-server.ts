@@ -6,7 +6,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import WebSocket from 'ws';
 import { z } from 'zod';
 
-import { buildObservation, queueForMatch } from '../src/shared/agent';
+import {
+  buildObservation,
+  computeActionEffects,
+  queueForMatch,
+} from '../src/shared/agent';
 import type { GameState } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
 
@@ -98,13 +102,20 @@ const pushEvent = (session: DeltaVSession, message: S2C): void => {
     message.type === 'gameStart' ||
     message.type === 'movementResult' ||
     message.type === 'combatResult' ||
-    message.type === 'stateUpdate'
+    message.type === 'combatSingleResult' ||
+    message.type === 'stateUpdate' ||
+    message.type === 'actionRejected'
   ) {
     session.lastState = message.state;
     stateChanged = true;
   }
   if (message.type === 'welcome') {
     session.playerId = message.playerId;
+    stateChanged = true;
+  }
+  // gameOver does not carry state but is terminal; still wake waiters so
+  // callers can exit their wait loop promptly.
+  if (message.type === 'gameOver') {
     stateChanged = true;
   }
 
@@ -461,14 +472,34 @@ server.registerTool(
   'delta_v_send_action',
   {
     description:
-      "Send a raw C2S game action for a session. ActionGuards are auto-filled from the session's current state unless autoGuards=false; in that case the caller supplies `guards` on the action payload itself.",
+      "Send a raw C2S game action for a session. ActionGuards are auto-filled from the session's current state unless autoGuards=false. When waitForResult=true (default false), blocks briefly for the next state-bearing S2C or actionRejected and returns an ActionResult with accepted, effects (visible deltas), turn/phase info, and optionally a fresh observation so agents can close the decision loop in one call.",
     inputSchema: {
       sessionId: z.string(),
       action: z.object({ type: z.string() }).passthrough(),
       autoGuards: z.boolean().optional(),
+      waitForResult: z.boolean().optional(),
+      waitTimeoutMs: z.number().int().min(100).max(60_000).optional(),
+      includeNextObservation: z.boolean().optional(),
+      includeSummary: z.boolean().optional(),
+      includeLegalActionInfo: z.boolean().optional(),
+      includeTactical: z.boolean().optional(),
+      includeSpatialGrid: z.boolean().optional(),
+      includeCandidateLabels: z.boolean().optional(),
     },
   },
-  async ({ sessionId, action, autoGuards }) => {
+  async ({
+    sessionId,
+    action,
+    autoGuards,
+    waitForResult,
+    waitTimeoutMs,
+    includeNextObservation,
+    includeSummary,
+    includeLegalActionInfo,
+    includeTactical,
+    includeSpatialGrid,
+    includeCandidateLabels,
+  }) => {
     const session = getSessionOrThrow(sessionId);
     if (session.ws.readyState !== WebSocket.OPEN) {
       throw new Error(`Session ${sessionId} socket is not open`);
@@ -488,12 +519,108 @@ server.registerTool(
           } as C2S)
         : rawAction;
 
+    const preState = session.lastState;
+    const cursor = session.nextEventId;
     session.ws.send(JSON.stringify(payload));
-    return toolOk(`Sent action ${action.type} on session ${sessionId}.`, {
-      sessionId,
-      actionType: action.type,
-      guarded: Boolean(payload.guards),
-    });
+
+    if (!waitForResult) {
+      return toolOk(`Sent action ${action.type} on session ${sessionId}.`, {
+        sessionId,
+        actionType: action.type,
+        guarded: Boolean(payload.guards),
+      });
+    }
+
+    const deadline = Date.now() + (waitTimeoutMs ?? 5_000);
+    const buildObs = (
+      state: GameState,
+    ): Record<string, unknown> | undefined => {
+      if (!includeNextObservation) return undefined;
+      if (session.playerId === null) return undefined;
+      return {
+        ...buildObservation(state, session.playerId, {
+          gameCode: session.code,
+          includeSummary,
+          includeLegalActionInfo,
+          includeTactical,
+          includeSpatialGrid,
+          includeCandidateLabels,
+        }),
+      } as Record<string, unknown>;
+    };
+
+    while (Date.now() < deadline) {
+      // Any actionRejected since submission dominates: report rejection.
+      const rejectedEvent = session.events.find(
+        (e) => e.id >= cursor && e.message.type === 'actionRejected',
+      );
+      if (rejectedEvent && rejectedEvent.message.type === 'actionRejected') {
+        const msg = rejectedEvent.message;
+        return toolOk(
+          `Action ${action.type} rejected: ${msg.reason} — ${msg.message}`,
+          {
+            sessionId,
+            actionType: action.type,
+            accepted: false,
+            reason: msg.reason,
+            message: msg.message,
+            expected: msg.expected,
+            actual: msg.actual,
+            idempotencyKey: msg.idempotencyKey,
+            nextObservation: buildObs(msg.state),
+          },
+        );
+      }
+
+      const stateAdvanced = preState !== null && session.lastState !== preState;
+      if (
+        stateAdvanced &&
+        preState &&
+        session.lastState &&
+        session.playerId !== null
+      ) {
+        const { effects, turnAdvanced, phaseChanged } = computeActionEffects(
+          preState,
+          session.lastState,
+          session.playerId,
+        );
+        return toolOk(
+          `Action ${action.type} accepted (${effects.length} visible effect${effects.length === 1 ? '' : 's'}).`,
+          {
+            sessionId,
+            actionType: action.type,
+            accepted: true,
+            turnApplied: preState.turnNumber,
+            phaseApplied: preState.phase,
+            nextTurn: session.lastState.turnNumber,
+            nextPhase: session.lastState.phase,
+            nextActivePlayer: session.lastState.activePlayer,
+            turnAdvanced,
+            phaseChanged,
+            effects,
+            nextObservation: buildObs(session.lastState),
+          },
+        );
+      }
+
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      await waitForNextState(session, remaining);
+    }
+
+    // Timed out without seeing a state transition. Common when both players
+    // must submit before the phase advances (e.g. astrogation). The action
+    // is still in flight; the caller can poll via wait_for_turn.
+    return toolOk(
+      `Sent action ${action.type} on session ${sessionId}; no state update within ${waitTimeoutMs ?? 5_000}ms (still pending).`,
+      {
+        sessionId,
+        actionType: action.type,
+        accepted: null,
+        pending: true,
+        guarded: Boolean(payload.guards),
+      },
+    );
   },
 );
 
