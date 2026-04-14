@@ -8,29 +8,20 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### Sync scenario list across agent-facing endpoints
+### Observation v2 — add tactical features, spatial grid, candidate labels
 
-**Trigger:** drift between code and the discovery manifest is already real.
+**Trigger:** the shared observation builder ships the v1 `AgentTurnInput` shape
+but not the richer `Observation` from [AGENT_SPEC.md §5.2](../AGENT_SPEC.md#5-observation-model).
 
-`static/.well-known/agent.json` lists 5 scenarios (`duel`, `biplanetary`, `escape`, `convoy`, `evacuation`) but the engine ships 9 (`biplanetary`, `escape`, `evacuation`, `convoy`, `duel`, `blockade`, `interplanetaryWar`, `fleetAction`, `grandTour`). Agents using discovery miss four scenarios. Drive the manifest, `agent-playbook.json`, and `agents.html` from a single source — ideally `SCENARIOS` from `src/shared/scenario-definitions.ts` — generated at build time.
+Extend `src/shared/agent/observation.ts` to optionally emit:
 
-**Files:** `static/.well-known/agent.json`, `static/agent-playbook.json`, `static/agents.html`, `src/shared/scenario-definitions.ts`, generator script in `scripts/`
+- `tactical` derived features (`nearestEnemyDistance`, `fuelAdvantage`, `objectiveDistance`, `enemyObjectiveDistance`, `threatAxis`, `turnsToObjective`)
+- `candidates[*].label` / `.reasoning` / `.risk` (the hard AI already produces a natural label; reasoning comes from the underlying `ai/scoring` trace when exposed)
+- `spatialGrid: string` — ASCII hex map centred on fleet centroid; directional arrows for velocity; fog-of-war compliant
 
-### Shared `Observation` builder
+Add a version flag on the observation so existing bridge agents keep the v1 payload and opt-in to v2.
 
-**Trigger:** bridge and MCP server both re-derive tactical features; planned remote MCP needs the same shape.
-
-Lift the current ad-hoc legal-action info and summary generation into a single shared builder that produces the `Observation` type defined in [AGENT_SPEC.md §5](../AGENT_SPEC.md#5-observation-model). Include tactical derived features (`nearestEnemyDistance`, `fuelAdvantage`, `objectiveDistance`, `threatAxis`, `turnsToObjective`), candidate labels / reasoning / risk tags, and a Markdown `summary`. Keep `AgentTurnInput` working behind a version flag.
-
-**Files:** `src/shared/agent/observation.ts` (new), `scripts/llm-player.ts`, `scripts/delta-v-mcp-server.ts`, `src/shared/types/` (add `Observation` / `CandidateAction` / `ActionResult`)
-
-### ASCII spatial grid renderer
-
-**Trigger:** LLMs reason better about hex geometry from a visual grid than from coordinates.
-
-Add `spatialGrid: string` to the observation. Centre on fleet centroid, expand viewport to include all own ships, detected enemies, celestials, and the target body. Mark velocity vectors with directional arrows. Omit undetected enemies (fog of war). Include a legend cross-referencing positions to the structured JSON fields.
-
-**Files:** `src/shared/agent/spatial-grid.ts` (new), consumed by the observation builder
+**Files:** `src/shared/agent/observation.ts`, new `src/shared/agent/spatial-grid.ts`, expose toggle through `delta_v_get_observation` / `delta_v_wait_for_turn`
 
 ### Submission guards (`expectedTurn` / `expectedPhase`)
 
@@ -39,14 +30,6 @@ Add `spatialGrid: string` to the observation. Centre on fleet centroid, expand v
 Accept optional `expectedTurn`, `expectedPhase`, `idempotencyKey` on the C2S action payloads. Server rejects with a clear reason and includes the current observation in the error response so the agent retries immediately with correct state. Surface through the bridge and MCP.
 
 **Files:** `src/shared/types/protocol.ts`, `src/server/game-do/`, `scripts/llm-player.ts`, `scripts/delta-v-mcp-server.ts`
-
-### MCP: `wait_for_turn` tool
-
-**Trigger:** remove polling from the common agent loop.
-
-Add a tool that blocks until it is the caller's turn (sequential phases) or until `fleetBuilding` / `astrogation` opens (simultaneous), up to a configurable timeout. Back it with the existing WebSocket event stream.
-
-**Files:** `scripts/delta-v-mcp-server.ts`
 
 ### `ActionResult` with `effects` and `nextObservation`
 

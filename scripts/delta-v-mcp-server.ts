@@ -36,6 +36,9 @@ interface DeltaVSession {
   events: SessionEvent[];
   nextEventId: number;
   lastState: GameState | null;
+  // Resolvers waiting for the next state-bearing S2C message.
+  // Used by delta_v_wait_for_turn to avoid polling.
+  stateWaiters: Array<() => void>;
 }
 
 const sessions = new Map<string, DeltaVSession>();
@@ -90,6 +93,7 @@ const pushEvent = (session: DeltaVSession, message: S2C): void => {
     session.events.shift();
   }
 
+  let stateChanged = false;
   if (
     message.type === 'gameStart' ||
     message.type === 'movementResult' ||
@@ -97,11 +101,63 @@ const pushEvent = (session: DeltaVSession, message: S2C): void => {
     message.type === 'stateUpdate'
   ) {
     session.lastState = message.state;
+    stateChanged = true;
   }
   if (message.type === 'welcome') {
     session.playerId = message.playerId;
+    stateChanged = true;
+  }
+
+  if (stateChanged && session.stateWaiters.length > 0) {
+    const waiters = session.stateWaiters;
+    session.stateWaiters = [];
+    for (const resolve of waiters) resolve();
   }
 };
+
+// Returns true when the caller should decide and submit an action now:
+//   - simultaneous phases (fleetBuilding, astrogation) are always actionable by both seats
+//   - sequential phases are actionable only for the active player
+//   - waiting / gameOver phases are never actionable
+const isActionable = (state: GameState, playerId: PlayerSeat): boolean => {
+  switch (state.phase) {
+    case 'waiting':
+    case 'gameOver':
+      return false;
+    case 'fleetBuilding':
+    case 'astrogation':
+      return true;
+    case 'ordnance':
+    case 'combat':
+    case 'logistics':
+      return state.activePlayer === playerId;
+    default: {
+      const _exhaustive: never = state.phase;
+      throw new Error(`Unhandled phase: ${_exhaustive}`);
+    }
+  }
+};
+
+// Wait for the next state-bearing S2C message or a timeout.
+// Returns true if a state arrived, false on timeout.
+const waitForNextState = async (
+  session: DeltaVSession,
+  timeoutMs: number,
+): Promise<boolean> =>
+  await new Promise<boolean>((resolve) => {
+    let settled = false;
+    const settle = (result: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => settle(false), timeoutMs);
+    session.stateWaiters.push(() => {
+      clearTimeout(timer);
+      settle(true);
+    });
+  });
 
 const attachSessionListeners = (session: DeltaVSession): void => {
   session.ws.on('message', (raw: WebSocket.RawData) => {
@@ -187,6 +243,7 @@ server.registerTool(
       events: [],
       nextEventId: 1,
       lastState: null,
+      stateWaiters: [],
     };
     sessions.set(sessionId, session);
     // Attach listeners before awaiting open so early welcome/state messages are not lost.
@@ -282,6 +339,56 @@ server.registerTool(
     return toolOk(
       `Observation for session ${sessionId} (turn ${session.lastState.turnNumber}, phase ${session.lastState.phase}).`,
       { ...observation } as Record<string, unknown>,
+    );
+  },
+);
+
+server.registerTool(
+  'delta_v_wait_for_turn',
+  {
+    description:
+      "Block until it is the caller's turn to act (or the fleetBuilding/astrogation phase opens, which both seats can act in), then return a fresh observation. Eliminates polling for MCP agents. Respects a timeout (default 30s) and throws if the game reaches gameOver before becoming actionable.",
+    inputSchema: {
+      sessionId: z.string(),
+      timeoutMs: z.number().int().min(1_000).max(300_000).optional(),
+      includeSummary: z.boolean().optional(),
+      includeLegalActionInfo: z.boolean().optional(),
+    },
+  },
+  async ({ sessionId, timeoutMs, includeSummary, includeLegalActionInfo }) => {
+    const session = getSessionOrThrow(sessionId);
+    const deadline = Date.now() + (timeoutMs ?? 30_000);
+
+    while (Date.now() < deadline) {
+      const playerId = session.playerId;
+      const state = session.lastState;
+      if (state && playerId !== null) {
+        if (state.phase === 'gameOver') {
+          throw new Error(
+            `Session ${sessionId} reached gameOver before becoming actionable.`,
+          );
+        }
+        if (isActionable(state, playerId)) {
+          const observation = buildObservation(state, playerId, {
+            gameCode: session.code,
+            includeSummary,
+            includeLegalActionInfo,
+          });
+          return toolOk(
+            `Actionable observation for session ${sessionId} (turn ${state.turnNumber}, phase ${state.phase}).`,
+            { ...observation } as Record<string, unknown>,
+          );
+        }
+      }
+
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      const arrived = await waitForNextState(session, remaining);
+      if (!arrived) break;
+    }
+
+    throw new Error(
+      `wait_for_turn timed out on session ${sessionId} before it was actionable.`,
     );
   },
 );

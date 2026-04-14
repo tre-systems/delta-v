@@ -66,6 +66,8 @@ If your MCP host ignores `cwd`, use:
   - Get latest known `GameState` for a session (raw shape).
 - `delta_v_get_observation`
   - Get the unified agent observation: candidates, legal-action metadata, prose summary, and `recommendedIndex`. Matches the `AgentTurnInput` shape sent by the stdin/HTTP bridge, so the same agent code works via either path. Optional `includeSummary` / `includeLegalActionInfo` flags trim payload for token-constrained contexts.
+- `delta_v_wait_for_turn`
+  - Block until it is the caller's turn (sequential phases) or a simultaneous phase opens, then return an observation. Eliminates polling. Default timeout 30 s; throws on timeout or if the game reaches `gameOver` first.
 - `delta_v_get_events`
   - Read buffered server events (supports `afterEventId` + `limit`).
 - `delta_v_send_action`
@@ -78,11 +80,12 @@ If your MCP host ignores `cwd`, use:
 ## Typical agent loop
 
 1. Call `delta_v_quick_match_connect`.
-2. Poll `delta_v_get_events` until `gameStart` arrives.
-3. On your turn, call `delta_v_get_observation` and pick a candidate (default: `recommendedIndex`).
-4. Call `delta_v_send_action` with the chosen legal action.
-5. Use `delta_v_send_chat` optionally.
-6. Close with `delta_v_close_session`.
+2. `delta_v_wait_for_turn` — blocks until it is your turn; returns an observation.
+3. Pick a candidate from `observation.candidates` (default: `recommendedIndex`).
+4. `delta_v_send_action` with the chosen legal action.
+5. Optional: `delta_v_send_chat`.
+6. Loop to step 2. Break out when the returned observation has `state.phase === 'gameOver'` or `wait_for_turn` rejects with gameOver.
+7. `delta_v_close_session` when done.
 
 ## Action payload examples
 
