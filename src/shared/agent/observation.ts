@@ -4,9 +4,12 @@
 import { buildSolarSystemMap } from '../map-data';
 import type { GameState, PlayerId, SolarSystemMap } from '../types/domain';
 import type { C2S } from '../types/protocol';
+import { labelCandidates } from './candidate-labels';
 import { buildCandidates } from './candidates';
 import { describeCandidate, describePosition, describeShip } from './describe';
 import { buildLegalActionInfo } from './legal-actions';
+import { renderSpatialGrid } from './spatial-grid';
+import { buildTacticalFeatures } from './tactical';
 import type { AgentTurnInput } from './types';
 
 export const buildStateSummary = (
@@ -71,6 +74,15 @@ export interface BuildObservationOptions {
   includeSummary?: boolean;
   // Omit the structured legal-action info for the same reason.
   includeLegalActionInfo?: boolean;
+  // --- Observation v2 opt-ins (default off; adding them costs tokens) ---
+  // Derived tactical features: distances, fuel advantage, threat axis, etc.
+  includeTactical?: boolean;
+  // ASCII hex grid visualisation of the current state from playerId's view.
+  // Fog-of-war compliant — undetected enemies are omitted.
+  includeSpatialGrid?: boolean;
+  // Enriched candidate list with human-readable label, rationale, and a
+  // crude risk tag per candidate.
+  includeCandidateLabels?: boolean;
 }
 
 // Canonical agent observation builder. Both the bridge and the MCP server
@@ -97,6 +109,15 @@ export const buildObservation = (
       : undefined,
     legalActionInfo: includeLegalActionInfo
       ? buildLegalActionInfo(state, playerId)
+      : undefined,
+    tactical: options.includeTactical
+      ? buildTacticalFeatures(state, playerId, map)
+      : undefined,
+    spatialGrid: options.includeSpatialGrid
+      ? renderSpatialGrid(state, playerId, map)
+      : undefined,
+    labeledCandidates: options.includeCandidateLabels
+      ? labelCandidates(candidates, state, playerId)
       : undefined,
   };
 };

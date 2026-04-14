@@ -163,4 +163,51 @@ describe('buildObservation', () => {
     expect(obs.playerId).toBe(1);
     expect(obs.candidates.length).toBeGreaterThan(0);
   });
+
+  it('omits all v2 enrichments by default', () => {
+    const obs = buildObservation(state, 0, { gameCode: 'ABCDE', map });
+    expect(obs.tactical).toBeUndefined();
+    expect(obs.spatialGrid).toBeUndefined();
+    expect(obs.labeledCandidates).toBeUndefined();
+  });
+
+  it('includes tactical features when opted in', () => {
+    const obs = buildObservation(state, 0, {
+      gameCode: 'ABCDE',
+      map,
+      includeTactical: true,
+    });
+    expect(obs.tactical).toBeDefined();
+    const t = obs.tactical;
+    expect(
+      t?.objectiveDistance === null || typeof t?.objectiveDistance === 'number',
+    ).toBe(true);
+    expect(typeof t?.fuelAdvantage).toBe('number');
+  });
+
+  it('includes spatial grid when opted in', () => {
+    const obs = buildObservation(state, 0, {
+      gameCode: 'ABCDE',
+      map,
+      includeSpatialGrid: true,
+    });
+    expect(obs.spatialGrid).toBeDefined();
+    expect(obs.spatialGrid).toContain('Legend:');
+    expect(obs.spatialGrid).toContain('Viewport');
+  });
+
+  it('includes labeled candidates when opted in', () => {
+    const obs = buildObservation(state, 0, {
+      gameCode: 'ABCDE',
+      map,
+      includeCandidateLabels: true,
+    });
+    expect(obs.labeledCandidates).toBeDefined();
+    expect(obs.labeledCandidates?.length).toBe(obs.candidates.length);
+    const first = obs.labeledCandidates?.[0];
+    expect(first?.index).toBe(0);
+    expect(first?.label).toBeTypeOf('string');
+    expect(first?.reasoning).toBeTypeOf('string');
+    expect(['low', 'medium', 'high']).toContain(first?.risk);
+  });
 });

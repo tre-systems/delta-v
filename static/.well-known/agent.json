@@ -172,7 +172,10 @@
       "candidates": "C2S[] — pre-computed legal action choices",
       "recommendedIndex": "number — built-in AI preferred candidate",
       "summary": "string — human-readable state + candidate list",
-      "legalActionInfo": "structured legal-action metadata"
+      "legalActionInfo": "structured legal-action metadata",
+      "tactical": "optional (v2) — derived features: nearestEnemyDistance, fuelAdvantage, objectiveDistance, enemyObjectiveDistance, threatAxis, turnsToObjective",
+      "spatialGrid": "optional (v2) — ASCII hex grid with legend, fog-of-war compliant",
+      "labeledCandidates": "optional (v2) — enriched candidate list with label, reasoning, risk (low/medium/high)"
     },
     "outputSchema": {
       "candidateIndex": "number — index into candidates[] (REQUIRED, or omit for recommended)",

@@ -38,7 +38,10 @@ export interface LegalActionInfo {
 }
 
 // Wire shape sent to every external agent (stdin / HTTP / MCP).
-// Kept backward compatible with the v1 bridge contract.
+// Kept backward compatible with the v1 bridge contract: existing agents that
+// only read state/candidates/summary/legalActionInfo keep working. The v2
+// fields (tactical, spatialGrid, labeledCandidates) are opt-in via the
+// buildObservation options; absence means the caller didn't ask for them.
 export interface AgentTurnInput {
   version: 1;
   gameCode: string;
@@ -48,6 +51,11 @@ export interface AgentTurnInput {
   recommendedIndex: number;
   summary?: string;
   legalActionInfo?: LegalActionInfo;
+  // v2 optional enrichments — see src/shared/agent/tactical.ts,
+  // spatial-grid.ts, candidate-labels.ts.
+  tactical?: import('./tactical').TacticalFeatures;
+  spatialGrid?: string;
+  labeledCandidates?: import('./candidate-labels').LabeledCandidate[];
 }
 
 // Either the agent picks an existing candidate by index, or supplies a custom C2S action.
