@@ -27,6 +27,7 @@ Use the docs by role so the same decision is not maintained in three places:
 - [**CONTRIBUTING.md**](./docs/CONTRIBUTING.md): contributor workflow, pre-commit behavior, verification commands, and local environment gotchas
 - [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): release/regression manual checks across gameplay, UX, and recovery flows
 - [**SIMULATION_TESTING.md**](./docs/SIMULATION_TESTING.md): headless AI simulation, websocket load/chaos testing, and the agent bridge
+- [**AGENT_SPEC.md**](./AGENT_SPEC.md): first-class agent support — design principles, observation contract, action model, and agent roadmap
 - [**DELTA_V_MCP.md**](./docs/DELTA_V_MCP.md): preferred MCP interface for autonomous agents (quick match, state/events, actions, chat)
 - [**SECURITY.md**](./docs/SECURITY.md): competitive integrity, abuse/cost controls, deployment hardening, and retention/security posture
 - [**OBSERVABILITY.md**](./docs/OBSERVABILITY.md): runtime signals, D1 queries, and incident triage
