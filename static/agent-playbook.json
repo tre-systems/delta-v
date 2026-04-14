@@ -1,6 +1,6 @@
 {
   "name": "Delta-V Agent Playbook",
-  "version": 1,
+  "version": 2,
   "baseUrl": "https://delta-v.tre.systems",
   "description": "Machine-readable guidance for autonomous Delta-V agents.",
   "minimalTurnLoop": [
@@ -16,6 +16,7 @@
   "phaseActionMap": {
     "fleetBuilding": {
       "legalC2S": ["fleetReady"],
+      "simultaneous": true,
       "requiredShape": {
         "type": "fleetReady",
         "purchases": "FleetPurchase[]"
@@ -23,25 +24,60 @@
     },
     "astrogation": {
       "legalC2S": ["astrogation", "surrender"],
+      "simultaneous": true,
       "requiredShape": {
         "type": "astrogation",
         "orders": "AstrogationOrder[]"
       }
     },
     "ordnance": {
-      "legalC2S": ["ordnance", "skipOrdnance", "emplaceBase"]
+      "legalC2S": ["ordnance", "emplaceBase", "skipOrdnance"],
+      "simultaneous": false,
+      "requiredShape": {
+        "ordnance": { "type": "ordnance", "launches": "OrdnanceLaunch[]" },
+        "emplaceBase": {
+          "type": "emplaceBase",
+          "emplacements": "OrbitalBaseEmplacement[]"
+        }
+      }
     },
     "combat": {
-      "legalC2S": ["beginCombat", "combat", "skipCombat"]
+      "legalC2S": [
+        "beginCombat",
+        "combat",
+        "combatSingle",
+        "endCombat",
+        "skipCombat"
+      ],
+      "simultaneous": false,
+      "requiredShape": {
+        "combat": { "type": "combat", "attacks": "CombatAttack[]" },
+        "combatSingle": { "type": "combatSingle", "attack": "CombatAttack" }
+      },
+      "notes": [
+        "beginCombat must be sent before combat attacks when state.pendingAsteroidHazards contains your ship ids",
+        "combatSingle resolves one attack at a time; combat batches multiple",
+        "endCombat advances the phase once you have no more attacks to make"
+      ]
     },
     "logistics": {
-      "legalC2S": ["logistics", "skipLogistics"]
+      "legalC2S": ["logistics", "skipLogistics"],
+      "simultaneous": false,
+      "requiredShape": {
+        "type": "logistics",
+        "transfers": "TransferOrder[]"
+      }
     },
     "gameOver": {
       "legalC2S": ["rematch"]
     }
   },
+  "alwaysLegal": ["chat", "ping"],
   "actionExamples": {
+    "fleetReady": {
+      "type": "fleetReady",
+      "purchases": []
+    },
     "astrogation": {
       "type": "astrogation",
       "orders": [
@@ -52,8 +88,24 @@
         }
       ]
     },
+    "surrender": {
+      "type": "surrender",
+      "shipIds": ["p1s0"]
+    },
+    "ordnance": {
+      "type": "ordnance",
+      "launches": [
+        {
+          "shipId": "p1s0",
+          "ordnanceType": "torpedo"
+        }
+      ]
+    },
     "skipOrdnance": {
       "type": "skipOrdnance"
+    },
+    "beginCombat": {
+      "type": "beginCombat"
     },
     "combat": {
       "type": "combat",
@@ -63,6 +115,9 @@
           "targetId": "p0s0"
         }
       ]
+    },
+    "skipCombat": {
+      "type": "skipCombat"
     },
     "skipLogistics": {
       "type": "skipLogistics"
