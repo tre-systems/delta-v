@@ -74,6 +74,7 @@ const EXPECTED_S2C_TYPES = [
   'rematchPending',
   'chat',
   'error',
+  'actionRejected',
   'pong',
   'opponentStatus',
 ] as const;

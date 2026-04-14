@@ -77,9 +77,10 @@ Honest inventory. Capability / Status / Location.
 | AI simulation harness | Shipped | `scripts/simulate-ai.ts` (300+ games, 0 crashes) |
 | WebSocket load / chaos harness | Shipped | `scripts/load-test.ts` |
 | Quick-match scrimmage runner | Shipped | `scripts/quick-match-scrimmage.ts` |
+| `ActionGuards` submission guards | Shipped | `src/shared/types/protocol.ts`, `src/server/game-do/action-guards.ts` — server rejects stale/duplicate submissions with fresh state |
+| `actionRejected` S2C + bridge auto-retry | Shipped | `scripts/llm-player.ts` — bridge auto-stamps guards and retries on rejection |
 | Remote hosted MCP endpoint | Planned | — |
 | ASCII hex grid in observation | Planned | target: observation builder |
-| `expectedTurn` / `expectedPhase` submission guards | Planned | target: action submission path |
 | `ActionResult` feedback shape | Planned | target: MCP tool result |
 | Candidate labels / reasoning / risk | Planned | target: bridge candidate builder |
 | `/coach` mid-game human-to-agent directive | Planned | target: chat handler + observation field |
@@ -317,20 +318,33 @@ Scenario keys in code are camelCase. The server also accepts the snake_case alia
 
 See `static/agent-playbook.json` for per-phase payload shapes and `src/shared/types/protocol.ts` for the authoritative discriminated union.
 
-### 6.2 Submission guards (planned)
+### 6.2 Submission guards (shipping)
+
+Every C2S action can carry an optional `guards` field:
 
 ```typescript
-{
-  sessionId: string;
-  candidateIndex?: number;      // submit_candidate
-  action?: C2S;                 // submit_action
-  expectedTurn: number;         // reject if turn has advanced
-  expectedPhase: Phase;         // reject if phase has advanced
-  idempotencyKey?: string;      // prevent duplicate processing
+interface ActionGuards {
+  expectedTurn?: number;     // reject if the server turn has advanced
+  expectedPhase?: Phase;     // reject if the server phase has advanced
+  idempotencyKey?: string;   // prevent duplicate processing per phase
 }
 ```
 
-On rejection the server returns the current observation, so the agent retries immediately with correct state instead of fetching and re-submitting.
+On mismatch the server responds directly to the submitter with a new `actionRejected` S2C:
+
+```typescript
+{
+  type: 'actionRejected';
+  reason: 'staleTurn' | 'stalePhase' | 'wrongActivePlayer' | 'duplicateIdempotencyKey';
+  message: string;
+  expected: { turn?: number; phase?: Phase };
+  actual: { turn: number; phase: Phase; activePlayer: PlayerId };
+  state: GameState;           // fresh state so the agent can re-decide
+  idempotencyKey?: string;
+}
+```
+
+The bridge (`scripts/llm-player.ts`) auto-stamps guards on every outgoing action and re-schedules its decision on receipt of `actionRejected`. The MCP `delta_v_send_action` tool auto-fills guards from `session.lastState` by default (opt out with `autoGuards: false` to hand-craft them).
 
 ### 6.3 Fallback
 

@@ -179,6 +179,14 @@ export const deriveClientMessagePlan = (
         message: msg.message,
         code: msg.code,
       };
+    case 'actionRejected':
+      // The browser client never sets ActionGuards, so it never receives this.
+      // If it arrives anyway (e.g. during agent+human mixed sessions), surface
+      // the server-provided reason via the existing error kind.
+      return {
+        kind: 'error',
+        message: msg.message,
+      };
     case 'chat':
       return { kind: 'chat', playerId: msg.playerId, text: msg.text };
     case 'pong':
