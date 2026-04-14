@@ -5,6 +5,7 @@ coverage/
 .wrangler/
 .dev.vars
 .claude/
+.mcp.json
 *.tsbuildinfo
 test-results/
 playwright-report/
