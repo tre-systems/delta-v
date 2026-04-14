@@ -82,8 +82,8 @@ Honest inventory. Capability / Status / Location.
 | Observation v2 — tactical features | Shipped | `src/shared/agent/tactical.ts` — `includeTactical: true` opt-in |
 | Observation v2 — ASCII spatial grid | Shipped | `src/shared/agent/spatial-grid.ts` — `includeSpatialGrid: true` opt-in, fog-of-war compliant |
 | Observation v2 — labeled candidates + risk | Shipped | `src/shared/agent/candidate-labels.ts` — `includeCandidateLabels: true` opt-in |
+| `ActionResult` with effects + next observation | Shipped | `src/shared/agent/action-effects.ts` — `delta_v_send_action({ waitForResult: true, includeNextObservation: true })` closes the decision loop in one call |
 | Remote hosted MCP endpoint | Planned | — |
-| `ActionResult` feedback shape | Planned | target: MCP tool result |
 | `/coach` mid-game human-to-agent directive | Planned | target: chat handler + observation field |
 | Layered `agentToken` / `playerToken` | Planned | target: `/api/agent-token` endpoint |
 | Public agent leaderboard with Elo | Future | depends on account system |

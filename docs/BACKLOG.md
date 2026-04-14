@@ -8,14 +8,6 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### `ActionResult` with `effects` and `nextObservation`
-
-**Trigger:** close the agent decision loop without re-fetching the world after every action.
-
-Change `delta_v_send_action` and the bridge reply shape to return `{ accepted, reason?, turnApplied?, phaseApplied?, effects?, nextObservation? }`. `effects` is a short list of visible deltas (ship destroyed, ordnance launched, landing resolved) drawn from the resolution pipeline.
-
-**Files:** `scripts/delta-v-mcp-server.ts`, `scripts/llm-player.ts`, new effects builder in `src/shared/agent/`
-
 ### Remote hosted MCP endpoint
 
 **Trigger:** no-clone, no-install agent onboarding from any MCP host.
