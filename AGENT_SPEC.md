@@ -62,8 +62,13 @@ Honest inventory. Capability / Status / Location.
 | HTTP create / quick-match / replay | Shipped | `src/server/room-routes.ts`, `src/server/protocol.ts` |
 | Bridge: stdin/stdout agent per decision | Shipped | `scripts/llm-player.ts` |
 | Bridge: HTTP agent URL mode | Shipped | `scripts/llm-player.ts` |
-| Local MCP server (stdio) | Shipped | `scripts/delta-v-mcp-server.ts` (7 tools) |
-| Pre-computed candidates + `recommendedIndex` | Shipped | `src/shared/ai/`, surfaced in bridge |
+| Local MCP server (stdio) | Shipped | `scripts/delta-v-mcp-server.ts` (9 tools) |
+| Pre-computed candidates + `recommendedIndex` | Shipped | `src/shared/agent/` (used by bridge + MCP) |
+| Shared observation builder | Shipped | `src/shared/agent/observation.ts` |
+| `delta_v_get_observation` MCP tool | Shipped | `scripts/delta-v-mcp-server.ts` |
+| `delta_v_wait_for_turn` MCP tool | Shipped | `scripts/delta-v-mcp-server.ts` — blocks until actionable, no polling |
+| Shared `queueForMatch` helper | Shipped | `src/shared/agent/quick-match.ts` |
+| Discovery drift guard | Shipped | `src/shared/agent/discovery.test.ts` asserts manifest matches engine |
 | Agent playbook (machine-readable) | Shipped | `static/agent-playbook.json` |
 | Discovery manifest | Shipped | `static/.well-known/agent.json` |
 | Public agents landing page | Shipped | `static/agents.html` → `/agents` |
@@ -73,9 +78,7 @@ Honest inventory. Capability / Status / Location.
 | WebSocket load / chaos harness | Shipped | `scripts/load-test.ts` |
 | Quick-match scrimmage runner | Shipped | `scripts/quick-match-scrimmage.ts` |
 | Remote hosted MCP endpoint | Planned | — |
-| Structured `Observation` contract | Planned | target: bridge + MCP tool |
 | ASCII hex grid in observation | Planned | target: observation builder |
-| `wait_for_turn` / event subscription | Planned | target: MCP + bridge |
 | `expectedTurn` / `expectedPhase` submission guards | Planned | target: action submission path |
 | `ActionResult` feedback shape | Planned | target: MCP tool result |
 | Candidate labels / reasoning / risk | Planned | target: bridge candidate builder |
@@ -121,13 +124,15 @@ Exposed by `scripts/delta-v-mcp-server.ts` (stdio):
 delta_v_quick_match_connect(scenario, username, playerKey?) → { sessionId, code, ... }
 delta_v_list_sessions()                                      → { sessions[] }
 delta_v_get_state(sessionId)                                 → { state, latestEventId }
+delta_v_get_observation(sessionId, …opts)                    → AgentTurnInput
+delta_v_wait_for_turn(sessionId, timeoutMs?, …opts)          → AgentTurnInput
 delta_v_get_events(sessionId, afterEventId?, limit?, clear?) → { events[], bufferedRemaining }
 delta_v_send_action(sessionId, action)                       → { actionType }
 delta_v_send_chat(sessionId, text)                           → { text }
 delta_v_close_session(sessionId)                             → { closed }
 ```
 
-Contract assumption: the client polls `get_events` and `get_state` and dispatches `send_action` when `state.phase` and `state.activePlayer` permit.
+Recommended loop: `quick_match_connect` → `wait_for_turn` (blocks) → pick candidate → `send_action` → loop. `get_state` and `get_events` remain for debugging and event-log inspection.
 
 ### 4.2 Tools — planned
 

@@ -111,8 +111,9 @@ describe('.well-known/agent.json', () => {
     }
   });
 
-  it('advertises the MCP observation tool', () => {
+  it('advertises the MCP observation and wait-for-turn tools', () => {
     expect(manifest.mcp?.tools).toContain('delta_v_get_observation');
+    expect(manifest.mcp?.tools).toContain('delta_v_wait_for_turn');
   });
 });
 
