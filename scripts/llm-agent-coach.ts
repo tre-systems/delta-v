@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
+import type { AgentTurnInput } from '../src/shared/agent';
 import { hexDistance } from '../src/shared/hex';
 import type { ReplayTimeline } from '../src/shared/replay';
 import type {
@@ -12,16 +13,6 @@ import type {
   Ship,
 } from '../src/shared/types/domain';
 import type { C2S } from '../src/shared/types/protocol';
-
-interface AgentTurnInput {
-  version: 1;
-  gameCode: string;
-  playerId: PlayerId;
-  state: GameState;
-  candidates: C2S[];
-  recommendedIndex: number;
-  summary?: string;
-}
 
 interface TurnSummary {
   turnNumber: number;
