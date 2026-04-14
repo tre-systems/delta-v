@@ -8,6 +8,12 @@ export {
   computeActionEffects,
 } from './action-effects';
 export {
+  type ApplyActionFailure,
+  type ApplyActionResult,
+  type ApplyActionSuccess,
+  applyAgentAction,
+} from './apply-action';
+export {
   type LabeledCandidate,
   labelCandidate,
   labelCandidates,

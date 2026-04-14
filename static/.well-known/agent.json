@@ -217,7 +217,14 @@
     "noCloneRequired": "POST /quick-match with a player object, poll until matched, connect WebSocket, respond to phase messages",
     "withBridge": "git clone https://github.com/tre-systems/delta-v && npm install && npm run llm:player -- --mode create --scenario duel --agent command --agent-command 'python ./my_agent.py'",
     "claudeAgent": "ANTHROPIC_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:claude'",
-    "groqAgent": "GROQ_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:groq'"
+    "groqAgent": "GROQ_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:groq'",
+    "benchmark": "npm run benchmark -- --agent-command 'python ./my_agent.py' --opponent all --games 20"
+  },
+
+  "benchmark": {
+    "description": "In-process agent benchmark harness. Runs your command agent against the built-in AI (easy/normal/hard) over N seeded games and emits structured JSON including win rate, mean turns, action validity rate, timeouts, and an Elo estimate anchored to the baseline difficulty (easy=1000, normal=1200, hard=1400).",
+    "command": "npm run benchmark -- --agent-command <cmd>",
+    "protocol": "Same stdin/stdout AgentTurnInput → AgentTurnResponse contract as the bridge (scripts/llm-player.ts --agent command). A bot that works via the bridge works in the benchmark unchanged."
   },
 
   "botConvention": {
