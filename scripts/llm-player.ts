@@ -1,26 +1,17 @@
 import { spawn } from 'node:child_process';
 import WebSocket from 'ws';
-
 import {
-  type AIDifficulty,
-  aiAstrogation,
-  aiCombat,
-  aiLogistics,
-  aiOrdnance,
-  buildAIFleetPurchases,
-} from '../src/shared/ai';
-import { SHIP_STATS } from '../src/shared/constants';
-import type { HexCoord, HexVec } from '../src/shared/hex';
+  type AgentTurnInput,
+  type AgentTurnResponse,
+  allowedActionTypesForPhase,
+  buildActionForDifficulty,
+  buildObservation,
+  describeCandidate,
+} from '../src/shared/agent';
+import type { AIDifficulty } from '../src/shared/ai';
 import { hexDistance } from '../src/shared/hex';
 import { buildSolarSystemMap, SCENARIOS } from '../src/shared/map-data';
-import type {
-  AstrogationOrder,
-  CelestialBody,
-  GameState,
-  PlayerId,
-  Ship,
-  SolarSystemMap,
-} from '../src/shared/types/domain';
+import type { GameState, PlayerId } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
 
 const DEFAULT_SERVER_URL = process.env.SERVER_URL || 'http://127.0.0.1:8787';
@@ -47,56 +38,6 @@ interface Config {
 interface CreateGameResponse {
   code: string;
   playerToken: string;
-}
-
-interface LegalActionShipInfo {
-  id: string;
-  type: string;
-  position: { q: number; r: number };
-  velocity: { dq: number; dr: number };
-  fuel: number;
-  lifecycle: string;
-  canBurn: boolean;
-  canOverload: boolean;
-  canAttack: boolean;
-  canLaunchOrdnance: boolean;
-  cargoUsed: number;
-  cargoCapacity: number;
-  disabledTurns: number;
-}
-
-interface LegalActionEnemyInfo {
-  id: string;
-  type: string;
-  position: { q: number; r: number };
-  velocity: { dq: number; dr: number };
-  lifecycle: string;
-  detected: boolean;
-}
-
-interface LegalActionInfo {
-  phase: string;
-  allowedTypes: string[];
-  burnDirections: string[];
-  ownShips: LegalActionShipInfo[];
-  enemies: LegalActionEnemyInfo[];
-}
-
-interface AgentTurnInput {
-  version: 1;
-  gameCode: string;
-  playerId: PlayerId;
-  state: GameState;
-  candidates: C2S[];
-  recommendedIndex: number;
-  summary?: string;
-  legalActionInfo?: LegalActionInfo;
-}
-
-interface AgentTurnResponse {
-  candidateIndex?: number;
-  action?: C2S;
-  chat?: string;
 }
 
 const delay = (ms: number): Promise<void> =>
@@ -222,136 +163,6 @@ Flags:
 `);
 };
 
-const buildIdleAstrogationOrders = (
-  state: GameState,
-  playerId: PlayerId,
-): AstrogationOrder[] =>
-  state.ships
-    .filter((ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed')
-    .map((ship) => ({
-      shipId: ship.id,
-      burn: null,
-      overload: null,
-    }));
-
-const hasOwnedPendingAsteroidHazards = (
-  state: GameState,
-  playerId: PlayerId,
-): boolean =>
-  state.pendingAsteroidHazards.some((hazard) => {
-    const ship = state.ships.find(
-      (candidate) => candidate.id === hazard.shipId,
-    );
-    return ship?.owner === playerId && ship.lifecycle !== 'destroyed';
-  });
-
-const buildActionForDifficulty = (
-  state: GameState,
-  playerId: PlayerId,
-  difficulty: AIDifficulty,
-): C2S | null => {
-  const map = buildSolarSystemMap();
-  switch (state.phase) {
-    case 'waiting':
-      return null;
-    case 'fleetBuilding':
-      return {
-        type: 'fleetReady',
-        purchases: buildAIFleetPurchases(state, playerId, difficulty),
-      };
-    case 'astrogation': {
-      const orders = aiAstrogation(state, playerId, map, difficulty);
-      return {
-        type: 'astrogation',
-        orders:
-          orders.length > 0
-            ? orders
-            : buildIdleAstrogationOrders(state, playerId),
-      };
-    }
-    case 'ordnance': {
-      const launches = aiOrdnance(state, playerId, map, difficulty);
-      if (launches.length > 0) return { type: 'ordnance', launches };
-
-      return { type: 'skipOrdnance' };
-    }
-    case 'combat': {
-      if (hasOwnedPendingAsteroidHazards(state, playerId)) {
-        return { type: 'beginCombat' };
-      }
-      const attacks = aiCombat(state, playerId, map, difficulty);
-      if (attacks.length > 0) return { type: 'combat', attacks };
-
-      return { type: 'skipCombat' };
-    }
-    case 'logistics': {
-      const transfers = aiLogistics(state, playerId, map, difficulty);
-      if (transfers.length > 0) return { type: 'logistics', transfers };
-
-      return { type: 'skipLogistics' };
-    }
-    case 'gameOver':
-      return null;
-    default: {
-      const _exhaustive: never = state.phase;
-      throw new Error(`Unhandled phase: ${_exhaustive}`);
-    }
-  }
-};
-
-const allowedActionTypesForPhase = (
-  phase: GameState['phase'],
-): Set<C2S['type']> => {
-  switch (phase) {
-    case 'waiting':
-      return new Set();
-    case 'fleetBuilding':
-      return new Set(['fleetReady']);
-    case 'astrogation':
-      return new Set(['astrogation', 'surrender']);
-    case 'ordnance':
-      return new Set(['ordnance', 'skipOrdnance', 'emplaceBase']);
-    case 'combat':
-      return new Set(['beginCombat', 'combat', 'skipCombat']);
-    case 'logistics':
-      return new Set(['logistics', 'skipLogistics']);
-    case 'gameOver':
-      return new Set(['rematch']);
-    default: {
-      const _exhaustive: never = phase;
-      throw new Error(`Unhandled phase: ${_exhaustive}`);
-    }
-  }
-};
-
-const dedupeCandidates = (candidates: C2S[]): C2S[] => {
-  const seen = new Set<string>();
-  const result: C2S[] = [];
-  for (const candidate of candidates) {
-    const key = JSON.stringify(candidate);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(candidate);
-  }
-
-  return result;
-};
-
-const buildCandidates = (state: GameState, playerId: PlayerId): C2S[] => {
-  const seedCandidates: C2S[] = [];
-  for (const difficulty of ['hard', 'normal', 'easy'] as const) {
-    const action = buildActionForDifficulty(state, playerId, difficulty);
-    if (action) seedCandidates.push(action);
-  }
-
-  if (state.phase === 'ordnance') seedCandidates.push({ type: 'skipOrdnance' });
-  if (state.phase === 'combat') seedCandidates.push({ type: 'skipCombat' });
-  if (state.phase === 'logistics')
-    seedCandidates.push({ type: 'skipLogistics' });
-
-  return dedupeCandidates(seedCandidates);
-};
-
 const parseJsonFromOutput = <T>(content: string): T => {
   const trimmed = content.trim();
   if (!trimmed) throw new Error('empty output');
@@ -467,211 +278,6 @@ const runHttpAgent = async (
   } finally {
     clearTimeout(timeout);
   }
-};
-
-const DIRECTION_NAMES = ['E', 'NE', 'NW', 'W', 'SW', 'SE'] as const;
-
-const nearestBody = (
-  pos: HexCoord,
-  bodies: CelestialBody[],
-): { name: string; distance: number } => {
-  let best = { name: 'deep space', distance: Infinity };
-  for (const body of bodies) {
-    const dist = hexDistance(pos, body.center);
-    if (dist < best.distance) {
-      best = { name: body.name, distance: dist };
-    }
-  }
-  return best;
-};
-
-const describePosition = (pos: HexCoord, bodies: CelestialBody[]): string => {
-  const closest = nearestBody(pos, bodies);
-  if (closest.distance === 0) return `on ${closest.name}`;
-  if (closest.distance <= 3)
-    return `${closest.distance} hex from ${closest.name}`;
-  return `at (${pos.q},${pos.r}), ${closest.distance} hex from ${closest.name}`;
-};
-
-const describeVelocity = (vel: HexVec): string => {
-  const speed = Math.max(
-    Math.abs(vel.dq),
-    Math.abs(vel.dr),
-    Math.abs(vel.dq + vel.dr),
-  );
-  return speed === 0 ? 'stationary' : `speed ${speed}`;
-};
-
-const describeShip = (ship: Ship, bodies: CelestialBody[]): string => {
-  const stats = SHIP_STATS[ship.type];
-  const parts = [
-    `${stats.name} "${ship.id}"`,
-    describePosition(ship.position, bodies),
-    describeVelocity(ship.velocity),
-    `fuel ${ship.fuel}/${stats.fuel === Infinity ? 'inf' : stats.fuel}`,
-  ];
-  if (ship.lifecycle === 'landed') parts.push('LANDED');
-  if (ship.lifecycle === 'destroyed') parts.push('DESTROYED');
-  if (ship.damage.disabledTurns > 0)
-    parts.push(`disabled ${ship.damage.disabledTurns}T`);
-  return parts.join(', ');
-};
-
-const describeCandidate = (action: C2S, index: number): string => {
-  const prefix = index === 0 ? `[${index}] (recommended)` : `[${index}]`;
-  switch (action.type) {
-    case 'astrogation': {
-      const burns = action.orders
-        .map((o) => {
-          if (o.burn === null) return `${o.shipId}: coast`;
-          const dir = DIRECTION_NAMES[o.burn] ?? `dir${o.burn}`;
-          const overload = o.overload !== null ? ' +overload' : '';
-          return `${o.shipId}: burn ${dir}${overload}`;
-        })
-        .join('; ');
-      return `${prefix} astrogation — ${burns}`;
-    }
-    case 'combat': {
-      const attacks = action.attacks
-        .map((a) => `${a.attackerIds.join('+')}->${a.targetId}`)
-        .join('; ');
-      return `${prefix} combat — ${attacks}`;
-    }
-    case 'ordnance': {
-      const launches = action.launches
-        .map((l) => `${l.shipId} launches ${l.ordnanceType}`)
-        .join('; ');
-      return `${prefix} ordnance — ${launches}`;
-    }
-    case 'logistics': {
-      const transfers = action.transfers
-        .map(
-          (t) =>
-            `${t.sourceShipId}->${t.targetShipId} ${t.amount} ${t.transferType}`,
-        )
-        .join('; ');
-      return `${prefix} logistics — ${transfers}`;
-    }
-    case 'fleetReady':
-      return `${prefix} fleet ready — ${action.purchases.length} purchases`;
-    default:
-      return `${prefix} ${action.type}`;
-  }
-};
-
-const buildStateSummary = (
-  state: GameState,
-  playerId: PlayerId,
-  candidates: C2S[],
-  map: SolarSystemMap,
-): string => {
-  const lines: string[] = [];
-  const bodies = map.bodies;
-  const player = state.players[playerId];
-  const opponentId = playerId === 0 ? 1 : 0;
-
-  lines.push(`Turn ${state.turnNumber}, Phase: ${state.phase}`);
-  lines.push(
-    `Active player: ${state.activePlayer === playerId ? 'YOU' : 'opponent'}`,
-  );
-  lines.push(`Objective: target=${player.targetBody}, home=${player.homeBody}`);
-
-  lines.push('');
-  lines.push('YOUR SHIPS:');
-  for (const ship of state.ships) {
-    if (ship.owner !== playerId) continue;
-    lines.push(`  ${describeShip(ship, bodies)}`);
-  }
-
-  lines.push('');
-  lines.push('ENEMY SHIPS:');
-  for (const ship of state.ships) {
-    if (ship.owner !== opponentId) continue;
-    const visibility = ship.detected ? '' : ' (undetected)';
-    lines.push(`  ${describeShip(ship, bodies)}${visibility}`);
-  }
-
-  if (state.ordnance.length > 0) {
-    lines.push('');
-    lines.push('ORDNANCE:');
-    for (const ord of state.ordnance) {
-      if (ord.lifecycle === 'destroyed') continue;
-      const owner = ord.owner === playerId ? 'yours' : 'enemy';
-      lines.push(
-        `  ${ord.type} (${owner}), ${describePosition(ord.position, bodies)}, ${ord.turnsRemaining}T left`,
-      );
-    }
-  }
-
-  lines.push('');
-  lines.push('CANDIDATES:');
-  for (let i = 0; i < candidates.length; i++) {
-    lines.push(`  ${describeCandidate(candidates[i], i)}`);
-  }
-
-  return lines.join('\n');
-};
-
-const buildLegalActionInfo = (
-  state: GameState,
-  playerId: PlayerId,
-): LegalActionInfo => {
-  const opponentId = playerId === 0 ? 1 : 0;
-  const allowedTypes = [...allowedActionTypesForPhase(state.phase)];
-
-  const ownShips: LegalActionShipInfo[] = state.ships
-    .filter((s) => s.owner === playerId && s.lifecycle !== 'destroyed')
-    .map((s) => {
-      const stats = SHIP_STATS[s.type];
-      const isActive = s.lifecycle === 'active';
-      const isOperational =
-        s.damage.disabledTurns === 0 ||
-        stats.operatesAtD1 ||
-        stats.operatesWhileDisabled;
-      return {
-        id: s.id,
-        type: s.type,
-        position: { q: s.position.q, r: s.position.r },
-        velocity: { dq: s.velocity.dq, dr: s.velocity.dr },
-        fuel: s.fuel,
-        lifecycle: s.lifecycle,
-        canBurn: isActive && s.fuel > 0,
-        canOverload:
-          isActive && stats.canOverload && !s.overloadUsed && s.fuel >= 2,
-        canAttack:
-          isActive &&
-          isOperational &&
-          !stats.defensiveOnly &&
-          !s.resuppliedThisTurn,
-        canLaunchOrdnance:
-          isActive &&
-          isOperational &&
-          !s.resuppliedThisTurn &&
-          s.cargoUsed < stats.cargo,
-        cargoUsed: s.cargoUsed,
-        cargoCapacity: stats.cargo === Infinity ? -1 : stats.cargo,
-        disabledTurns: s.damage.disabledTurns,
-      };
-    });
-
-  const enemies: LegalActionEnemyInfo[] = state.ships
-    .filter((s) => s.owner === opponentId && s.lifecycle !== 'destroyed')
-    .map((s) => ({
-      id: s.id,
-      type: s.type,
-      position: { q: s.position.q, r: s.position.r },
-      velocity: { dq: s.velocity.dq, dr: s.velocity.dr },
-      lifecycle: s.lifecycle,
-      detected: s.detected,
-    }));
-
-  return {
-    phase: state.phase,
-    allowedTypes,
-    burnDirections: [...DIRECTION_NAMES],
-    ownShips,
-    enemies,
-  };
 };
 
 const pickRandom = <T>(items: T[]): T =>
@@ -888,7 +494,11 @@ const pickAction = async (
   state: GameState,
 ): Promise<PickActionResult> => {
   const map = buildSolarSystemMap();
-  const candidates = buildCandidates(state, playerId);
+  const payload: AgentTurnInput = buildObservation(state, playerId, {
+    gameCode,
+    map,
+  });
+  const candidates = payload.candidates;
   if (candidates.length === 0) {
     throw new Error(`No candidate actions available for phase ${state.phase}`);
   }
@@ -901,17 +511,6 @@ const pickAction = async (
       reasoning: `builtin policy selected recommended candidate: ${describeCandidate(recommended, 0)}`,
     };
   }
-
-  const payload: AgentTurnInput = {
-    version: 1,
-    gameCode,
-    playerId,
-    state,
-    candidates,
-    recommendedIndex: 0,
-    summary: buildStateSummary(state, playerId, candidates, map),
-    legalActionInfo: buildLegalActionInfo(state, playerId),
-  };
 
   let result: AgentTurnResponse;
   if (config.agentMode === 'command') {
