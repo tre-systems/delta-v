@@ -1741,3 +1741,68 @@ describe('validateServerMessage', () => {
     });
   });
 });
+
+describe('ActionGuards in C2S messages', () => {
+  it('attaches well-formed guards to the validated message', () => {
+    const result = validateClientMessage({
+      type: 'skipCombat',
+      guards: {
+        expectedTurn: 5,
+        expectedPhase: 'combat',
+        idempotencyKey: 'turn5-skipCombat',
+      },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('unreachable');
+    expect(result.value).toEqual({
+      type: 'skipCombat',
+      guards: {
+        expectedTurn: 5,
+        expectedPhase: 'combat',
+        idempotencyKey: 'turn5-skipCombat',
+      },
+    });
+  });
+
+  it('omits guards entirely when no valid fields are present', () => {
+    const result = validateClientMessage({
+      type: 'skipCombat',
+      guards: { expectedTurn: 'not-a-number', expectedPhase: 'bogus' },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('unreachable');
+    expect(result.value).toEqual({ type: 'skipCombat' });
+    expect(result.value).not.toHaveProperty('guards');
+  });
+
+  it('drops an out-of-range expectedTurn while keeping a valid phase', () => {
+    const result = validateClientMessage({
+      type: 'skipCombat',
+      guards: { expectedTurn: -1, expectedPhase: 'combat' },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('unreachable');
+    expect(result.value).toEqual({
+      type: 'skipCombat',
+      guards: { expectedPhase: 'combat' },
+    });
+  });
+
+  it('drops an over-length idempotencyKey', () => {
+    const longKey = 'x'.repeat(200);
+    const result = validateClientMessage({
+      type: 'skipCombat',
+      guards: { idempotencyKey: longKey },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('unreachable');
+    expect(result.value).toEqual({ type: 'skipCombat' });
+  });
+
+  it('accepts messages without a guards field', () => {
+    const result = validateClientMessage({ type: 'skipCombat' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('unreachable');
+    expect(result.value).toEqual({ type: 'skipCombat' });
+  });
+});

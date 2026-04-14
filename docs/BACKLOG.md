@@ -23,14 +23,6 @@ Add a version flag on the observation so existing bridge agents keep the v1 payl
 
 **Files:** `src/shared/agent/observation.ts`, new `src/shared/agent/spatial-grid.ts`, expose toggle through `delta_v_get_observation` / `delta_v_wait_for_turn`
 
-### Submission guards (`expectedTurn` / `expectedPhase`)
-
-**Trigger:** stale-state submissions are the dominant failure mode for current agents.
-
-Accept optional `expectedTurn`, `expectedPhase`, `idempotencyKey` on the C2S action payloads. Server rejects with a clear reason and includes the current observation in the error response so the agent retries immediately with correct state. Surface through the bridge and MCP.
-
-**Files:** `src/shared/types/protocol.ts`, `src/server/game-do/`, `scripts/llm-player.ts`, `scripts/delta-v-mcp-server.ts`
-
 ### `ActionResult` with `effects` and `nextObservation`
 
 **Trigger:** close the agent decision loop without re-fetching the world after every action.

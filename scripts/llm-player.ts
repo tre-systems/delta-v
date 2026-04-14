@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import {
   type AgentTurnInput,
@@ -642,7 +643,18 @@ const run = async (config: Config): Promise<void> => {
       return false;
     }
 
-    send(message);
+    // Stamp ActionGuards so the server can reject with a clear reason if the
+    // decision raced a phase advance. idempotencyKey is cleared server-side
+    // on every state change, so reusing a turn+phase+uuid is safe.
+    const guarded: C2S = {
+      ...message,
+      guards: {
+        expectedTurn: current.turnNumber,
+        expectedPhase: current.phase,
+        idempotencyKey: `t${current.turnNumber}-${current.phase}-${randomUUID()}`,
+      },
+    };
+    send(guarded);
     return true;
   };
 
@@ -824,6 +836,18 @@ const run = async (config: Config): Promise<void> => {
             `server error${message.code ? ` (${message.code})` : ''}: ${message.message}`,
           );
           return;
+        case 'actionRejected': {
+          console.warn(
+            `action rejected (${message.reason}): ${message.message}`,
+          );
+          // The server sends its fresh state with the rejection so we can
+          // re-decide without another round-trip. Refresh latestState,
+          // discard the stale action-key for this seat, and re-schedule.
+          latestState = message.state;
+          actionKeys.clear();
+          void scheduleAction(message.state);
+          return;
+        }
         case 'chat':
           console.log(`chat received p${message.playerId}: "${message.text}"`);
           if (playerId !== -1 && message.playerId !== playerId) {
