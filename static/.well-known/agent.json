@@ -4,15 +4,20 @@
   "version": "1",
   "baseUrl": "https://delta-v.tre.systems",
   "documentation": "https://delta-v.tre.systems/agents",
+  "agentSpec": "https://github.com/tre-systems/delta-v/blob/main/AGENT_SPEC.md",
   "agentManifest": "https://delta-v.tre.systems/.well-known/agent.json",
   "agentPlaybook": "https://delta-v.tre.systems/agent-playbook.json",
 
   "scenarios": [
-    { "id": "duel",        "description": "Classic 1v1 skirmish in open space" },
-    { "id": "biplanetary","description": "Two planets, each player defends their own and attacks the other" },
-    { "id": "escape",      "description": "One side must escape off the map edge; the other intercepts" },
-    { "id": "convoy",      "description": "Escort / interdict a convoy of cargo ships" },
-    { "id": "evacuation",  "description": "Race to evacuate ships from a collapsing system" }
+    { "id": "biplanetary",      "name": "Bi-Planetary",        "tags": ["Beginner"],   "description": "1v1 corvettes race to land on the opponent's world" },
+    { "id": "escape",           "name": "Escape",              "tags": ["Asymmetric"], "description": "Pilgrim transport and escorts flee Enforcer interceptors" },
+    { "id": "evacuation",       "name": "Lunar Evacuation",    "tags": ["Escort"],     "description": "Evacuate Luna before the enemy fleet overruns it" },
+    { "id": "convoy",           "name": "Convoy",              "tags": ["Escort"],     "description": "Escort or interdict a convoy to Venus" },
+    { "id": "duel",             "name": "Duel",                "tags": ["Combat"],     "description": "Frigates clash near Mercury — last ship standing wins" },
+    { "id": "blockade",         "name": "Blockade Runner",     "tags": ["Speed"],      "description": "Packet ship races past a corvette to reach Mars" },
+    { "id": "interplanetaryWar","name": "Interplanetary War",  "tags": ["Epic"],       "description": "Build your fleet with MegaCredits — total war across the solar system" },
+    { "id": "fleetAction",      "name": "Fleet Action",        "tags": ["Fleet"],      "description": "Build your fleet and clash — Mars vs Venus" },
+    { "id": "grandTour",        "name": "Grand Tour",          "tags": ["Race"],       "description": "Race past every major body in the solar system and return home" }
   ],
 
   "endpoints": [
@@ -53,7 +58,7 @@
       "id": "quickMatchPoll",
       "method": "GET",
       "path": "/quick-match/{ticket}",
-      "description": "Poll ticket status. Poll every 500ms–2s. Returns queued, matched, or expired.",
+      "description": "Poll ticket status. Poll every 500ms-2s. Returns queued, matched, or expired.",
       "rateLimit": "100 per 60 s per IP",
       "responses": [
         { "status": "queued",  "ticket": "string", "scenario": "string" },
@@ -96,29 +101,58 @@
   "websocketProtocol": {
     "format": "JSON, all messages have a 'type' discriminant field",
     "serverToClient": [
-      { "type": "welcome",         "when": "Connected as player",    "keyFields": "playerId (0|1), code, playerToken" },
-      { "type": "spectatorWelcome","when": "Connected as spectator",  "keyFields": "code" },
-      { "type": "gameStart",       "when": "Game begins",             "keyFields": "state: GameState" },
-      { "type": "stateUpdate",     "when": "After each phase",        "keyFields": "state: GameState" },
-      { "type": "movementResult",  "when": "After astrogation",       "keyFields": "state: GameState" },
-      { "type": "combatResult",    "when": "After combat",            "keyFields": "state: GameState" },
-      { "type": "chat",            "when": "Player sent chat",        "keyFields": "playerId, text" },
-      { "type": "error",           "when": "Server error",            "keyFields": "message, code?" }
+      { "type": "welcome",           "when": "Connected as player",                  "keyFields": "playerId (0|1), code, playerToken" },
+      { "type": "spectatorWelcome",  "when": "Connected as spectator",               "keyFields": "code" },
+      { "type": "matchFound",        "when": "Quick-match found an opponent",         "keyFields": "—" },
+      { "type": "gameStart",         "when": "Game begins",                           "keyFields": "state: GameState" },
+      { "type": "stateUpdate",       "when": "After each phase",                      "keyFields": "state, transferEvents?" },
+      { "type": "movementResult",    "when": "After astrogation",                     "keyFields": "state, movements, ordnanceMovements, events" },
+      { "type": "combatResult",      "when": "After combat (batched attacks)",        "keyFields": "state, results[]" },
+      { "type": "combatSingleResult","when": "After a single attack resolved",        "keyFields": "state, result" },
+      { "type": "gameOver",          "when": "Victory or defeat",                     "keyFields": "winner, reason" },
+      { "type": "rematchPending",    "when": "One player requested rematch",          "keyFields": "—" },
+      { "type": "chat",              "when": "Player sent chat",                      "keyFields": "playerId, text" },
+      { "type": "opponentStatus",    "when": "Opponent disconnected or reconnected",  "keyFields": "status, graceDeadlineMs?" },
+      { "type": "error",             "when": "Server error",                          "keyFields": "message, code?" },
+      { "type": "pong",              "when": "Ping reply",                            "keyFields": "t" }
     ],
     "clientToServer": [
-      { "type": "fleetReady",   "phase": "fleetBuilding", "fields": "purchases: Purchase[]" },
+      { "type": "fleetReady",   "phase": "fleetBuilding", "fields": "purchases: FleetPurchase[]" },
       { "type": "astrogation",  "phase": "astrogation",   "fields": "orders: AstrogationOrder[]" },
+      { "type": "surrender",    "phase": "astrogation",   "fields": "shipIds: ShipId[]" },
+      { "type": "ordnance",     "phase": "ordnance",      "fields": "launches: OrdnanceLaunch[]" },
+      { "type": "emplaceBase",  "phase": "ordnance",      "fields": "emplacements: OrbitalBaseEmplacement[]" },
       { "type": "skipOrdnance", "phase": "ordnance",      "fields": "—" },
+      { "type": "beginCombat",  "phase": "combat",        "fields": "—" },
+      { "type": "combat",       "phase": "combat",        "fields": "attacks: CombatAttack[]" },
+      { "type": "combatSingle", "phase": "combat",        "fields": "attack: CombatAttack" },
+      { "type": "endCombat",    "phase": "combat",        "fields": "—" },
       { "type": "skipCombat",   "phase": "combat",        "fields": "—" },
+      { "type": "logistics",    "phase": "logistics",     "fields": "transfers: TransferOrder[]" },
       { "type": "skipLogistics","phase": "logistics",     "fields": "—" },
+      { "type": "rematch",      "phase": "gameOver",      "fields": "—" },
       { "type": "chat",         "phase": "any",           "fields": "text: string (max 200 chars)" },
-      { "type": "ping",         "phase": "any",           "fields": "—" },
-      { "type": "surrender",    "phase": "astrogation",   "fields": "—" }
+      { "type": "ping",         "phase": "any",           "fields": "t: number" }
+    ]
+  },
+
+  "mcp": {
+    "description": "The preferred integration path for autonomous agents. Local stdio MCP is shipping; remote HTTP MCP is on the roadmap (see AGENT_SPEC.md).",
+    "localCommand": "npm run mcp:delta-v",
+    "tools": [
+      "delta_v_quick_match_connect",
+      "delta_v_list_sessions",
+      "delta_v_get_state",
+      "delta_v_get_observation",
+      "delta_v_get_events",
+      "delta_v_send_action",
+      "delta_v_send_chat",
+      "delta_v_close_session"
     ]
   },
 
   "agentInterface": {
-    "description": "The LLM player bridge (scripts/llm-player.ts) wraps the WebSocket and exposes a simpler stdin/stdout or HTTP interface to your agent.",
+    "description": "The LLM player bridge (scripts/llm-player.ts) wraps the WebSocket and exposes a simpler stdin/stdout or HTTP interface to your agent. The shape matches delta_v_get_observation so the same agent code works via either path.",
     "inputSchema": {
       "version": 1,
       "gameCode": "string",
@@ -149,8 +183,9 @@
 
   "quickStart": {
     "noCloneRequired": "POST /quick-match with a player object, poll until matched, connect WebSocket, respond to phase messages",
-    "withBridge": "git clone https://github.com/rgilks/delta-v && npm install && npm run llm:player -- --mode create --scenario duel --agent command --agent-command 'python ./my_agent.py'",
-    "claudeAgent": "ANTHROPIC_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:claude'"
+    "withBridge": "git clone https://github.com/tre-systems/delta-v && npm install && npm run llm:player -- --mode create --scenario duel --agent command --agent-command 'python ./my_agent.py'",
+    "claudeAgent": "ANTHROPIC_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:claude'",
+    "groqAgent": "GROQ_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:groq'"
   },
 
   "botConvention": {
