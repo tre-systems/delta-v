@@ -22,6 +22,11 @@ export {
   buildObservation,
   buildStateSummary,
 } from './observation';
+export {
+  type QuickMatchArgs,
+  type QuickMatchResult,
+  queueForMatch,
+} from './quick-match';
 export type {
   AgentTurnInput,
   AgentTurnResponse,
