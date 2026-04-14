@@ -6,8 +6,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import WebSocket from 'ws';
 import { z } from 'zod';
 
-import { buildObservation } from '../src/shared/agent';
-import type { QuickMatchResponse } from '../src/shared/matchmaking';
+import { buildObservation, queueForMatch } from '../src/shared/agent';
 import type { GameState } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
 
@@ -79,72 +78,6 @@ const waitForOpen = async (ws: WebSocket): Promise<void> =>
     ws.on('open', onOpen);
     ws.on('error', onError);
   });
-
-const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(url, init);
-  const raw = await response.text();
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${raw || 'request failed'}`);
-  }
-  return JSON.parse(raw) as T;
-};
-
-const queueForMatch = async (args: {
-  serverUrl: string;
-  scenario: string;
-  username: string;
-  playerKey: string;
-  pollMs: number;
-  timeoutMs: number;
-}): Promise<{ code: string; playerToken: string; ticket: string }> => {
-  const enqueue = await fetchJson<QuickMatchResponse>(
-    `${args.serverUrl}/quick-match`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        scenario: args.scenario,
-        player: {
-          playerKey: args.playerKey,
-          username: args.username,
-        },
-      }),
-    },
-  );
-
-  if (enqueue.status === 'matched') {
-    return {
-      code: enqueue.code,
-      playerToken: enqueue.playerToken,
-      ticket: enqueue.ticket,
-    };
-  }
-
-  if (enqueue.status !== 'queued') {
-    throw new Error(`Unexpected quick-match status: ${enqueue.status}`);
-  }
-
-  const startedAt = Date.now();
-  while (true) {
-    if (Date.now() - startedAt > args.timeoutMs) {
-      throw new Error(`Quick-match timed out after ${args.timeoutMs}ms`);
-    }
-    await new Promise<void>((resolve) => setTimeout(resolve, args.pollMs));
-    const poll = await fetchJson<QuickMatchResponse>(
-      `${args.serverUrl}/quick-match/${enqueue.ticket}`,
-    );
-    if (poll.status === 'matched') {
-      return {
-        code: poll.code,
-        playerToken: poll.playerToken,
-        ticket: poll.ticket,
-      };
-    }
-    if (poll.status === 'expired') {
-      throw new Error(`Quick-match expired: ${poll.reason}`);
-    }
-  }
-};
 
 const pushEvent = (session: DeltaVSession, message: S2C): void => {
   session.events.push({

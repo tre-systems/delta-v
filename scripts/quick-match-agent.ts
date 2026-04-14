@@ -2,8 +2,11 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import process from 'node:process';
 
+import {
+  type QuickMatchResult,
+  queueForMatch as sharedQueueForMatch,
+} from '../src/shared/agent';
 import { hexDistance } from '../src/shared/hex';
-import type { QuickMatchResponse } from '../src/shared/matchmaking';
 import type { ReplayTimeline } from '../src/shared/replay';
 import type { GameState, PlayerId, Ship } from '../src/shared/types/domain';
 
@@ -80,11 +83,7 @@ interface AgentReportResponse {
   };
 }
 
-interface QueueMatch {
-  code: string;
-  playerToken: string;
-  ticket: string;
-}
+type QueueMatch = QuickMatchResult;
 
 interface PlayerRunResult {
   code: number | null;
@@ -213,55 +212,16 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   return JSON.parse(raw) as T;
 };
 
-const queueForMatch = async (config: Config): Promise<QueueMatch> => {
-  const enqueue = await fetchJson<QuickMatchResponse>(
-    `${config.serverUrl}/quick-match`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        scenario: config.scenario,
-        player: {
-          playerKey: config.playerKey,
-          username: config.username,
-        },
-      }),
-    },
-  );
-
-  if (enqueue.status === 'matched') {
-    return {
-      code: enqueue.code,
-      playerToken: enqueue.playerToken,
-      ticket: enqueue.ticket,
-    };
-  }
-  if (enqueue.status !== 'queued') {
-    throw new Error(`unexpected queue status: ${enqueue.status}`);
-  }
-
-  const ticket = enqueue.ticket;
-  while (true) {
-    await delay(config.pollMs);
-    const poll = await fetch(`${config.serverUrl}/quick-match/${ticket}`);
-    const raw = await poll.text();
-    const parsed = JSON.parse(raw) as QuickMatchResponse;
-    if (poll.ok && parsed.status === 'matched') {
-      return {
-        code: parsed.code,
-        playerToken: parsed.playerToken,
-        ticket: parsed.ticket,
-      };
-    }
-    if (parsed.status === 'queued') {
-      continue;
-    }
-    if (parsed.status === 'expired') {
-      throw new Error(`queue expired: ${parsed.reason}`);
-    }
-    throw new Error(`unexpected quick-match poll response: ${raw}`);
-  }
-};
+const queueForMatch = async (config: Config): Promise<QueueMatch> =>
+  sharedQueueForMatch({
+    serverUrl: config.serverUrl,
+    scenario: config.scenario,
+    username: config.username,
+    playerKey: config.playerKey,
+    pollMs: config.pollMs,
+    // Effectively unbounded queue wait; the server's ticket TTL still bounds us.
+    timeoutMs: 60 * 60 * 1000,
+  });
 
 const runPlayer = async (
   config: Config,
