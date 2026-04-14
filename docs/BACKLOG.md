@@ -32,14 +32,6 @@ Recognise the `/coach ` prefix in the chat handler; inject the text into the tar
 
 **Files:** `src/server/game-do/`, observation builder, agents page docs, `scripts/delta-v-mcp-server.ts`
 
-### Benchmark CLI
-
-**Trigger:** reproducible agent evaluation for cross-agent comparison.
-
-Add `npm run benchmark -- --agent-command "..."` wrapping `scripts/simulate-ai.ts` with seeded openings and baseline-bot (easy/normal/hard) calibration opponents. Output structured JSON: win rate, mean turns to victory, fuel efficiency, action validity rate, Elo estimate.
-
-**Files:** `scripts/benchmark.ts` (new), `package.json`
-
 ### Agent landing-page CTA
 
 **Trigger:** agent support is invisible from the main game UI.

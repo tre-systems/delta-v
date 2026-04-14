@@ -87,7 +87,7 @@ Honest inventory. Capability / Status / Location.
 | `/coach` mid-game human-to-agent directive | Planned | target: chat handler + observation field |
 | Layered `agentToken` / `playerToken` | Planned | target: `/api/agent-token` endpoint |
 | Public agent leaderboard with Elo | Future | depends on account system |
-| Benchmark suite CLI | Planned | target: `npm run benchmark` |
+| Benchmark suite CLI | Shipped | `npm run benchmark -- --agent-command ...` |
 | OpenClaw SKILL.md on ClawHub | Future | external publish |
 
 Implementation status summary: the protocol, engine, bridge, local MCP, and example agents are mature and production-tested. The next step is the remote MCP endpoint plus a richer observation contract; everything else in "Planned" builds on those two.
@@ -517,17 +517,44 @@ Depends on account persistence, which is itself out of scope for beta (see `BETA
 
 Agents register with a stable `playerKey` prefixed `agent_`. The existing convention already tags bot connections in server logs.
 
-### 10.2 Benchmark CLI (planned)
+### 10.2 Benchmark CLI
+
+Shipped in `scripts/benchmark.ts`. Runs an external command agent against the built-in AI in-process — no WebSocket server, no Durable Object. The agent uses the same stdin/stdout protocol as `scripts/llm-player.ts --agent command`, so a bot that works through the bridge works unchanged in the benchmark.
 
 ```bash
-# Standard suite (10 seeded games per baseline opponent)
+# Default suite — 20 games vs. the hard baseline on duel, alternating seats
 npm run benchmark -- --agent-command "./my_agent.py"
 
-# Specific scenario pack
-npm run benchmark -- --scenario duel --seeds 1,2,3,4,5
+# Full calibration — easy + normal + hard across multiple scenarios
+npm run benchmark -- \
+    --agent-command 'npm run --silent llm:agent:claude' \
+    --opponent all --scenario duel,biplanetary --games 20 \
+    --v2 --output benchmark.json
+
+# Quick check vs. the recommended baseline
+npm run benchmark -- --agent-command 'npm run --silent llm:agent:recommended' \
+    --opponent easy --games 5 --verbose
 ```
 
-Includes seeded openings, baseline bots (easy/normal/hard), scenario packs, and structured JSON output. Builds on the existing `simulate-ai.ts` and `quick-match-scrimmage.ts` infrastructure — not a green-field script.
+Flags: `--agent-command` (required), `--opponent {easy|normal|hard|all|csv}`, `--scenario <name|csv>`, `--games N`, `--seat {0|1|alt}`, `--timeout-ms N`, `--seed N`, `--compact`, `--v2`, `--output path`, `--verbose`.
+
+Structured JSON output (one summary object, plus per-game rows):
+
+```json
+{
+  "matchups": [{
+    "scenario": "duel", "opponent": "hard",
+    "games": 20, "wins": 9, "losses": 11, "draws": 0,
+    "winRate": 0.45, "elo": 1366,
+    "meanTurns": 12.3, "meanDecisionMs": 1840,
+    "actionValidityRate": 0.98, "timeoutRate": 0.01,
+    "parseErrorRate": 0.0, "crashes": 0
+  }],
+  "games": [/* per-game row per matchup × seat */]
+}
+```
+
+Elo is estimated from win-rate against a stable anchor (easy=1000, normal=1200, hard=1400) using `Δ = −400·log₁₀(1/p − 1)`, clamped away from 0/1 so small-sample sweeps stay readable.
 
 ### 10.3 Replay-based analysis
 
@@ -715,7 +742,7 @@ Deploy the MCP server as a Cloudflare Worker alongside the existing game server.
 
 ### 14.5 Phase 5 — Evaluation and discovery
 
-- `npm run benchmark` CLI wrapping `simulate-ai.ts` with seeded openings and baseline-bot calibration.
+- ~~`npm run benchmark` CLI with seeded openings and baseline-bot calibration.~~ Shipped (see §10.2).
 - Sync scenario list across `/.well-known/agent.json`, `agent-playbook.json`, and `agents.html` (one source of truth).
 - Prominent "Build a Bot" CTA on the landing page and game-over screen.
 - GitHub topics update; OpenClaw SKILL.md publication when the external platform is ready.
