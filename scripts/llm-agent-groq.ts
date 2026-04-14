@@ -1,48 +1,7 @@
 // Groq Llama 3.3 70B agent for Delta-V
 // Uses Groq's OpenAI-compatible API with function calling
 
-// Minimal local types matching llm-player.ts AgentTurnInput
-interface AgentTurnInput {
-  version: 1;
-  gameCode: string;
-  playerId: 0 | 1;
-  state: {
-    phase: string;
-    turnNumber: number;
-    activePlayer: number;
-  };
-  candidates: unknown[];
-  recommendedIndex: number;
-  summary?: string;
-  legalActionInfo?: {
-    phase: string;
-    allowedTypes: string[];
-    burnDirections: string[];
-    ownShips: Array<{
-      id: string;
-      type: string;
-      position: { q: number; r: number };
-      velocity: { dq: number; dr: number };
-      fuel: number;
-      lifecycle: string;
-      canBurn: boolean;
-      canOverload: boolean;
-      canAttack: boolean;
-      canLaunchOrdnance: boolean;
-      cargoUsed: number;
-      cargoCapacity: number;
-      disabledTurns: number;
-    }>;
-    enemies: Array<{
-      id: string;
-      type: string;
-      position: { q: number; r: number };
-      velocity: { dq: number; dr: number };
-      lifecycle: string;
-      detected: boolean;
-    }>;
-  };
-}
+import type { AgentTurnInput } from '../src/shared/agent';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'llama-3.3-70b-versatile';
