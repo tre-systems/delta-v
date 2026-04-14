@@ -63,7 +63,9 @@ If your MCP host ignores `cwd`, use:
 - `delta_v_list_sessions`
   - List active connected sessions.
 - `delta_v_get_state`
-  - Get latest known `GameState` for a session.
+  - Get latest known `GameState` for a session (raw shape).
+- `delta_v_get_observation`
+  - Get the unified agent observation: candidates, legal-action metadata, prose summary, and `recommendedIndex`. Matches the `AgentTurnInput` shape sent by the stdin/HTTP bridge, so the same agent code works via either path. Optional `includeSummary` / `includeLegalActionInfo` flags trim payload for token-constrained contexts.
 - `delta_v_get_events`
   - Read buffered server events (supports `afterEventId` + `limit`).
 - `delta_v_send_action`
@@ -76,10 +78,11 @@ If your MCP host ignores `cwd`, use:
 ## Typical agent loop
 
 1. Call `delta_v_quick_match_connect`.
-2. Poll `delta_v_get_events` to watch for state updates.
-3. On your turn, call `delta_v_send_action` with the chosen legal action.
-4. Use `delta_v_send_chat` optionally.
-5. Close with `delta_v_close_session`.
+2. Poll `delta_v_get_events` until `gameStart` arrives.
+3. On your turn, call `delta_v_get_observation` and pick a candidate (default: `recommendedIndex`).
+4. Call `delta_v_send_action` with the chosen legal action.
+5. Use `delta_v_send_chat` optionally.
+6. Close with `delta_v_close_session`.
 
 ## Action payload examples
 

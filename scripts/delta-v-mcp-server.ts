@@ -6,6 +6,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import WebSocket from 'ws';
 import { z } from 'zod';
 
+import { buildObservation } from '../src/shared/agent';
 import type { QuickMatchResponse } from '../src/shared/matchmaking';
 import type { GameState } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
@@ -312,6 +313,43 @@ server.registerTool(
       eventsBuffered: session.events.length,
       latestEventId: session.events.at(-1)?.id ?? 0,
     });
+  },
+);
+
+server.registerTool(
+  'delta_v_get_observation',
+  {
+    description:
+      'Get the unified agent observation for a session: candidates, legal-action metadata, prose summary, and recommendedIndex. Matches the AgentTurnInput shape sent by the stdin/HTTP bridge so the same agent code works via either path.',
+    inputSchema: {
+      sessionId: z.string(),
+      includeSummary: z.boolean().optional(),
+      includeLegalActionInfo: z.boolean().optional(),
+    },
+  },
+  async ({ sessionId, includeSummary, includeLegalActionInfo }) => {
+    const session = getSessionOrThrow(sessionId);
+    if (session.lastState === null) {
+      throw new Error(
+        `Session ${sessionId} has no state yet; wait for gameStart before requesting an observation.`,
+      );
+    }
+    if (session.playerId === null) {
+      throw new Error(
+        `Session ${sessionId} has not received a welcome message yet; cannot build observation without a playerId.`,
+      );
+    }
+
+    const observation = buildObservation(session.lastState, session.playerId, {
+      gameCode: session.code,
+      includeSummary,
+      includeLegalActionInfo,
+    });
+
+    return toolOk(
+      `Observation for session ${sessionId} (turn ${session.lastState.turnNumber}, phase ${session.lastState.phase}).`,
+      { ...observation } as Record<string, unknown>,
+    );
   },
 );
 
