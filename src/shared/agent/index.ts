@@ -3,6 +3,11 @@
 // legal-action metadata, and the prose summary agents see.
 
 export {
+  type LabeledCandidate,
+  labelCandidate,
+  labelCandidates,
+} from './candidate-labels';
+export {
   allowedActionTypesForPhase,
   buildActionForDifficulty,
   buildCandidates,
@@ -27,6 +32,11 @@ export {
   type QuickMatchResult,
   queueForMatch,
 } from './quick-match';
+export {
+  renderSpatialGrid,
+  type SpatialGridOptions,
+} from './spatial-grid';
+export { buildTacticalFeatures, type TacticalFeatures } from './tactical';
 export type {
   AgentTurnInput,
   AgentTurnResponse,
