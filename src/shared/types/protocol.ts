@@ -10,6 +10,7 @@ import type {
   OrbitalBaseEmplacement,
   OrdnanceLaunch,
   OrdnanceMovement,
+  Phase,
   PlayerId,
   ShipMovement,
   TransferOrder,
@@ -29,7 +30,20 @@ export type LogisticsTransferLogEvent = TransferLogFields & {
 
 // --- Network messages ---
 
-export type C2S =
+// Optional action guards, attachable to any C2S. The server validates these
+// before dispatching to the engine; on mismatch it sends back `actionRejected`
+// with the current state so the agent can re-decide without a round-trip.
+// - expectedTurn/expectedPhase guard against stale submissions after an LLM think
+// - idempotencyKey lets the agent retry safely after a transient error
+export interface ActionGuards {
+  expectedTurn?: number;
+  expectedPhase?: Phase;
+  idempotencyKey?: string;
+}
+
+type WithGuards<T> = T & { guards?: ActionGuards };
+
+export type C2S = WithGuards<
   | { type: 'fleetReady'; purchases: FleetPurchase[] }
   | { type: 'astrogation'; orders: AstrogationOrder[] }
   | { type: 'surrender'; shipIds: ShipId[] }
@@ -48,7 +62,8 @@ export type C2S =
   | { type: 'skipLogistics' }
   | { type: 'rematch' }
   | { type: 'chat'; text: string }
-  | { type: 'ping'; t: number };
+  | { type: 'ping'; t: number }
+>;
 
 export type S2C =
   | {
@@ -97,6 +112,32 @@ export type S2C =
       text: string;
     }
   | { type: 'error'; message: string; code?: ErrorCode }
+  | {
+      /**
+       * Sent to the submitter (never broadcast) when an action failed its
+       * ActionGuards check (stale turn, stale phase, wrong active player, or
+       * duplicate idempotency key). Carries the fresh state so the agent can
+       * re-decide without another `get_observation` round-trip.
+       */
+      type: 'actionRejected';
+      reason:
+        | 'staleTurn'
+        | 'stalePhase'
+        | 'wrongActivePlayer'
+        | 'duplicateIdempotencyKey';
+      message: string;
+      expected: {
+        turn?: number;
+        phase?: Phase;
+      };
+      actual: {
+        turn: number;
+        phase: Phase;
+        activePlayer: PlayerId;
+      };
+      state: GameState;
+      idempotencyKey?: string;
+    }
   | { type: 'pong'; t: number }
   | {
       type: 'opponentStatus';

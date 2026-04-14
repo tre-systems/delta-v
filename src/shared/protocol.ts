@@ -2,6 +2,7 @@ import { SHIP_STATS, type ShipType } from './constants';
 import type { HexKey } from './hex';
 import { asShipId, type OrdnanceId, type ShipId } from './ids';
 import type {
+  ActionGuards,
   AstrogationOrder,
   C2S,
   CombatAttack,
@@ -356,14 +357,52 @@ const parseTransferOrders = (raw: unknown): TransferOrder[] | null => {
   return transfers;
 };
 
+const VALID_PHASES: ReadonlySet<string> = new Set([
+  'waiting',
+  'fleetBuilding',
+  'astrogation',
+  'ordnance',
+  'logistics',
+  'combat',
+  'gameOver',
+]);
+
+const MAX_IDEMPOTENCY_KEY_LENGTH = 128;
+
+// Parse optional ActionGuards from a wire message. Returns undefined when no
+// valid guards are present so the resulting C2S stays clean.
+const parseActionGuards = (raw: unknown): ActionGuards | undefined => {
+  if (!isObject(raw)) return undefined;
+  const guards: ActionGuards = {};
+
+  if (
+    typeof raw.expectedTurn === 'number' &&
+    Number.isInteger(raw.expectedTurn) &&
+    raw.expectedTurn >= 0
+  ) {
+    guards.expectedTurn = raw.expectedTurn;
+  }
+
+  if (
+    typeof raw.expectedPhase === 'string' &&
+    VALID_PHASES.has(raw.expectedPhase)
+  ) {
+    guards.expectedPhase = raw.expectedPhase as ActionGuards['expectedPhase'];
+  }
+
+  if (
+    typeof raw.idempotencyKey === 'string' &&
+    raw.idempotencyKey.length > 0 &&
+    raw.idempotencyKey.length <= MAX_IDEMPOTENCY_KEY_LENGTH
+  ) {
+    guards.idempotencyKey = raw.idempotencyKey;
+  }
+
+  return Object.keys(guards).length > 0 ? guards : undefined;
+};
+
 export const validateClientMessage = (raw: unknown): Result<C2S> => {
-  const ok = (value: C2S) => ({ ok: true as const, value });
   const invalid = (error: string) => ({ ok: false as const, error });
-  const fromParsed = <T>(
-    parsed: T | null,
-    toValue: (value: T) => C2S,
-    error: string,
-  ) => (parsed ? ok(toValue(parsed)) : invalid(error));
 
   if (!isObject(raw) || !isString(raw.type)) {
     return invalid('Invalid message payload');
@@ -372,6 +411,17 @@ export const validateClientMessage = (raw: unknown): Result<C2S> => {
   const message = raw as Record<string, unknown> & {
     type: C2S['type'];
   };
+
+  const guards = parseActionGuards(message.guards);
+  const ok = (value: C2S) => ({
+    ok: true as const,
+    value: guards ? ({ ...value, guards } as C2S) : value,
+  });
+  const fromParsed = <T>(
+    parsed: T | null,
+    toValue: (value: T) => C2S,
+    error: string,
+  ) => (parsed ? ok(toValue(parsed)) : invalid(error));
 
   const validateChat = () => {
     if (!isString(message.text)) {
@@ -559,6 +609,18 @@ export const validateServerMessage = (raw: unknown): Result<S2C> => {
     case 'error':
       if (!isString(msg.message)) {
         return invalid('Invalid error payload');
+      }
+      return ok(msg as unknown as S2C);
+
+    case 'actionRejected':
+      if (!isString(msg.reason) || !isString(msg.message)) {
+        return invalid('Invalid actionRejected payload');
+      }
+      if (!isObject(msg.actual) || !isObject(msg.expected)) {
+        return invalid('Invalid actionRejected payload');
+      }
+      if (!isObject(msg.state)) {
+        return invalid('Invalid actionRejected payload');
       }
       return ok(msg as unknown as S2C);
 

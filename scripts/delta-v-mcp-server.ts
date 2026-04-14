@@ -433,21 +433,39 @@ server.registerTool(
 server.registerTool(
   'delta_v_send_action',
   {
-    description: 'Send a raw C2S game action for a session.',
+    description:
+      "Send a raw C2S game action for a session. ActionGuards are auto-filled from the session's current state unless autoGuards=false; in that case the caller supplies `guards` on the action payload itself.",
     inputSchema: {
       sessionId: z.string(),
       action: z.object({ type: z.string() }).passthrough(),
+      autoGuards: z.boolean().optional(),
     },
   },
-  async ({ sessionId, action }) => {
+  async ({ sessionId, action, autoGuards }) => {
     const session = getSessionOrThrow(sessionId);
     if (session.ws.readyState !== WebSocket.OPEN) {
       throw new Error(`Session ${sessionId} socket is not open`);
     }
-    session.ws.send(JSON.stringify(action as C2S));
+
+    const shouldAutoGuard = autoGuards ?? true;
+    const rawAction = action as C2S;
+    const payload: C2S =
+      shouldAutoGuard && session.lastState && !rawAction.guards
+        ? ({
+            ...rawAction,
+            guards: {
+              expectedTurn: session.lastState.turnNumber,
+              expectedPhase: session.lastState.phase,
+              idempotencyKey: `t${session.lastState.turnNumber}-${session.lastState.phase}-${randomUUID()}`,
+            },
+          } as C2S)
+        : rawAction;
+
+    session.ws.send(JSON.stringify(payload));
     return toolOk(`Sent action ${action.type} on session ${sessionId}.`, {
       sessionId,
       actionType: action.type,
+      guarded: Boolean(payload.guards),
     });
   },
 );

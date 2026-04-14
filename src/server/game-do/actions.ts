@@ -23,6 +23,12 @@ import type {
 import type { C2S } from '../../shared/types/protocol';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
 import {
+  type ActionRejectedMessage,
+  buildActionRejected,
+  checkActionGuards,
+  type IdempotencyKeyCache,
+} from './action-guards';
+import {
   resolveCombatBroadcast,
   resolveMovementBroadcast,
   type StatefulServerMessage,
@@ -336,7 +342,21 @@ interface RunActionDeps {
     message: string,
     code?: EngineError['code'],
   ) => void;
+  sendActionRejected: (ws: WebSocket, rejected: ActionRejectedMessage) => void;
 }
+
+// Runner passed to dispatchGameStateAction. Optional preCheck runs against the
+// fetched state before the action fires so submission guards (expectedTurn,
+// expectedPhase, idempotencyKey) can short-circuit with a rich
+// actionRejected message instead of a plain `error`.
+export type GameStateActionRunner = <Success extends { state: GameState }>(
+  ws: WebSocket,
+  action: (
+    gameState: GameState,
+  ) => Success | EngineFailure | Promise<Success | EngineFailure>,
+  onSuccess: (result: Success) => Promise<void> | void,
+  preCheck?: (gameState: GameState) => ActionRejectedMessage | null,
+) => Promise<void>;
 
 export const runGameStateAction = async <
   Success extends {
@@ -349,11 +369,20 @@ export const runGameStateAction = async <
     gameState: GameState,
   ) => Success | EngineFailure | Promise<Success | EngineFailure>,
   onSuccess: (result: Success) => Promise<void> | void,
+  preCheck?: (gameState: GameState) => ActionRejectedMessage | null,
 ): Promise<void> => {
   const gameState = await deps.getCurrentGameState();
 
   if (!gameState) {
     return;
+  }
+
+  if (preCheck) {
+    const rejected = preCheck(gameState);
+    if (rejected) {
+      deps.sendActionRejected(ws, rejected);
+      return;
+    }
   }
 
   let result: Success | EngineFailure;
@@ -383,25 +412,47 @@ export const dispatchGameStateAction = async (
   ws: WebSocket,
   message: GameStateActionMessage,
   handlers: ReturnType<typeof createGameStateActionHandlers>,
-  runner: <
-    Success extends {
-      state: GameState;
-    },
-  >(
-    ws: WebSocket,
-    action: (
-      gameState: GameState,
-    ) => Success | EngineFailure | Promise<Success | EngineFailure>,
-    onSuccess: (result: Success) => Promise<void> | void,
-  ) => Promise<void>,
+  runner: GameStateActionRunner,
+  idempotencyCache?: IdempotencyKeyCache,
 ): Promise<void> => {
   const handler = handlers[message.type] as GameStateActionHandler<
     typeof message.type,
     StatefulActionSuccess
   >;
+
+  const guards = message.guards;
+
+  const preCheck = (gameState: GameState): ActionRejectedMessage | null => {
+    const rejection = checkActionGuards(guards, gameState, playerId);
+    if (rejection) return buildActionRejected(rejection, gameState, guards);
+
+    const key = guards?.idempotencyKey;
+    if (key && idempotencyCache?.has(playerId, key)) {
+      return buildActionRejected(
+        {
+          reason: 'duplicateIdempotencyKey',
+          message: `idempotency key already processed this phase`,
+        },
+        gameState,
+        guards,
+      );
+    }
+    return null;
+  };
+
   await runner(
     ws,
     (gameState) => handler.run(gameState, playerId, message),
-    (result) => handler.publish(playerId, result),
+    async (result) => {
+      // Only remember the key after the engine accepted the action so a
+      // transient engine error doesn't poison the ring with a key the agent
+      // will legitimately retry.
+      const key = guards?.idempotencyKey;
+      if (key && idempotencyCache) {
+        idempotencyCache.remember(playerId, key);
+      }
+      await handler.publish(playerId, result);
+    },
+    preCheck,
   );
 };

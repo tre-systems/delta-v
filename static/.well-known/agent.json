@@ -114,8 +114,18 @@
       { "type": "chat",              "when": "Player sent chat",                      "keyFields": "playerId, text" },
       { "type": "opponentStatus",    "when": "Opponent disconnected or reconnected",  "keyFields": "status, graceDeadlineMs?" },
       { "type": "error",             "when": "Server error",                          "keyFields": "message, code?" },
+      { "type": "actionRejected",    "when": "Submitted action failed its ActionGuards check", "keyFields": "reason, message, expected, actual, state, idempotencyKey?" },
       { "type": "pong",              "when": "Ping reply",                            "keyFields": "t" }
     ],
+    "actionGuards": {
+      "description": "Optional fields attachable to any C2S action so the server can reject stale/duplicate submissions with a fresh state instead of the action silently landing on the wrong turn.",
+      "fields": {
+        "expectedTurn": "integer — reject if the authoritative turn has advanced",
+        "expectedPhase": "Phase — reject if the authoritative phase has advanced",
+        "idempotencyKey": "string (1-128 chars) — server rejects with `duplicateIdempotencyKey` if the same key was seen this phase"
+      },
+      "rejectionMessage": "S2C actionRejected { reason, message, expected, actual, state }"
+    },
     "clientToServer": [
       { "type": "fleetReady",   "phase": "fleetBuilding", "fields": "purchases: FleetPurchase[]" },
       { "type": "astrogation",  "phase": "astrogation",   "fields": "orders: AstrogationOrder[]" },

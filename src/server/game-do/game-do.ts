@@ -15,6 +15,10 @@ import {
   resolveSeatAssignment,
 } from '../protocol';
 import {
+  type ActionRejectedMessage,
+  IdempotencyKeyCache,
+} from './action-guards';
+import {
   type AuxMessage,
   createGameStateActionHandlers,
   dispatchGameStateAction,
@@ -80,6 +84,10 @@ export interface Env {
 export class GameDO extends DurableObject<Env> {
   private readonly map = buildSolarSystemMap();
   private readonly replacedSockets = new WeakSet<WebSocket>();
+  // Per-match idempotency ring, cleared on phase advance so each phase has a
+  // fresh scope. Ephemeral — safe to lose on DO re-activation (the agent will
+  // retry and the server will accept).
+  private readonly idempotencyCache = new IdempotencyKeyCache();
   private readonly msgRates = new WeakMap<
     WebSocket,
     { count: number; windowStart: number }
@@ -455,6 +463,7 @@ export class GameDO extends DurableObject<Env> {
         this.reportEngineError(code, phase, turn, err),
       sendError: (socket, message, code) =>
         this.send(socket, { type: 'error', message, code }),
+      sendActionRejected: (socket, rejected) => this.send(socket, rejected),
     };
   }
 
@@ -519,8 +528,9 @@ export class GameDO extends DurableObject<Env> {
       socket,
       msg,
       this.gameStateActionHandlers,
-      (targetWs, action, onSuccess) =>
-        this.runGameStateAction(targetWs, action, onSuccess),
+      (targetWs, action, onSuccess, preCheck) =>
+        this.runGameStateAction(targetWs, action, onSuccess, preCheck),
+      this.idempotencyCache,
     );
   }
 
@@ -612,6 +622,10 @@ export class GameDO extends DurableObject<Env> {
       events?: EngineEvent[];
     },
   ) {
+    // Each accepted action advances the state; agent idempotency keys are
+    // scoped per action, so clear the cache here rather than tracking phase
+    // transitions. Re-submits after this point target a newer state anyway.
+    this.idempotencyCache.clear();
     await runPublicationPipeline(
       this.createPublicationDeps(),
       state,
@@ -679,12 +693,14 @@ export class GameDO extends DurableObject<Env> {
       gameState: GameState,
     ) => Success | EngineFailure | Promise<Success | EngineFailure>,
     onSuccess: (result: Success) => Promise<void> | void,
+    preCheck?: (gameState: GameState) => ActionRejectedMessage | null,
   ): Promise<void> {
     await runGameStateAction(
       this.createGameStateActionDeps(),
       ws,
       action,
       onSuccess,
+      preCheck,
     );
   }
 
