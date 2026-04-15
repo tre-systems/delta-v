@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import process from 'node:process';
 
 import { hexDistance } from '../src/shared/hex';
@@ -22,6 +24,8 @@ interface Config {
   shutdownGraceMs: number;
   labelA: string;
   labelB: string;
+  live: boolean;
+  jsonOutPath: string | null;
 }
 
 interface QueuePlayer {
@@ -92,6 +96,39 @@ interface PlayerRunResult {
   signal: NodeJS.Signals | null;
 }
 
+interface PlayerRunMetrics {
+  chatSent: string[];
+  chatReceived: string[];
+  actionRejectedCount: number;
+  ordnanceMix: {
+    nuke: number;
+    torpedo: number;
+    mine: number;
+  };
+}
+
+interface ScrimmageExportPlayer {
+  label: string;
+  profile: string;
+  playerId: PlayerId;
+  report: AgentReportResponse;
+  metrics: PlayerRunMetrics;
+}
+
+interface ScrimmageExport {
+  timestamp: string;
+  serverUrl: string;
+  scenario: string;
+  roomCode: string;
+  gameId: string;
+  winner: PlayerId | null;
+  reason: string | null;
+  turns: number | null;
+  replayEntries: number;
+  phaseCounts: Record<string, number>;
+  players: ScrimmageExportPlayer[];
+}
+
 const delay = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -132,6 +169,8 @@ Flags:
   --shutdown-grace-ms      Wait after game over before stopping clients (default: 1200)
   --label-a                Display label for player A (default: Comet)
   --label-b                Display label for player B (default: Kepler)
+  --live                   Stream concise per-turn/chat/result updates
+  --json-out               Write structured JSON summary to file
 `);
     process.exit(0);
   }
@@ -157,6 +196,8 @@ Flags:
     ),
     labelA: getFlag('--label-a') ?? 'Comet',
     labelB: getFlag('--label-b') ?? 'Kepler',
+    live: args.includes('--live'),
+    jsonOutPath: getFlag('--json-out') ?? null,
   };
 };
 
@@ -377,6 +418,60 @@ const terminateProcess = (child: ReturnType<typeof spawn>): void => {
   }, 500).unref();
 };
 
+const shouldEmitLiveLine = (line: string): boolean =>
+  /^seat assigned: player /.test(line) ||
+  /^turn \d+ [a-z]+: selected /.test(line) ||
+  /^chat sent: "/.test(line) ||
+  /^chat received p[01]: "/.test(line) ||
+  /^action rejected \(/.test(line) ||
+  /^game over: winner=/.test(line) ||
+  /^result: /.test(line);
+
+const parseMetricsFromLogs = (logs: string[]): PlayerRunMetrics => {
+  const chatSent: string[] = [];
+  const chatReceived: string[] = [];
+  const ordnanceMix = { nuke: 0, torpedo: 0, mine: 0 };
+  let actionRejectedCount = 0;
+
+  for (const log of logs) {
+    const sentMatch = /chat sent: "([^"]+)"/.exec(log);
+    if (sentMatch) chatSent.push(sentMatch[1]);
+
+    const receivedMatch = /chat received p[01]: "([^"]+)"/.exec(log);
+    if (receivedMatch) chatReceived.push(receivedMatch[1]);
+
+    if (log.includes('action rejected (')) actionRejectedCount += 1;
+
+    if (log.includes('launches nuke')) ordnanceMix.nuke += 1;
+    if (log.includes('launches torpedo')) ordnanceMix.torpedo += 1;
+    if (log.includes('launches mine')) ordnanceMix.mine += 1;
+  }
+
+  return { chatSent, chatReceived, actionRejectedCount, ordnanceMix };
+};
+
+const writeJsonSummary = async (
+  filePath: string,
+  summary: ScrimmageExport,
+): Promise<void> => {
+  const absolutePath = path.resolve(process.cwd(), filePath);
+  await mkdir(path.dirname(absolutePath), { recursive: true });
+
+  let existing: ScrimmageExport[] = [];
+  try {
+    const raw = await readFile(absolutePath, 'utf8');
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      existing = parsed as ScrimmageExport[];
+    }
+  } catch {
+    // first write or unreadable file; overwrite with fresh array
+  }
+
+  existing.push(summary);
+  await writeFile(absolutePath, JSON.stringify(existing, null, 2));
+};
+
 const runPlayerClient = (
   config: Config,
   player: QueuePlayer,
@@ -409,6 +504,7 @@ const runPlayerClient = (
       String(config.thinkMs),
       '--decision-timeout-ms',
       String(config.decisionTimeoutMs),
+      ...(config.live ? ['--verbose'] : []),
     ],
     {
       cwd: process.cwd(),
@@ -419,6 +515,7 @@ const runPlayerClient = (
   let stdoutBuffer = '';
   let stderrBuffer = '';
   let reportedGameOver = false;
+  let lastLiveLine: string | null = null;
 
   const handleLine = (stream: 'stdout' | 'stderr', rawLine: string): void => {
     const line = rawLine.trim();
@@ -427,6 +524,12 @@ const runPlayerClient = (
     }
 
     player.logs.push(`[${player.label} ${stream}] ${line}`);
+    if (config.live && shouldEmitLiveLine(line)) {
+      if (line !== lastLiveLine) {
+        console.log(`[live ${player.label}] ${line}`);
+        lastLiveLine = line;
+      }
+    }
 
     const seatMatch = /^seat assigned: player ([01]), code ([A-Z0-9]{5})$/.exec(
       line,
@@ -743,6 +846,41 @@ const main = async (): Promise<void> => {
     console.log(
       `Record: ${report.record.wins}-${report.record.losses}-${report.record.draws} in ${report.record.gamesPlayed} game(s), win rate ${report.record.winRate}%`,
     );
+  }
+
+  if (config.jsonOutPath) {
+    const leftMetrics = parseMetricsFromLogs(left.logs);
+    const rightMetrics = parseMetricsFromLogs(right.logs);
+    const summary: ScrimmageExport = {
+      timestamp: new Date().toISOString(),
+      serverUrl: config.serverUrl,
+      scenario: config.scenario,
+      roomCode: replaySummary.roomCode,
+      gameId: replaySummary.gameId,
+      winner: replaySummary.winner,
+      reason: replaySummary.reason,
+      turns: replaySummary.finalTurn,
+      replayEntries: replaySummary.entries,
+      phaseCounts: replaySummary.phaseCounts,
+      players: [
+        {
+          label: left.label,
+          profile: left.profile,
+          playerId: left.playerId,
+          report: leftReport,
+          metrics: leftMetrics,
+        },
+        {
+          label: right.label,
+          profile: right.profile,
+          playerId: right.playerId,
+          report: rightReport,
+          metrics: rightMetrics,
+        },
+      ],
+    };
+    await writeJsonSummary(config.jsonOutPath, summary);
+    console.log(`JSON summary appended: ${path.resolve(config.jsonOutPath)}`);
   }
 };
 

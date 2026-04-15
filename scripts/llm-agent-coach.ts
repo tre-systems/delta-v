@@ -668,6 +668,56 @@ const chooseCandidateIndex = (
     if (saferIndex >= 0) return saferIndex;
   }
 
+  if (selectedCandidate.type === 'ordnance' && input.state.turnNumber <= 2) {
+    const nearest = digest.nearestEnemyDistance;
+    const hasNuke = selectedCandidate.launches.some(
+      (launch) => launch.ordnanceType === 'nuke',
+    );
+    const hasTorpedo = selectedCandidate.launches.some(
+      (launch) => launch.ordnanceType === 'torpedo',
+    );
+    const hasMine = selectedCandidate.launches.some(
+      (launch) => launch.ordnanceType === 'mine',
+    );
+
+    const avoidEarlyNuke = hasNuke && (nearest === null || nearest > 1);
+    const avoidLongTorpedo = hasTorpedo && (nearest === null || nearest > 4);
+    const avoidLooseMine = hasMine && (nearest === null || nearest > 2);
+    const avoidParityOvercommit =
+      digest.ownOperationalShips <= 1 &&
+      digest.materialEdge <= 0 &&
+      nearest !== null &&
+      nearest > 1;
+
+    if (
+      avoidEarlyNuke ||
+      avoidLongTorpedo ||
+      avoidLooseMine ||
+      avoidParityOvercommit
+    ) {
+      const saferIndex = input.candidates.findIndex((candidate) => {
+        if (candidate.type === 'skipOrdnance') return true;
+        if (candidate.type !== 'ordnance') return false;
+        // Prefer lower-risk launches in early turns: no nukes, and bounded geometry.
+        const candidateHasNuke = candidate.launches.some(
+          (launch) => launch.ordnanceType === 'nuke',
+        );
+        const candidateHasTorpedo = candidate.launches.some(
+          (launch) => launch.ordnanceType === 'torpedo',
+        );
+        const candidateHasMine = candidate.launches.some(
+          (launch) => launch.ordnanceType === 'mine',
+        );
+        if (candidateHasNuke) return false;
+        if (candidateHasTorpedo && (nearest === null || nearest > 4))
+          return false;
+        if (candidateHasMine && (nearest === null || nearest > 2)) return false;
+        return true;
+      });
+      if (saferIndex >= 0) return saferIndex;
+    }
+  }
+
   return bestIndex;
 };
 
