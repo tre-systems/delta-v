@@ -4,7 +4,13 @@ const DEFAULT_CLIENT_FEATURE_FLAGS: Readonly<
   Record<ClientFeatureFlag, boolean>
 > = {
   spectatorMode: false,
-  replayControls: false,
+  // Replay controls are enabled for two code paths:
+  // 1. Post-match review — a player finishes their game and scrubs through
+  //    it via "View Replay" on the game-over overlay.
+  // 2. Archived replays from /matches — the history page boots the client
+  //    into read-only replay mode for any completed match.
+  // Both paths share the same replay-controller machinery and overlay UI.
+  replayControls: true,
 };
 
 const FEATURE_STORAGE_PREFIX = 'delta-v:feature:';

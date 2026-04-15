@@ -222,6 +222,14 @@
       white-space: nowrap;
     }
 
+    .replay-link {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
     .status {
       text-align: center;
       padding: 3rem 1rem;
@@ -283,7 +291,7 @@
     <div class="hero-eyebrow">Match history</div>
     <h1>Recent matches</h1>
     <p class="hero-lead">
-      Every completed match is archived. This list shows the most recent results; a browser replay viewer is in the works.
+      Every completed match is archived. Click any replay to watch it unfold turn-by-turn.
     </p>
   </div>
 
@@ -302,7 +310,7 @@
         <th>Winner</th>
         <th>Turns</th>
         <th class="hide-mobile">Played</th>
-        <th class="hide-mobile">Game</th>
+        <th></th>
       </tr>
     </thead>
     <tbody id="matches-body"></tbody>
@@ -380,6 +388,8 @@
       ? ' <span class="coached-badge" title="This match used the /coach whisper">Coached</span>'
       : '';
 
+    const replayUrl = `/?code=${encodeURIComponent(match.roomCode)}&archivedReplay=${encodeURIComponent(match.gameId)}`;
+
     return `
       <tr>
         <td>
@@ -388,7 +398,7 @@
         <td>${winnerCell}${coachedBadge}${winReason}</td>
         <td class="turns-cell">${match.turns}</td>
         <td class="date-cell hide-mobile" title="${new Date(match.completedAt).toISOString()}">${formatDate(match.completedAt)}</td>
-        <td class="game-id hide-mobile" title="Game ${escapeHtml(match.gameId)} (room ${escapeHtml(match.roomCode)})">${escapeHtml(match.gameId)}</td>
+        <td><a class="replay-link" href="${replayUrl}" title="Watch ${escapeHtml(match.gameId)}">Replay →</a></td>
       </tr>
     `;
   };

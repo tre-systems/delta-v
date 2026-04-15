@@ -237,6 +237,52 @@ describe('session-api telemetry', () => {
     });
   });
 
+  it('fetches an archived replay over the public spectator route without a token', async () => {
+    const { deps, track } = createDeps();
+    let lastUrl = '';
+    const fetchMock = vi.fn(async (url: string) => {
+      lastUrl = url;
+      return {
+        ok: true,
+        json: async () => ({ gameId: 'ZNMC6-m1', entries: [] }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createSessionApi(deps);
+    const replay = await api.fetchArchivedReplay('ZNMC6', 'ZNMC6-m1');
+
+    expect(replay).toEqual({ gameId: 'ZNMC6-m1', entries: [] });
+    expect(lastUrl).toContain('/replay/ZNMC6');
+    expect(lastUrl).toContain('viewer=spectator');
+    expect(lastUrl).toContain('gameId=ZNMC6-m1');
+    // Crucially: no playerToken param leaks into the URL.
+    expect(lastUrl).not.toContain('playerToken');
+    expect(track).toHaveBeenCalledWith('archived_replay_fetch_succeeded', {
+      gameId: 'ZNMC6-m1',
+    });
+  });
+
+  it('returns null and tracks a server failure when archived replay 404s', async () => {
+    const { deps, track } = createDeps();
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 404,
+      json: async () => ({}),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createSessionApi(deps);
+    const replay = await api.fetchArchivedReplay('MISSG', 'MISSG-m1');
+
+    expect(replay).toBeNull();
+    expect(track).toHaveBeenCalledWith('archived_replay_fetch_failed', {
+      reason: 'server',
+      status: 404,
+      gameId: 'MISSG-m1',
+    });
+  });
+
   it('blocks quick match when another tab already holds the queue lock', async () => {
     const { deps, track } = createDeps();
     const fetchMock = vi.fn();

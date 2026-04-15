@@ -7,7 +7,7 @@ import type { S2C } from '../../shared/types/protocol';
 import type { Renderer } from '../renderer/renderer';
 import type { UIManager } from '../ui/ui';
 import type { ActionDeps } from './action-deps';
-import { setWaitingScreenState } from './client-context-store';
+import { setScenario, setWaitingScreenState } from './client-context-store';
 import type { ConnectionManager } from './connection';
 import type { HudController } from './hud-controller';
 import {
@@ -15,8 +15,11 @@ import {
   type MessageHandlerDeps,
 } from './message-handler';
 import type { ClientState } from './phase';
+import type { ReplayController } from './replay-controller';
 import type { SessionApi } from './session-api';
 import {
+  type ArchivedReplaySessionDeps,
+  beginArchivedReplaySession,
   beginJoinGameSession,
   beginSpectateGameSession,
   type ExitToMenuSessionDeps,
@@ -39,12 +42,13 @@ export interface MainNetworkDeps {
   hud: HudController;
   actionDeps: ActionDeps;
   turnTelemetry: TurnTelemetryTracker;
-  sessionApi: Pick<SessionApi, 'validateJoin'>;
+  sessionApi: Pick<SessionApi, 'validateJoin' | 'fetchArchivedReplay'>;
   sessionTokens: Pick<
     SessionTokenService,
     'getStoredPlayerToken' | 'storePlayerToken'
   >;
   connection: ConnectionManager;
+  replayController: Pick<ReplayController, 'startArchivedReplay'>;
   setState: (state: ClientState) => void;
   applyGameState: (state: GameState) => void;
   transitionToPhase: () => void;
@@ -169,6 +173,38 @@ export const beginSpectateGameFromMain = (
   code: string,
 ): void => {
   beginSpectateGameSession(createMainRemoteSessionBridge(deps), code);
+};
+
+const createMainArchivedReplaySessionDeps = (
+  deps: MainNetworkDeps,
+): ArchivedReplaySessionDeps => ({
+  ctx: deps.ctx,
+  resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+  replaceRoute: replaceMainRoute,
+  buildGameRoute,
+  setWaitingScreenState: (state) => setWaitingScreenState(deps.ctx, state),
+  setState: deps.setState,
+  fetchArchivedReplay: (gameCode, gameId) =>
+    deps.sessionApi.fetchArchivedReplay(gameCode, gameId),
+  applyGameState: deps.applyGameState,
+  startArchivedReplay: (timeline) =>
+    deps.replayController.startArchivedReplay(timeline),
+  showToast: (message, type) => deps.ui.overlay.showToast(message, type),
+  exitToMenu: () => exitToMenuFromMain(deps),
+  setScenario: (scenario) => setScenario(deps.ctx, scenario),
+});
+
+export const beginArchivedReplayFromMain = (
+  deps: MainNetworkDeps,
+  code: string,
+  gameId: string,
+): void => {
+  deps.ui.log.setLocalGame(false);
+  void beginArchivedReplaySession(
+    createMainArchivedReplaySessionDeps(deps),
+    code,
+    gameId,
+  );
 };
 
 export const beginJoinGameFromMain = (
