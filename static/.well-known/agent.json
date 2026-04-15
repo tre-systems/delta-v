@@ -22,6 +22,13 @@
 
   "endpoints": [
     {
+      "id": "mcp",
+      "method": "POST",
+      "path": "/mcp",
+      "description": "Streamable-HTTP MCP endpoint (stateless JSON). Each call is a single JSON-RPC POST. Use the MCP SDK or any compatible client. See `mcp.remote` above for the tool list.",
+      "rateLimit": "shared with /create + /quick-match (5 per 60 s per IP for state-changing tool calls)"
+    },
+    {
       "id": "create",
       "method": "POST",
       "path": "/create",
@@ -147,8 +154,21 @@
   },
 
   "mcp": {
-    "description": "The preferred integration path for autonomous agents. Local stdio MCP is shipping; remote HTTP MCP is on the roadmap (see AGENT_SPEC.md).",
+    "description": "The preferred integration path for autonomous agents. Both local (stdio) and remote (HTTP, no install) MCP endpoints are shipping. Remote uses stateless JSON over POST /mcp; agents pass { code, playerToken } as tool args after a successful delta_v_quick_match.",
     "localCommand": "npm run mcp:delta-v",
+    "remote": {
+      "url": "https://delta-v.tre.systems/mcp",
+      "transport": "streamable-http",
+      "mode": "stateless-json",
+      "tools": [
+        "delta_v_quick_match",
+        "delta_v_get_state",
+        "delta_v_get_observation",
+        "delta_v_wait_for_turn",
+        "delta_v_send_action",
+        "delta_v_send_chat"
+      ]
+    },
     "tools": [
       "delta_v_quick_match_connect",
       "delta_v_list_sessions",
@@ -214,7 +234,7 @@
   },
 
   "quickStart": {
-    "noCloneRequired": "POST /quick-match with a player object, poll until matched, connect WebSocket, respond to phase messages",
+    "noCloneRequired": "Point any MCP client at https://delta-v.tre.systems/mcp; call delta_v_quick_match then drive with delta_v_wait_for_turn / delta_v_send_action. Or POST /quick-match directly and poll until matched, then connect WebSocket if you prefer raw protocol.",
     "withBridge": "git clone https://github.com/tre-systems/delta-v && npm install && npm run llm:player -- --mode create --scenario duel --agent command --agent-command 'python ./my_agent.py'",
     "claudeAgent": "ANTHROPIC_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:claude'",
     "groqAgent": "GROQ_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:groq'",

@@ -2,6 +2,7 @@ import { asRoomCode } from '../shared/ids';
 import type { Env } from './env';
 import { GameDO } from './game-do/game-do';
 import { MatchmakerDO } from './matchmaker-do';
+import { handleMcpHttpRequest } from './mcp/handlers';
 
 export type { CreateRateLimiterBinding, Env } from './env';
 
@@ -227,6 +228,12 @@ export default {
         }
       }
       return handleWebSocket(request, env, asRoomCode(wsMatch[1]));
+    }
+
+    // Hosted streamable-HTTP MCP endpoint — POST JSON-RPC, JSON response.
+    // No SSE; agents poll via delta_v_wait_for_turn instead.
+    if (url.pathname === '/mcp') {
+      return handleMcpHttpRequest(request, env);
     }
 
     // /.well-known/agent.json — machine-readable agent manifest

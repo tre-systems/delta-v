@@ -328,7 +328,11 @@ export const createGameStateActionHandlers = (deps: ActionDeps) => {
   } satisfies Record<GameStateActionType, unknown>;
 };
 
-interface RunActionDeps {
+// Reply sink injected by the caller. The WebSocket path closes a real socket
+// into both methods; the HTTP /mcp/action path captures the messages and
+// returns them in the JSON response. Decoupling the runner from WebSocket
+// transport is what lets `dispatchGameStateAction` serve both surfaces.
+export interface RunActionDeps {
   getCurrentGameState: () => Promise<GameState | null>;
   getGameCode: () => Promise<string>;
   reportEngineError: (
@@ -337,12 +341,8 @@ interface RunActionDeps {
     turn: number,
     err: unknown,
   ) => void;
-  sendError: (
-    ws: WebSocket,
-    message: string,
-    code?: EngineError['code'],
-  ) => void;
-  sendActionRejected: (ws: WebSocket, rejected: ActionRejectedMessage) => void;
+  sendError: (message: string, code?: EngineError['code']) => void;
+  sendActionRejected: (rejected: ActionRejectedMessage) => void;
 }
 
 // Runner passed to dispatchGameStateAction. Optional preCheck runs against the
@@ -350,7 +350,6 @@ interface RunActionDeps {
 // expectedPhase, idempotencyKey) can short-circuit with a rich
 // actionRejected message instead of a plain `error`.
 export type GameStateActionRunner = <Success extends { state: GameState }>(
-  ws: WebSocket,
   action: (
     gameState: GameState,
   ) => Success | EngineFailure | Promise<Success | EngineFailure>,
@@ -364,7 +363,6 @@ export const runGameStateAction = async <
   },
 >(
   deps: RunActionDeps,
-  ws: WebSocket,
   action: (
     gameState: GameState,
   ) => Success | EngineFailure | Promise<Success | EngineFailure>,
@@ -380,7 +378,7 @@ export const runGameStateAction = async <
   if (preCheck) {
     const rejected = preCheck(gameState);
     if (rejected) {
-      deps.sendActionRejected(ws, rejected);
+      deps.sendActionRejected(rejected);
       return;
     }
   }
@@ -396,12 +394,12 @@ export const runGameStateAction = async <
       err,
     );
     deps.reportEngineError(code, gameState.phase, gameState.turnNumber, err);
-    deps.sendError(ws, 'Engine error — action rejected, game state preserved');
+    deps.sendError('Engine error — action rejected, game state preserved');
     return;
   }
 
   if ('error' in result) {
-    deps.sendError(ws, result.error.message, result.error.code);
+    deps.sendError(result.error.message, result.error.code);
     return;
   }
   await onSuccess(result);
@@ -409,7 +407,6 @@ export const runGameStateAction = async <
 
 export const dispatchGameStateAction = async (
   playerId: PlayerId,
-  ws: WebSocket,
   message: GameStateActionMessage,
   handlers: ReturnType<typeof createGameStateActionHandlers>,
   runner: GameStateActionRunner,
@@ -441,7 +438,6 @@ export const dispatchGameStateAction = async (
   };
 
   await runner(
-    ws,
     (gameState) => handler.run(gameState, playerId, message),
     async (result) => {
       // Only remember the key after the engine accepted the action so a
@@ -455,4 +451,71 @@ export const dispatchGameStateAction = async (
     },
     preCheck,
   );
+};
+
+// Outcome captured by the HTTP /mcp/action path. The WebSocket path doesn't
+// need a return value because it pushes errors/rejections into the socket and
+// success into broadcastStateChange, but HTTP must surface the verdict in the
+// response body.
+export type DispatchOutcome =
+  | { kind: 'accepted' }
+  | { kind: 'rejected'; rejected: ActionRejectedMessage }
+  | { kind: 'error'; message: string; code?: EngineError['code'] }
+  | { kind: 'noState' };
+
+interface HttpDispatchDeps {
+  getCurrentGameState: () => Promise<GameState | null>;
+  getGameCode: () => Promise<string>;
+  reportEngineError: (
+    code: string,
+    phase: string,
+    turn: number,
+    err: unknown,
+  ) => void;
+  handlers: ReturnType<typeof createGameStateActionHandlers>;
+  idempotencyCache?: IdempotencyKeyCache;
+}
+
+// Dispatch a game-state action without a WebSocket and capture the outcome
+// for an HTTP response. Reuses dispatchGameStateAction + runGameStateAction
+// so engine pipelines (preCheck, idempotency cache, publishStateChange) match
+// the WebSocket path exactly.
+export const dispatchGameStateActionForHttp = async (
+  playerId: PlayerId,
+  message: GameStateActionMessage,
+  deps: HttpDispatchDeps,
+): Promise<DispatchOutcome> => {
+  let outcome: DispatchOutcome = { kind: 'accepted' };
+  let outcomeSet = false;
+  const setOutcome = (next: DispatchOutcome): void => {
+    if (outcomeSet) return;
+    outcome = next;
+    outcomeSet = true;
+  };
+
+  const runDeps: RunActionDeps = {
+    getCurrentGameState: deps.getCurrentGameState,
+    getGameCode: deps.getGameCode,
+    reportEngineError: deps.reportEngineError,
+    sendError: (msg, code) => setOutcome({ kind: 'error', message: msg, code }),
+    sendActionRejected: (rejected) =>
+      setOutcome({ kind: 'rejected', rejected }),
+  };
+
+  // Probe state once up front so we can distinguish "no game yet" from
+  // "accepted but state didn't change". runGameStateAction silently returns
+  // early when state is missing — match that with an explicit kind.
+  const stateProbe = await deps.getCurrentGameState();
+  if (!stateProbe) return { kind: 'noState' };
+
+  await dispatchGameStateAction(
+    playerId,
+    message,
+    deps.handlers,
+    (action, onSuccess, preCheck) =>
+      runGameStateAction(runDeps, action, onSuccess, preCheck),
+    deps.idempotencyCache,
+  );
+
+  return outcome;
 };
