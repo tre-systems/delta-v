@@ -6,6 +6,7 @@ export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
   MATCHMAKER: DurableObjectNamespace;
+  LIVE_REGISTRY?: DurableObjectNamespace;
   DB: D1Database;
   CREATE_RATE_LIMITER?: CreateRateLimiterBinding;
   MATCH_ARCHIVE?: R2Bucket;

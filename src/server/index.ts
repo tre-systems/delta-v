@@ -2,6 +2,8 @@ import { asRoomCode } from '../shared/ids';
 import { handleAgentTokenIssue } from './auth/issue-route';
 import type { Env } from './env';
 import { GameDO } from './game-do/game-do';
+import { handleLiveMatchesList } from './live-matches-list';
+import { LiveRegistryDO } from './live-registry-do';
 import { handleMatchesList } from './matches-list';
 import { MatchmakerDO } from './matchmaker-do';
 import { handleMcpHttpRequest } from './mcp/handlers';
@@ -38,7 +40,7 @@ export {
   telemetryReportRateMap,
   wsConnectRateMap,
 } from './reporting';
-export { GameDO, MatchmakerDO };
+export { GameDO, LiveRegistryDO, MatchmakerDO };
 
 const isLoopbackAddress = (value: string | null): boolean => {
   if (!value) {
@@ -253,8 +255,9 @@ export default {
       return handleMcpHttpRequest(request, env);
     }
 
-    // GET /api/matches — public listing of completed matches for the
-    // /matches discovery page. Rate-limited by IP to blunt scrapers.
+    // GET /api/matches — public listing of matches. ?status=live returns
+    // in-progress matches from the LIVE_REGISTRY DO; default returns
+    // completed matches from D1. Rate-limited by IP to blunt scrapers.
     if (url.pathname === '/api/matches' && request.method === 'GET') {
       if (!isLoopbackRequest(request)) {
         const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
@@ -262,6 +265,9 @@ export default {
         if (isJoinReplayProbeRateLimited(ipHash)) {
           return tooManyRequests();
         }
+      }
+      if (url.searchParams.get('status') === 'live') {
+        return handleLiveMatchesList(env);
       }
       return handleMatchesList(request, env);
     }

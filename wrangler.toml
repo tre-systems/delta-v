@@ -16,7 +16,8 @@ html_handling = "auto-trailing-slash"
 [durable_objects]
 bindings = [
   { name = "GAME", class_name = "GameDO" },
-  { name = "MATCHMAKER", class_name = "MatchmakerDO" }
+  { name = "MATCHMAKER", class_name = "MatchmakerDO" },
+  { name = "LIVE_REGISTRY", class_name = "LiveRegistryDO" }
 ]
 
 [[d1_databases]]
@@ -48,3 +49,7 @@ new_classes = ["GameDO"]
 [[migrations]]
 tag = "v2"
 new_classes = ["MatchmakerDO"]
+
+[[migrations]]
+tag = "v3"
+new_classes = ["LiveRegistryDO"]

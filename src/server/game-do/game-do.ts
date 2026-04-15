@@ -80,6 +80,7 @@ import {
 export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
+  LIVE_REGISTRY?: DurableObjectNamespace;
   DB: D1Database;
   MATCH_ARCHIVE?: R2Bucket;
 }
@@ -230,6 +231,7 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async archiveRoomState(): Promise<void> {
+    const code = await this.getGameCode();
     await Promise.all([
       this.storage.put(GAME_DO_STORAGE_KEYS.roomArchived, true),
       this.storage.delete(GAME_DO_STORAGE_KEYS.botTurnAt),
@@ -245,6 +247,10 @@ export class GameDO extends DurableObject<Env> {
       this.storage.delete(GAME_DO_STORAGE_KEYS.coachDirectiveSeat0),
       this.storage.delete(GAME_DO_STORAGE_KEYS.coachDirectiveSeat1),
     ]);
+    // Ensure the match is removed from the live-match registry. This
+    // fires as a safety net on inactivity timeout; the primary deregister
+    // fires earlier in publishStateChange on gameOver.
+    this.deregisterLiveMatch(code);
   }
 
   private async clearRoomArchivedFlag(): Promise<void> {
@@ -669,6 +675,13 @@ export class GameDO extends DurableObject<Env> {
     // observation polling, gameOver close-out), so wake unconditionally.
     this.stateWaiters.wakeAllSeats();
     await this.scheduleBotTurnIfNeeded(state);
+
+    // Remove from the live-match registry as soon as the game ends so
+    // the /matches "Live now" section updates on the next poll.
+    if (state.phase === 'gameOver') {
+      const code = await this.getGameCode();
+      this.deregisterLiveMatch(code);
+    }
   }
 
   private async runBotTurn(): Promise<void> {
@@ -792,8 +805,47 @@ export class GameDO extends DurableObject<Env> {
     return handleMcpRequest(this.createMcpRequestDeps(), request);
   }
 
+  // Fire-and-forget notification to the LIVE_REGISTRY singleton DO.
+  // Never blocks game flow; errors are silently swallowed.
+  private registerLiveMatch(code: string, scenario: string): void {
+    const reg = this.env.LIVE_REGISTRY;
+    if (!reg) return;
+    this.waitUntil(
+      reg
+        .get(reg.idFromName('global'))
+        .fetch(
+          new Request('https://live-registry.internal/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, scenario, startedAt: Date.now() }),
+          }),
+        )
+        .catch(() => {}),
+    );
+  }
+
+  private deregisterLiveMatch(code: string): void {
+    const reg = this.env.LIVE_REGISTRY;
+    if (!reg) return;
+    this.waitUntil(
+      reg
+        .get(reg.idFromName('global'))
+        .fetch(
+          new Request(`https://live-registry.internal/deregister/${code}`, {
+            method: 'DELETE',
+          }),
+        )
+        .catch(() => {}),
+    );
+  }
+
   private async initGame() {
     await initGameSession(this.createInitGameDeps());
+    // Register the new match in the LIVE_REGISTRY for the /matches page.
+    const roomConfig = await this.getRoomConfig();
+    const code = await this.getGameCode();
+    const scenario = roomConfig?.scenario ?? 'duel';
+    this.registerLiveMatch(code, scenario);
   }
 
   private async handleRematch(playerId: PlayerId, _ws: WebSocket) {

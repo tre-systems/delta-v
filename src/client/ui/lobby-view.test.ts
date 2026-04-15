@@ -201,7 +201,7 @@ describe('LobbyView', () => {
     expect(document.getElementById('copyBtn')?.textContent).toBe('Copy Link');
   });
 
-  it('hides spectator link controls when feature is disabled', () => {
+  it('shows spectator link controls when feature is enabled', () => {
     createLobbyView({
       emit: vi.fn(),
       showMenu: vi.fn(),
@@ -211,11 +211,12 @@ describe('LobbyView', () => {
       setPlayerName: (name) => name,
     });
 
+    // spectatorMode defaults to true — the copy-spectate button is visible.
     expect(
       (document.getElementById('copySpectateBtn') as HTMLElement).hasAttribute(
         'hidden',
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('disables join button when input is empty or invalid and shows toast on submit', () => {

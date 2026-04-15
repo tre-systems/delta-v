@@ -263,6 +263,89 @@
       cursor: not-allowed;
     }
 
+    /* Live matches section */
+    .live-section {
+      margin-bottom: 2.5rem;
+    }
+
+    .live-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--success);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .live-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .live-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .live-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      min-width: 200px;
+      flex: 0 1 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .live-card-scenario {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--text);
+    }
+
+    .live-card-elapsed {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .live-card-watch {
+      display: inline-block;
+      margin-top: 0.25rem;
+      padding: 0.3rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--success);
+      border: 1px solid rgba(149, 214, 135, 0.4);
+      border-radius: 999px;
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+      align-self: flex-start;
+    }
+
+    .live-card-watch:hover {
+      background: rgba(149, 214, 135, 0.12);
+      color: var(--text);
+      text-decoration: none;
+    }
+
     .hidden { display: none !important; }
 
     @media (max-width: 640px) {
@@ -294,6 +377,11 @@
       Every completed match is archived. Click any replay to watch it unfold turn-by-turn.
     </p>
   </div>
+
+  <section id="liveSection" class="live-section hidden">
+    <div class="live-eyebrow"><span class="live-dot"></span> Live now</div>
+    <div id="liveGrid" class="live-grid"></div>
+  </section>
 
   <div id="loading" class="status">Loading matches…</div>
   <div id="error" class="status hidden">
@@ -466,8 +554,63 @@
     }
   };
 
+  // --- Live matches ---
+  const $liveSection = document.getElementById('liveSection');
+  const $liveGrid = document.getElementById('liveGrid');
+
+  const formatElapsed = (startedAt) => {
+    const seconds = Math.floor((Date.now() - startedAt) / 1000);
+    if (seconds < 60) return 'Just started';
+    const mins = Math.floor(seconds / 60);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    return `${hrs}h ${mins % 60}m ago`;
+  };
+
+  const renderLiveCard = (match) => {
+    const scenarioName = SCENARIO_NAMES[match.scenario] || match.scenario;
+    const spectateUrl = `/?code=${encodeURIComponent(match.code)}&viewer=spectator`;
+    return `
+      <div class="live-card">
+        <span class="live-card-scenario">${escapeHtml(scenarioName)}</span>
+        <span class="live-card-elapsed">Started ${formatElapsed(match.startedAt)}</span>
+        <a class="live-card-watch" href="${spectateUrl}">Watch live →</a>
+      </div>
+    `;
+  };
+
+  const fetchLive = async () => {
+    try {
+      const res = await fetch('/api/matches?status=live');
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.matches || [];
+    } catch {
+      return [];
+    }
+  };
+
+  const updateLiveSection = (matches) => {
+    if (matches.length === 0) {
+      $liveSection.classList.add('hidden');
+      return;
+    }
+    $liveGrid.innerHTML = matches.map(renderLiveCard).join('');
+    $liveSection.classList.remove('hidden');
+  };
+
+  const pollLive = async () => {
+    const matches = await fetchLive();
+    updateLiveSection(matches);
+  };
+
   $loadMore.addEventListener('click', loadMore);
-  initialLoad();
+
+  // Load completed matches and live matches in parallel on page load.
+  Promise.all([initialLoad(), pollLive()]);
+
+  // Poll live matches every 15 seconds.
+  setInterval(pollLive, 15_000);
 })();
 </script>
 
