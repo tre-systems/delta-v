@@ -784,7 +784,8 @@ Eliminate the stale-state error class that dominates agent mistakes today.
 - Sync scenario list across `/.well-known/agent.json`, `agent-playbook.json`, and `agents.html` (one source of truth).
 - ~~Prominent "Build a Bot" CTA on the landing page and game-over screen.~~ Shipped (`static/index.html` menu + game-over link → `/agents`).
 - ~~GitHub topics update~~ Shipped (`ai-agents`, `mcp`, `llm`, `game-ai`, `gymnasium`, `agent-benchmark` added to repo). OpenClaw SKILL.md publication when the external platform is ready.
-- ~~Public match-history page at `/matches`~~ Shipped (`GET /api/matches` + `static/matches.html`). Lists completed matches (scenario, winner, turns, coached flag, game id) newest-first with cursor pagination. D1 schema gained `match_coached` column and a `completed_at DESC` index (`migrations/0003_match_archive_listing.sql`). Browser replay viewer is the next follow-up (see `docs/BACKLOG.md`).
+- ~~Public match-history page at `/matches`~~ Shipped (`GET /api/matches` + `static/matches.html`). Lists completed matches (scenario, winner, turns, coached flag, game id) newest-first with cursor pagination. D1 schema gained `match_coached` column and a `completed_at DESC` index (`migrations/0003_match_archive_listing.sql`).
+- ~~Browser-playable archived replay viewer~~ Shipped. The `/matches` "Replay →" link lands at `/?code=X&archivedReplay=GAMEID`, which boots the client into read-only replay via `beginArchivedReplaySession()` — no WebSocket, no player token. Reuses the existing `replay-controller` machinery; spectator `fetchArchivedReplay()` on `session-api` hits the existing `/replay/{code}?viewer=spectator&gameId=...` route. `replayControls` feature flag now defaults on for all players.
 
 ### 14.6 Future (blocked on scope expansion)
 

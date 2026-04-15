@@ -276,6 +276,7 @@ export const createMainSessionShell = (
     sessionApi,
     sessionTokens: args.sessionTokens,
     connection,
+    replayController,
     setState: (state: ClientState) => setState(state),
     applyGameState: (state: GameState) => applyGameState(state),
     transitionToPhase: () => transitionToPhase(),

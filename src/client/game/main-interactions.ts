@@ -18,6 +18,7 @@ import { type InputEvent, interpretInput } from './input-events';
 import { deriveInteractionMode } from './interaction-fsm';
 import type { KeyboardAction } from './keyboard';
 import {
+  beginArchivedReplayFromMain,
   beginJoinGameFromMain,
   beginSpectateGameFromMain,
   type MainNetworkDeps,
@@ -86,6 +87,7 @@ export type MainInteractionController = {
   handleUIEvent: (event: UIEvent) => void;
   joinGame: (code: string, playerToken?: string | null) => void;
   spectateGame: (code: string) => void;
+  viewArchivedReplay: (code: string, gameId: string) => void;
   toggleHelp: () => void;
   showToast: (message: string, type?: 'error' | 'info' | 'success') => void;
 };
@@ -221,6 +223,10 @@ export const createMainInteractionController = (
     beginSpectateGameFromMain(deps.mainNetworkDeps, code);
   };
 
+  const viewArchivedReplay = (code: string, gameId: string) => {
+    beginArchivedReplayFromMain(deps.mainNetworkDeps, code, gameId);
+  };
+
   const handleUIEvent = (event: UIEvent) => {
     const plan = resolveUIEventPlan(event);
 
@@ -276,6 +282,7 @@ export const createMainInteractionController = (
     handleUIEvent,
     joinGame,
     spectateGame,
+    viewArchivedReplay,
     toggleHelp,
     showToast,
   };

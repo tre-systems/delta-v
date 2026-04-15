@@ -90,6 +90,9 @@ const createDeps = (): MainNetworkDeps => ({
     stopPing: vi.fn(),
     close: vi.fn(),
   } as unknown as MainNetworkDeps['connection'],
+  replayController: {
+    startArchivedReplay: vi.fn(),
+  } as unknown as MainNetworkDeps['replayController'],
   setState: vi.fn(),
   applyGameState: vi.fn(),
   transitionToPhase: vi.fn(),

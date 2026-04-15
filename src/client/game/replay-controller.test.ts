@@ -133,4 +133,75 @@ describe('replay-controller', () => {
     expect(fetchArgs).toEqual(['ABCDE', 'ABCDE-m1']);
     expect(appliedStates).toEqual(['ABCDE-m1', 'ABCDE-m2']);
   });
+
+  it('seeds archived replay from a pre-fetched timeline and starts at turn 1', () => {
+    const appliedStates: string[] = [];
+    const framedStates: string[] = [];
+    const timeline = createTimeline(asGameId('ABCDE-m1'));
+    // Caller is expected to have applied the final state before invoking
+    // startArchivedReplay — that becomes the "source" state the replay
+    // restores to when closed.
+    const finalState = { ...createState(asGameId('ABCDE-m1')), turnNumber: 42 };
+
+    const controller = createReplayController({
+      getClientContext: () => ({
+        state: 'gameOver',
+        isLocalGame: false,
+        gameCode: 'ABCDE',
+        gameState: finalState,
+      }),
+      fetchReplay: async () => null,
+      showToast: () => {},
+      clearTrails: () => {},
+      applyGameState: (state) => {
+        appliedStates.push(`${state.gameId}#t${state.turnNumber}`);
+      },
+      frameOnActivePlayer: (state) => {
+        framedStates.push(state.gameId);
+      },
+    });
+
+    controller.startArchivedReplay(timeline);
+
+    // First timeline entry is turn 1; controller should have applied and
+    // framed on it.
+    expect(appliedStates).toEqual(['ABCDE-m1#t1']);
+    expect(framedStates).toEqual(['ABCDE-m1']);
+    expect(controller.controlsSignal.value).toMatchObject({
+      available: true,
+      active: true,
+      statusText: 'Turn 1 · P1 ASTROGATION · 1/2',
+    });
+  });
+
+  it('shows a toast and does nothing for an empty archived timeline', () => {
+    const toastCalls: Array<{ message: string; type: string }> = [];
+    const applied: string[] = [];
+    const emptyTimeline = {
+      ...createTimeline(asGameId('ABCDE-m1')),
+      entries: [],
+    };
+
+    const controller = createReplayController({
+      getClientContext: () => ({
+        state: 'gameOver',
+        isLocalGame: false,
+        gameCode: 'ABCDE',
+        gameState: createState(asGameId('ABCDE-m1')),
+      }),
+      fetchReplay: async () => null,
+      showToast: (message, type) => {
+        toastCalls.push({ message, type });
+      },
+      clearTrails: () => {},
+      applyGameState: (state) => applied.push(state.gameId),
+      frameOnActivePlayer: () => {},
+    });
+
+    controller.startArchivedReplay(emptyTimeline);
+
+    expect(toastCalls).toHaveLength(1);
+    expect(toastCalls[0].type).toBe('error');
+    expect(applied).toHaveLength(0);
+  });
 });

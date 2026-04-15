@@ -507,11 +507,48 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     }
   };
 
+  // Fetches an archived match for public spectator viewing. Unlike
+  // fetchReplay, no playerToken is required — the /replay route accepts
+  // `viewer=spectator` for any caller. Used by the /matches history page's
+  // "Replay" link, which boots the client into archived-replay mode for a
+  // game the caller did not play.
+  const fetchArchivedReplay = async (
+    code: string,
+    gameId: string,
+  ): Promise<import('../../shared/replay').ReplayTimeline | null> => {
+    try {
+      const url = new URL(`/replay/${code}`, window.location.origin);
+      url.searchParams.set('viewer', 'spectator');
+      url.searchParams.set('gameId', gameId);
+      const response = await fetchWithTimeout(url.toString());
+
+      if (!response.ok) {
+        deps.track('archived_replay_fetch_failed', {
+          reason: 'server',
+          status: response.status,
+          gameId,
+        });
+        return null;
+      }
+
+      deps.track('archived_replay_fetch_succeeded', { gameId });
+      return (await response.json()) as import('../../shared/replay').ReplayTimeline;
+    } catch (err) {
+      const failureKind = classifySessionRequestFailure(err);
+      deps.track('archived_replay_fetch_failed', {
+        reason: failureKind === 'timeout' ? 'timeout' : 'network',
+        gameId,
+      });
+      return null;
+    }
+  };
+
   return {
     createGame,
     startQuickMatch,
     validateJoin,
     fetchReplay,
+    fetchArchivedReplay,
   };
 };
 

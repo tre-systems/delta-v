@@ -8,18 +8,7 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### Archived replay viewer (browser-playable)
-
-**Trigger:** the public `/matches` history page surfaces completed matches, but there's no browser-visitable URL to actually watch one. The server exposes `/replay/{code}?viewer=spectator&gameId=…` which returns the full timeline JSON, but no HTML UI consumes it for non-participants.
-
-Wire a new client entry path — e.g. `/?code=X&archivedReplay=GAMEID` — that:
-- calls `fetchReplay(code, gameId)` over the existing spectator route (no `playerToken` needed)
-- boots the client into a read-only replay state (reuse `replay-controller.ts`, hide lobby/rematch/chat-input)
-- uses the last timeline entry's state as the initial snapshot and lets the user scrub turn-by-turn
-
-Gate behind the `spectatorMode` feature flag (currently `false` in `feature-flags.ts`). Flip on once wired.
-
-**Files:** `src/client/game/client-runtime.ts` (`autoJoinFromUrl`), `src/client/game/session-api.ts` (spectator-aware `fetchReplay`), `src/client/game/replay-controller.ts`, `src/client/feature-flags.ts`, `static/matches.html` (re-add the "Replay →" link column once the viewer exists).
+*No active items. See future features below.*
 
 ---
 

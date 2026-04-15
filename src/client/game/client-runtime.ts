@@ -95,18 +95,37 @@ const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
     onOnline: () => deps.showToast('Back online', 'success'),
   });
 
+// Light sanity check on archived-replay URL params. The server's /replay
+// route already gatekeeps — this just avoids firing a session for values
+// that clearly can't be a valid gameId (matches `ROOMCODE-mN` format).
+const normalizeGameId = (raw: string | null): string | null => {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!/^[A-Z0-9]{5}-m\d+$/.test(trimmed)) return null;
+  return trimmed;
+};
+
 const autoJoinFromUrl = (
   joinGame: (code: string, playerToken: string | null) => void,
   spectateGame: (code: string) => void,
+  viewArchivedReplay: (code: string, gameId: string) => void,
   setMenuState: () => void,
 ): void => {
   const urlParams = new URLSearchParams(window.location.search);
   const code = normalizeRoomCode(urlParams.get('code'));
   const playerToken = normalizePlayerToken(urlParams.get('playerToken'));
   const viewer = urlParams.get('viewer');
+  const archivedReplay = normalizeGameId(urlParams.get('archivedReplay'));
 
   if (code && code.length === CODE_LENGTH) {
     history.replaceState(null, '', buildGameRoute(code));
+    if (archivedReplay) {
+      // Archived-replay viewer path: no WebSocket, no playerToken. The
+      // session controller fetches the timeline via the existing spectator
+      // route (viewer=spectator) and hands it to the replay controller.
+      viewArchivedReplay(code, archivedReplay);
+      return;
+    }
     if (viewer === 'spectator') {
       if (!isClientFeatureEnabled('spectatorMode')) {
         setMenuState();
@@ -140,6 +159,7 @@ type RuntimeInteractions = {
   showToast: (message: string, type?: BrowserToastType) => void;
   joinGame: (code: string, playerToken?: string | null) => void;
   spectateGame: (code: string) => void;
+  viewArchivedReplay: (code: string, gameId: string) => void;
 };
 
 type SetupClientRuntimeInput = {
@@ -207,6 +227,7 @@ export const setupClientRuntime = ({
   autoJoinFromUrl(
     (code, playerToken) => interactions.joinGame(code, playerToken),
     (code) => interactions.spectateGame(code),
+    (code, gameId) => interactions.viewArchivedReplay(code, gameId),
     setMenuState,
   );
 

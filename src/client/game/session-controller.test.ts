@@ -8,8 +8,11 @@ import {
   isValidScenario,
   SCENARIOS,
 } from '../../shared/map-data';
+import type { ReplayTimeline } from '../../shared/replay';
 import type { GameState } from '../../shared/types/domain';
 import {
+  type ArchivedReplaySessionDeps,
+  beginArchivedReplaySession,
   beginJoinGameSession,
   beginSpectateGameSession,
   type CreatedGameSessionDeps,
@@ -252,6 +255,77 @@ const createSpectateGameDeps = (): SpectateGameSessionDeps & {
   };
 };
 
+const createArchivedReplayDeps = (
+  timeline: ReplayTimeline | null,
+): ArchivedReplaySessionDeps & {
+  calls: Record<string, unknown[][]>;
+} => {
+  const calls: Record<string, unknown[][]> = {};
+  const track =
+    (name: string) =>
+    (...args: unknown[]) => {
+      if (!calls[name]) calls[name] = [];
+      calls[name].push(args);
+    };
+
+  return {
+    ctx: stubClientSession({
+      gameCode: null,
+      isLocalGame: false,
+      spectatorMode: false,
+      reconnectOverlayState: null,
+      opponentDisconnectDeadlineMs: null,
+    }),
+    resetTurnTelemetry: track('resetTurnTelemetry'),
+    replaceRoute: track('replaceRoute'),
+    buildGameRoute: (code) => `/game/${code}`,
+    setWaitingScreenState: track('setWaitingScreenState'),
+    setState: track('setState'),
+    fetchArchivedReplay: async (...args) => {
+      track('fetchArchivedReplay')(...args);
+      return timeline;
+    },
+    applyGameState: track('applyGameState'),
+    startArchivedReplay: track('startArchivedReplay'),
+    showToast: track('showToast'),
+    exitToMenu: track('exitToMenu'),
+    setScenario: track('setScenario'),
+    calls,
+  };
+};
+
+const buildTimeline = (): ReplayTimeline => {
+  const firstState = createState({ turnNumber: 1, phase: 'astrogation' });
+  const lastState = createState({
+    turnNumber: 4,
+    phase: 'gameOver',
+    outcome: { winner: 0, reason: 'Fleet eliminated!' },
+  });
+  return {
+    gameId: asGameId('ZNMC6-m1'),
+    roomCode: 'ZNMC6',
+    matchNumber: 1,
+    scenario: 'duel',
+    createdAt: 1,
+    entries: [
+      {
+        sequence: 1,
+        recordedAt: 1,
+        turn: 1,
+        phase: 'astrogation',
+        message: { type: 'stateUpdate', state: firstState },
+      },
+      {
+        sequence: 2,
+        recordedAt: 2,
+        turn: 4,
+        phase: 'gameOver',
+        message: { type: 'stateUpdate', state: lastState },
+      },
+    ],
+  };
+};
+
 describe('session-controller', () => {
   it('completes hosted game creation and connects to the room', () => {
     const deps = createCreatedGameDeps();
@@ -396,6 +470,45 @@ describe('session-controller', () => {
 
     expect(deps.calls.storePlayerToken).toBeUndefined();
     expect(deps.calls.connect).toEqual([['FGHIJ']]);
+  });
+
+  it('enters archived-replay mode without opening a WebSocket', async () => {
+    const timeline = buildTimeline();
+    const deps = createArchivedReplayDeps(timeline);
+
+    await beginArchivedReplaySession(deps, 'ZNMC6', 'ZNMC6-m1');
+
+    // Spectator flag set so the rest of the UI behaves read-only.
+    expect(deps.ctx.spectatorMode).toBe(true);
+    expect((deps.ctx as ClientSession).isLocalGame).toBe(false);
+    expect(deps.ctx.gameCode).toBe('ZNMC6');
+    // No connect() surface on this deps shape — archived replay never
+    // opens a live WebSocket. Scenario hydrated from the timeline.
+    expect(deps.calls.setScenario).toEqual([['duel']]);
+    expect(deps.calls.fetchArchivedReplay).toEqual([['ZNMC6', 'ZNMC6-m1']]);
+    // Final state applied before the replay controller starts.
+    const appliedStates = deps.calls.applyGameState as Array<[GameState]>;
+    expect(appliedStates).toHaveLength(1);
+    expect(appliedStates[0][0].phase).toBe('gameOver');
+    // Replay controller handed the full timeline.
+    expect(deps.calls.startArchivedReplay).toEqual([[timeline]]);
+    // State transitions connecting → gameOver (replay takes over from here).
+    expect(deps.calls.setState).toEqual([['connecting'], ['gameOver']]);
+    expect(deps.calls.showToast).toBeUndefined();
+    expect(deps.calls.exitToMenu).toBeUndefined();
+  });
+
+  it('returns to menu with a toast when the archived replay is unavailable', async () => {
+    const deps = createArchivedReplayDeps(null);
+
+    await beginArchivedReplaySession(deps, 'MISSG', 'MISSG-m1');
+
+    expect(deps.calls.showToast).toEqual([
+      ['Replay unavailable for this match.', 'error'],
+    ]);
+    expect(deps.calls.exitToMenu).toHaveLength(1);
+    expect(deps.calls.startArchivedReplay).toBeUndefined();
+    expect(deps.calls.applyGameState).toBeUndefined();
   });
 
   it('clears the active session when returning to menu', () => {
