@@ -52,6 +52,7 @@ import {
   handleRematchRequest,
   initGameSession,
 } from './match';
+import { handleMcpRequest, type McpRequestDeps } from './mcp-handlers';
 import type { StatefulServerMessage } from './message-builders';
 import { type PublicationDeps, runPublicationPipeline } from './publication';
 import {
@@ -61,6 +62,7 @@ import {
   readDisconnectedPlayer,
 } from './session';
 import { dispatchAuxMessage } from './socket';
+import { StateWaiters } from './state-waiters';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 import {
   reportGameAbandoned,
@@ -88,6 +90,9 @@ export class GameDO extends DurableObject<Env> {
   // fresh scope. Ephemeral — safe to lose on DO re-activation (the agent will
   // retry and the server will accept).
   private readonly idempotencyCache = new IdempotencyKeyCache();
+  // In-memory pending /mcp/wait + /mcp/action waiters, keyed by seat. Cleared
+  // on DO eviction; HTTP clients retry, same recovery as WebSocket reconnect.
+  private readonly stateWaiters = new StateWaiters();
   private readonly msgRates = new WeakMap<
     WebSocket,
     { count: number; windowStart: number }
@@ -399,6 +404,7 @@ export class GameDO extends DurableObject<Env> {
       handleInit: (request) => this.handleInit(request),
       handleJoinCheck: (request) => this.handleJoinCheck(request),
       handleReplayRequest: (request) => this.handleReplayRequest(request),
+      handleMcpRequest: (request) => this.handleMcpRequest(request),
       resolveJoinAttempt: (token) => this.resolveJoinAttempt(token),
       getConnectedSeatCountAfterJoin: (seatOpen, playerId) =>
         this.getConnectedSeatCountAfterJoin(seatOpen, playerId),
@@ -453,17 +459,17 @@ export class GameDO extends DurableObject<Env> {
     };
   }
 
-  private createGameStateActionDeps(): Parameters<
-    typeof runGameStateAction
-  >[0] {
+  private createGameStateActionDeps(
+    ws: WebSocket,
+  ): Parameters<typeof runGameStateAction>[0] {
     return {
       getCurrentGameState: () => this.getCurrentGameState(),
       getGameCode: () => this.getGameCode(),
       reportEngineError: (code, phase, turn, err) =>
         this.reportEngineError(code, phase, turn, err),
-      sendError: (socket, message, code) =>
-        this.send(socket, { type: 'error', message, code }),
-      sendActionRejected: (socket, rejected) => this.send(socket, rejected),
+      sendError: (message, code) =>
+        this.send(ws, { type: 'error', message, code }),
+      sendActionRejected: (rejected) => this.send(ws, rejected),
     };
   }
 
@@ -525,11 +531,10 @@ export class GameDO extends DurableObject<Env> {
   ): Promise<void> {
     await dispatchGameStateAction(
       playerId,
-      socket,
       msg,
       this.gameStateActionHandlers,
-      (targetWs, action, onSuccess, preCheck) =>
-        this.runGameStateAction(targetWs, action, onSuccess, preCheck),
+      (action, onSuccess, preCheck) =>
+        this.runGameStateAction(socket, action, onSuccess, preCheck),
       this.idempotencyCache,
     );
   }
@@ -632,6 +637,10 @@ export class GameDO extends DurableObject<Env> {
       primaryMessage,
       options,
     );
+    // Wake every HTTP /mcp/wait or /mcp/action long-poller — mirror of the
+    // WebSocket broadcast. Either seat may be waiting (simultaneous phases,
+    // observation polling, gameOver close-out), so wake unconditionally.
+    this.stateWaiters.wakeAllSeats();
     await this.scheduleBotTurnIfNeeded(state);
   }
 
@@ -696,8 +705,7 @@ export class GameDO extends DurableObject<Env> {
     preCheck?: (gameState: GameState) => ActionRejectedMessage | null,
   ): Promise<void> {
     await runGameStateAction(
-      this.createGameStateActionDeps(),
-      ws,
+      this.createGameStateActionDeps(ws),
       action,
       onSuccess,
       preCheck,
@@ -715,6 +723,45 @@ export class GameDO extends DurableObject<Env> {
 
   private async handleReplayRequest(request: Request): Promise<Response> {
     return handleReplayRequest(this.createReplayRequestDeps(), request);
+  }
+
+  private createMcpRequestDeps(): McpRequestDeps {
+    return {
+      getRoomConfig: () => this.getRoomConfig(),
+      getCurrentGameState: () => this.getCurrentGameState(),
+      getGameCode: () => this.getGameCode(),
+      reportEngineError: (code, phase, turn, err) =>
+        this.reportEngineError(code, phase, turn, err),
+      handlers: this.gameStateActionHandlers,
+      idempotencyCache: this.idempotencyCache,
+      stateWaiters: this.stateWaiters,
+      broadcast: (msg) => this.broadcast(msg),
+      touchInactivity: () => this.touchInactivity(),
+      initGameIfReady: () => this.maybeInitGameForMcp(),
+    };
+  }
+
+  // MCP-only clients never establish a WebSocket, so the WS-upgrade path's
+  // "start when both seats connected" trigger never fires. When both player
+  // tokens are filled (host + guest, or both quick-match seats) and we
+  // haven't started a game yet, this kicks off initGame() so the very first
+  // MCP request to /mcp/* lands on a live game state. Cheap to call on every
+  // request — it short-circuits once state exists.
+  private async maybeInitGameForMcp(): Promise<void> {
+    const existingState = await this.getCurrentGameState();
+    if (existingState) return;
+    const roomConfig = await this.getRoomConfig();
+    if (!roomConfig) return;
+    const tokensFilled =
+      roomConfig.playerTokens[0] !== null &&
+      roomConfig.playerTokens[1] !== null;
+    if (!tokensFilled) return;
+    if (await this.isRoomArchived()) return;
+    await this.initGame();
+  }
+
+  private async handleMcpRequest(request: Request): Promise<Response | null> {
+    return handleMcpRequest(this.createMcpRequestDeps(), request);
   }
 
   private async initGame() {

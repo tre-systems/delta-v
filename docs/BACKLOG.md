@@ -8,14 +8,6 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### Remote hosted MCP endpoint
-
-**Trigger:** no-clone, no-install agent onboarding from any MCP host.
-
-Deploy a streamable-HTTP MCP server alongside the existing game Worker (SSE server→client, POST client→server). Reuse the observation builder, submission guards, and `wait_for_turn` implementation. The endpoint is a thin adapter over the Durable Object — no duplicated state.
-
-**Files:** `src/server/mcp/` (new), `wrangler.toml` route binding, `src/server/index.ts`
-
 ### Layered `agentToken` / `playerToken` lifecycle
 
 **Trigger:** keeps raw match credentials out of agent context windows for the remote MCP path.
