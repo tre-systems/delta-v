@@ -29,6 +29,11 @@ import {
   dispatchGameStateActionForHttp,
   isGameStateActionMessage,
 } from './actions';
+import {
+  getCoachDirective,
+  parseCoachMessage,
+  setCoachDirective,
+} from './coach';
 import type { StateWaiters } from './state-waiters';
 
 export interface McpRequestDeps {
@@ -46,6 +51,7 @@ export interface McpRequestDeps {
   stateWaiters: StateWaiters;
   broadcast: (msg: S2C) => void;
   touchInactivity: () => Promise<void>;
+  storage: DurableObjectStorage;
   // MCP-only clients never establish a WebSocket, so the existing
   // "game starts when both seats connect" trigger never fires for them.
   // We call initGame() ourselves when both player tokens are filled and
@@ -181,6 +187,8 @@ const handleObservationRequest = async (
   if (!view) return error(409, 'Game has no state yet — wait for gameStart');
   const opts = parseObservationOptions(url.searchParams);
   opts.gameCode = roomConfig.code;
+  opts.coachDirective =
+    (await getCoachDirective(deps.storage, playerId)) ?? undefined;
   const observation = buildObservation(view.filtered, playerId, opts);
   await deps.touchInactivity();
   return json({ ok: true, ...observation });
@@ -260,6 +268,8 @@ const handleWaitRequest = async (
         });
       }
       if (isActionable(view.state, playerId)) {
+        opts.coachDirective =
+          (await getCoachDirective(deps.storage, playerId)) ?? undefined;
         const observation = buildObservation(view.filtered, playerId, opts);
         await deps.touchInactivity();
         return json({
@@ -327,15 +337,18 @@ const buildActionPayload = (
   return { ok: true, value: validated.value };
 };
 
-const buildOptionalObservation = (
+const buildOptionalObservation = async (
   body: ActionRequestBody,
   view: PlayerStateView,
   playerId: PlayerId,
   gameCode: string,
-): Record<string, unknown> | undefined => {
+  storage: DurableObjectStorage,
+): Promise<Record<string, unknown> | undefined> => {
   if (body.includeNextObservation !== true) return undefined;
   const opts = parseObservationOptions(body as Record<string, unknown>);
   opts.gameCode = gameCode;
+  opts.coachDirective =
+    (await getCoachDirective(storage, playerId)) ?? undefined;
   return { ...buildObservation(view.filtered, playerId, opts) };
 };
 
@@ -455,11 +468,12 @@ const handleActionRequest = async (
         turnAdvanced,
         phaseChanged,
         effects,
-        nextObservation: buildOptionalObservation(
+        nextObservation: await buildOptionalObservation(
           body,
           after,
           playerId,
           roomConfig.code,
+          deps.storage,
         ),
       });
     }
@@ -496,6 +510,26 @@ const handleChatRequest = async (
   const text = body.text.trim();
   if (text.length === 0 || text.length > 200) {
     return error(400, 'text must be 1-200 characters');
+  }
+
+  // /coach whispers are private — stored for the opposite seat, not
+  // broadcast. Same rationale as the WebSocket path's handleCoach.
+  const parsedCoach = parseCoachMessage(text);
+  if (parsedCoach) {
+    const state = await deps.getCurrentGameState();
+    const targetSeat: PlayerId = playerId === 0 ? 1 : 0;
+    await setCoachDirective(deps.storage, targetSeat, {
+      text: parsedCoach.text,
+      turnReceived: state?.turnNumber ?? 0,
+      acknowledged: false,
+    });
+    await deps.touchInactivity();
+    return json({
+      ok: true,
+      coached: true,
+      targetSeat,
+      text: parsedCoach.text,
+    });
   }
 
   deps.broadcast({ type: 'chat', playerId, text });

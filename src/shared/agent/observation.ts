@@ -10,18 +10,26 @@ import { describeCandidate, describePosition, describeShip } from './describe';
 import { buildLegalActionInfo } from './legal-actions';
 import { renderSpatialGrid } from './spatial-grid';
 import { buildTacticalFeatures } from './tactical';
-import type { AgentTurnInput } from './types';
+import type { AgentTurnInput, CoachDirective } from './types';
 
 export const buildStateSummary = (
   state: GameState,
   playerId: PlayerId,
   candidates: C2S[],
   map: SolarSystemMap,
+  coachDirective?: CoachDirective,
 ): string => {
   const lines: string[] = [];
   const bodies = map.bodies;
   const player = state.players[playerId];
   const opponentId = playerId === 0 ? 1 : 0;
+
+  if (coachDirective) {
+    lines.push(
+      `COACH DIRECTIVE (turn ${coachDirective.turnReceived}): ${coachDirective.text}`,
+    );
+    lines.push('');
+  }
 
   lines.push(`Turn ${state.turnNumber}, Phase: ${state.phase}`);
   lines.push(
@@ -83,6 +91,10 @@ export interface BuildObservationOptions {
   // Enriched candidate list with human-readable label, rationale, and a
   // crude risk tag per candidate.
   includeCandidateLabels?: boolean;
+  // Mid-game coach directive loaded by the surface (GAME DO for remote
+  // MCP, bridge for local) before calling the builder. The builder itself
+  // is pure — it does not read server-side storage.
+  coachDirective?: CoachDirective;
 }
 
 // Canonical agent observation builder. Both the bridge and the MCP server
@@ -105,7 +117,13 @@ export const buildObservation = (
     candidates,
     recommendedIndex: 0,
     summary: includeSummary
-      ? buildStateSummary(state, playerId, candidates, map)
+      ? buildStateSummary(
+          state,
+          playerId,
+          candidates,
+          map,
+          options.coachDirective,
+        )
       : undefined,
     legalActionInfo: includeLegalActionInfo
       ? buildLegalActionInfo(state, playerId)
@@ -119,5 +137,6 @@ export const buildObservation = (
     labeledCandidates: options.includeCandidateLabels
       ? labelCandidates(candidates, state, playerId)
       : undefined,
+    coachDirective: options.coachDirective,
   };
 };
