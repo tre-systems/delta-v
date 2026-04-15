@@ -83,7 +83,7 @@ Honest inventory. Capability / Status / Location.
 | Observation v2 — ASCII spatial grid | Shipped | `src/shared/agent/spatial-grid.ts` — `includeSpatialGrid: true` opt-in, fog-of-war compliant |
 | Observation v2 — labeled candidates + risk | Shipped | `src/shared/agent/candidate-labels.ts` — `includeCandidateLabels: true` opt-in |
 | `ActionResult` with effects + next observation | Shipped | `src/shared/agent/action-effects.ts` — `delta_v_send_action({ waitForResult: true, includeNextObservation: true })` closes the decision loop in one call |
-| Remote hosted MCP endpoint | Planned | — |
+| Remote hosted MCP endpoint | Shipped | `POST https://delta-v.tre.systems/mcp` (stateless JSON) |
 | `/coach` mid-game human-to-agent directive | Planned | target: chat handler + observation field |
 | Layered `agentToken` / `playerToken` | Planned | target: `/api/agent-token` endpoint |
 | Public agent leaderboard with Elo | Future | depends on account system |
@@ -631,20 +631,36 @@ For agents with broad system access (Claude Code, Codex, OpenClaw):
 
 ### 13.1 MCP (recommended)
 
-Local (current): `npm run mcp:delta-v` — requires a repo clone.
-Remote (planned): `https://delta-v.tre.systems/mcp` — streamable HTTP, bearer `agentToken`, no install.
+Local: `npm run mcp:delta-v` — requires a repo clone, stdio transport, full session/event buffering.
+Remote: `https://delta-v.tre.systems/mcp` — streamable HTTP (stateless JSON), no install. Each tool call passes `{ code, playerToken }` after a successful `delta_v_quick_match` (or after a manual `POST /create`). Layered `agentToken` issuance is on the backlog so callers don't have to handle the raw match token themselves.
 
 ```json
 {
   "mcpServers": {
-    "delta-v": {
+    "delta-v-local": {
       "command": "npx",
       "args": ["tsx", "scripts/delta-v-mcp-server.ts"],
       "cwd": "/absolute/path/to/delta-v"
+    },
+    "delta-v-remote": {
+      "url": "https://delta-v.tre.systems/mcp"
     }
   }
 }
 ```
+
+Tools served by the remote endpoint:
+
+| Tool | Args | Notes |
+|---|---|---|
+| `delta_v_quick_match` | `{username, scenario?, playerKey?, pollMs?, timeoutMs?}` | Returns `{code, playerToken, scenario}` once paired |
+| `delta_v_get_state` | `{code, playerToken}` | Latest GameState filtered for the seat |
+| `delta_v_get_observation` | `{code, playerToken, includeSummary?, includeLegalActionInfo?, includeTactical?, includeSpatialGrid?, includeCandidateLabels?}` | Same shape as bridge AgentTurnInput |
+| `delta_v_wait_for_turn` | `{code, playerToken, timeoutMs?, include*?}` | Long-polls server-side (≤25 s) |
+| `delta_v_send_action` | `{code, playerToken, action, autoGuards?, waitForResult?, waitTimeoutMs?, includeNextObservation?, include*?}` | ActionGuards auto-filled; returns ActionResult on `waitForResult: true` |
+| `delta_v_send_chat` | `{code, playerToken, text}` | ≤200 chars |
+
+The local MCP additionally exposes `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` because it owns a per-session WebSocket and circular event buffer. The remote endpoint is stateless — agents that need event history can reconstruct it from `delta_v_send_action` responses (which include `effects[]` per call) plus state diffs from successive observations.
 
 ### 13.2 Bridge (stdin/stdout or HTTP)
 
@@ -726,12 +742,10 @@ Eliminate the stale-state error class that dominates agent mistakes today.
 
 ### 14.3 Phase 3 — Remote MCP
 
-Deploy the MCP server as a Cloudflare Worker alongside the existing game server.
-
-- Streamable HTTP transport (SSE server→client, POST client→server).
-- `POST /api/agent-token` endpoint issuing signed 24-hour `agentToken`s.
-- Match-scoped `playerToken` lifecycle handled server-side (agents never see raw match tokens).
-- Register on the GitHub MCP Registry.
+- ~~Streamable HTTP transport mounted at `POST /mcp`.~~ Shipped (stateless JSON mode, see §13.1). Tools live in `src/server/mcp/handlers.ts`; per-route HTTP handlers live in `src/server/game-do/mcp-handlers.ts`. Agent presence trigger (`maybeInitGameForMcp`) starts the game on the first MCP request once both player tokens are filled, since MCP-only clients never establish a WebSocket.
+- `POST /api/agent-token` endpoint issuing signed 24-hour `agentToken`s — still planned (next priority).
+- Match-scoped `playerToken` lifecycle handled server-side (agents never see raw match tokens) — still planned.
+- Register on the GitHub MCP Registry — still planned.
 
 ### 14.4 Phase 4 — Mid-game coaching
 

@@ -10,6 +10,7 @@ export type GameDoFetchDeps = {
   handleInit: (request: Request) => Promise<Response>;
   handleJoinCheck: (request: Request) => Promise<Response>;
   handleReplayRequest: (request: Request) => Promise<Response>;
+  handleMcpRequest: (request: Request) => Promise<Response | null>;
   resolveJoinAttempt: (
     presentedTokenRaw: string | null,
   ) => Promise<Result<JoinAttemptSuccess, Response>>;
@@ -48,6 +49,13 @@ export const handleGameDoFetch = async (
   if (url.pathname === '/replay' && request.method === 'GET') {
     return deps.handleReplayRequest(request);
   }
+
+  if (url.pathname.startsWith('/mcp/')) {
+    const mcpResponse = await deps.handleMcpRequest(request);
+    if (mcpResponse) return mcpResponse;
+    return new Response('Not Found', { status: 404 });
+  }
+
   const upgradeHeader = request.headers.get('Upgrade');
 
   if (upgradeHeader !== 'websocket') {

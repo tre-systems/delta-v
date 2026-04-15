@@ -17,6 +17,7 @@ const makeDeps = (
   handleReplayRequest: vi
     .fn()
     .mockResolvedValue(new Response('replay-body', { status: 200 })),
+  handleMcpRequest: vi.fn().mockResolvedValue(null),
   resolveJoinAttempt: vi.fn().mockResolvedValue({
     ok: false,
     response: new Response('fail', { status: 400 }),
