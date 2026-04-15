@@ -206,3 +206,28 @@ Observations:
 - Add one-turn "phase confirmation" before first astrogation send in `llm-player` (tooling-level timing, no rules change).
 - Add retry/requeue handling to `quick-match-scrimmage` when seats land in different rooms.
 - Add policy A/B comparison mode: tuned recommended vs coach with per-game tactical metrics in JSON.
+
+## Session 2026-04-15 (Post-fix verification)
+
+### Fixes implemented
+- `scripts/quick-match-scrimmage.ts`
+  - Added resilient pairing loop (`pairPlayersInSameRoom`) with retry attempts when quick-match splits seats into different rooms.
+- `scripts/llm-player.ts`
+  - Added opening-turn phase-settle delay for turn-1 astrogation to reduce immediate phase-transition races.
+
+### Live validation
+- 4-game scrimmage batch on production (`PostA` vs `PostB`) with JSON export:
+  - File: `tmp/live-site-postfix.json`
+  - Games exported: 4
+  - Observed one real split event during run:
+    - `matchmaking split attempt 1/5: 7KM3Y vs HJMPC; retrying`
+  - Runner recovered automatically and completed the remaining game successfully.
+- 2 standalone tuned recommended agents (`PostReco1`, `PostReco2`) matched in room `KATTW`:
+  - Both completed with `Finished 1 game(s).`
+  - No early nuke launches observed; ordnance selections were torpedo-based.
+  - No `action rejected (stalePhase)` surfaced in this post-fix pair.
+
+### Current status
+- Room-split robustness: improved (automatic retry/requeue confirmed).
+- Recommended early ordnance safety: improved (no nuke launches in this pass).
+- Opening race condition: partially improved; still occasional stale first-action fallback logs can occur, but hard rejection frequency dropped in this sample.
