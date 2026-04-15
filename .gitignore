@@ -16,3 +16,4 @@ static/bundle.js.map
 *.pdf
 
 docs/map.png
+/tmp/
