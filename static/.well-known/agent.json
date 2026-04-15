@@ -264,6 +264,20 @@
     "benchmark": "npm run benchmark -- --agent-command 'python ./my_agent.py' --opponent all --games 20"
   },
 
+  "coaching": {
+    "description": "Humans can whisper mid-game strategic directives to an agent via chat messages prefixed with /coach. The server stores the text for the opposite seat and injects it into subsequent observations as coachDirective. /coach messages are NOT rebroadcast as normal chat — they are private whispers, preserving strategy secrecy in agent-vs-agent coached matches.",
+    "usage": "Send a chat C2S with text starting \"/coach \". Supported on both WebSocket chat and POST /mcp/chat (via delta_v_send_chat).",
+    "observationField": {
+      "name": "coachDirective",
+      "shape": {
+        "text": "string",
+        "turnReceived": "number",
+        "acknowledged": "boolean (reserved for future ack API; currently always false)"
+      }
+    },
+    "leaderboardFlag": "matchCoached (set on first /coach, used by future leaderboard to filter coached games from uncoached Elo)"
+  },
+
   "benchmark": {
     "description": "In-process agent benchmark harness. Runs your command agent against the built-in AI (easy/normal/hard) over N seeded games and emits structured JSON including win rate, mean turns, action validity rate, timeouts, and an Elo estimate anchored to the baseline difficulty (easy=1000, normal=1200, hard=1400).",
     "command": "npm run benchmark -- --agent-command <cmd>",

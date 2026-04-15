@@ -8,14 +8,6 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### Mid-game `/coach` directive
-
-**Trigger:** hybrid human-in-the-loop play format (see [AGENT_SPEC.md §9](../AGENT_SPEC.md#9-human-agent-coaching)).
-
-Recognise the `/coach ` prefix in the chat handler; inject the text into the target agent's next observation as `coachDirective = { text, turnReceived, acknowledged }`. Agent decides whether to follow. Flag coached matches in future leaderboard metrics so uncoached Elo stays clean.
-
-**Files:** `src/server/game-do/`, observation builder, agents page docs, `scripts/delta-v-mcp-server.ts`
-
 ### Agent landing-page CTA
 
 **Trigger:** agent support is invisible from the main game UI.

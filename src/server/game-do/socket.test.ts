@@ -131,4 +131,48 @@ describe('socket helpers', () => {
       text: 'allowed',
     });
   });
+
+  it('intercepts /coach chats via handleCoach and skips broadcast', async () => {
+    const ws = createSocketStub();
+    const broadcast = vi.fn();
+    const handleCoach = vi.fn().mockResolvedValue(true);
+
+    await dispatchAuxMessage({
+      ws,
+      playerId: 0,
+      msg: { type: 'chat', text: '/coach press the attack' },
+      lastChatAt: new Map(),
+      send: vi.fn(),
+      broadcast,
+      handleRematch: vi.fn(),
+      handleCoach,
+    });
+
+    expect(handleCoach).toHaveBeenCalledWith(0, '/coach press the attack');
+    expect(broadcast).not.toHaveBeenCalled();
+  });
+
+  it('falls through to broadcast when handleCoach says it did not handle', async () => {
+    const ws = createSocketStub();
+    const broadcast = vi.fn();
+    const handleCoach = vi.fn().mockResolvedValue(false);
+
+    await dispatchAuxMessage({
+      ws,
+      playerId: 0,
+      msg: { type: 'chat', text: 'normal chat' },
+      lastChatAt: new Map(),
+      send: vi.fn(),
+      broadcast,
+      handleRematch: vi.fn(),
+      handleCoach,
+    });
+
+    expect(handleCoach).toHaveBeenCalledWith(0, 'normal chat');
+    expect(broadcast).toHaveBeenCalledWith({
+      type: 'chat',
+      playerId: 0,
+      text: 'normal chat',
+    });
+  });
 });

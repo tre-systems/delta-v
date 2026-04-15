@@ -32,6 +32,23 @@ const ROOM_HOST_ONLY: RoomConfig = {
   playerTokens: [TOKEN_A, null] as RoomConfig['playerTokens'],
 };
 
+// Minimal in-memory DurableObjectStorage stub for tests. Only the handful
+// of methods the coach module touches are implemented — list()/transaction()
+// are intentionally absent; tests that need them can extend.
+const buildStorageStub = (): DurableObjectStorage => {
+  const data = new Map<string, unknown>();
+  return {
+    get: vi.fn(async (key: string) => data.get(key)),
+    put: vi.fn(async (key: string, value: unknown) => {
+      data.set(key, value);
+      return true;
+    }),
+    delete: vi.fn(async (key: string) => {
+      data.delete(key);
+    }),
+  } as unknown as DurableObjectStorage;
+};
+
 const buildDeps = (
   overrides: Partial<McpRequestDeps> = {},
 ): McpRequestDeps => ({
@@ -45,6 +62,7 @@ const buildDeps = (
   stateWaiters: new StateWaiters(),
   broadcast: vi.fn(),
   touchInactivity: vi.fn().mockResolvedValue(undefined),
+  storage: buildStorageStub(),
   initGameIfReady: vi.fn().mockResolvedValue(undefined),
   ...overrides,
 });
@@ -331,6 +349,83 @@ describe('handleMcpRequest', () => {
       playerId: 0,
       text: 'hi everyone',
     });
+  });
+
+  it('chat route intercepts /coach and stores directive on the opposite seat', async () => {
+    const broadcast = vi.fn();
+    const storage = buildStorageStub();
+    const deps = buildDeps({
+      broadcast,
+      storage,
+      // Fake a live state so turnReceived gets a real number.
+      getCurrentGameState: async () =>
+        ({
+          turnNumber: 7,
+        }) as unknown as import('../../shared/types/domain').GameState,
+    });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/chat', { playerToken: TOKEN_A }), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: '/coach redirect to Mars' }),
+      }),
+    );
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      ok: true,
+      coached: true,
+      targetSeat: 1,
+      text: 'redirect to Mars',
+    });
+    // Directive landed on seat 1 (opposite of sender seat 0)
+    const seat1 = await storage.get<{ text: string; turnReceived: number }>(
+      'coachDirective:1',
+    );
+    expect(seat1).toEqual({
+      text: 'redirect to Mars',
+      turnReceived: 7,
+      acknowledged: false,
+    });
+    // Sender's seat (0) has no directive — /coach is a whisper, not an echo.
+    expect(await storage.get('coachDirective:0')).toBeUndefined();
+    // /coach is NOT rebroadcast as normal chat.
+    expect(broadcast).not.toHaveBeenCalled();
+  });
+
+  it('observation route includes coachDirective when one is stored', async () => {
+    const stateRef = { current: buildDuelState() };
+    const storage = buildStorageStub();
+    await storage.put('coachDirective:1', {
+      text: 'flank left',
+      turnReceived: 1,
+      acknowledged: false,
+    });
+    const deps = buildDeps({
+      storage,
+      getCurrentGameState: async () => stateRef.current,
+    });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(
+        url('/mcp/observation', {
+          playerToken: TOKEN_B,
+          summary: 'true',
+        }),
+        { method: 'GET' },
+      ),
+    );
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as Record<string, unknown>;
+    expect(body.coachDirective).toEqual({
+      text: 'flank left',
+      turnReceived: 1,
+      acknowledged: false,
+    });
+    // Directive also surfaces in the prose summary so text-only agents see it.
+    expect(String(body.summary)).toContain('COACH DIRECTIVE');
+    expect(String(body.summary)).toContain('flank left');
   });
 
   it('does not initialize game on non-MCP route', async () => {

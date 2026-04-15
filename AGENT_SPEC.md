@@ -84,7 +84,7 @@ Honest inventory. Capability / Status / Location.
 | Observation v2 — labeled candidates + risk | Shipped | `src/shared/agent/candidate-labels.ts` — `includeCandidateLabels: true` opt-in |
 | `ActionResult` with effects + next observation | Shipped | `src/shared/agent/action-effects.ts` — `delta_v_send_action({ waitForResult: true, includeNextObservation: true })` closes the decision loop in one call |
 | Remote hosted MCP endpoint | Shipped | `POST https://delta-v.tre.systems/mcp` (stateless JSON) |
-| `/coach` mid-game human-to-agent directive | Planned | target: chat handler + observation field |
+| `/coach` mid-game human-to-agent directive | Shipped | chat prefix stored per seat, surfaced as `coachDirective` in observations |
 | Layered `agentToken` / `matchToken` | Shipped | `POST /api/agent-token` (24h identity) + matchToken returned by `delta_v_quick_match` |
 | Public agent leaderboard with Elo | Future | depends on account system |
 | Benchmark suite CLI | Shipped | `npm run benchmark -- --agent-command ...` |
@@ -471,7 +471,14 @@ asteroid belt — they're overextended on fuel.
 
 ### 9.2 Implementation
 
-Coaching piggybacks on the existing `chat` C2S type with a `/coach ` prefix convention. The bridge and MCP server recognise the prefix and inject the text into the agent's next observation as `coachDirective`:
+Coaching piggybacks on the existing `chat` C2S type with a `/coach ` prefix convention. **Shipped** via both the WebSocket path (`src/server/game-do/socket.ts`) and the remote-MCP chat path (`src/server/game-do/mcp-handlers.ts` → `/mcp/chat`). The server:
+
+1. Parses `/coach <text>` in the incoming chat (sender seat X).
+2. Stores the directive under key `coachDirective:(1-X)` in Durable Object storage — the opposite seat is the target.
+3. Does **NOT** rebroadcast the message as normal chat. This is a whisper: spectators and the coached seat's opponent never see the text, which preserves strategic secrecy in agent-vs-agent coached matches.
+4. Sets a `matchCoached` flag on the match so future leaderboard code can filter coached games from uncoached Elo.
+
+Observation emission (`GET /mcp/observation`, `POST /mcp/wait`, `POST /mcp/action` with `includeNextObservation`) loads the stored directive and includes it:
 
 ```typescript
 coachDirective?: {
@@ -481,9 +488,15 @@ coachDirective?: {
 };
 ```
 
-The agent decides how to weight the directive against its own assessment. Well-designed agents acknowledge in chat ("Copy, redirecting") and adjust; they may also respond with "Negative, insufficient fuel for intercept" when the directive conflicts with physical constraints.
+It also surfaces in the `summary` prose block as `COACH DIRECTIVE (turn N): <text>` so text-only agents see it prominently.
+
+The agent decides how to weight the directive against its own assessment. Well-designed agents acknowledge in chat ("Copy, redirecting") and adjust; they may also respond with "Negative, insufficient fuel for intercept" when the directive conflicts with physical constraints. The `acknowledged` field is reserved for a future explicit ack API; in v1 it is always `false` and agents can infer ack from their own chat replies.
+
+Lifecycle: a new `/coach` from the same coach replaces the prior directive. Directives are cleared when the match archives; `matchCoached` is intentionally not cleared (a match cannot become uncoached retroactively).
 
 Note: this is **distinct** from the existing `scripts/llm-agent-coach.ts`, which is a **post-game** analyser with persistent memory. The post-game coach reviews a completed replay; the `/coach` directive is a **mid-game** human-in-the-loop override. The two complement each other and can coexist.
+
+Bridge integration (for agents using `scripts/llm-player.ts` WebSocket flow) is a small follow-up: emit a new `coachDirective` S2C message when the directive lands, and have the bridge inject it into the next observation it builds. Out of scope here because MCP is the primary agent path.
 
 ### 9.3 When to coach
 
@@ -760,10 +773,10 @@ Eliminate the stale-state error class that dominates agent mistakes today.
 
 ### 14.4 Phase 4 — Mid-game coaching
 
-- `/coach ` prefix recognition in the chat handler.
-- `coachDirective` field injection into the next observation.
-- Leaderboard flag for coached matches (separate from uncoached Elo).
-- Spectator-to-coach upgrade flow in the browser UI.
+- ~~`/coach ` prefix recognition in the chat handler.~~ Shipped (both WS and MCP chat paths).
+- ~~`coachDirective` field injection into the next observation.~~ Shipped (MCP path; bridge integration is a small follow-up).
+- ~~Match-level `matchCoached` flag storage.~~ Shipped, ready for future leaderboard filtering.
+- Spectator-to-coach upgrade flow in the browser UI — still planned.
 
 ### 14.5 Phase 5 — Evaluation and discovery
 

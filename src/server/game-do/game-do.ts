@@ -39,6 +39,7 @@ import {
   broadcastStateChange,
   sendSocketMessage,
 } from './broadcast';
+import { parseCoachMessage, setCoachDirective } from './coach';
 import { type GameDoFetchDeps, handleGameDoFetch } from './fetch';
 import {
   handleInitRequest,
@@ -238,6 +239,11 @@ export class GameDO extends DurableObject<Env> {
       this.storage.delete(GAME_DO_STORAGE_KEYS.inactivityAt),
       this.storage.delete(GAME_DO_STORAGE_KEYS.rematchRequests),
       this.storage.delete(GAME_DO_STORAGE_KEYS.turnTimeoutAt),
+      // Clear any live coach directives so the next match in this room
+      // starts fresh. matchCoached is intentionally NOT cleared — future
+      // leaderboard code uses it to tag the archived match.
+      this.storage.delete(GAME_DO_STORAGE_KEYS.coachDirectiveSeat0),
+      this.storage.delete(GAME_DO_STORAGE_KEYS.coachDirectiveSeat1),
     ]);
   }
 
@@ -553,7 +559,28 @@ export class GameDO extends DurableObject<Env> {
       broadcast: (outbound) => this.broadcast(outbound),
       handleRematch: (rematchPlayerId, targetWs) =>
         this.handleRematch(rematchPlayerId, targetWs),
+      handleCoach: (senderId, rawText) =>
+        this.maybeStoreCoachDirective(senderId, rawText),
     });
+  }
+
+  // Coach-directive intercept for the chat handler. Returns true when the
+  // message was consumed as a /coach whisper (caller must not broadcast).
+  private async maybeStoreCoachDirective(
+    senderId: PlayerId,
+    rawText: string,
+  ): Promise<boolean> {
+    const parsed = parseCoachMessage(rawText);
+    if (!parsed) return false;
+    const state = await this.getCurrentGameState();
+    const turnReceived = state?.turnNumber ?? 0;
+    const targetSeat: PlayerId = senderId === 0 ? 1 : 0;
+    await setCoachDirective(this.storage, targetSeat, {
+      text: parsed.text,
+      turnReceived,
+      acknowledged: false,
+    });
+    return true;
   }
 
   // --- WebSocket lifecycle ---
@@ -737,6 +764,7 @@ export class GameDO extends DurableObject<Env> {
       stateWaiters: this.stateWaiters,
       broadcast: (msg) => this.broadcast(msg),
       touchInactivity: () => this.touchInactivity(),
+      storage: this.storage,
       initGameIfReady: () => this.maybeInitGameForMcp(),
     };
   }

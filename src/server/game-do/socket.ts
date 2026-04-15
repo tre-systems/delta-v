@@ -67,6 +67,11 @@ export interface AuxMessageDeps {
   send: (ws: WebSocket, msg: S2C) => void;
   broadcast: (msg: S2C) => void;
   handleRematch: (playerId: PlayerId, ws: WebSocket) => Promise<void>;
+  // Optional /coach interceptor: when the chat starts with "/coach ",
+  // this fires instead of broadcasting. Returns true when handled (caller
+  // must skip the normal broadcast). Optional so socket-only tests can
+  // omit it.
+  handleCoach?: (senderId: PlayerId, rawText: string) => Promise<boolean>;
 }
 
 const AUX_MESSAGE_HANDLERS = {
@@ -75,7 +80,7 @@ const AUX_MESSAGE_HANDLERS = {
   ) => {
     await deps.handleRematch(deps.playerId, deps.ws);
   },
-  chat: (
+  chat: async (
     deps: AuxMessageDeps & { msg: Extract<AuxMessage, { type: 'chat' }> },
   ) => {
     const chatTime = Date.now();
@@ -86,6 +91,16 @@ const AUX_MESSAGE_HANDLERS = {
     }
 
     deps.lastChatAt.set(deps.playerId, chatTime);
+
+    // /coach <text> whispers: the directive is stored for the opposite
+    // seat and NOT broadcast as normal chat. See src/server/game-do/coach.ts
+    // for the rationale (preserves whisper semantics in agent-vs-agent
+    // coached matches).
+    if (deps.handleCoach) {
+      const handled = await deps.handleCoach(deps.playerId, deps.msg.text);
+      if (handled) return;
+    }
+
     deps.broadcast({
       type: 'chat',
       playerId: deps.playerId,
