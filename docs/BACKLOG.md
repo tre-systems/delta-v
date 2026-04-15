@@ -8,13 +8,7 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### Agent landing-page CTA
-
-**Trigger:** agent support is invisible from the main game UI.
-
-Link prominently to `/agents` from the main landing page and the game-over screen. Add the GitHub topics (`ai-agents`, `mcp`, `llm`, `game-ai`, `gymnasium`, `agent-benchmark`) for external discovery.
-
-**Files:** `static/index.html`, game-over component in `src/client/`, repo settings
+*No active items. See future features below.*
 
 ---
 
