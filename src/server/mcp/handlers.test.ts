@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { issueAgentToken, issueMatchToken } from '../auth';
 import type { Env } from '../env';
 import { buildMcpServer, handleMcpHttpRequest } from './handlers';
+
+const TEST_SECRET = 'mcp-handlers-test-secret-must-be-16-chars';
 
 // Helper: build a fake DurableObjectStub that records GAME DO fetches and
 // returns whatever JSON we tell it to. The Worker's MCP tools delegate to
@@ -24,9 +27,21 @@ const buildEnv = (
   const env = {
     GAME: namespace,
     MATCHMAKER: namespace, // not exercised here; keep shape
+    AGENT_TOKEN_SECRET: TEST_SECRET,
   } as unknown as Env;
   return { env, calls };
 };
+
+const postAuthorized = (body: unknown, agentToken: string): Request =>
+  new Request('https://w.test/mcp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json,text/event-stream',
+      Authorization: `Bearer ${agentToken}`,
+    },
+    body: JSON.stringify(body),
+  });
 
 const initializeBody = {
   jsonrpc: '2.0',
@@ -74,7 +89,7 @@ describe('handleMcpHttpRequest', () => {
   });
 
   it('lists the expected tool surface', async () => {
-    const server = buildMcpServer({} as unknown as Env);
+    const server = buildMcpServer({} as unknown as Env, null);
     // McpServer has a private registry; hit listTools via JSON-RPC roundtrip
     // through the public transport instead.
     const { env } = buildEnv(() => new Response('{}'));
@@ -142,6 +157,128 @@ describe('handleMcpHttpRequest', () => {
             code: 'lower',
             playerToken: 'X'.repeat(32),
           },
+        },
+      }),
+      env,
+    );
+    const body = (await res.json()) as { result: { isError: boolean } };
+    expect(body.result.isError).toBe(true);
+  });
+
+  it('rejects an invalid Bearer token with 401', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const res = await handleMcpHttpRequest(
+      postAuthorized(initializeBody, 'not.a.valid.token'),
+      env,
+    );
+    expect(res.status).toBe(401);
+    expect(res.headers.get('WWW-Authenticate')).toContain('Bearer');
+  });
+
+  it('accepts a valid Bearer token and routes initialize', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const { token } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_alpha',
+    });
+    const res = await handleMcpHttpRequest(
+      postAuthorized(initializeBody, token),
+      env,
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('resolves matchToken into code+playerToken when calling get_state', async () => {
+    const { env, calls } = buildEnv(() =>
+      Response.json({
+        ok: true,
+        code: 'ABCDE',
+        playerId: 0,
+        state: null,
+        hasState: false,
+      }),
+    );
+    const playerToken = 'P'.repeat(32);
+    const { token: agentToken } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_beta',
+    });
+    const { token: matchToken } = await issueMatchToken({
+      secret: TEST_SECRET,
+      code: 'ABCDE',
+      playerToken,
+      agentToken,
+    });
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 10,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_get_state',
+            arguments: { matchToken },
+          },
+        },
+        agentToken,
+      ),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    // The DO call should include the unwrapped playerToken.
+    expect(new URL(calls[0].url).searchParams.get('playerToken')).toBe(
+      playerToken,
+    );
+    const body = (await res.json()) as { result: { isError?: boolean } };
+    expect(body.result.isError).not.toBe(true);
+  });
+
+  it('rejects matchToken issued for a different agentToken', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const { token: agentTokenA } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_a',
+    });
+    const { token: agentTokenB } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_b',
+    });
+    const { token: matchToken } = await issueMatchToken({
+      secret: TEST_SECRET,
+      code: 'ABCDE',
+      playerToken: 'P'.repeat(32),
+      agentToken: agentTokenA,
+    });
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 11,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_get_state',
+            arguments: { matchToken },
+          },
+        },
+        agentTokenB,
+      ),
+      env,
+    );
+    const body = (await res.json()) as { result: { isError: boolean } };
+    expect(body.result.isError).toBe(true);
+  });
+
+  it('rejects tool call with neither matchToken nor code+playerToken', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const res = await handleMcpHttpRequest(
+      post({
+        jsonrpc: '2.0',
+        id: 12,
+        method: 'tools/call',
+        params: {
+          name: 'delta_v_get_state',
+          arguments: {},
         },
       }),
       env,
