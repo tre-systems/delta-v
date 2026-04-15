@@ -84,6 +84,18 @@ const collectMarkers = (
     }
   }
 
+  // Gravity hexes. Rendered as '~' so agents can see gravity wells. Ship and
+  // body markers placed later override these when they share a hex.
+  for (const [hexKey, hexData] of map.hexes) {
+    if (!hexData.gravity) continue;
+    const existing = markers.get(hexKey);
+    if (existing) continue; // body or home/target already placed here
+    markers.set(hexKey, {
+      char: '~',
+      legend: '',
+    });
+  }
+
   // Ships. Own ships always visible; enemies only if detected.
   for (const ship of state.ships) {
     if (ship.lifecycle === 'destroyed') continue;
@@ -231,7 +243,7 @@ export const renderSpatialGrid = (
 
   const header =
     'Legend: @ = your ship  ! = detected enemy  * = body  ' +
-    'H = home  T = target  x = ordnance  · = empty hex';
+    'H = home  T = target  x = ordnance  ~ = gravity  · = empty hex';
 
   const footer =
     nearest === null
