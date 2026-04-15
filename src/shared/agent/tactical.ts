@@ -2,6 +2,7 @@
 // import from browser, Worker, or Node. LLM agents get a cheap summary of
 // the state's strategic shape without having to compute distances themselves.
 
+import { getCombatStrength } from '../combat';
 import { hexDistance } from '../hex';
 import type {
   CelestialBody,
@@ -30,6 +31,19 @@ export interface TacticalFeatures {
   // Integer lower-bound estimate of turns-to-reach targetBody given your
   // current best velocity toward it. null when not computable.
   turnsToObjective: number | null;
+  // Sum of gun combat strength for your operational ships (accounts for
+  // disabled state — disabled ships contribute 0 unless dreadnaught/base).
+  ownCombatStrength: number;
+  // Sum of gun combat strength for detected operational enemy ships.
+  enemyCombatStrength: number;
+  // Count of your operational ships that are not disabled.
+  ownActiveShips: number;
+  // Count of detected operational enemy ships that are not disabled.
+  enemyActiveShips: number;
+  // Count of your operational ships that are currently disabled.
+  ownDisabledShips: number;
+  // Count of detected operational enemy ships that are currently disabled.
+  enemyDisabledShips: number;
 }
 
 const OPERATIONAL_LIFECYCLES: ReadonlySet<Ship['lifecycle']> = new Set([
@@ -181,6 +195,17 @@ export const buildTacticalFeatures = (
 
   const turnsToObjective = estimateTurnsToObjective(ownShips, targetBody);
 
+  // Combat readiness: getCombatStrength accounts for disabled/destroyed state
+  // (disabled ships contribute 0 unless dreadnaught or orbital base).
+  const ownCombatStrength = getCombatStrength(ownShips);
+  const enemyCombatStrength = getCombatStrength(enemyShips);
+
+  const isDisabled = (ship: Ship): boolean => ship.damage.disabledTurns > 0;
+  const ownActiveShips = ownShips.filter((s) => !isDisabled(s)).length;
+  const enemyActiveShips = enemyShips.filter((s) => !isDisabled(s)).length;
+  const ownDisabledShips = ownShips.filter(isDisabled).length;
+  const enemyDisabledShips = enemyShips.filter(isDisabled).length;
+
   return {
     nearestEnemyDistance,
     fuelAdvantage,
@@ -188,5 +213,11 @@ export const buildTacticalFeatures = (
     enemyObjectiveDistance,
     threatAxis,
     turnsToObjective,
+    ownCombatStrength,
+    enemyCombatStrength,
+    ownActiveShips,
+    enemyActiveShips,
+    ownDisabledShips,
+    enemyDisabledShips,
   };
 };

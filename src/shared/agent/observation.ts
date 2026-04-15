@@ -1,16 +1,25 @@
 // Composes candidates, legal-action metadata, and prose summary into the
 // canonical AgentTurnInput sent to every external agent.
 
+import { HEX_DIRECTIONS } from '../hex';
 import { buildSolarSystemMap } from '../map-data';
 import type { GameState, PlayerId, SolarSystemMap } from '../types/domain';
 import type { C2S } from '../types/protocol';
 import { labelCandidates } from './candidate-labels';
 import { buildCandidates } from './candidates';
-import { describeCandidate, describePosition, describeShip } from './describe';
+import {
+  DIRECTION_NAMES,
+  describeCandidate,
+  describePosition,
+  describeShip,
+} from './describe';
 import { buildLegalActionInfo } from './legal-actions';
 import { renderSpatialGrid } from './spatial-grid';
 import { buildTacticalFeatures } from './tactical';
 import type { AgentTurnInput, CoachDirective } from './types';
+
+const describeDirection = (dir: number): string =>
+  DIRECTION_NAMES[dir] ?? `dir${dir}`;
 
 export const buildStateSummary = (
   state: GameState,
@@ -62,6 +71,36 @@ export const buildStateSummary = (
         `  ${ord.type} (${owner}), ${describePosition(ord.position, bodies)}, ${ord.turnsRemaining}T left`,
       );
     }
+  }
+
+  // Predicted next-turn positions: velocity + pending gravity effects.
+  const predictions: string[] = [];
+  for (const ship of state.ships) {
+    if (ship.lifecycle === 'destroyed') continue;
+    let nextQ = ship.position.q + ship.velocity.dq;
+    let nextR = ship.position.r + ship.velocity.dr;
+    const gravityNotes: string[] = [];
+    for (const grav of ship.pendingGravityEffects ?? []) {
+      if (grav.ignored) continue;
+      const dir = HEX_DIRECTIONS[grav.direction];
+      if (dir) {
+        nextQ += dir.dq;
+        nextR += dir.dr;
+        gravityNotes.push(
+          `${grav.bodyName} pulls ${describeDirection(grav.direction)}`,
+        );
+      }
+    }
+    const from = `(${ship.position.q},${ship.position.r})`;
+    const to = `(${nextQ},${nextR})`;
+    const gravSuffix =
+      gravityNotes.length > 0 ? ` [${gravityNotes.join(', ')}]` : '';
+    predictions.push(`  ${ship.id}: ${from} -> ${to}${gravSuffix}`);
+  }
+  if (predictions.length > 0) {
+    lines.push('');
+    lines.push('NEXT TURN PREDICTIONS (velocity + gravity, before burns):');
+    lines.push(...predictions);
   }
 
   lines.push('');
