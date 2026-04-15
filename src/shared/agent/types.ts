@@ -37,6 +37,18 @@ export interface LegalActionInfo {
   enemies: LegalActionEnemyInfo[];
 }
 
+// Mid-game coaching directive — a human whispers strategic intent to
+// their agent via `/coach <text>` in chat; the server stores the most
+// recent directive per seat and injects it into subsequent observations.
+// The agent decides whether to follow. `acknowledged` is reserved for a
+// future ack mechanism; in v1 it is always `false` (agents can respond
+// via normal chat, e.g. "Copy", to indicate they saw it).
+export interface CoachDirective {
+  text: string;
+  turnReceived: number;
+  acknowledged: boolean;
+}
+
 // Wire shape sent to every external agent (stdin / HTTP / MCP).
 // Kept backward compatible with the v1 bridge contract: existing agents that
 // only read state/candidates/summary/legalActionInfo keep working. The v2
@@ -56,6 +68,9 @@ export interface AgentTurnInput {
   tactical?: import('./tactical').TacticalFeatures;
   spatialGrid?: string;
   labeledCandidates?: import('./candidate-labels').LabeledCandidate[];
+  // Mid-game directive from a human coach (see §9 of AGENT_SPEC).
+  // Absent when no directive is active for this seat.
+  coachDirective?: CoachDirective;
 }
 
 // Either the agent picks an existing candidate by index, or supplies a custom C2S action.

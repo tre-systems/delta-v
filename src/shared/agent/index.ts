@@ -51,6 +51,7 @@ export { buildTacticalFeatures, type TacticalFeatures } from './tactical';
 export type {
   AgentTurnInput,
   AgentTurnResponse,
+  CoachDirective,
   LegalActionEnemyInfo,
   LegalActionInfo,
   LegalActionShipInfo,
