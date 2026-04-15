@@ -2,7 +2,14 @@
 // string, and a crude risk tag so LLM agents can reason about trade-offs
 // without re-deriving them from the structured state.
 
-import type { GameState, PlayerId } from '../types/domain';
+import {
+  computeGroupRangeMod,
+  computeGroupVelocityMod,
+  computeOdds,
+  getCombatStrength,
+} from '../combat';
+import { SHIP_STATS } from '../constants';
+import type { GameState, PlayerId, Ship } from '../types/domain';
 import type { C2S } from '../types/protocol';
 import { describeCandidate } from './describe';
 
@@ -92,7 +99,59 @@ const riskFor = (
   }
 };
 
-const reasoningFor = (action: C2S, index: number, state: GameState): string => {
+const findShip = (state: GameState, id: string): Ship | undefined =>
+  state.ships.find((s) => s.id === id);
+
+const describeCombatOdds = (
+  attackerIds: readonly string[],
+  targetId: string,
+  state: GameState,
+): string => {
+  const attackers = attackerIds
+    .map((id) => findShip(state, id))
+    .filter((s): s is Ship => s != null);
+  const target = findShip(state, targetId);
+  if (attackers.length === 0 || !target) return '';
+
+  const atkStr = getCombatStrength(attackers);
+  const defStr = getCombatStrength([target]);
+  const rangeMod = computeGroupRangeMod(attackers, target);
+  const velMod = computeGroupVelocityMod(attackers, target);
+  const odds = computeOdds(atkStr, defStr);
+  return ` ${atkStr} vs ${defStr}, range -${rangeMod}, vel -${velMod}, odds ${odds}.`;
+};
+
+const describeAstrogationCost = (
+  action: Extract<C2S, { type: 'astrogation' }>,
+  state: GameState,
+  playerId: PlayerId,
+): string => {
+  let totalCost = 0;
+  let totalFuelBefore = 0;
+  for (const order of action.orders) {
+    const ship = findShip(state, order.shipId);
+    if (!ship || ship.owner !== playerId) continue;
+    totalFuelBefore += ship.fuel;
+    if (order.burn !== null) totalCost += 1;
+    if (order.overload !== null) totalCost += 1;
+  }
+  if (totalCost === 0) return '';
+  const maxFuel = action.orders.reduce((sum, o) => {
+    const ship = findShip(state, o.shipId);
+    if (!ship || ship.owner !== playerId) return sum;
+    const stats = SHIP_STATS[ship.type];
+    return sum + (Number.isFinite(stats.fuel) ? stats.fuel : 0);
+  }, 0);
+  const remaining = totalFuelBefore - totalCost;
+  return ` Fuel: -${totalCost}, remaining ${remaining}/${maxFuel}.`;
+};
+
+const reasoningFor = (
+  action: C2S,
+  index: number,
+  state: GameState,
+  playerId: PlayerId,
+): string => {
   const recommended = index === 0;
   const prefix = recommended
     ? 'Hard-difficulty AI recommendation'
@@ -112,7 +171,8 @@ const reasoningFor = (action: C2S, index: number, state: GameState): string => {
       if (overloads > 0)
         bits.push(`${overloads} overload${overloads === 1 ? '' : 's'}`);
       if (coasting > 0) bits.push(`${coasting} coasting`);
-      return `${prefix}: astrogation (${bits.join(', ') || 'no movement'}) on turn ${state.turnNumber}.`;
+      const fuelInfo = describeAstrogationCost(action, state, playerId);
+      return `${prefix}: astrogation (${bits.join(', ') || 'no movement'}) on turn ${state.turnNumber}.${fuelInfo}`;
     }
     case 'ordnance':
       return `${prefix}: launch ${action.launches.length} ordnance (${action.launches
@@ -120,10 +180,22 @@ const reasoningFor = (action: C2S, index: number, state: GameState): string => {
         .join(', ')}).`;
     case 'combat': {
       const targets = new Set(action.attacks.map((a) => a.targetId));
-      return `${prefix}: ${action.attacks.length} attacks on ${targets.size} target${targets.size === 1 ? '' : 's'}.`;
+      const oddsDetails = action.attacks
+        .map((a) =>
+          describeCombatOdds(a.attackerIds as string[], a.targetId, state),
+        )
+        .filter(Boolean)
+        .join(' ');
+      return `${prefix}: ${action.attacks.length} attacks on ${targets.size} target${targets.size === 1 ? '' : 's'}.${oddsDetails}`;
     }
-    case 'combatSingle':
-      return `${prefix}: single attack on ${action.attack.targetId}.`;
+    case 'combatSingle': {
+      const oddsDetail = describeCombatOdds(
+        action.attack.attackerIds as string[],
+        action.attack.targetId,
+        state,
+      );
+      return `${prefix}: single attack on ${action.attack.targetId}.${oddsDetail}`;
+    }
     case 'logistics':
       return `${prefix}: ${action.transfers.length} transfers.`;
     case 'fleetReady':
@@ -164,7 +236,7 @@ export const labelCandidate = (
   index,
   action,
   label: describeCandidate(action, index),
-  reasoning: reasoningFor(action, index, state),
+  reasoning: reasoningFor(action, index, state, playerId),
   risk: riskFor(action, state, playerId),
 });
 
