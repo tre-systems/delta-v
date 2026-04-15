@@ -2,6 +2,7 @@ import { asRoomCode } from '../shared/ids';
 import { handleAgentTokenIssue } from './auth/issue-route';
 import type { Env } from './env';
 import { GameDO } from './game-do/game-do';
+import { handleMatchesList } from './matches-list';
 import { MatchmakerDO } from './matchmaker-do';
 import { handleMcpHttpRequest } from './mcp/handlers';
 
@@ -252,6 +253,19 @@ export default {
       return handleMcpHttpRequest(request, env);
     }
 
+    // GET /api/matches — public listing of completed matches for the
+    // /matches discovery page. Rate-limited by IP to blunt scrapers.
+    if (url.pathname === '/api/matches' && request.method === 'GET') {
+      if (!isLoopbackRequest(request)) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const ipHash = await hashIp(ip);
+        if (isJoinReplayProbeRateLimited(ipHash)) {
+          return tooManyRequests();
+        }
+      }
+      return handleMatchesList(request, env);
+    }
+
     // /.well-known/agent.json — machine-readable agent manifest
     if (url.pathname === '/.well-known/agent.json') {
       const manifestUrl = new URL(request.url);
@@ -274,6 +288,13 @@ export default {
       const agentsUrl = new URL(request.url);
       agentsUrl.pathname = '/agents.html';
       return env.ASSETS.fetch(new Request(agentsUrl.toString(), request));
+    }
+
+    // /matches → serve the public match-history page.
+    if (url.pathname === '/matches' || url.pathname === '/matches/') {
+      const matchesUrl = new URL(request.url);
+      matchesUrl.pathname = '/matches.html';
+      return env.ASSETS.fetch(new Request(matchesUrl.toString(), request));
     }
 
     // Serve static assets
