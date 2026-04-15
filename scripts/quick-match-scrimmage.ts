@@ -693,25 +693,52 @@ const printSection = (title: string, values: string[]): void => {
   }
 };
 
+const pairPlayersInSameRoom = async (
+  config: Config,
+): Promise<{
+  left: QueuePlayer;
+  right: QueuePlayer;
+  leftMatch: Extract<QuickMatchResponse, { status: 'matched' }>;
+  rightMatch: Extract<QuickMatchResponse, { status: 'matched' }>;
+}> => {
+  const maxAttempts = 5;
+  let lastMismatch: { leftCode: string; rightCode: string } | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const left = createQueuePlayer(config.labelA, config.agentCommandBase);
+    const right = createQueuePlayer(config.labelB, config.agentCommandBase);
+    console.log(
+      `Queueing ${left.label} and ${right.label} on ${config.serverUrl} quick match...`,
+    );
+    const [leftMatch, rightMatch] = await Promise.all([
+      resolveMatch(config, left),
+      resolveMatch(config, right),
+    ]);
+
+    if (leftMatch.code === rightMatch.code) {
+      return { left, right, leftMatch, rightMatch };
+    }
+
+    lastMismatch = { leftCode: leftMatch.code, rightCode: rightMatch.code };
+    console.warn(
+      `matchmaking split attempt ${attempt}/${maxAttempts}: ${leftMatch.code} vs ${rightMatch.code}; retrying`,
+    );
+    await delay(config.pollMs);
+  }
+
+  throw new Error(
+    `players matched into different rooms after ${maxAttempts} attempts (${
+      lastMismatch
+        ? `${lastMismatch.leftCode} vs ${lastMismatch.rightCode}`
+        : 'unknown'
+    })`,
+  );
+};
+
 const main = async (): Promise<void> => {
   const config = parseArgs(process.argv.slice(2));
-  const left = createQueuePlayer(config.labelA, config.agentCommandBase);
-  const right = createQueuePlayer(config.labelB, config.agentCommandBase);
-
-  console.log(
-    `Queueing ${left.label} and ${right.label} on ${config.serverUrl} quick match...`,
-  );
-
-  const [leftMatch, rightMatch] = await Promise.all([
-    resolveMatch(config, left),
-    resolveMatch(config, right),
-  ]);
-
-  if (leftMatch.code !== rightMatch.code) {
-    throw new Error(
-      `players matched into different rooms (${leftMatch.code} vs ${rightMatch.code})`,
-    );
-  }
+  const { left, right, leftMatch, rightMatch } =
+    await pairPlayersInSameRoom(config);
 
   const code = leftMatch.code;
   console.log(`Matched in room ${code}. Launching player clients...`);

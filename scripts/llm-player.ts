@@ -707,6 +707,24 @@ const run = async (config: Config): Promise<void> => {
 
     actionInFlight = true;
     try {
+      if (state.turnNumber === 1 && state.phase === 'astrogation') {
+        // Let the opening phase settle so we don't race an immediate
+        // astrogation->ordnance transition and submit stale first actions.
+        await delay(120);
+        const settled = latestState;
+        if (
+          settled &&
+          (settled.turnNumber !== state.turnNumber ||
+            settled.phase !== state.phase)
+        ) {
+          if (config.verbose) {
+            console.log(
+              `turn ${state.turnNumber} ${state.phase}: phase settled to turn ${settled.turnNumber} ${settled.phase}, skipping opening action`,
+            );
+          }
+          return;
+        }
+      }
       await delay(config.thinkMs);
       const latestKey =
         latestState === null
