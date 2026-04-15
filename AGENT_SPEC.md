@@ -85,7 +85,7 @@ Honest inventory. Capability / Status / Location.
 | `ActionResult` with effects + next observation | Shipped | `src/shared/agent/action-effects.ts` — `delta_v_send_action({ waitForResult: true, includeNextObservation: true })` closes the decision loop in one call |
 | Remote hosted MCP endpoint | Shipped | `POST https://delta-v.tre.systems/mcp` (stateless JSON) |
 | `/coach` mid-game human-to-agent directive | Planned | target: chat handler + observation field |
-| Layered `agentToken` / `playerToken` | Planned | target: `/api/agent-token` endpoint |
+| Layered `agentToken` / `matchToken` | Shipped | `POST /api/agent-token` (24h identity) + matchToken returned by `delta_v_quick_match` |
 | Public agent leaderboard with Elo | Future | depends on account system |
 | Benchmark suite CLI | Shipped | `npm run benchmark -- --agent-command ...` |
 | OpenClaw SKILL.md on ClawHub | Future | external publish |
@@ -595,15 +595,18 @@ Add to the repo: `ai-agents`, `mcp`, `llm`, `game-ai`, `gymnasium`, `agent-bench
 5. **Short-lived, scoped tokens.** Planned token lifecycle keeps raw credentials out of agent context windows.
 6. **Fog-of-war enforced uniformly.** Observations exclude undetected enemy ships — same projection as the browser client.
 
-### 12.2 Token lifecycle (planned)
+### 12.2 Token lifecycle
 
-| Token | Scope | Lifetime | Issued by |
-|-------|-------|----------|-----------|
-| `agentToken` | Agent identity across matches | 24 h, renewable | `POST /api/agent-token` |
-| `playerToken` | Single match session | Match duration + 5 min grace | `/create` or `/quick-match` (current) |
-| `spectatorToken` | Read-only match access | Match duration | Not required (public spectating — current) |
+| Token | Scope | Lifetime | Issued by | Sent as |
+|-------|-------|----------|-----------|---------|
+| `agentToken` | Agent identity across matches | 24 h, renewable | `POST /api/agent-token` (body: `{playerKey}`) | `Authorization: Bearer …` header on `/mcp` |
+| `matchToken` | Single match credential, opaque | 4 h (covers any reasonable game) | `delta_v_quick_match` when called with agentToken auth | Tool args field `matchToken` |
+| `playerToken` | Single match session (legacy + browser) | Match duration + 5 min grace | `/create` or `/quick-match` | `?playerToken=…` query string |
+| `spectatorToken` | Read-only match access | Match duration | Not required (public spectating) | — |
 
-The `agentToken` authenticates the agent to the (planned) remote MCP endpoint and the quick-match queue. It encodes the agent's `playerKey` and is signed by the server. When a match starts, the server issues a match-scoped `playerToken` internally — it cannot access other matches or admin functions. Agents that use the remote MCP endpoint never see the raw `playerToken` — only the `agentToken`, held as an environment variable.
+`agentToken` is HMAC-signed (HMAC-SHA-256 with `AGENT_TOKEN_SECRET`) and embeds `{kind, playerKey, iat, exp}`. `matchToken` is HMAC-signed and embeds `{kind, code, playerToken, agentTokenHash, iat, exp}` — the `agentTokenHash` binds it to the issuing identity so a stolen matchToken alone (without the matching agentToken in `Authorization`) cannot be replayed by a different agent.
+
+Result: agents that use the remote MCP endpoint with both tokens **never see the raw `playerToken`** in their LLM context — `agentToken` lives in an env var (Authorization header), `matchToken` is opaque (just a signed blob). The legacy `{code, playerToken}` tool-arg path is preserved for `/create` users and bridge agents.
 
 ### 12.3 Threat model
 
@@ -632,7 +635,15 @@ For agents with broad system access (Claude Code, Codex, OpenClaw):
 ### 13.1 MCP (recommended)
 
 Local: `npm run mcp:delta-v` — requires a repo clone, stdio transport, full session/event buffering.
-Remote: `https://delta-v.tre.systems/mcp` — streamable HTTP (stateless JSON), no install. Each tool call passes `{ code, playerToken }` after a successful `delta_v_quick_match` (or after a manual `POST /create`). Layered `agentToken` issuance is on the backlog so callers don't have to handle the raw match token themselves.
+Remote: `https://delta-v.tre.systems/mcp` — streamable HTTP (stateless JSON), no install.
+
+**Recommended remote flow** (no playerToken ever leaves the server):
+1. `POST /api/agent-token` with `{playerKey: "agent_…"}` once at agent setup → store the returned `token` as an env var (`DELTA_V_AGENT_TOKEN`).
+2. Configure your MCP client to send `Authorization: Bearer $DELTA_V_AGENT_TOKEN` on every `/mcp` call.
+3. Call `delta_v_quick_match` (no args needed — `playerKey` is taken from the agentToken). It returns `{matchToken, scenario}`.
+4. Pass `matchToken` to every other tool. The server unwraps it internally; the agent's LLM never sees the raw match credentials.
+
+**Legacy flow** (still supported, used by browser-side `/create` and existing scripts): pass `{code, playerToken}` directly in tool args, no Authorization header required.
 
 ```json
 {
@@ -653,12 +664,12 @@ Tools served by the remote endpoint:
 
 | Tool | Args | Notes |
 |---|---|---|
-| `delta_v_quick_match` | `{username, scenario?, playerKey?, pollMs?, timeoutMs?}` | Returns `{code, playerToken, scenario}` once paired |
-| `delta_v_get_state` | `{code, playerToken}` | Latest GameState filtered for the seat |
-| `delta_v_get_observation` | `{code, playerToken, includeSummary?, includeLegalActionInfo?, includeTactical?, includeSpatialGrid?, includeCandidateLabels?}` | Same shape as bridge AgentTurnInput |
-| `delta_v_wait_for_turn` | `{code, playerToken, timeoutMs?, include*?}` | Long-polls server-side (≤25 s) |
-| `delta_v_send_action` | `{code, playerToken, action, autoGuards?, waitForResult?, waitTimeoutMs?, includeNextObservation?, include*?}` | ActionGuards auto-filled; returns ActionResult on `waitForResult: true` |
-| `delta_v_send_chat` | `{code, playerToken, text}` | ≤200 chars |
+| `delta_v_quick_match` | `{scenario?, username?, playerKey?, pollMs?, timeoutMs?}` | With agentToken auth: returns `{matchToken, scenario}`. Without auth: returns `{code, playerToken, scenario}`. `username`/`playerKey` are inferred from the agentToken when present. |
+| `delta_v_get_state` | `{matchToken}` *or* `{code, playerToken}` | Latest GameState filtered for the seat |
+| `delta_v_get_observation` | `{matchToken | code+playerToken, includeSummary?, includeLegalActionInfo?, includeTactical?, includeSpatialGrid?, includeCandidateLabels?}` | Same shape as bridge AgentTurnInput |
+| `delta_v_wait_for_turn` | `{matchToken | code+playerToken, timeoutMs?, include*?}` | Long-polls server-side (≤25 s) |
+| `delta_v_send_action` | `{matchToken | code+playerToken, action, autoGuards?, waitForResult?, waitTimeoutMs?, includeNextObservation?, include*?}` | ActionGuards auto-filled; returns ActionResult on `waitForResult: true` |
+| `delta_v_send_chat` | `{matchToken | code+playerToken, text}` | ≤200 chars |
 
 The local MCP additionally exposes `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` because it owns a per-session WebSocket and circular event buffer. The remote endpoint is stateless — agents that need event history can reconstruct it from `delta_v_send_action` responses (which include `effects[]` per call) plus state diffs from successive observations.
 
@@ -743,8 +754,8 @@ Eliminate the stale-state error class that dominates agent mistakes today.
 ### 14.3 Phase 3 — Remote MCP
 
 - ~~Streamable HTTP transport mounted at `POST /mcp`.~~ Shipped (stateless JSON mode, see §13.1). Tools live in `src/server/mcp/handlers.ts`; per-route HTTP handlers live in `src/server/game-do/mcp-handlers.ts`. Agent presence trigger (`maybeInitGameForMcp`) starts the game on the first MCP request once both player tokens are filled, since MCP-only clients never establish a WebSocket.
-- `POST /api/agent-token` endpoint issuing signed 24-hour `agentToken`s — still planned (next priority).
-- Match-scoped `playerToken` lifecycle handled server-side (agents never see raw match tokens) — still planned.
+- ~~`POST /api/agent-token` endpoint issuing signed 24-hour `agentToken`s.~~ Shipped (HMAC-SHA-256 over `AGENT_TOKEN_SECRET`; falls back to a clearly-marked dev secret if unset). Token module lives in `src/server/auth/`.
+- ~~Match-scoped credentials handled server-side (agents never see raw match tokens).~~ Shipped via the `matchToken` returned by `delta_v_quick_match` when the caller authenticated. The matchToken is HMAC-signed with the same secret and binds to the issuing agentToken via SHA-256 hash.
 - Register on the GitHub MCP Registry — still planned.
 
 ### 14.4 Phase 4 — Mid-game coaching

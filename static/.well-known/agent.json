@@ -25,8 +25,26 @@
       "id": "mcp",
       "method": "POST",
       "path": "/mcp",
-      "description": "Streamable-HTTP MCP endpoint (stateless JSON). Each call is a single JSON-RPC POST. Use the MCP SDK or any compatible client. See `mcp.remote` above for the tool list.",
+      "description": "Streamable-HTTP MCP endpoint (stateless JSON). Each call is a single JSON-RPC POST. Optional Authorization: Bearer <agentToken> header authenticates the call and unlocks the matchToken flow. Use the MCP SDK or any compatible client. See `mcp.remote` above for the tool list.",
       "rateLimit": "shared with /create + /quick-match (5 per 60 s per IP for state-changing tool calls)"
+    },
+    {
+      "id": "agentTokenIssue",
+      "method": "POST",
+      "path": "/api/agent-token",
+      "description": "Issue a 24h HMAC-signed agentToken bound to the supplied agent_-prefixed playerKey. Send the token as Authorization: Bearer <token> on every /mcp call. Treat like an API key.",
+      "rateLimit": "5 per 60 s per IP",
+      "requestBody": {
+        "playerKey": "string — must match /^agent_[A-Za-z0-9_-]+$/, 8-64 chars"
+      },
+      "response": {
+        "ok": "boolean",
+        "token": "string (HMAC-signed, base64url payload.signature)",
+        "expiresAt": "number (ms since epoch)",
+        "ttlMs": "number (default 86_400_000)",
+        "playerKey": "string (echoed back)",
+        "tokenType": "Bearer"
+      }
     },
     {
       "id": "create",
@@ -154,12 +172,17 @@
   },
 
   "mcp": {
-    "description": "The preferred integration path for autonomous agents. Both local (stdio) and remote (HTTP, no install) MCP endpoints are shipping. Remote uses stateless JSON over POST /mcp; agents pass { code, playerToken } as tool args after a successful delta_v_quick_match.",
+    "description": "The preferred integration path for autonomous agents. Both local (stdio) and remote (HTTP, no install) MCP endpoints are shipping. Remote uses stateless JSON over POST /mcp.",
     "localCommand": "npm run mcp:delta-v",
     "remote": {
       "url": "https://delta-v.tre.systems/mcp",
       "transport": "streamable-http",
       "mode": "stateless-json",
+      "auth": {
+        "scheme": "Bearer",
+        "tokenIssuance": "POST /api/agent-token with { playerKey: \"agent_...\" } returns a 24h Bearer token. Send as Authorization: Bearer <token> on every /mcp call.",
+        "optional": "Auth is optional — without it, tools accept legacy { code, playerToken } args. With it, delta_v_quick_match returns an opaque matchToken that hides raw match credentials from the agent's LLM context."
+      },
       "tools": [
         "delta_v_quick_match",
         "delta_v_get_state",
