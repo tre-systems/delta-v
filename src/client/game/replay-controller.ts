@@ -36,6 +36,12 @@ export interface ReplayController {
   toggleReplay: () => Promise<void>;
   togglePlay: () => void;
   stepReplay: (direction: 'start' | 'prev' | 'next' | 'end') => void;
+  // Seed the controller with a pre-fetched timeline — used by the archived
+  // replay viewer path that boots the client into replay mode without an
+  // interactive gameplay session. Requires the client to be in `gameOver`
+  // state with gameState and gameCode already applied (the caller is
+  // responsible for doing that before invoking this method).
+  startArchivedReplay: (timeline: ReplayTimeline) => void;
 }
 
 export const createReplayController = (
@@ -336,6 +342,24 @@ export const createReplayController = (
           break;
       }
 
+      applyReplayEntry(replayIndex);
+      updateOverlay();
+    },
+    startArchivedReplay: (timeline) => {
+      if (timeline.entries.length === 0) {
+        deps.showToast('Replay has no entries.', 'error');
+        return;
+      }
+
+      stopPlay();
+      // Remember the caller's current state so that toggling the replay off
+      // restores it (for archived replays this is the match's final state —
+      // set by the caller before invoking us).
+      const ctx = deps.getClientContext();
+      replaySourceState = ctx.gameState ? structuredClone(ctx.gameState) : null;
+      selectedReplayGameId = timeline.gameId;
+      replayTimeline = timeline;
+      replayIndex = 0;
       applyReplayEntry(replayIndex);
       updateOverlay();
     },

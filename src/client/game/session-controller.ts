@@ -79,6 +79,38 @@ export interface SpectateGameSessionDeps {
   setState: (state: ClientState) => void;
 }
 
+// Deps for viewing an archived match replay without a live WebSocket. The
+// client applies the match's final state (so the game-over / replay UI has
+// real data to render), then hands the full timeline to the replay
+// controller which scrubs the match turn-by-turn.
+export interface ArchivedReplaySessionDeps {
+  ctx: Pick<
+    ClientSession,
+    | 'gameCode'
+    | 'spectatorMode'
+    | 'reconnectOverlayState'
+    | 'opponentDisconnectDeadlineMs'
+  >;
+  resetTurnTelemetry: () => void;
+  replaceRoute: (route: string) => void;
+  buildGameRoute: (code: string) => string;
+  setWaitingScreenState: (
+    state: import('../ui/screens').WaitingScreenState | null,
+  ) => void;
+  setState: (state: ClientState) => void;
+  fetchArchivedReplay: (
+    code: string,
+    gameId: string,
+  ) => Promise<import('../../shared/replay').ReplayTimeline | null>;
+  applyGameState: (state: GameState) => void;
+  startArchivedReplay: (
+    timeline: import('../../shared/replay').ReplayTimeline,
+  ) => void;
+  showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+  exitToMenu: () => void;
+  setScenario: (scenario: string) => void;
+}
+
 export interface JoinGameSessionDeps {
   ctx: Pick<
     ClientSession,
@@ -281,6 +313,51 @@ export const beginSpectateGameSession = (
   deps.replaceRoute(deps.buildGameRoute(code));
   deps.setState('connecting');
   deps.connect(code);
+};
+
+// Enter archived-replay mode: fetch the timeline via the spectator route
+// (no playerToken), apply the match's final state so the game-over / replay
+// overlay has real data, then hand the timeline to the replay controller.
+// Deliberately skips connect(code) — archived replays do not open a
+// WebSocket.
+export const beginArchivedReplaySession = async (
+  deps: ArchivedReplaySessionDeps,
+  code: string,
+  gameId: string,
+): Promise<void> => {
+  prepareRemoteSession(deps.ctx as ClientSession, true);
+  deps.resetTurnTelemetry();
+  setGameCode(deps.ctx, code);
+  deps.replaceRoute(deps.buildGameRoute(code));
+  deps.setState('connecting');
+  deps.setWaitingScreenState({
+    kind: 'private',
+    code,
+    connecting: true,
+  });
+
+  const timeline = await deps.fetchArchivedReplay(code, gameId);
+
+  if (!timeline || timeline.entries.length === 0) {
+    deps.showToast('Replay unavailable for this match.', 'error');
+    deps.exitToMenu();
+    return;
+  }
+
+  // Seed scenario so the UI's scenario label renders correctly.
+  deps.setScenario(timeline.scenario);
+
+  // Apply the final state first — this populates gameState with the
+  // match's endgame (winner, outcome, turn count) so the replay-controller
+  // has a "source state" to restore when the viewer closes the replay.
+  const lastEntry = timeline.entries[timeline.entries.length - 1];
+  if (lastEntry) {
+    deps.applyGameState(lastEntry.message.state);
+  }
+
+  deps.setWaitingScreenState(null);
+  deps.setState('gameOver');
+  deps.startArchivedReplay(timeline);
 };
 
 export const beginJoinGameSession = async (
