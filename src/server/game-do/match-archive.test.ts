@@ -117,7 +117,7 @@ describe('match archival', () => {
     expect(body.eventStream).toHaveLength(1);
     expect(body.checkpoint).not.toBeNull();
 
-    // D1 should have metadata
+    // D1 should have metadata — 9 columns including match_coached.
     expect(db.prepare).toHaveBeenCalledTimes(1);
     expect(db.bind).toHaveBeenCalledWith(
       'ARC-m1',
@@ -128,6 +128,52 @@ describe('match archival', () => {
       state.turnNumber,
       expect.any(Number),
       expect.any(Number),
+      0, // match_coached: falsy for uncoached match
+    );
+  });
+
+  it('persists match_coached flag when /coach was used', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const r2 = createMockR2();
+    const db = createMockDb();
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('COACH-m1'),
+      findBaseHex,
+    );
+    state.phase = 'gameOver';
+    state.outcome = { winner: 1, reason: 'Reached objective' };
+
+    await appendEnvelopedEvents(storage, asGameId('COACH-m1'), null, {
+      type: 'gameCreated',
+      scenario: 'Duel',
+      turn: 1,
+      phase: 'astrogation',
+      matchSeed: 0,
+    });
+    // Simulate a prior /coach: setCoachDirective stores matchCoached=true.
+    await storage.put('matchCoached', true);
+
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      db as unknown as D1Database,
+      state,
+      'COACHROOM',
+    );
+
+    expect(db.bind).toHaveBeenCalledWith(
+      'COACH-m1',
+      'COACHROOM',
+      'duel',
+      1,
+      'Reached objective',
+      state.turnNumber,
+      expect.any(Number),
+      expect.any(Number),
+      1, // match_coached: truthy when isMatchCoached returned true
     );
   });
 

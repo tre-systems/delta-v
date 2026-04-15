@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0c1220">
+  <title>Matches — Delta-V</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <style>
+    :root {
+      --bg: #040b16;
+      --panel: rgba(9, 18, 34, 0.72);
+      --panel-strong: rgba(7, 14, 28, 0.88);
+      --border: rgba(142, 176, 235, 0.16);
+      --border-strong: rgba(122, 215, 255, 0.38);
+      --text: #eef4ff;
+      --muted: #90a0ba;
+      --muted-strong: #b4c0d7;
+      --accent: #7ad7ff;
+      --accent-soft: rgba(122, 215, 255, 0.14);
+      --success: #95d687;
+      --warning: #ffc56a;
+      --danger: #ff8a8a;
+      --radius: 14px;
+      --radius-sm: 8px;
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { background: var(--bg); }
+
+    body {
+      font-family: var(--font-display);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .page-header {
+      background: rgba(4, 9, 18, 0.92);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(16px);
+    }
+
+    .header-logo { height: 28px; width: 28px; opacity: 0.9; }
+
+    .header-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .header-sep { color: var(--muted); font-size: 0.85rem; }
+
+    .header-page { font-size: 0.95rem; color: var(--muted-strong); }
+
+    .header-back {
+      margin-left: auto;
+      font-size: 0.85rem;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .header-back:hover {
+      color: var(--accent);
+      border-color: var(--border-strong);
+      text-decoration: none;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 3rem 2rem 6rem;
+    }
+
+    .hero {
+      margin-bottom: 2.5rem;
+    }
+
+    .hero-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+
+    .hero-lead {
+      font-size: 1.05rem;
+      color: var(--muted-strong);
+      max-width: 640px;
+      line-height: 1.7;
+    }
+
+    .match-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .match-table thead {
+      background: var(--panel-strong);
+    }
+
+    .match-table th {
+      padding: 0.85rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .match-table td {
+      padding: 0.9rem 1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .match-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .match-table tbody tr {
+      transition: background 0.1s;
+    }
+
+    .match-table tbody tr:hover {
+      background: var(--accent-soft);
+    }
+
+    .scenario-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .outcome-winner {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: var(--radius-sm);
+    }
+
+    .outcome-p1 { color: var(--accent); border: 1px solid var(--border-strong); }
+    .outcome-p2 { color: var(--warning); border: 1px solid rgba(255, 197, 106, 0.4); }
+    .outcome-draw { color: var(--muted); border: 1px solid var(--border); }
+
+    .win-reason {
+      display: block;
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-top: 0.2rem;
+    }
+
+    .turns-cell {
+      font-family: var(--font-mono);
+      color: var(--muted-strong);
+    }
+
+    .date-cell {
+      font-family: var(--font-mono);
+      color: var(--muted);
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .coached-badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--warning);
+      background: rgba(255, 197, 106, 0.1);
+      border: 1px solid rgba(255, 197, 106, 0.3);
+      border-radius: var(--radius-sm);
+    }
+
+    .game-id {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .status {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+    }
+
+    .load-more {
+      display: block;
+      margin: 1.5rem auto 0;
+      padding: 0.6rem 1.5rem;
+      background: transparent;
+      border: 1px solid var(--border-strong);
+      color: var(--accent);
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .load-more:hover {
+      background: var(--accent-soft);
+    }
+
+    .load-more:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 640px) {
+      .page-header { padding: 0.75rem 1.25rem; }
+      .container { padding: 2rem 1rem 4rem; }
+      .match-table { font-size: 0.8rem; }
+      .match-table th, .match-table td { padding: 0.6rem 0.6rem; }
+      .date-cell { font-size: 0.7rem; }
+      .match-table .hide-mobile { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="page-header">
+  <img src="/favicon.svg" alt="" class="header-logo" aria-hidden="true">
+  <span class="header-title">Delta-V</span>
+  <span class="header-sep">/</span>
+  <span class="header-page">Matches</span>
+  <a href="/" class="header-back">← Play</a>
+</header>
+
+<main class="container">
+
+  <div class="hero">
+    <div class="hero-eyebrow">Match history</div>
+    <h1>Recent matches</h1>
+    <p class="hero-lead">
+      Every completed match is archived. This list shows the most recent results; a browser replay viewer is in the works.
+    </p>
+  </div>
+
+  <div id="loading" class="status">Loading matches…</div>
+  <div id="error" class="status hidden">
+    Couldn't load matches. <a href="/matches">Retry</a>
+  </div>
+  <div id="empty" class="status hidden">
+    No matches yet. <a href="/">Play the first one →</a>
+  </div>
+
+  <table id="matches" class="match-table hidden" aria-label="Recent matches">
+    <thead>
+      <tr>
+        <th>Scenario</th>
+        <th>Winner</th>
+        <th>Turns</th>
+        <th class="hide-mobile">Played</th>
+        <th class="hide-mobile">Game</th>
+      </tr>
+    </thead>
+    <tbody id="matches-body"></tbody>
+  </table>
+
+  <button id="loadMore" class="load-more hidden" type="button">Load more</button>
+
+</main>
+
+<script>
+(() => {
+  // Static map of scenario keys → friendly names. Kept in sync with
+  // src/shared/scenario-definitions.ts. If a new scenario ships, the row
+  // still renders — it just falls back to showing the key.
+  const SCENARIO_NAMES = {
+    duel: 'Duel',
+    biplanetary: 'Bi-Planetary',
+    escape: 'Escape',
+    lunarEvacuation: 'Lunar Evacuation',
+    convoy: 'Convoy',
+    blockadeRunner: 'Blockade Runner',
+    interplanetaryWar: 'Interplanetary War',
+    fleetAction: 'Fleet Action',
+    grandTour: 'Grand Tour',
+  };
+
+  const $loading = document.getElementById('loading');
+  const $error = document.getElementById('error');
+  const $empty = document.getElementById('empty');
+  const $table = document.getElementById('matches');
+  const $body = document.getElementById('matches-body');
+  const $loadMore = document.getElementById('loadMore');
+
+  let nextBefore = null;
+  let loading = false;
+
+  const formatDate = (ms) => {
+    const d = new Date(ms);
+    const now = Date.now();
+    const diff = now - ms;
+    const oneDay = 86400000;
+
+    if (diff < oneDay) {
+      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    if (diff < 7 * oneDay) {
+      return d.toLocaleDateString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const escapeHtml = (s) => {
+    const el = document.createElement('div');
+    el.textContent = s;
+    return el.innerHTML;
+  };
+
+  const renderRow = (match) => {
+    const scenarioName = SCENARIO_NAMES[match.scenario] || match.scenario;
+
+    let winnerCell;
+    if (match.winner === 0) {
+      winnerCell = '<span class="outcome-winner outcome-p1">Player 1</span>';
+    } else if (match.winner === 1) {
+      winnerCell = '<span class="outcome-winner outcome-p2">Player 2</span>';
+    } else {
+      winnerCell = '<span class="outcome-winner outcome-draw">Draw</span>';
+    }
+
+    const winReason = match.winReason
+      ? `<span class="win-reason">${escapeHtml(match.winReason)}</span>`
+      : '';
+
+    const coachedBadge = match.coached
+      ? ' <span class="coached-badge" title="This match used the /coach whisper">Coached</span>'
+      : '';
+
+    return `
+      <tr>
+        <td>
+          <span class="scenario-name">${escapeHtml(scenarioName)}</span>
+        </td>
+        <td>${winnerCell}${coachedBadge}${winReason}</td>
+        <td class="turns-cell">${match.turns}</td>
+        <td class="date-cell hide-mobile" title="${new Date(match.completedAt).toISOString()}">${formatDate(match.completedAt)}</td>
+        <td class="game-id hide-mobile" title="Game ${escapeHtml(match.gameId)} (room ${escapeHtml(match.roomCode)})">${escapeHtml(match.gameId)}</td>
+      </tr>
+    `;
+  };
+
+  const fetchPage = async (before) => {
+    const params = new URLSearchParams();
+    params.set('limit', '50');
+    if (before) params.set('before', String(before));
+    const res = await fetch(`/api/matches?${params.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  };
+
+  const showError = () => {
+    $loading.classList.add('hidden');
+    $error.classList.remove('hidden');
+  };
+
+  const showEmpty = () => {
+    $loading.classList.add('hidden');
+    $empty.classList.remove('hidden');
+  };
+
+  const append = (matches) => {
+    const html = matches.map(renderRow).join('');
+    $body.insertAdjacentHTML('beforeend', html);
+  };
+
+  const loadMore = async () => {
+    if (loading) return;
+    loading = true;
+    $loadMore.disabled = true;
+    try {
+      const data = await fetchPage(nextBefore);
+      append(data.matches);
+      nextBefore = data.nextBefore;
+      if (!nextBefore) {
+        $loadMore.classList.add('hidden');
+      }
+    } catch (err) {
+      console.error('[matches] load more failed', err);
+    } finally {
+      loading = false;
+      $loadMore.disabled = false;
+    }
+  };
+
+  const initialLoad = async () => {
+    try {
+      const data = await fetchPage(null);
+      if (data.matches.length === 0) {
+        showEmpty();
+        return;
+      }
+      append(data.matches);
+      nextBefore = data.nextBefore;
+      $loading.classList.add('hidden');
+      $table.classList.remove('hidden');
+      if (nextBefore) {
+        $loadMore.classList.remove('hidden');
+      }
+    } catch (err) {
+      console.error('[matches] initial load failed', err);
+      showError();
+    }
+  };
+
+  $loadMore.addEventListener('click', loadMore);
+  initialLoad();
+})();
+</script>
+
+</body>
+</html>

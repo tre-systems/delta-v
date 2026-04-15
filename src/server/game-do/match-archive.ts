@@ -8,6 +8,7 @@ import {
   getMatchCreatedAt,
   getMatchSeed,
 } from './archive';
+import { isMatchCoached } from './coach';
 
 // Persistent archive of a completed match.
 export interface MatchArchive {
@@ -39,12 +40,13 @@ export const archiveCompletedMatch = async (
   const { gameId } = state;
 
   try {
-    const [eventStream, checkpoint, matchCreatedAt, matchSeed] =
+    const [eventStream, checkpoint, matchCreatedAt, matchSeed, matchCoached] =
       await Promise.all([
         getEventStream(storage, gameId),
         getCheckpoint(storage, gameId),
         getMatchCreatedAt(storage, gameId),
         getMatchSeed(storage, gameId),
+        isMatchCoached(storage),
       ]);
 
     const archive: MatchArchive = {
@@ -74,8 +76,8 @@ export const archiveCompletedMatch = async (
         .prepare(
           'INSERT OR IGNORE INTO match_archive ' +
             '(game_id, room_code, scenario, winner, ' +
-            'win_reason, turns, created_at, completed_at) ' +
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'win_reason, turns, created_at, completed_at, match_coached) ' +
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .bind(
           gameId,
@@ -86,6 +88,7 @@ export const archiveCompletedMatch = async (
           state.turnNumber,
           archive.createdAt,
           archive.completedAt,
+          matchCoached ? 1 : 0,
         )
         .run();
     }

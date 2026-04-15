@@ -784,6 +784,7 @@ Eliminate the stale-state error class that dominates agent mistakes today.
 - Sync scenario list across `/.well-known/agent.json`, `agent-playbook.json`, and `agents.html` (one source of truth).
 - ~~Prominent "Build a Bot" CTA on the landing page and game-over screen.~~ Shipped (`static/index.html` menu + game-over link → `/agents`).
 - ~~GitHub topics update~~ Shipped (`ai-agents`, `mcp`, `llm`, `game-ai`, `gymnasium`, `agent-benchmark` added to repo). OpenClaw SKILL.md publication when the external platform is ready.
+- ~~Public match-history page at `/matches`~~ Shipped (`GET /api/matches` + `static/matches.html`). Lists completed matches (scenario, winner, turns, coached flag, game id) newest-first with cursor pagination. D1 schema gained `match_coached` column and a `completed_at DESC` index (`migrations/0003_match_archive_listing.sql`). Browser replay viewer is the next follow-up (see `docs/BACKLOG.md`).
 
 ### 14.6 Future (blocked on scope expansion)
 
