@@ -91,6 +91,8 @@ the existing AI helpers.
 
 **Implementation:** `scripts/llm-player.ts`
 
+For a consolidated agent-onboarding flow (MCP vs bridge, contract summary, and tuning workflow), see `docs/AGENTS.md`.
+
 The bridge can either:
 
 1. **Create** a game and play one seat while another player joins from browser automation or manual browser play.

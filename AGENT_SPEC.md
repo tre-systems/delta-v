@@ -6,6 +6,7 @@ This spec defines how autonomous agents (scripts, LLMs, RL models, humans-in-loo
 
 Related docs:
 
+- [docs/AGENTS.md](./docs/AGENTS.md) — practical quick start and implementation checklist
 - [docs/DELTA_V_MCP.md](./docs/DELTA_V_MCP.md) — operator guide for the current MCP server
 - [docs/SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) — AI vs AI and bridge harness
 - [docs/SECURITY.md](./docs/SECURITY.md) — rate limits, seat tokens, abuse controls
