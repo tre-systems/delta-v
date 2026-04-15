@@ -462,6 +462,18 @@
   color: var(--accent);
 }
 
+/* "Build a Bot" CTA — slightly bolder than the neighbouring rules link so
+ * agent-curious players actually notice it. Same muted baseline weight to
+ * keep the menu visual hierarchy intact. */
+.menu-agent-cta {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.menu-agent-cta:hover {
+  color: var(--fg);
+}
+
 .help-btn,
 .sound-btn {
   position: fixed;
@@ -906,6 +918,28 @@ h2.game-over-neutral {
   flex-direction: row;
   gap: 0.6rem;
   margin-top: 0.4rem;
+}
+
+/* Subtle secondary CTA beneath rematch/exit so players who just finished
+ * a match discover the agent onboarding path. Muted enough not to compete
+ * with the primary Rematch button. */
+.game-over-agent-cta {
+  display: inline-block;
+  margin-top: 0.75rem;
+  align-self: center;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+}
+
+.game-over-agent-cta:hover {
+  color: var(--accent);
 }
 
 #gameOver .btn {
