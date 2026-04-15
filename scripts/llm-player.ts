@@ -34,6 +34,7 @@ interface Config {
   thinkMs: number;
   decisionTimeoutMs: number;
   exitAfterGameOver: boolean;
+  autoChatReplies: boolean;
   verbose: boolean;
 }
 
@@ -128,6 +129,7 @@ const parseArgs = (argv: string[]): Config => {
       parseIntegerFlag(getFlag('--decision-timeout-ms'), 30_000),
     ),
     exitAfterGameOver: !args.includes('--stay-connected-after-gameover'),
+    autoChatReplies: !args.includes('--no-auto-chat-replies'),
     verbose: args.includes('--verbose'),
   };
 };
@@ -162,6 +164,7 @@ Flags:
   --think-ms              Delay before acting (default: 200)
   --decision-timeout-ms   Agent timeout per turn (default: 30000)
   --stay-connected-after-gameover  Keep socket open after game over
+  --no-auto-chat-replies  Disable automatic reply messages on incoming chat
   --verbose               Print detailed turn/action logs
   --help                  Show this help
 `);
@@ -469,8 +472,8 @@ const summarizeTactics = (
 
 const buildChatReply = (
   incoming: string,
-  state: GameState | null,
-  playerId: PlayerId,
+  _state: GameState | null,
+  _playerId: PlayerId,
 ): string => {
   const normalized = incoming.trim().toLowerCase();
   // Avoid low-signal "copy" ping-pong loops between autonomous agents.
@@ -486,17 +489,9 @@ const buildChatReply = (
     return 'o7 commander.';
   if (normalized.includes('hey')) return 'hey, good luck out there.';
   if (normalized.includes('gl')) return 'gl hf.';
-
-  if (state) {
-    const enemyId: PlayerId = playerId === 0 ? 1 : 0;
-    const ownShips = countOperationalShips(state, playerId);
-    const enemyShips = countOperationalShips(state, enemyId);
-    if (ownShips < enemyShips) return 'Copy. Repositioning for a better trade.';
-    if (ownShips > enemyShips) return 'Copy. Pressing the advantage.';
-    if (state.phase === 'astrogation') return 'Copy. Plotting next burn.';
-  }
-
-  return 'Copy.';
+  // Keep autonomous logs readable: tactical messages don't need reflexive
+  // acknowledgements from both agents each turn.
+  return '';
 };
 
 const pickAction = async (
@@ -694,6 +689,38 @@ const run = async (config: Config): Promise<void> => {
     return true;
   };
 
+  const tryAgentDecisionForState = async (
+    basis: GameState,
+    reason: string,
+  ): Promise<boolean> => {
+    if (playerId === -1) return false;
+    const actorId: PlayerId = playerId;
+    if (basis.phase === 'gameOver') return false;
+    const isSimultaneousPhase = basis.phase === 'fleetBuilding';
+    if (!isSimultaneousPhase && basis.activePlayer !== actorId) return false;
+
+    const { action, chat, reasoning } = await pickAction(
+      config,
+      gameCode,
+      actorId,
+      basis,
+    );
+    if (config.verbose) {
+      console.log(
+        `turn ${basis.turnNumber} ${basis.phase}: re-deciding after ${reason}, selected ${summarizeAction(action)}`,
+      );
+      console.log(
+        `turn ${basis.turnNumber} ${basis.phase}: re-decide reasoning ${reasoning}`,
+      );
+    }
+    if (chat) {
+      console.log(`chat sent: "${chat}"`);
+      send({ type: 'chat', text: chat });
+      await delay(100);
+    }
+    return sendForState(action, basis);
+  };
+
   const scheduleAction = async (state: GameState): Promise<void> => {
     if (playerId === -1) return;
     if (state.phase === 'gameOver') return;
@@ -765,6 +792,21 @@ const run = async (config: Config): Promise<void> => {
           `agent action "${action.type}" was stale or invalid for current phase, falling back`,
         );
         const basis = latestState ?? state;
+        let recovered = false;
+        if (
+          basis.turnNumber !== state.turnNumber ||
+          basis.phase !== state.phase
+        ) {
+          try {
+            recovered = await tryAgentDecisionForState(basis, 'state advance');
+          } catch (recoveryError) {
+            console.warn(
+              'agent re-decision failed after state advance:',
+              recoveryError,
+            );
+          }
+        }
+        if (recovered) return;
         const fallback = buildActionForDifficulty(
           basis,
           playerId,
@@ -910,7 +952,11 @@ const run = async (config: Config): Promise<void> => {
         }
         case 'chat':
           console.log(`chat received p${message.playerId}: "${message.text}"`);
-          if (playerId !== -1 && message.playerId !== playerId) {
+          if (
+            config.autoChatReplies &&
+            playerId !== -1 &&
+            message.playerId !== playerId
+          ) {
             const now = Date.now();
             const signature = `${message.playerId}:${message.text.trim().toLowerCase()}`;
             const shouldReply =

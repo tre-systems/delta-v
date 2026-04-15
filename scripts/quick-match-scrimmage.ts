@@ -504,6 +504,7 @@ const runPlayerClient = (
       String(config.thinkMs),
       '--decision-timeout-ms',
       String(config.decisionTimeoutMs),
+      '--no-auto-chat-replies',
       ...(config.live ? ['--verbose'] : []),
     ],
     {

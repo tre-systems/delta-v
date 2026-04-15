@@ -4,7 +4,8 @@ dist/
 coverage/
 .wrangler/
 .dev.vars
-.claude/
+.claude/*
+!.claude/skills/
 .mcp.json
 *.tsbuildinfo
 test-results/

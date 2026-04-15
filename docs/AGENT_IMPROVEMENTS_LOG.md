@@ -231,3 +231,72 @@ Observations:
 - Room-split robustness: improved (automatic retry/requeue confirmed).
 - Recommended early ordnance safety: improved (no nuke launches in this pass).
 - Opening race condition: partially improved; still occasional stale first-action fallback logs can occur, but hard rejection frequency dropped in this sample.
+
+## Session 2026-04-15 (Round 2 live tuning)
+
+### Changes applied
+- `scripts/llm-player.ts`
+  - Added stale-send recovery path: when a selected action becomes stale because state advanced, the runner now attempts an immediate re-decision on the latest turn/phase before falling back to baseline policy.
+  - Tightened chat auto-reply behavior to reduce autonomous noise:
+    - still responds to greeting/`gl`/`gg` style human messages,
+    - no longer auto-acks tactical lines with repetitive `Copy...` chatter.
+
+### Live validation (production)
+- 4-game scrimmage batch (`Round2A` vs `Round2B`) with export `tmp/live-site-round2.json`:
+  - Games: 4
+  - Avg turns: 2.25
+  - Winner split: player `0` won 4/4 in this sample
+  - Exported `actionRejectedCount`: 0
+  - Terminal scan: no `action rejected`, `staleTurn`, `stalePhase`, or stale-fallback warnings surfaced.
+  - Chat noise metric (`copy` mentions in sent chat): 18 (pre chat-noise tweak baseline for this round).
+- 2-game follow-up validation (`Round2cA` vs `Round2cB`) with export `tmp/live-site-round2b.json`:
+  - Games: 2
+  - Avg turns: 2.50
+  - Winner split: player `0` = 1, player `1` = 1
+  - Exported `actionRejectedCount`: 0
+  - Chat noise metric (`copy` mentions in sent chat): 0 (post chat-noise tweak).
+
+### Current status
+- Opening race resilience: improved; no stale rejection lines appeared in this round's sampled scrimmages.
+- Chat telemetry signal: improved; tactical-copy ping-pong is eliminated in sampled runs.
+- Tactical balance: still swingy in duel quick-match (many 2-3 turn games), so opening exchange quality remains the largest competitive lever.
+
+## Session 2026-04-15 (Agent implementation + docs consolidation)
+
+### Changes applied
+- `scripts/llm-player.ts`
+  - Added `--no-auto-chat-replies` CLI flag so autonomous test runs can suppress reactive chat entirely.
+- `scripts/quick-match-scrimmage.ts`
+  - Scrimmage runner now passes `--no-auto-chat-replies` to `llm-player` by default for cleaner live telemetry.
+- `scripts/quick-match-agent.ts`
+  - Single-agent quick-match runner now passes `--no-auto-chat-replies` by default for cleaner logs.
+- Added consolidated guide `docs/AGENTS.md`:
+  - one "start here" document for MCP vs bridge choice, quick-start loops, contract summary, reliability checklist, tuning workflow, pitfalls, and implementation map.
+- Linked existing docs to reduce duplication and make navigation clearer:
+  - `README.md` docs index now points to `docs/AGENTS.md` as practical entrypoint.
+  - `AGENT_SPEC.md` related docs now includes `docs/AGENTS.md`.
+  - `docs/DELTA_V_MCP.md` now points to the consolidated guide/spec split.
+  - `docs/SIMULATION_TESTING.md` bridge section now points to `docs/AGENTS.md` for onboarding flow.
+
+### Outcome
+- Agent implementation ergonomics improved (chat-noise control is explicit and script-default for autonomous loops).
+- Agent documentation is now layered:
+  - practical day-to-day entrypoint (`docs/AGENTS.md`),
+  - deep protocol reference (`AGENT_SPEC.md`),
+  - transport/tool-specific detail (`docs/DELTA_V_MCP.md`),
+  - large-scale testing detail (`docs/SIMULATION_TESTING.md`).
+
+## Session 2026-04-15 (Docs consolidation pass 2)
+
+### Changes applied
+- `docs/DELTA_V_MCP.md`
+  - Refactored into strict MCP reference scope (tool catalog, config, payload examples).
+  - Removed onboarding/tutorial overlap that now lives in `docs/AGENTS.md`.
+  - Added explicit layering pointers to `docs/AGENTS.md` and `AGENT_SPEC.md`.
+
+### Outcome
+- Reduced duplication across agent docs.
+- Clearer doc boundaries:
+  - `docs/AGENTS.md` = practical workflow
+  - `docs/DELTA_V_MCP.md` = MCP tool reference
+  - `AGENT_SPEC.md` = deep design/protocol details

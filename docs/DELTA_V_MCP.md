@@ -1,35 +1,35 @@
-# Delta-V MCP Server
+# Delta-V MCP Reference
 
-Preferred integration path for autonomous agents. This MCP server lets any MCP-capable agent play Delta-V without browser automation by using quick match + WebSocket tools.
+This document is the MCP server/tool reference only.
 
-## Public discovery endpoints
+For onboarding and workflow:
+
+- `docs/AGENTS.md` (quick start + tuning workflow)
+- `AGENT_SPEC.md` (deep protocol/architecture)
+
+## Discovery endpoints
 
 - `https://delta-v.tre.systems/agents`
 - `https://delta-v.tre.systems/.well-known/agent.json`
 - `https://delta-v.tre.systems/agent-playbook.json`
 
-## Why MCP is preferred
-
-- Lower latency than browser-click automation.
-- Direct access to state/events and legal action messages.
-- Works for long-running autonomous loops.
-- Simple tool interface that other agents can discover and call.
-
-## Run
+## Running the local MCP server
 
 ```bash
 npm run mcp:delta-v
 ```
 
-Default server URL is `https://delta-v.tre.systems`. Override with:
+Default server URL: `https://delta-v.tre.systems`
+
+Override:
 
 ```bash
 SERVER_URL=http://127.0.0.1:8787 npm run mcp:delta-v
 ```
 
-## Cursor MCP config (`mcp.json`)
+## MCP host config (`mcp.json`)
 
-Use a project-level MCP config so other agents can discover this server automatically:
+Preferred:
 
 ```json
 {
@@ -43,7 +43,7 @@ Use a project-level MCP config so other agents can discover this server automati
 }
 ```
 
-If your MCP host ignores `cwd`, use:
+Fallback when host ignores `cwd`:
 
 ```json
 {
@@ -56,38 +56,29 @@ If your MCP host ignores `cwd`, use:
 }
 ```
 
-## Tools
+## Tool catalog
 
-- `delta_v_quick_match_connect`
-  - Queue for quick match, wait until matched, and connect a player WebSocket.
-- `delta_v_list_sessions`
-  - List active connected sessions.
-- `delta_v_get_state`
-  - Get latest known `GameState` for a session (raw shape).
-- `delta_v_get_observation`
-  - Get the unified agent observation: candidates, legal-action metadata, prose summary, and `recommendedIndex`. Matches the `AgentTurnInput` shape sent by the stdin/HTTP bridge, so the same agent code works via either path. Optional `includeSummary` / `includeLegalActionInfo` flags trim payload for token-constrained contexts.
-- `delta_v_wait_for_turn`
-  - Block until it is the caller's turn (sequential phases) or a simultaneous phase opens, then return an observation. Eliminates polling. Default timeout 30 s; throws on timeout or if the game reaches `gameOver` first.
-- `delta_v_get_events`
-  - Read buffered server events (supports `afterEventId` + `limit`).
-- `delta_v_send_action`
-  - Send raw C2S action payload.
-- `delta_v_send_chat`
-  - Send chat text.
-- `delta_v_close_session`
-  - Close and remove a session.
+All tools accept `sessionId` unless otherwise noted.
 
-## Typical agent loop
+| Tool | Purpose | Key args | Returns |
+| --- | --- | --- | --- |
+| `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `username`, `playerKey?` | `{ sessionId, code, playerId, playerToken, status }` |
+| `delta_v_list_sessions` | List active local sessions | none | `{ sessions[] }` |
+| `delta_v_get_state` | Raw authoritative state | `sessionId` | `{ state, latestEventId }` |
+| `delta_v_get_observation` | Agent observation payload | `sessionId`, `includeSummary?`, `includeLegalActionInfo?`, `includeTactical?`, `includeSpatialGrid?`, `includeCandidateLabels?` | `AgentTurnInput`-compatible object |
+| `delta_v_wait_for_turn` | Block until actionable turn window | `sessionId`, `timeoutMs?`, same include flags as observation | observation payload |
+| `delta_v_get_events` | Read buffered event stream | `sessionId`, `afterEventId?`, `limit?`, `clear?` | `{ events[], bufferedRemaining }` |
+| `delta_v_send_action` | Submit C2S action | `sessionId`, `action` | `{ actionType }` (or richer action result when enabled) |
+| `delta_v_send_chat` | Send chat message | `sessionId`, `text` | `{ text }` |
+| `delta_v_close_session` | Close local MCP session | `sessionId` | `{ closed }` |
 
-1. Call `delta_v_quick_match_connect`.
-2. `delta_v_wait_for_turn` — blocks until it is your turn; returns an observation.
-3. Pick a candidate from `observation.candidates` (default: `recommendedIndex`).
-4. `delta_v_send_action` with the chosen legal action.
-5. Optional: `delta_v_send_chat`.
-6. Loop to step 2. Break out when the returned observation has `state.phase === 'gameOver'` or `wait_for_turn` rejects with gameOver.
-7. `delta_v_close_session` when done.
+Notes:
 
-## Action payload examples
+- `delta_v_wait_for_turn` throws on timeout and may return/reject when game reaches `gameOver`.
+- `delta_v_get_events`, `delta_v_list_sessions`, and `delta_v_close_session` are local-session helpers (stdio MCP ownership model).
+- `delta_v_get_observation` is the preferred read surface for most agents; `delta_v_get_state` is lower-level.
+
+## `delta_v_send_action` payload examples
 
 Astrogation:
 
