@@ -21,6 +21,7 @@ npm run typecheck:all
 npx wrangler d1 migrations apply delta-v-telemetry --local
 # Fresh coverage dir avoids occasional ENOENT on coverage/.tmp (stale merge state).
 rm -rf coverage
+mkdir -p coverage/.tmp
 npm run test:coverage
 # Free port + no reuse: avoids clashing with dev servers or a stuck process on a fixed port.
 E2E_PORT="$(node -e "const n=require('net');const s=n.createServer();s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port));s.close();});")"
