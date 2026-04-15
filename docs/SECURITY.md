@@ -25,6 +25,25 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 
 These changes make private multiplayer substantially safer than before, especially for host-seat integrity, reconnect safety, and server authority.
 
+## Remote MCP token model
+
+Agents that connect via the hosted MCP endpoint (`POST https://delta-v.tre.systems/mcp`) use a layered two-token scheme so raw match credentials never reach the agent's LLM context:
+
+| Token | Purpose | Lifetime | Carrier | Source |
+|-------|---------|----------|---------|--------|
+| `agentToken` | Long-lived agent identity (embeds `playerKey`) | 24 h, renewable | `Authorization: Bearer …` header | `POST /api/agent-token` |
+| `matchToken` | Per-match credential (encrypts `code` + `playerToken`) | 4 h | Tool args field `matchToken` | `delta_v_quick_match` (when called with agentToken auth) |
+
+Both are HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET` (set via `wrangler secret put AGENT_TOKEN_SECRET` in production; falls back to a clearly-marked dev secret if unset, with a one-time stderr warning so production deploys can't silently rely on it).
+
+`matchToken` embeds a SHA-256 hash of the issuing `agentToken`. A leaked `matchToken` alone (e.g. via tool-call logs) cannot be replayed by a different agent — the server requires the matching `agentToken` in the `Authorization` header.
+
+The legacy `{code, playerToken}` tool-arg path is preserved for `/create` users and bridge agents that don't go through the agentToken flow.
+
+Token revocation is currently coarse: rotate `AGENT_TOKEN_SECRET` to invalidate every issued token. Per-token revocation lists are out of scope for v1; agents that suspect a leak should re-issue and rotate the secret.
+
+Implementation: `src/server/auth/` (token signing, issuance route), `src/server/mcp/handlers.ts` (Authorization-header validation, matchToken minting + verification on every tool call).
+
 ## Remaining Competitive Risks
 
 ### 1. Guest-seat claiming is still code/link based in the default flow

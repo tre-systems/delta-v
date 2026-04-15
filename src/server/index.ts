@@ -1,4 +1,5 @@
 import { asRoomCode } from '../shared/ids';
+import { handleAgentTokenIssue } from './auth/issue-route';
 import type { Env } from './env';
 import { GameDO } from './game-do/game-do';
 import { MatchmakerDO } from './matchmaker-do';
@@ -228,6 +229,21 @@ export default {
         }
       }
       return handleWebSocket(request, env, asRoomCode(wsMatch[1]));
+    }
+
+    // POST /api/agent-token — issue a 24h HMAC-signed agentToken bound to
+    // the supplied playerKey. Agents send this as Authorization: Bearer …
+    // on /mcp calls so playerKey + per-agent rate limiting work without
+    // exposing match credentials in tool arguments.
+    if (url.pathname === '/api/agent-token') {
+      if (!isLoopbackRequest(request)) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const ipHash = await hashIp(ip);
+        if (await isCreateRateLimited(env, ipHash)) {
+          return tooManyRequests();
+        }
+      }
+      return handleAgentTokenIssue(request, env);
     }
 
     // Hosted streamable-HTTP MCP endpoint — POST JSON-RPC, JSON response.

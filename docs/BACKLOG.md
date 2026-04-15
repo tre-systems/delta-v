@@ -8,14 +8,6 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-### Layered `agentToken` / `playerToken` lifecycle
-
-**Trigger:** keeps raw match credentials out of agent context windows for the remote MCP path.
-
-Add `POST /api/agent-token` issuing signed 24-hour agent identities. The remote MCP server exchanges the `agentToken` for internal match-scoped `playerToken`s without exposing them. Existing `/create` and `/quick-match` flows stay unchanged for bridge users.
-
-**Files:** `src/server/auth/` (new), MCP endpoint, `docs/SECURITY.md`
-
 ### Mid-game `/coach` directive
 
 **Trigger:** hybrid human-in-the-loop play format (see [AGENT_SPEC.md §9](../AGENT_SPEC.md#9-human-agent-coaching)).

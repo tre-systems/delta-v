@@ -5,20 +5,37 @@
 // Every tool delegates straight to the GAME Durable Object via env.GAME so
 // the Worker holds no per-session state. The DO already validates the
 // playerToken and owns the entire game pipeline.
+//
+// Two-token authorization model:
+//   - agentToken (Authorization: Bearer …): long-lived (24h) HMAC-signed
+//     identity. Issued by POST /api/agent-token. Required for matchToken
+//     issuance; optional otherwise (legacy code+playerToken still works).
+//   - matchToken (tool args): per-match HMAC blob returned by
+//     delta_v_quick_match. Replaces raw {code, playerToken} so neither
+//     credential ever appears in the agent's LLM context window.
+//
+// Both schemas remain valid simultaneously — agents that already drive the
+// remote MCP via {code, playerToken} keep working, and new agents can opt
+// into the layered token flow without a breaking change.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
-
 import { isPlayerToken, isRoomCode } from '../../shared/ids';
+import {
+  type AgentTokenPayload,
+  extractBearerToken,
+  hashAgentToken,
+  issueMatchToken,
+  resolveAgentTokenSecret,
+  verifyAgentToken,
+  verifyMatchToken,
+} from '../auth';
 import type { Env } from '../env';
 import { queueRemoteMatch } from './quick-match';
 
 const SERVER_INTERNAL = 'https://game.internal';
 
-// Lift the body forward as-is for HTTP responses; this is intentionally
-// loose because the GAME DO produces its own structured JSON and the MCP SDK
-// just needs a serialisable result.
 type JsonRecord = Record<string, unknown>;
 
 const text = (body: string): { type: 'text'; text: string } => ({
@@ -45,7 +62,7 @@ const requirePlayerToken = (raw: string): string => {
   return raw;
 };
 
-const callDurableObject = async (
+const callDurableObject = (
   env: Env,
   code: string,
   init: RequestInit & { url: string },
@@ -78,12 +95,76 @@ const includeOptionsSchema = {
   includeCandidateLabels: z.boolean().optional(),
 };
 
-export const buildMcpServer = (env: Env): McpServer => {
+// Identifier schema for in-match tools: accept EITHER a matchToken (opaque,
+// returned by quick_match) OR a raw {code, playerToken} pair (legacy /
+// /create users). Both fields are optional so the schema can express
+// "either-or" via runtime check; validation happens in resolveMatchTarget.
+const matchTargetSchema = {
+  matchToken: z.string().optional(),
+  code: z.string().length(5).optional(),
+  playerToken: z.string().optional(),
+};
+
+interface MatchTarget {
+  code: string;
+  playerToken: string;
+}
+
+// Resolve a matchToken or {code, playerToken} into the concrete pair the DO
+// needs. matchToken takes precedence when both are present. Validates the
+// agentTokenHash binding when matchToken + agentIdentity are both supplied.
+const resolveMatchTarget = async (
+  args: {
+    matchToken?: string;
+    code?: string;
+    playerToken?: string;
+  },
+  env: Env,
+  agentIdentity: AgentIdentity | null,
+): Promise<MatchTarget> => {
+  if (args.matchToken) {
+    const secret = resolveAgentTokenSecret(env);
+    const verified = await verifyMatchToken(args.matchToken, { secret });
+    if (!verified.ok) {
+      fail(`Invalid matchToken: ${verified.reason}`);
+    }
+    if (!verified.ok) throw new Error('unreachable');
+    if (agentIdentity) {
+      const expected = await hashAgentToken(agentIdentity.rawAgentToken);
+      if (verified.payload.agentTokenHash !== expected) {
+        fail(
+          'matchToken does not bind to the supplied agentToken — likely issued for a different agent',
+        );
+      }
+    }
+    return {
+      code: verified.payload.code,
+      playerToken: verified.payload.playerToken,
+    };
+  }
+  if (!args.code || !args.playerToken) {
+    fail('Provide either matchToken, or both code and playerToken');
+  }
+  return {
+    code: requireRoomCode(args.code as string),
+    playerToken: requirePlayerToken(args.playerToken as string),
+  };
+};
+
+export interface AgentIdentity {
+  payload: AgentTokenPayload;
+  rawAgentToken: string;
+}
+
+export const buildMcpServer = (
+  env: Env,
+  agentIdentity: AgentIdentity | null,
+): McpServer => {
   const server = new McpServer(
     { name: 'delta-v-mcp-remote', version: '0.1.0' },
     {
       instructions:
-        'Use this server to play Delta-V via the hosted MCP endpoint. Call delta_v_quick_match for a public match (or supply an existing code+playerToken from /create), then drive the game with delta_v_wait_for_turn / delta_v_get_observation / delta_v_send_action. Every tool other than delta_v_quick_match requires { code, playerToken } from a successful match.',
+        'Use this server to play Delta-V via the hosted MCP endpoint. Recommended flow: (1) call POST /api/agent-token once with your stable agent_-prefixed playerKey to obtain an agentToken; (2) send it as Authorization: Bearer <token> on every /mcp request; (3) call delta_v_quick_match (no args needed) to receive an opaque matchToken; (4) drive the game via delta_v_wait_for_turn / delta_v_send_action passing matchToken in args. Legacy {code, playerToken} args are still accepted for /create users.',
     },
   );
 
@@ -91,10 +172,10 @@ export const buildMcpServer = (env: Env): McpServer => {
     'delta_v_quick_match',
     {
       description:
-        'Queue for public matchmaking and block until paired. Returns { code, playerToken, scenario } that every other tool requires. Use a stable agent_-prefixed playerKey across runs to keep server logs and replays consistent.',
+        'Queue for public matchmaking and block until paired. With agentToken auth (Authorization: Bearer header) returns { matchToken, scenario } — the matchToken is opaque and replaces code+playerToken in subsequent tool calls. Without auth, returns the legacy { code, playerToken, scenario } pair. username/playerKey are inferred from the agentToken when present.',
       inputSchema: {
         scenario: z.string().optional(),
-        username: z.string().min(2).max(20),
+        username: z.string().min(2).max(20).optional(),
         playerKey: z.string().min(8).max(64).optional(),
         pollMs: z.number().int().min(200).max(5_000).optional(),
         timeoutMs: z.number().int().min(5_000).max(120_000).optional(),
@@ -103,14 +184,37 @@ export const buildMcpServer = (env: Env): McpServer => {
     async (args) => {
       const playerKey =
         args.playerKey ??
+        agentIdentity?.payload.playerKey ??
         `agent_remote_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+      const username =
+        args.username ?? agentIdentity?.payload.playerKey ?? 'agent';
       const matched = await queueRemoteMatch(env, {
         scenario: args.scenario ?? 'duel',
-        username: args.username,
+        username,
         playerKey,
         pollMs: args.pollMs,
         timeoutMs: args.timeoutMs,
       });
+
+      if (agentIdentity) {
+        const secret = resolveAgentTokenSecret(env);
+        const { token: matchToken, expiresAt } = await issueMatchToken({
+          secret,
+          code: matched.code,
+          playerToken: matched.playerToken,
+          agentToken: agentIdentity.rawAgentToken,
+        });
+        return ok(`Matched into a new game (scenario ${matched.scenario}).`, {
+          matchToken,
+          matchTokenExpiresAt: expiresAt,
+          scenario: matched.scenario,
+          ticket: matched.ticket,
+          playerKey,
+        });
+      }
+
+      // Legacy path: no agentToken → return raw credentials so the existing
+      // {code, playerToken} tool args still work.
       return ok(
         `Matched into ${matched.code} (scenario ${matched.scenario}).`,
         {
@@ -128,21 +232,17 @@ export const buildMcpServer = (env: Env): McpServer => {
     'delta_v_get_state',
     {
       description: 'Fetch the latest game state for a seat.',
-      inputSchema: {
-        code: z.string().length(5),
-        playerToken: z.string(),
-      },
+      inputSchema: matchTargetSchema,
     },
     async (args) => {
-      const code = requireRoomCode(args.code);
-      const token = requirePlayerToken(args.playerToken);
-      const response = await callDurableObject(env, code, {
-        url: `${SERVER_INTERNAL}/mcp/state?playerToken=${encodeURIComponent(token)}`,
+      const target = await resolveMatchTarget(args, env, agentIdentity);
+      const response = await callDurableObject(env, target.code, {
+        url: `${SERVER_INTERNAL}/mcp/state?playerToken=${encodeURIComponent(target.playerToken)}`,
         method: 'GET',
       });
       const body = (await response.json()) as JsonRecord;
       if (!response.ok) fail(`get_state failed: ${JSON.stringify(body)}`);
-      return ok(`State for ${code}.`, body);
+      return ok(`State for ${target.code}.`, body);
     },
   );
 
@@ -151,24 +251,19 @@ export const buildMcpServer = (env: Env): McpServer => {
     {
       description:
         'Build the unified agent observation (candidates, recommendedIndex, optional v2 enrichments). Matches the AgentTurnInput shape so agents that work via the bridge or local MCP work here unchanged.',
-      inputSchema: {
-        code: z.string().length(5),
-        playerToken: z.string(),
-        ...includeOptionsSchema,
-      },
+      inputSchema: { ...matchTargetSchema, ...includeOptionsSchema },
     },
     async (args) => {
-      const code = requireRoomCode(args.code);
-      const token = requirePlayerToken(args.playerToken);
+      const target = await resolveMatchTarget(args, env, agentIdentity);
       const params = buildObservationParams(args);
-      params.set('playerToken', token);
-      const response = await callDurableObject(env, code, {
+      params.set('playerToken', target.playerToken);
+      const response = await callDurableObject(env, target.code, {
         url: `${SERVER_INTERNAL}/mcp/observation?${params.toString()}`,
         method: 'GET',
       });
       const body = (await response.json()) as JsonRecord;
       if (!response.ok) fail(`get_observation failed: ${JSON.stringify(body)}`);
-      return ok(`Observation for ${code}.`, body);
+      return ok(`Observation for ${target.code}.`, body);
     },
   );
 
@@ -178,17 +273,15 @@ export const buildMcpServer = (env: Env): McpServer => {
       description:
         "Block (server-side) until it's the caller's turn (or fleetBuilding/astrogation opens), then return a fresh observation. Default 25 s timeout — issue successive calls for longer waits. Returns { actionable: false, timedOut: true } on timeout instead of throwing.",
       inputSchema: {
-        code: z.string().length(5),
-        playerToken: z.string(),
+        ...matchTargetSchema,
         timeoutMs: z.number().int().min(1_000).max(25_000).optional(),
         ...includeOptionsSchema,
       },
     },
     async (args) => {
-      const code = requireRoomCode(args.code);
-      const token = requirePlayerToken(args.playerToken);
-      const response = await callDurableObject(env, code, {
-        url: `${SERVER_INTERNAL}/mcp/wait?playerToken=${encodeURIComponent(token)}`,
+      const target = await resolveMatchTarget(args, env, agentIdentity);
+      const response = await callDurableObject(env, target.code, {
+        url: `${SERVER_INTERNAL}/mcp/wait?playerToken=${encodeURIComponent(target.playerToken)}`,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -202,7 +295,7 @@ export const buildMcpServer = (env: Env): McpServer => {
       });
       const body = (await response.json()) as JsonRecord;
       if (!response.ok) fail(`wait_for_turn failed: ${JSON.stringify(body)}`);
-      return ok(`wait_for_turn for ${code}.`, body);
+      return ok(`wait_for_turn for ${target.code}.`, body);
     },
   );
 
@@ -212,8 +305,7 @@ export const buildMcpServer = (env: Env): McpServer => {
       description:
         'Submit a C2S game-state action. ActionGuards (expectedTurn / expectedPhase / idempotencyKey) are auto-filled from the current state unless autoGuards=false. With waitForResult=true (recommended), blocks for the next state-bearing publish and returns ActionResult: { accepted, turnApplied, phaseApplied, nextTurn, nextPhase, effects[], nextObservation? }. With includeNextObservation=true the next observation is embedded so you can close the decide loop in one call.',
       inputSchema: {
-        code: z.string().length(5),
-        playerToken: z.string(),
+        ...matchTargetSchema,
         action: z.object({ type: z.string() }).passthrough(),
         autoGuards: z.boolean().optional(),
         waitForResult: z.boolean().optional(),
@@ -223,10 +315,9 @@ export const buildMcpServer = (env: Env): McpServer => {
       },
     },
     async (args) => {
-      const code = requireRoomCode(args.code);
-      const token = requirePlayerToken(args.playerToken);
-      const response = await callDurableObject(env, code, {
-        url: `${SERVER_INTERNAL}/mcp/action?playerToken=${encodeURIComponent(token)}`,
+      const target = await resolveMatchTarget(args, env, agentIdentity);
+      const response = await callDurableObject(env, target.code, {
+        url: `${SERVER_INTERNAL}/mcp/action?playerToken=${encodeURIComponent(target.playerToken)}`,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -244,10 +335,13 @@ export const buildMcpServer = (env: Env): McpServer => {
       });
       const body = (await response.json()) as JsonRecord;
       if (!response.ok) {
-        return ok(`send_action failed for ${code}.`, body);
+        return ok(`send_action failed for ${target.code}.`, body);
       }
       const accepted = body.accepted === true ? 'accepted' : 'not accepted';
-      return ok(`Action ${args.action.type} on ${code}: ${accepted}.`, body);
+      return ok(
+        `Action ${args.action.type} on ${target.code}: ${accepted}.`,
+        body,
+      );
     },
   );
 
@@ -256,27 +350,63 @@ export const buildMcpServer = (env: Env): McpServer => {
     {
       description: 'Send a chat message in the current match (≤200 chars).',
       inputSchema: {
-        code: z.string().length(5),
-        playerToken: z.string(),
+        ...matchTargetSchema,
         text: z.string().min(1).max(200),
       },
     },
     async (args) => {
-      const code = requireRoomCode(args.code);
-      const token = requirePlayerToken(args.playerToken);
-      const response = await callDurableObject(env, code, {
-        url: `${SERVER_INTERNAL}/mcp/chat?playerToken=${encodeURIComponent(token)}`,
+      const target = await resolveMatchTarget(args, env, agentIdentity);
+      const response = await callDurableObject(env, target.code, {
+        url: `${SERVER_INTERNAL}/mcp/chat?playerToken=${encodeURIComponent(target.playerToken)}`,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: args.text }),
       });
       const body = (await response.json()) as JsonRecord;
       if (!response.ok) fail(`send_chat failed: ${JSON.stringify(body)}`);
-      return ok(`Sent chat in ${code}.`, body);
+      return ok(`Sent chat in ${target.code}.`, body);
     },
   );
 
   return server;
+};
+
+// Validate the Authorization header on entry. Returns:
+//   - { ok: true, identity: ... } when a valid agentToken was supplied
+//   - { ok: true, identity: null } when no header was supplied (legacy)
+//   - { ok: false, response } when a header was supplied but invalid (401)
+const resolveAgentIdentity = async (
+  request: Request,
+  env: Env,
+): Promise<
+  | { ok: true; identity: AgentIdentity | null }
+  | { ok: false; response: Response }
+> => {
+  const raw = extractBearerToken(request.headers.get('Authorization'));
+  if (!raw) return { ok: true, identity: null };
+  const verified = await verifyAgentToken(raw, {
+    secret: resolveAgentTokenSecret(env),
+  });
+  if (!verified.ok) {
+    return {
+      ok: false,
+      response: Response.json(
+        {
+          error: 'invalid_agent_token',
+          reason: verified.reason,
+          message: 'Authorization header present but agentToken did not verify',
+        },
+        {
+          status: 401,
+          headers: { 'WWW-Authenticate': 'Bearer realm="delta-v"' },
+        },
+      ),
+    };
+  }
+  return {
+    ok: true,
+    identity: { payload: verified.payload, rawAgentToken: raw },
+  };
 };
 
 // Per-request entry. Stateless: each request spins up a fresh McpServer +
@@ -293,11 +423,14 @@ export const handleMcpHttpRequest = async (
       headers: { Allow: 'POST, DELETE' },
     });
   }
+  const auth = await resolveAgentIdentity(request, env);
+  if (!auth.ok) return auth.response;
+
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
   });
-  const server = buildMcpServer(env);
+  const server = buildMcpServer(env, auth.identity);
   await server.connect(transport);
   const response = await transport.handleRequest(request);
   await transport.close();
