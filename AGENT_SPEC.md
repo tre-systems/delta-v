@@ -782,8 +782,8 @@ Eliminate the stale-state error class that dominates agent mistakes today.
 
 - ~~`npm run benchmark` CLI with seeded openings and baseline-bot calibration.~~ Shipped (see §10.2).
 - Sync scenario list across `/.well-known/agent.json`, `agent-playbook.json`, and `agents.html` (one source of truth).
-- Prominent "Build a Bot" CTA on the landing page and game-over screen.
-- GitHub topics update; OpenClaw SKILL.md publication when the external platform is ready.
+- ~~Prominent "Build a Bot" CTA on the landing page and game-over screen.~~ Shipped (`static/index.html` menu + game-over link → `/agents`).
+- ~~GitHub topics update~~ Shipped (`ai-agents`, `mcp`, `llm`, `game-ai`, `gymnasium`, `agent-benchmark` added to repo). OpenClaw SKILL.md publication when the external platform is ready.
 
 ### 14.6 Future (blocked on scope expansion)
 
