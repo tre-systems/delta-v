@@ -10,6 +10,8 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 *No active items. See future features below.*
 
+*Recently shipped: Live match spectating from /matches — `LIVE_REGISTRY` DO, `GET /api/matches?status=live`, "Live now" section with 15-second polling, `spectatorMode` feature flag enabled.*
+
 ---
 
 ## Future features (not currently planned)

@@ -3,7 +3,7 @@ export type ClientFeatureFlag = 'spectatorMode' | 'replayControls';
 const DEFAULT_CLIENT_FEATURE_FLAGS: Readonly<
   Record<ClientFeatureFlag, boolean>
 > = {
-  spectatorMode: false,
+  spectatorMode: true,
   // Replay controls are enabled for two code paths:
   // 1. Post-match review — a player finishes their game and scrubs through
   //    it via "View Replay" on the game-over overlay.

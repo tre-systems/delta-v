@@ -8,6 +8,10 @@ vi.mock('./matchmaker-do', () => ({
   MatchmakerDO: class MatchmakerDO {},
 }));
 
+vi.mock('./live-registry-do', () => ({
+  LiveRegistryDO: class LiveRegistryDO {},
+}));
+
 import worker, {
   createRateMap,
   type Env,
