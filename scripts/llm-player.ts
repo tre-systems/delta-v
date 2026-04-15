@@ -33,6 +33,7 @@ interface Config {
   difficulty: AIDifficulty;
   thinkMs: number;
   decisionTimeoutMs: number;
+  exitAfterGameOver: boolean;
   verbose: boolean;
 }
 
@@ -126,6 +127,7 @@ const parseArgs = (argv: string[]): Config => {
       1_000,
       parseIntegerFlag(getFlag('--decision-timeout-ms'), 30_000),
     ),
+    exitAfterGameOver: !args.includes('--stay-connected-after-gameover'),
     verbose: args.includes('--verbose'),
   };
 };
@@ -159,6 +161,7 @@ Flags:
   --difficulty            easy | normal | hard fallback policy (default: hard)
   --think-ms              Delay before acting (default: 200)
   --decision-timeout-ms   Agent timeout per turn (default: 30000)
+  --stay-connected-after-gameover  Keep socket open after game over
   --verbose               Print detailed turn/action logs
   --help                  Show this help
 `);
@@ -470,6 +473,14 @@ const buildChatReply = (
   playerId: PlayerId,
 ): string => {
   const normalized = incoming.trim().toLowerCase();
+  // Avoid low-signal "copy" ping-pong loops between autonomous agents.
+  if (
+    normalized === 'copy' ||
+    normalized.startsWith('copy.') ||
+    normalized.startsWith('copy,')
+  ) {
+    return '';
+  }
   if (normalized.includes('gg')) return 'gg, well played.';
   if (normalized.includes('hello') || normalized.includes('hi'))
     return 'o7 commander.';
@@ -600,6 +611,31 @@ const run = async (config: Config): Promise<void> => {
   let latestState: GameState | null = null;
   let lastAutoReplyAt = 0;
   let lastAutoReplySignature: string | null = null;
+  let shutdownRequested = false;
+  let shutdownForceTimer: NodeJS.Timeout | null = null;
+
+  const requestShutdown = (): void => {
+    if (shutdownRequested || !config.exitAfterGameOver) return;
+    shutdownRequested = true;
+    setTimeout(() => {
+      if (
+        socket.readyState === WebSocket.OPEN ||
+        socket.readyState === WebSocket.CONNECTING
+      ) {
+        socket.close(1000, 'game-over');
+      }
+    }, 150).unref();
+    shutdownForceTimer = setTimeout(() => {
+      if (
+        socket.readyState === WebSocket.OPEN ||
+        socket.readyState === WebSocket.CONNECTING ||
+        socket.readyState === WebSocket.CLOSING
+      ) {
+        socket.terminate();
+      }
+    }, 2_000);
+    shutdownForceTimer.unref();
+  };
 
   const send = (message: C2S) => {
     if (socket.readyState !== WebSocket.OPEN) return;
@@ -754,6 +790,10 @@ const run = async (config: Config): Promise<void> => {
     });
 
     socket.on('close', (code, reason) => {
+      if (shutdownForceTimer) {
+        clearTimeout(shutdownForceTimer);
+        shutdownForceTimer = null;
+      }
       console.log(
         `socket closed (${code}): ${reason.toString() || 'no reason'}`,
       );
@@ -821,6 +861,7 @@ const run = async (config: Config): Promise<void> => {
                 `result: ${outcomeLabel} (you are player ${playerId})`,
               );
             }
+            requestShutdown();
           }
           return;
         }
@@ -830,6 +871,7 @@ const run = async (config: Config): Promise<void> => {
             const outcomeLabel = message.winner === playerId ? 'WIN' : 'LOSS';
             console.log(`result: ${outcomeLabel} (you are player ${playerId})`);
           }
+          requestShutdown();
           return;
         case 'error':
           console.error(
