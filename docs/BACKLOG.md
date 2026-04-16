@@ -8,63 +8,52 @@ The list below is the output of a full project review aimed at "solid architectu
 
 **Recently shipped from the review pass:** early-turn nuke + parity-deficit guards in the shared AI (duel avg length 2.3 → 6.0 turns across seeded sweeps), structured reporting for LIVE_REGISTRY register/deregister and MCP observation timeouts, a `reportLifecycleEvent` helper wired to `game_started` / `game_ended` / `disconnect_grace_started` / `disconnect_grace_resolved` / `disconnect_grace_expired` / `turn_timeout_fired`, matchmaker `matchmaker_paired` + `matchmaker_pairing_split` events with a regression test covering the 409-collision log line, a 10 s MCP observation timeout (`Promise.race`) with structured reporting, error-code preservation in the WebSocket dispatch fallback, bounded-insertion-order idempotency key cache, seeded RNG made **required** on `aiAstrogation` / `aiOrdnance` (test sites use a local wrapper with a deterministic default), difficulty-aware lookahead RNG bias (easy 0.4 / normal 0.5 / hard 0.6), turn-1 `stalePhase` race fixed server-side (guard forgives stale expectedPhase when the action type is valid for the real phase) with a regression test, game-over modal Escape routing to Exit with keyboard regression test, `data-testid` attributes on `ship-entry` and `fleet-shop-item` with Playwright selectors swapped, Vitest client coverage thresholds (statements 60 / branches 55 / functions 65 / lines 60), load-harness error binning (`{http4xx, http5xx, rateLimited, actionRejected, timeout, invalidInput, authError, stateConflict, other}`), pre-commit and CI simulation iteration counts unified at 60, protocol fixtures expanded to cover all 15 C2S action types plus 7 negative fixtures, client bootstrap that keeps the JS-required fallback visible until boot succeeds, `warnOnce` on silent storage/telemetry failures, shared `MOBILE_BREAKPOINT_PX` used by tutorial / course renderer / UI media query, inline documentation for every AI difficulty knob, weak-gravity "definite-only" design made explicit at the movement call site, doc link hygiene for `AGENT_SPEC.md` / `AGENTS.md`, and a running "outstanding issues" header in `AGENT_IMPROVEMENTS_LOG.md`. Several backlog items turned out to be already correct on re-inspection (D0 capture rule, `replacedSockets` GC, intentional `idempotencyCache.clear` on state advance, single-threaded DO event-seq race, disconnect-grace enforcement at the HTTP join).
 
+**Also shipped in this pass:** operator-facing documentation of every structured server event in [`OBSERVABILITY.md`](./OBSERVABILITY.md) with copy-pastable D1 queries (lifecycle cadence, disconnect-grace outcomes, matchmaker split rate, MCP timeout, LIVE_REGISTRY failures, turn-timeout by phase) and new alert-threshold guidance; an empirical bias sweep harness (`scripts/ai-bias-sweep.ts`) that measured the passenger-escort lookahead bias across 7 triples × 480 games — result: **bias knob is effectively inert on tested scenarios** (the lookahead code path is too narrow geometrically to dominate AI-vs-AI outcomes), so the priors stay put; a measured duel pacing attempt that found no single-lever tweak (ordnance type restriction, zero starting velocity, away velocity) cleanly reaches the 8-turn target without trading away seat balance — documented as needing a multi-lever design pass; extended a11y axe coverage to fleet-building and the desktop log panel; and a two-browser quick-match pairing e2e that proves the full UI → matchmaker → GameDO → WebSocket path end-to-end.
+
 ---
 
 ## P1 — Gameplay feel (the parts that don't work well yet)
 
-### 1. Duel / quick-match pacing — further tuning pass
+### 1. Duel / quick-match pacing — multi-lever design pass
 
-Current baseline (tip of main, 30 × 16 seeds, hard vs hard): mean avg turns 6.0 (range 4.9–7.2), seat 42.9% P0. Target remains ≥ 8 turns with stable seat balance. This is iterative tuning work that needs a dedicated session and sweep validation per edit.
+Current baseline (tip of main, 30 × 16 seeds, hard vs hard): mean avg turns 6.0 (range 4.9–7.2), seat 42.9% P0. Target ≥ 8 turns with stable seat balance.
 
-- Re-measure with `npm run simulate:duel-sweep -- --iterations 50 --json-out ...` and `quickmatch:scrimmage --json-out` before the change.
-- Try rule edits in small, measured increments: ordnance stock caps, scenario-specific fuel, or starting spread. Avoid naive geometry edits (a one-hex start move regressed P0/P1 badly in prior testing).
-- Re-run the same sweep after the change and attach the diff (avgTurn mean, P0/decided mean, draw%) to the commit.
+**Measured this pass (not shipped — data for the next attempt):**
 
-**Files:** `src/shared/scenario-definitions.ts`, `src/shared/scenario-capabilities.ts`, `scripts/simulate-duel-sweep.ts`
+| Change | avgTurns | P0/decided |
+|---|---|---|
+| Baseline (current) | 6.0 | 42.9% |
+| `allowedOrdnanceTypes: ['mine','torpedo']` (no nukes) | 6.2 | 41.5% |
+| `allowedOrdnanceTypes: ['mine']` only | 6.1 | 39.8% |
+| Zero starting velocity | 4.6 | 34.4% (both regressed) |
+| Outbound velocity (ships drift apart) | 6.7 | 54.0% (balance regressed) |
+| No nukes + outbound velocity | 6.6 | 54.9% |
 
-### 2. Extend a11y axe coverage to ordnance + logistics panels
+Conclusion: no safe single-lever edit reaches 8 turns. The next pass needs coordinated changes (likely a combination of scoring-weight tuning in `AI_CONFIG` to reward braking + defensive play, plus a scenario rule) rather than tweaking geometry alone. Start from the per-ship scoring weights (`combatClosingWeight`, `combatSpeedDiffPenalty`, `combatVelocityPenalty`) rather than map/fleet data.
 
-The existing `test:e2e:a11y` spec asserts clean a11y for the menu / waiting lobby / HUD / help overlay. It does not exercise the ordnance or logistics panels because getting into those phases from scratch in a smoke test is non-trivial. Add a spec that plays a Biplanetary match to the ordnance phase and runs `runA11yCheck` on the HUD + transfer panel.
-
-**Files:** `e2e/a11y.spec.ts`, `e2e/support/app.ts`
+**Files:** `src/shared/scenario-definitions.ts`, `src/shared/ai/config.ts`, `scripts/duel-seed-sweep.ts`
 
 ---
 
 ## P2 — Architecture solidity (unblocks P1 iteration)
 
-### 3. Surface lifecycle events in OBSERVABILITY.md + D1 query examples
-
-The structured lifecycle events shipped this pass (`game_started`, `game_ended`, `disconnect_grace_{started,resolved,expired}`, `turn_timeout_fired`, `matchmaker_paired`, `matchmaker_pairing_split`, `mcp_observation_timeout`, `live_registry_{register,deregister}_failed`) land in the D1 `events` table but aren't documented for operators. Add a section to [`OBSERVABILITY.md`](./OBSERVABILITY.md) listing each event with its props and a SQL snippet for common questions (average disconnect-grace duration, matchmaker split rate, game abandonment rate).
-
-**Files:** `docs/OBSERVABILITY.md`
+_All P2 items from the prior passes shipped, including the lifecycle-event documentation and D1 query examples._
 
 ---
 
 ## P3 — Engine / AI refinements
 
-_All P3 items from the prior pass shipped. New entries below only._
-
-### 4. Tune the difficulty-aware lookahead bias empirically
-
-The lookahead bias constants (easy 0.4, normal 0.5, hard 0.6) are reasonable priors but not measured. Once `simulate:duel-sweep` is the baseline tool, sweep {0.35 / 0.5 / 0.65} and {0.45 / 0.5 / 0.55} and pick the triple that maximises hard's win-rate against normal without collapsing easy's.
-
-**Files:** `src/shared/ai/astrogation.ts` (`LOOKAHEAD_BIAS_BY_DIFFICULTY`), `scripts/simulate-duel-sweep.ts`
+_All P3 items from the prior pass shipped. The difficulty-aware lookahead bias sweep (via `scripts/ai-bias-sweep.ts`) showed the knob is effectively inert — the passenger-escort lookahead path is too narrow geometrically to influence AI-vs-AI outcomes on the scenarios tested. The priors (easy 0.4 / normal 0.5 / hard 0.6) are kept as sensible defaults; future work can revisit if the lookahead's trigger conditions widen._
 
 ---
 
 ## P4 — Tooling, tests, docs (quality-of-life)
 
-### 5. Full `data-testid` sweep on HUD controls
+### 2. Full `data-testid` sweep on HUD controls
 
-This pass swapped only the two class-based Playwright selectors (`.ship-entry`, `.fleet-shop-item`). The remaining ID-based selectors are stable today but would be less brittle as `data-testid`. Low priority.
+Only the two class-based Playwright selectors were swapped (`.ship-entry`, `.fleet-shop-item`). The remaining ID-based selectors are stable today and have no current refactor driver, so a blanket conversion is busy-work. Low priority.
 
 **Files:** `src/client/ui/**`, `e2e/**`
-
-### 6. E2E for matchmaker split retry
-
-The split retry is covered by the `matchmaker-do.more.test.ts` 409-collision test and the new `matchmaker_pairing_split` regression log assertion. An e2e that actually spins up two browser contexts and queues both in quick-match would be stronger proof but requires shared worker state and is non-trivial.
-
-**Files:** `e2e/support/app.ts`, new spec under `e2e/`
 
 ---
 
