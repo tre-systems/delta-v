@@ -5,6 +5,8 @@
 // structured JSON logged via console.* on the server
 // and stored in D1 for querying.
 
+import { warnOnce } from './log-once';
+
 export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -56,9 +58,21 @@ const post = (path: string, body: Record<string, unknown>): void => {
         ts: Date.now(),
       }),
       keepalive: true,
-    }).catch(() => {});
-  } catch {
-    // Never let telemetry break the app
+    }).catch((err) => {
+      warnOnce(
+        `telemetry.post.${path}`,
+        `telemetry delivery failed for ${path} (further failures suppressed)`,
+        err,
+      );
+    });
+  } catch (err) {
+    // Never let telemetry break the app; surface the first occurrence so
+    // developers can diagnose bundle/network issues instead of a silent void.
+    warnOnce(
+      `telemetry.synchronous.${path}`,
+      `telemetry post threw synchronously for ${path}`,
+      err,
+    );
   }
 };
 

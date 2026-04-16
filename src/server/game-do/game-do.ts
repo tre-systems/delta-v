@@ -69,6 +69,8 @@ import {
   reportGameAbandoned,
   reportGameDoEngineError,
   reportGameDoProjectionParityMismatch,
+  reportLifecycleEvent,
+  reportSideChannelFailure,
   verifyGameDoProjectionParity,
 } from './telemetry';
 import {
@@ -292,11 +294,22 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async clearDisconnectMarker(): Promise<void> {
+    // Signal the resolved transition only when a marker actually existed;
+    // clearing a non-existent marker is a no-op and shouldn't pollute logs.
+    const hadMarker = await readDisconnectedPlayer(this.storage);
     await Promise.all([
       this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectedPlayer),
       this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectTime),
       this.storage.delete(GAME_DO_STORAGE_KEYS.disconnectAt),
     ]);
+    if (hadMarker !== null) {
+      const code = await this.getGameCode();
+      reportLifecycleEvent(
+        { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
+        'disconnect_grace_resolved',
+        { code, player: hadMarker },
+      );
+    }
   }
 
   private async clearBotTurnMarker(): Promise<void> {
@@ -334,6 +347,12 @@ export class GameDO extends DurableObject<Env> {
       this.storage.put(GAME_DO_STORAGE_KEYS.disconnectAt, marker.disconnectAt),
     ]);
     await this.rescheduleAlarm();
+    const code = await this.getGameCode();
+    reportLifecycleEvent(
+      { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
+      'disconnect_grace_started',
+      { code, player: playerId, disconnectAt: marker.disconnectAt },
+    );
   }
 
   private async resolveJoinAttempt(
@@ -454,6 +473,12 @@ export class GameDO extends DurableObject<Env> {
       reportEngineError: (code, phase, turn, err) =>
         this.reportEngineError(code, phase, turn, err),
       reportGameAbandoned: (props) => this.reportGameAbandoned(props),
+      reportLifecycle: (event, props) =>
+        reportLifecycleEvent(
+          { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
+          event,
+          props,
+        ),
       archiveRoomState: () => this.archiveRoomState(),
     };
   }
@@ -681,6 +706,17 @@ export class GameDO extends DurableObject<Env> {
     if (state.phase === 'gameOver') {
       const code = await this.getGameCode();
       this.deregisterLiveMatch(code);
+      reportLifecycleEvent(
+        { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
+        'game_ended',
+        {
+          gameId: state.gameId,
+          code,
+          turn: state.turnNumber,
+          winner: state.outcome?.winner ?? null,
+          reason: state.outcome?.reason ?? null,
+        },
+      );
     }
   }
 
@@ -700,7 +736,8 @@ export class GameDO extends DurableObject<Env> {
       return;
     }
 
-    const action = buildBotAction(gameState, playerId, this.map);
+    const rng = await this.getActionRng();
+    const action = buildBotAction(gameState, playerId, this.map, 'hard', rng);
 
     if (!action) {
       await this.rescheduleAlarm();
@@ -772,6 +809,12 @@ export class GameDO extends DurableObject<Env> {
       getGameCode: () => this.getGameCode(),
       reportEngineError: (code, phase, turn, err) =>
         this.reportEngineError(code, phase, turn, err),
+      reportObservationTimeout: (props) =>
+        reportSideChannelFailure(
+          { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
+          'mcp_observation_timeout',
+          props,
+        ),
       handlers: this.gameStateActionHandlers,
       idempotencyCache: this.idempotencyCache,
       stateWaiters: this.stateWaiters,
@@ -806,10 +849,17 @@ export class GameDO extends DurableObject<Env> {
   }
 
   // Fire-and-forget notification to the LIVE_REGISTRY singleton DO.
-  // Never blocks game flow; errors are silently swallowed.
+  // Never blocks game flow. Failures are reported through
+  // `reportSideChannelFailure` so operators can see when matches stop
+  // registering / deregistering rather than silently disappearing from
+  // /matches.
   private registerLiveMatch(code: string, scenario: string): void {
     const reg = this.env.LIVE_REGISTRY;
     if (!reg) return;
+    const deps = {
+      db: this.env.DB,
+      waitUntil: (p: Promise<unknown>) => this.waitUntil(p),
+    };
     this.waitUntil(
       reg
         .get(reg.idFromName('global'))
@@ -820,13 +870,32 @@ export class GameDO extends DurableObject<Env> {
             body: JSON.stringify({ code, scenario, startedAt: Date.now() }),
           }),
         )
-        .catch(() => {}),
+        .then((res) => {
+          if (!res.ok) {
+            reportSideChannelFailure(deps, 'live_registry_register_failed', {
+              code,
+              scenario,
+              status: res.status,
+            });
+          }
+        })
+        .catch((err) => {
+          reportSideChannelFailure(deps, 'live_registry_register_failed', {
+            code,
+            scenario,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }),
     );
   }
 
   private deregisterLiveMatch(code: string): void {
     const reg = this.env.LIVE_REGISTRY;
     if (!reg) return;
+    const deps = {
+      db: this.env.DB,
+      waitUntil: (p: Promise<unknown>) => this.waitUntil(p),
+    };
     this.waitUntil(
       reg
         .get(reg.idFromName('global'))
@@ -835,7 +904,20 @@ export class GameDO extends DurableObject<Env> {
             method: 'DELETE',
           }),
         )
-        .catch(() => {}),
+        .then((res) => {
+          if (!res.ok && res.status !== 404) {
+            reportSideChannelFailure(deps, 'live_registry_deregister_failed', {
+              code,
+              status: res.status,
+            });
+          }
+        })
+        .catch((err) => {
+          reportSideChannelFailure(deps, 'live_registry_deregister_failed', {
+            code,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }),
     );
   }
 
@@ -846,6 +928,12 @@ export class GameDO extends DurableObject<Env> {
     const code = await this.getGameCode();
     const scenario = roomConfig?.scenario ?? 'duel';
     this.registerLiveMatch(code, scenario);
+    const gameId = await this.getLatestGameId();
+    reportLifecycleEvent(
+      { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
+      'game_started',
+      { gameId, code, scenario },
+    );
   }
 
   private async handleRematch(playerId: PlayerId, _ws: WebSocket) {

@@ -7,6 +7,7 @@ import type { ClientState } from '../game/phase';
 import type { PlayerProfileService } from '../game/player-profile-service';
 import type { ReadonlySignal } from '../reactive';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
+import { MOBILE_BREAKPOINT_PX } from '../ui-breakpoints';
 import { bindStaticButtonEvents } from './button-events';
 import { composeDisposers } from './dispose-group';
 import { getUIElements } from './elements';
@@ -57,7 +58,9 @@ export const createUIManager = (deps: UIManagerDeps) => {
     shipListEl,
     fleetBuildingEl,
   } = getUIElements();
-  const mobileQuery = window.matchMedia('(max-width: 760px)');
+  const mobileQuery = window.matchMedia(
+    `(max-width: ${MOBILE_BREAKPOINT_PX}px)`,
+  );
 
   const eventBridge = createUIEventBridge();
   const emit = (event: UIEvent) => eventBridge.emit(event);

@@ -1,3 +1,5 @@
+import { warnOnce } from './log-once';
+
 export type ClientFeatureFlag = 'spectatorMode' | 'replayControls';
 
 const DEFAULT_CLIENT_FEATURE_FLAGS: Readonly<
@@ -57,7 +59,12 @@ const readStorageOverride = (flag: ClientFeatureFlag): boolean | null => {
       `${FEATURE_STORAGE_PREFIX}${flag}`,
     );
     return parseFlagOverride(raw ?? null);
-  } catch {
+  } catch (err) {
+    warnOnce(
+      'feature-flags.storage',
+      'feature flag overrides unavailable (localStorage blocked)',
+      err,
+    );
     return null;
   }
 };

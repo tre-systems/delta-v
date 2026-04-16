@@ -4,9 +4,9 @@ This is the fastest way to build and run Delta-V agents.
 
 Use this guide first, then use deeper docs only when needed:
 
-- Deep protocol/design reference: `AGENT_SPEC.md`
-- MCP-specific tool reference: `docs/DELTA_V_MCP.md`
-- Large-scale simulation/load testing: `docs/SIMULATION_TESTING.md`
+- Deep protocol/design reference: [`AGENT_SPEC.md`](../AGENT_SPEC.md) (lives at repo root)
+- MCP-specific tool reference: [`DELTA_V_MCP.md`](./DELTA_V_MCP.md)
+- Large-scale simulation/load testing: [`SIMULATION_TESTING.md`](./SIMULATION_TESTING.md)
 
 ## Choose an integration path
 

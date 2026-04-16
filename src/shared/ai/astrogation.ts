@@ -45,6 +45,25 @@ import { aiOrdnance } from './ordnance';
 import { scoreCourse } from './scoring';
 import type { AIDifficulty } from './types';
 
+// Difficulty-aware constant RNG used exclusively inside the passenger-escort
+// lookahead. Lookahead simulates one to two turns of ordnance/combat to
+// score candidate orders; using the real match RNG would bake a single dice
+// sequence into the score. A stable constant bias per difficulty reflects
+// each tier's risk posture without random noise:
+//   - easy: 0.4 — plan conservatively, assume the dice are slightly against you
+//   - normal: 0.5 — neutral expectation
+//   - hard: 0.6 — assume dice are slightly favorable, so commit to engagements
+const LOOKAHEAD_BIAS_BY_DIFFICULTY: Record<AIDifficulty, number> = {
+  easy: 0.4,
+  normal: 0.5,
+  hard: 0.6,
+};
+
+const createLookaheadRng = (difficulty: AIDifficulty): (() => number) => {
+  const bias = LOOKAHEAD_BIAS_BY_DIFFICULTY[difficulty];
+  return () => bias;
+};
+
 const getPassengerEmergencyEscortOrders = (
   state: GameState,
   playerId: PlayerId,
@@ -56,6 +75,13 @@ const getPassengerEmergencyEscortOrders = (
   difficulty: AIDifficulty,
   enemyEscaping: boolean,
   enemyHasPassengerObjective: boolean,
+  // The lookahead no longer consumes the outer match RNG — it uses a
+  // difficulty-biased constant via `createLookaheadRng` instead (easy 0.4,
+  // normal 0.5, hard 0.6). We accept the parameter for API parity with the
+  // enclosing `aiAstrogation` signature, but intentionally don't pass it
+  // into the simulation. Underscore-prefixed so lint flags any future
+  // misuse.
+  _rng: () => number,
 ): Map<string, AstrogationOrder> => {
   if (!isPassengerEscortMission(state, playerId)) {
     return new Map();
@@ -97,11 +123,19 @@ const getPassengerEmergencyEscortOrders = (
     return new Map();
   }
 
+  // Difficulty-aware RNG bias for lookahead. The lookahead simulates one or
+  // two future turns' ordnance/combat to score candidate orders; using the
+  // outer match RNG would bake one particular dice sequence into the score
+  // and make the AI's expected-value reasoning brittle. A constant mid-bias
+  // (easy < normal < hard) keeps the lookahead stable and mirrors each
+  // difficulty's risk posture — easy AI anticipates slightly unfavourable
+  // rolls, hard AI slightly favourable.
+  const lookaheadRng = createLookaheadRng(difficulty);
+
   const evaluateCandidateOutcome = (
     carrierOrder: AstrogationOrder,
     escortOrder: AstrogationOrder,
   ): number => {
-    const rng = () => 0.5;
     let simulated = structuredClone(state);
     const myOrders = simulated.ships
       .filter((ship) => ship.owner === playerId)
@@ -125,7 +159,7 @@ const getPassengerEmergencyEscortOrders = (
       playerId,
       myOrders,
       map,
-      rng,
+      lookaheadRng,
     );
 
     if ('error' in firstResult) {
@@ -148,8 +182,20 @@ const getPassengerEmergencyEscortOrders = (
       const actor = simulated.activePlayer;
 
       if (simulated.phase === 'astrogation') {
-        const orders = aiAstrogation(simulated, actor, map, difficulty, rng);
-        const result = processAstrogation(simulated, actor, orders, map, rng);
+        const orders = aiAstrogation(
+          simulated,
+          actor,
+          map,
+          difficulty,
+          lookaheadRng,
+        );
+        const result = processAstrogation(
+          simulated,
+          actor,
+          orders,
+          map,
+          lookaheadRng,
+        );
 
         if ('error' in result) {
           return -Infinity;
@@ -159,11 +205,17 @@ const getPassengerEmergencyEscortOrders = (
       }
 
       if (simulated.phase === 'ordnance') {
-        const launches = aiOrdnance(simulated, actor, map, difficulty, rng);
+        const launches = aiOrdnance(
+          simulated,
+          actor,
+          map,
+          difficulty,
+          lookaheadRng,
+        );
         const result =
           launches.length > 0
-            ? processOrdnance(simulated, actor, launches, map, rng)
-            : skipOrdnance(simulated, actor, map, rng);
+            ? processOrdnance(simulated, actor, launches, map, lookaheadRng)
+            : skipOrdnance(simulated, actor, map, lookaheadRng);
 
         if ('error' in result) {
           return -Infinity;
@@ -187,7 +239,7 @@ const getPassengerEmergencyEscortOrders = (
       }
 
       if (simulated.phase === 'combat') {
-        const preResult = beginCombatPhase(simulated, actor, map, rng);
+        const preResult = beginCombatPhase(simulated, actor, map, lookaheadRng);
 
         if ('error' in preResult) {
           return -Infinity;
@@ -200,8 +252,8 @@ const getPassengerEmergencyEscortOrders = (
         const attacks = aiCombat(simulated, actor, map, difficulty);
         const result =
           attacks.length > 0
-            ? processCombat(simulated, actor, attacks, map, rng)
-            : skipCombat(simulated, actor, map, rng);
+            ? processCombat(simulated, actor, attacks, map, lookaheadRng)
+            : skipCombat(simulated, actor, map, lookaheadRng);
 
         if ('error' in result) {
           return -Infinity;
@@ -375,8 +427,14 @@ export const aiAstrogation = (
   state: GameState,
   playerId: PlayerId,
   map: SolarSystemMap,
-  difficulty: AIDifficulty = 'normal',
-  rng: () => number = Math.random,
+  difficulty: AIDifficulty,
+  // rng is required — no default. The AI's passenger-escort lookahead
+  // simulates ordnance and combat internally, so the caller must supply
+  // the same RNG used for the outer turn resolution so simulation stays
+  // deterministic with production play and replay. Forgetting is a compile
+  // error, which is the point: a production call that accidentally relied
+  // on `Math.random` would silently desync from the authoritative engine.
+  rng: () => number,
 ): AstrogationOrder[] => {
   const cfg = AI_CONFIG[difficulty];
   const orders: AstrogationOrder[] = [];
@@ -450,6 +508,7 @@ export const aiAstrogation = (
     difficulty,
     enemyEscaping,
     enemyHasPassengerObjective,
+    rng,
   );
   let shipIdx = 0;
 

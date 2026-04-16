@@ -33,21 +33,21 @@ const STANDARD_SCENARIO_CASES: ScenarioSmokeCase[] = [
     scenario: 'convoy',
     assertLoaded: async (page) => {
       await expect(page.locator('#phaseInfo')).toContainText('ASTROGATION');
-      await expect(page.locator('#shipList .ship-entry')).toHaveCount(3);
+      await expect(page.locator('[data-testid="ship-entry"]')).toHaveCount(3);
     },
   },
   {
     name: 'Escape vs AI boots with multiple pilgrim ships',
     scenario: 'escape',
     assertLoaded: async (page) => {
-      await expect(page.locator('#shipList .ship-entry')).toHaveCount(3);
+      await expect(page.locator('[data-testid="ship-entry"]')).toHaveCount(3);
     },
   },
   {
     name: 'Blockade Runner vs AI boots with the runner packet',
     scenario: 'blockade',
     assertLoaded: async (page) => {
-      await expect(page.locator('#shipList .ship-entry')).toHaveCount(1);
+      await expect(page.locator('[data-testid="ship-entry"]')).toHaveCount(1);
     },
   },
 ];
@@ -98,7 +98,9 @@ test.describe('scenario smoke coverage', () => {
     await launchFleetActionScenario(page);
 
     await expect(page.locator('#phaseInfo')).toContainText('ASTROGATION');
-    await expect(page.locator('#shipList .ship-entry').first()).toBeVisible();
+    await expect(
+      page.locator('[data-testid="ship-entry"]').first(),
+    ).toBeVisible();
   });
 
   test('help overlay can be opened and closed', async ({ page }) => {

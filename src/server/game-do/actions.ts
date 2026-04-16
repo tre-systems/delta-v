@@ -420,7 +420,7 @@ export const dispatchGameStateAction = async (
   const guards = message.guards;
 
   const preCheck = (gameState: GameState): ActionRejectedMessage | null => {
-    const rejection = checkActionGuards(guards, gameState, playerId);
+    const rejection = checkActionGuards(guards, gameState, playerId, message);
     if (rejection) return buildActionRejected(rejection, gameState, guards);
 
     const key = guards?.idempotencyKey;

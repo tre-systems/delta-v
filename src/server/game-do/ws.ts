@@ -113,12 +113,33 @@ export const handleGameDoWebSocketMessage = async (
     await dispatchPlayerSocketMessage(deps, ws, playerId, msg);
   } catch (error) {
     console.error('Unhandled websocket message error', error);
+    // Preserve known error codes (auth, rate-limit, invalid input) when a
+    // dispatcher threw a tagged error. Collapsing everything to
+    // STATE_CONFLICT makes "someone else acted" toasts fire on totally
+    // unrelated failures; the client can't offer good guidance without
+    // seeing the real code.
+    const code = extractErrorCode(error) ?? ErrorCode.STATE_CONFLICT;
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : 'Internal server error';
     deps.send(ws, {
       type: 'error',
-      message: 'Internal server error',
-      code: ErrorCode.STATE_CONFLICT,
+      message,
+      code,
     });
   }
+};
+
+// Minimal helper: if a handler deeper in the stack throws an Error enriched
+// with a `code` that matches one of the protocol ErrorCode values, surface
+// it. Anything else falls back to the caller's default.
+const extractErrorCode = (error: unknown): ErrorCode | null => {
+  if (!error || typeof error !== 'object') return null;
+  const code = (error as { code?: unknown }).code;
+  if (typeof code !== 'string') return null;
+  const values = Object.values(ErrorCode) as string[];
+  return values.includes(code) ? (code as ErrorCode) : null;
 };
 
 export type GameDoWebSocketCloseDeps = {

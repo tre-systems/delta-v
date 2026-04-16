@@ -8,10 +8,11 @@ import {
   buildAIFleetPurchases,
 } from '../src/shared/ai';
 import { buildSolarSystemMap } from '../src/shared/map-data';
-import type {
-  AstrogationOrder,
-  GameState,
-  PlayerId,
+import {
+  type AstrogationOrder,
+  ErrorCode,
+  type GameState,
+  type PlayerId,
 } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
 import { parseArgs } from './load/config';
@@ -21,11 +22,38 @@ import {
   printSummary,
   recordMatchResult,
 } from './load/report';
-import type {
-  CreateGameResponse,
-  LoadTestConfig,
-  MatchMetrics,
+import {
+  type CreateGameResponse,
+  createErrorBreakdown,
+  type LoadTestConfig,
+  type MatchMetrics,
 } from './load/types';
+
+// Map an incoming server error message into one of the structured error
+// bins. Keeps the categorisation close to the harness so we don't have to
+// re-derive it in reports. The `code` field on `type: 'error'` messages is
+// the server's ErrorCode enum (see shared/types/domain.ts); actionRejected
+// messages carry a `reason` instead. Rate-limit / auth errors currently
+// surface as HTTP responses rather than WS frames, so the corresponding
+// bins are reserved for future protocol additions.
+const classifyServerError = (
+  message: Extract<S2C, { type: 'error' | 'actionRejected' }>,
+): keyof ReturnType<typeof createErrorBreakdown> => {
+  if (message.type === 'actionRejected') return 'actionRejected';
+  switch (message.code) {
+    case ErrorCode.INVALID_INPUT:
+      return 'invalidInput';
+    case ErrorCode.STATE_CONFLICT:
+      return 'stateConflict';
+    case ErrorCode.ROOM_NOT_FOUND:
+    case ErrorCode.ROOM_FULL:
+    case ErrorCode.GAME_IN_PROGRESS:
+    case ErrorCode.NOT_ALLOWED:
+      return 'authError';
+    default:
+      return 'other';
+  }
+};
 
 const map = buildSolarSystemMap();
 
@@ -121,6 +149,9 @@ const createBotClient = (
           playerId as PlayerId,
           solarMap,
           config.difficulty,
+          // Load-test bots don't have access to the authoritative match seed;
+          // a deterministic mid-bias function is good enough for load shape.
+          () => 0.5,
         );
 
         send({
@@ -138,6 +169,7 @@ const createBotClient = (
           playerId as PlayerId,
           solarMap,
           config.difficulty,
+          () => 0.5,
         );
 
         if (launches.length > 0) {
@@ -264,10 +296,23 @@ const createBotClient = (
         return;
       case 'gameOver':
         return;
-      case 'error':
+      case 'error': {
         metrics.serverErrors++;
-        console.error(`[${label}] server error: ${message.message}`);
+        const bin = classifyServerError(message);
+        metrics.errorBreakdown[bin]++;
+        console.error(
+          `[${label}] server error (${bin}, code=${message.code}): ${message.message}`,
+        );
         return;
+      }
+      case 'actionRejected': {
+        metrics.serverErrors++;
+        metrics.errorBreakdown.actionRejected++;
+        console.error(
+          `[${label}] action rejected (${message.reason}): ${message.message}`,
+        );
+        return;
+      }
       case 'pong':
       case 'rematchPending':
       case 'chat':
@@ -379,6 +424,7 @@ const runMatch = async (
     serverErrors: 0,
     socketErrors: 0,
     actionsSent: 0,
+    errorBreakdown: createErrorBreakdown(),
   };
 
   let resolved = false;
