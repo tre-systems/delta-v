@@ -981,13 +981,19 @@ describe('replay projection', () => {
           ? processAstrogation(
               liveState,
               actor,
-              aiAstrogation(liveState, actor, map, 'normal'),
+              aiAstrogation(liveState, actor, map, 'normal', () => 0.5),
               map,
               () => 0.5,
             )
           : liveState.phase === 'ordnance'
             ? (() => {
-                const launches = aiOrdnance(liveState, actor, map, 'normal');
+                const launches = aiOrdnance(
+                  liveState,
+                  actor,
+                  map,
+                  'normal',
+                  () => 0.5,
+                );
 
                 return launches.length > 0
                   ? processOrdnance(liveState, actor, launches, map, () => 0.5)

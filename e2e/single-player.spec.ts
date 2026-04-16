@@ -11,7 +11,7 @@ test.describe('single-player smoke tests', () => {
     await expect(page).toHaveTitle('Delta-V');
     await expect(page.locator('#objective')).toContainText('Land on');
     await expect(page.locator('#logLatestText')).toContainText('burn (1 fuel)');
-    await expect(page.locator('#shipList .ship-entry')).toHaveCount(1);
+    await expect(page.locator('[data-testid="ship-entry"]')).toHaveCount(1);
     await expect(page.locator('#helpBtn')).toBeVisible();
     await expect(page.locator('#tutorialTip')).toBeVisible();
   });
@@ -21,7 +21,7 @@ test.describe('single-player smoke tests', () => {
   }) => {
     await launchSinglePlayerScenario(page, 'biplanetary');
 
-    await page.click('#shipList .ship-entry');
+    await page.click('[data-testid="ship-entry"]');
     await page.keyboard.press('1');
     await expect(page.locator('#logLatestText')).toContainText('Burn set');
 

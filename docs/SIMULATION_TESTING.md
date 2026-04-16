@@ -39,8 +39,7 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 **Current usage:**
 
 - `npm run simulate` runs 100 headless games of the default scenario.
-- `npm run simulate -- all 40 -- --ci` runs 40 games per scenario across the current scenario roster (pre-commit hook and `npm run verify`).
-- The CI workflow uses `npm run simulate all 100 -- --ci` for the broader balance sweep.
+- Pre-commit and CI both run **`npm run simulate all 60 -- --ci`** so a scenario that passes locally doesn't get rejected by CI variance alone. If you change either invocation, update the other and this doc in the same commit. Sixty iterations is a balance between pre-commit wall-time and per-scenario variance; short duel runs especially benefit from the extra samples.
 - `--ci` fails the process on engine crashes and prints balance warnings without making them fatal.
 - `--randomize-start` forces start randomization for every scenario in that run; the harness also randomizes the starting seat automatically for **duel**, **interplanetaryWar**, and **fleetAction** so seat-order bias does not dominate short batches.
 - When using npm scripts, pass simulation arguments after `--`.

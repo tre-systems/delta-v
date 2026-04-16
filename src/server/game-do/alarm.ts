@@ -54,6 +54,12 @@ export type GameDoAlarmDeps = {
     reason: string;
     scenario: string;
   }) => void;
+  // Lifecycle signal emitted for turn-timeout fires and disconnect-grace
+  // expirations. Injected from GameDO so this module stays pure-ish.
+  reportLifecycle?: (
+    event: 'disconnect_grace_expired' | 'turn_timeout_fired',
+    props: Record<string, unknown>,
+  ) => void;
   archiveRoomState: () => Promise<void>;
 };
 
@@ -68,6 +74,11 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
     });
     switch (action.type) {
       case 'disconnectExpired': {
+        const code = await deps.getGameCode();
+        deps.reportLifecycle?.('disconnect_grace_expired', {
+          code,
+          player: action.playerId,
+        });
         await deps.clearDisconnectMarker();
         const gameState = await deps.getCurrentGameState();
 
@@ -83,7 +94,18 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
         });
         return;
       }
-      case 'turnTimeout':
+      case 'turnTimeout': {
+        const gameStateBefore = await deps.getCurrentGameState();
+        if (gameStateBefore && gameStateBefore.phase !== 'gameOver') {
+          const code = await deps.getGameCode();
+          deps.reportLifecycle?.('turn_timeout_fired', {
+            code,
+            gameId: String(gameStateBefore.gameId),
+            turn: gameStateBefore.turnNumber,
+            phase: gameStateBefore.phase,
+            activePlayer: gameStateBefore.activePlayer,
+          });
+        }
         await runGameDoTurnTimeout({
           storage: deps.storage,
           map: deps.map,
@@ -95,6 +117,7 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
           rescheduleAlarm: deps.rescheduleAlarm,
         });
         return;
+      }
       case 'botTurn':
         await deps.runBotTurn();
         return;

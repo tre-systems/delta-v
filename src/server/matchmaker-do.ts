@@ -26,7 +26,42 @@ interface QueueEntry {
 
 interface Env {
   GAME: DurableObjectNamespace;
+  // Optional at the type level so tests with minimal env stubs continue to
+  // work. At runtime the worker always has DB bound; structured events are
+  // skipped silently when it isn't available.
+  DB?: D1Database;
 }
+
+// Tiny structured logger for matchmaker events. Mirrors the pattern used by
+// GameDO's `reportLifecycleEvent` / `reportSideChannelFailure` but inlined
+// because MatchmakerDO doesn't import from game-do's layer.
+const reportMatchmakerEvent = (
+  ctx: DurableObjectState,
+  env: Env,
+  event: 'matchmaker_paired' | 'matchmaker_pairing_split',
+  props: Record<string, unknown>,
+): void => {
+  // matchmaker_paired is a normal signal; split is a warning-class event.
+  if (event === 'matchmaker_pairing_split') {
+    console.error(`[${event}]`, props);
+  } else {
+    console.log(`[${event}]`, props);
+  }
+
+  const db = env.DB;
+  if (!db) return;
+  ctx.waitUntil(
+    db
+      .prepare(
+        'INSERT INTO events ' +
+          '(ts, anon_id, event, props, ip_hash, ua) ' +
+          'VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .bind(Date.now(), null, event, JSON.stringify(props), 'server', null)
+      .run()
+      .catch((e: unknown) => console.error(`[D1 ${event} insert failed]`, e)),
+  );
+};
 
 const MATCHMAKER_STORAGE_KEY = 'quickMatchQueue';
 const HEARTBEAT_TTL_MS = 15_000;
@@ -106,6 +141,7 @@ export class MatchmakerDO extends DurableObject<Env> {
     code: RoomCode;
     playerTokens: [PlayerToken, PlayerToken];
   } | null> {
+    let conflicts = 0;
     for (let attempt = 0; attempt < 12; attempt++) {
       const code = generateRoomCode();
       const playerTokens = [
@@ -141,6 +177,22 @@ export class MatchmakerDO extends DurableObject<Env> {
       );
 
       if (response.ok) {
+        // Signal split recovery so the rate is visible in production D1.
+        // A `conflicts` > 0 means the first room code collided, forcing us
+        // to retry. Operators can query `event = 'matchmaker_pairing_split'`
+        // to decide whether to invest in coalesced pairing.
+        if (conflicts > 0) {
+          reportMatchmakerEvent(
+            this.ctx,
+            this.env,
+            'matchmaker_pairing_split',
+            {
+              code,
+              conflicts,
+              reason: 'room_code_collision',
+            },
+          );
+        }
         return {
           code,
           playerTokens: [playerTokens[0], playerTokens[1]],
@@ -148,10 +200,21 @@ export class MatchmakerDO extends DurableObject<Env> {
       }
 
       if (response.status !== 409) {
+        reportMatchmakerEvent(this.ctx, this.env, 'matchmaker_pairing_split', {
+          code,
+          reason: 'allocation_failed',
+          status: response.status,
+        });
         return null;
       }
+
+      conflicts++;
     }
 
+    reportMatchmakerEvent(this.ctx, this.env, 'matchmaker_pairing_split', {
+      reason: 'max_retries_exceeded',
+      attempts: 12,
+    });
     return null;
   }
 
@@ -212,6 +275,15 @@ export class MatchmakerDO extends DurableObject<Env> {
         room.playerTokens[1],
       ),
     };
+
+    reportMatchmakerEvent(this.ctx, this.env, 'matchmaker_paired', {
+      code: room.code,
+      scenario: right.scenario,
+      leftKey: left.player.playerKey,
+      rightKey: right.player.playerKey,
+      waitMsLeft: now - left.queuedAt,
+      waitMsRight: now - right.queuedAt,
+    });
 
     return entries;
   }

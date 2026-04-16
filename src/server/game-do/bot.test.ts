@@ -88,7 +88,13 @@ describe('buildBotAction', () => {
       type: 'astrogation',
       orders: [],
     });
-    expect(aiMocks.aiAstrogation).toHaveBeenCalledWith(state, 0, map, 'hard');
+    expect(aiMocks.aiAstrogation).toHaveBeenCalledWith(
+      state,
+      0,
+      map,
+      'hard',
+      expect.any(Function),
+    );
   });
 
   it('uses ordnance launches when available and otherwise skips ordnance', () => {

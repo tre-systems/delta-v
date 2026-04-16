@@ -67,6 +67,12 @@ const hasOwnedPendingAsteroidHazards = (
     return ship?.owner === playerId && ship.lifecycle !== 'destroyed';
   });
 
+// Candidate generation is observation-surface only (MCP observations, LLM
+// player bridge). Agents never drive authoritative resolution, so a
+// deterministic mid-bias RNG produces consistent candidates per state
+// without pretending to mirror the match seed.
+const CANDIDATE_RNG: () => number = () => 0.5;
+
 export const buildActionForDifficulty = (
   state: GameState,
   playerId: PlayerId,
@@ -82,7 +88,13 @@ export const buildActionForDifficulty = (
         purchases: buildAIFleetPurchases(state, playerId, difficulty),
       };
     case 'astrogation': {
-      const orders = aiAstrogation(state, playerId, map, difficulty);
+      const orders = aiAstrogation(
+        state,
+        playerId,
+        map,
+        difficulty,
+        CANDIDATE_RNG,
+      );
       return {
         type: 'astrogation',
         orders:
@@ -92,7 +104,13 @@ export const buildActionForDifficulty = (
       };
     }
     case 'ordnance': {
-      const launches = aiOrdnance(state, playerId, map, difficulty);
+      const launches = aiOrdnance(
+        state,
+        playerId,
+        map,
+        difficulty,
+        CANDIDATE_RNG,
+      );
       if (launches.length > 0) return { type: 'ordnance', launches };
       return { type: 'skipOrdnance' };
     }

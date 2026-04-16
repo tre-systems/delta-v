@@ -2,6 +2,19 @@
 
 Tracks observed issues, behavior notes, and improvement ideas from live autonomous matches.
 
+## Current outstanding issues
+
+Each bullet below links the still-open observation to the canonical backlog entry in [`BACKLOG.md`](./BACKLOG.md). Resolved items are left in the session history for archaeological context but should not be re-opened from this log without referencing an active backlog item.
+
+- **Turn-1 `stalePhase` race** on astrogation → ordnance transition — tracked as `BACKLOG.md` P1 item 3; `scripts/llm-player.ts` has a client-side phase-settle delay workaround.
+- **Short duel matches (2–3 turns)** dominated by opening heuristics — tracked as `BACKLOG.md` P1 item 1 (duel pacing via `simulate:duel-sweep`).
+- **Default recommended policy still nuke-forward** on duel quick-match openings — partially addressed by the in-engine early-turn nuke guard ported from coach policy (see `src/shared/ai/ordnance.ts`); external `scripts/llm-agent-recommended.ts` still needs the same treatment.
+- **Scrimmage pairing splits** recovered by retry loop in `scripts/quick-match-scrimmage.ts` but still occur in production; lack of server-side visibility tracked as `BACKLOG.md` P2 item 15.
+- **Chat echo loops** (`Copy`/`Copy. Plotting next burn.`) reduce live-log signal; anti-echo suppression shipped in `scripts/llm-player.ts`, human-UX echo guard is out of scope for the backlog.
+
+If you add a new observation below, add a matching backlog entry (or reuse an existing one) and link it from this section so the log doesn't become a dumping ground.
+
+
 ## Session 2026-04-15
 
 ### Run A - Single quick-match agent (`CodexBot`)

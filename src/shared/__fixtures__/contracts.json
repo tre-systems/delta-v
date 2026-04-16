@@ -140,6 +140,122 @@
           ]
         }
       }
+    },
+    "surrender": {
+      "raw": { "type": "surrender", "shipIds": ["p0s0", "p0s1"] },
+      "expected": {
+        "ok": true,
+        "value": { "type": "surrender", "shipIds": ["p0s0", "p0s1"] }
+      }
+    },
+    "skipOrdnance": {
+      "raw": { "type": "skipOrdnance" },
+      "expected": {
+        "ok": true,
+        "value": { "type": "skipOrdnance" }
+      }
+    },
+    "beginCombat": {
+      "raw": { "type": "beginCombat" },
+      "expected": {
+        "ok": true,
+        "value": { "type": "beginCombat" }
+      }
+    },
+    "combatSingle": {
+      "raw": {
+        "type": "combatSingle",
+        "attack": {
+          "attackerIds": ["p0s0"],
+          "targetId": "p1s0",
+          "targetType": "ship",
+          "attackStrength": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "combatSingle",
+          "attack": {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "targetType": "ship",
+            "attackStrength": 2
+          }
+        }
+      }
+    },
+    "endCombat": {
+      "raw": { "type": "endCombat" },
+      "expected": {
+        "ok": true,
+        "value": { "type": "endCombat" }
+      }
+    },
+    "skipCombat": {
+      "raw": { "type": "skipCombat" },
+      "expected": {
+        "ok": true,
+        "value": { "type": "skipCombat" }
+      }
+    },
+    "skipLogistics": {
+      "raw": { "type": "skipLogistics" },
+      "expected": {
+        "ok": true,
+        "value": { "type": "skipLogistics" }
+      }
+    },
+    "rematch": {
+      "raw": { "type": "rematch" },
+      "expected": {
+        "ok": true,
+        "value": { "type": "rematch" }
+      }
+    },
+    "chat": {
+      "raw": { "type": "chat", "text": "gl hf" },
+      "expected": {
+        "ok": true,
+        "value": { "type": "chat", "text": "gl hf" }
+      }
+    },
+    "ping": {
+      "raw": { "type": "ping", "t": 1711234567890 },
+      "expected": {
+        "ok": true,
+        "value": { "type": "ping", "t": 1711234567890 }
+      }
+    }
+  },
+  "c2sRejected": {
+    "typeMissing": {
+      "raw": { "purchases": [] },
+      "expectedOk": false
+    },
+    "typeUnknown": {
+      "raw": { "type": "nonsense" },
+      "expectedOk": false
+    },
+    "astrogationOrdersWrongType": {
+      "raw": { "type": "astrogation", "orders": "not-an-array" },
+      "expectedOk": false
+    },
+    "ordnanceLaunchesMissing": {
+      "raw": { "type": "ordnance" },
+      "expectedOk": false
+    },
+    "combatAttacksMissing": {
+      "raw": { "type": "combat" },
+      "expectedOk": false
+    },
+    "chatTextMissing": {
+      "raw": { "type": "chat" },
+      "expectedOk": false
+    },
+    "pingTimestampMissing": {
+      "raw": { "type": "ping" },
+      "expectedOk": false
     }
   },
   "replay": {

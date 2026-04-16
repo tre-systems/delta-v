@@ -88,6 +88,8 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
         const entry = document.createElement('div');
         entry.className = 'ship-entry';
         entry.setAttribute('role', 'button');
+        // Stable hook for Playwright e2e. Keeping the class for CSS.
+        entry.setAttribute('data-testid', 'ship-entry');
         const statusLine =
           `${entryView.statusText.replace(/\s+/g, ' ').trim()}${entryView.hasBurn ? ' burn' : ''}`.trim();
         entry.setAttribute(

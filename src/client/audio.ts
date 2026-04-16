@@ -1,6 +1,8 @@
 // Procedural sound effects using Web Audio API.
 // No audio assets needed — everything is synthesized.
 
+import { warnOnce } from './log-once';
+
 let ctx: AudioContext | null = null;
 let muted = false;
 
@@ -14,7 +16,13 @@ export const setMuted = (m: boolean) => {
   // Persist preference
   try {
     localStorage.setItem('delta-v-mute', m ? '1' : '0');
-  } catch {}
+  } catch (err) {
+    warnOnce(
+      'audio.mute.persist',
+      'mute preference could not be persisted (localStorage unavailable)',
+      err,
+    );
+  }
 };
 
 const getCtx = (): AudioContext | null => {
@@ -34,7 +42,13 @@ export const initAudio = () => {
     const saved = localStorage.getItem('delta-v-mute');
 
     if (saved === '1') muted = true;
-  } catch {}
+  } catch (err) {
+    warnOnce(
+      'audio.mute.load',
+      'mute preference could not be restored (localStorage unavailable)',
+      err,
+    );
+  }
 
   const resume = () => {
     if (ctx?.state === 'suspended') {

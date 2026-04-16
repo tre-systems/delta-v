@@ -43,6 +43,11 @@ export const buildBotAction = (
   playerId: PlayerId,
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'hard',
+  // The caller should pass the match RNG (same one used by action
+  // processing) so the bot's passenger-escort lookahead stays deterministic
+  // with the authoritative resolution. Callers without a RNG fall back to a
+  // mid-bias fixed function rather than `Math.random`.
+  rng: () => number = () => 0.5,
 ): GameStateActionMessage | null => {
   switch (state.phase) {
     case 'waiting':
@@ -54,7 +59,7 @@ export const buildBotAction = (
         purchases: buildAIFleetPurchases(state, playerId, difficulty),
       };
     case 'astrogation': {
-      const orders = aiAstrogation(state, playerId, map, difficulty);
+      const orders = aiAstrogation(state, playerId, map, difficulty, rng);
       return {
         type: 'astrogation',
         orders:
@@ -64,7 +69,7 @@ export const buildBotAction = (
       };
     }
     case 'ordnance': {
-      const launches = aiOrdnance(state, playerId, map, difficulty);
+      const launches = aiOrdnance(state, playerId, map, difficulty, rng);
       return launches.length > 0
         ? { type: 'ordnance', launches }
         : { type: 'skipOrdnance' };

@@ -1,4 +1,10 @@
-import type { AggregateMetrics, LoadTestConfig, MatchMetrics } from './types';
+import {
+  type AggregateMetrics,
+  createErrorBreakdown,
+  type ErrorBreakdown,
+  type LoadTestConfig,
+  type MatchMetrics,
+} from './types';
 
 const isFailedMatch = (reason: string): boolean =>
   reason === 'match timeout' ||
@@ -18,7 +24,23 @@ export const createAggregateMetrics = (): AggregateMetrics => ({
   totalTurns: 0,
   totalDurationMs: 0,
   winReasons: new Map(),
+  errorBreakdown: createErrorBreakdown(),
 });
+
+const mergeErrorBreakdown = (
+  into: ErrorBreakdown,
+  from: ErrorBreakdown,
+): void => {
+  into.http4xx += from.http4xx;
+  into.http5xx += from.http5xx;
+  into.rateLimited += from.rateLimited;
+  into.actionRejected += from.actionRejected;
+  into.timeout += from.timeout;
+  into.invalidInput += from.invalidInput;
+  into.authError += from.authError;
+  into.stateConflict += from.stateConflict;
+  into.other += from.other;
+};
 
 export const recordMatchResult = (
   aggregate: AggregateMetrics,
@@ -41,6 +63,7 @@ export const recordMatchResult = (
     result.reason,
     (aggregate.winReasons.get(result.reason) ?? 0) + 1,
   );
+  mergeErrorBreakdown(aggregate.errorBreakdown, result.errorBreakdown);
 };
 
 export const printMatchResult = (metrics: MatchMetrics): void => {
@@ -90,6 +113,19 @@ export const printSummary = (
   console.log(`server errors: ${aggregate.serverErrors}`);
   console.log(`socket errors: ${aggregate.socketErrors}`);
   console.log(`actions sent: ${aggregate.actionsSent}`);
+
+  const breakdownTotal = Object.values(aggregate.errorBreakdown).reduce(
+    (sum, n) => sum + n,
+    0,
+  );
+  if (breakdownTotal > 0) {
+    console.log('\nerror breakdown:');
+    for (const [bin, count] of Object.entries(aggregate.errorBreakdown)) {
+      if (count > 0) {
+        console.log(`  - ${bin}: ${count}`);
+      }
+    }
+  }
 
   if (aggregate.winReasons.size > 0) {
     console.log('\nwin reasons:');

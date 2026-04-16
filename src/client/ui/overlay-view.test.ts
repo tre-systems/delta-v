@@ -27,6 +27,7 @@ const installFixture = () => {
     <button id="replayNextBtn"></button>
     <button id="replayEndBtn"></button>
     <button id="rematchBtn" disabled>Rematch</button>
+    <button id="exitBtn">Exit</button>
     <div id="replayBar" hidden></div>
     <span id="replayBarStatus"></span>
     <button id="replayBarStartBtn"></button>
@@ -135,6 +136,40 @@ describe('OverlayView', () => {
         'hidden',
       ),
     ).toBe(true);
+  });
+
+  it('dismisses the game-over modal on Escape by clicking Exit', () => {
+    // Regression for the P1-3 a11y sweep: before this binding, Escape had
+    // no effect on the game-over modal so keyboard users couldn't dismiss
+    // it without mousing to Exit. Escape routes to Exit (not Rematch) so
+    // the keybinding does not accidentally commit the player to another
+    // match.
+    const state = createOverlayStateStore();
+    createOverlayView(state);
+    state.showGameOver(true, 'Fleet eliminated!');
+
+    const exitBtn = document.getElementById('exitBtn') as HTMLButtonElement;
+    const clicks = vi.fn();
+    exitBtn.addEventListener('click', clicks);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(clicks).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores Escape when the game-over modal is hidden', () => {
+    // Ensure the Escape handler is a no-op when the modal is not open so
+    // the rest of the app is unaffected.
+    const state = createOverlayStateStore();
+    createOverlayView(state);
+
+    const exitBtn = document.getElementById('exitBtn') as HTMLButtonElement;
+    const clicks = vi.fn();
+    exitBtn.addEventListener('click', clicks);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(clicks).not.toHaveBeenCalled();
   });
 
   it('shows replay controls and updates navigation state', () => {

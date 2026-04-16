@@ -48,7 +48,10 @@ jobs:
         run: npm run test:e2e:a11y
 
       - name: Run Headless Engine Simulations
-        run: npm run simulate all 100 -- --ci
+        # Aligned with pre-commit (60) so local and CI see the same
+        # balance variance; keep both in sync when changing. See
+        # docs/SIMULATION_TESTING.md.
+        run: npm run simulate all 60 -- --ci
 
       - name: Validate production deploy config
         run: npx wrangler deploy --dry-run

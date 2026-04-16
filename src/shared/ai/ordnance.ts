@@ -77,8 +77,12 @@ export const aiOrdnance = (
   state: GameState,
   playerId: PlayerId,
   map: SolarSystemMap,
-  difficulty: AIDifficulty = 'normal',
-  rng: () => number = Math.random,
+  difficulty: AIDifficulty,
+  // rng is required — no default. Same rationale as `aiAstrogation`:
+  // passing an explicit RNG keeps ordnance dice resolution deterministic
+  // with the caller, and forgetting is a compile error rather than a
+  // silent `Math.random` leak.
+  rng: () => number,
 ): OrdnanceLaunch[] => {
   const cfg = AI_CONFIG[difficulty];
   const launches: OrdnanceLaunch[] = [];
@@ -140,8 +144,33 @@ export const aiOrdnance = (
       validateOrdnanceLaunch(state, ship, 'torpedo') === null;
     const canLaunchMine = validateOrdnanceLaunch(state, ship, 'mine') === null;
 
+    // Early-turn nuke guard ported from scripts/llm-agent-coach.ts:
+    // in the first two turns, a nuke is only considered when the enemy is
+    // already point-blank (≤ 2 hexes). Before this guard the in-engine bot
+    // and local single-player AI would open with nukes from 6 hexes away,
+    // which makes duel matches swingy and unfun (see AGENT_IMPROVEMENTS_LOG
+    // 2026-04-15 session notes). Hard difficulty is still aggressive once
+    // past turn 2 or in close range.
+    const earlyTurnNukeAllowed =
+      state.turnNumber > 2 ||
+      Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= 2;
+
+    // Parity-deficit guard: if we already have ≤ 1 operational ship, a
+    // failed nuke exchange loses the match. Hold fire unless the target is
+    // already in point-blank so the nuke can't be shot down before arrival.
+    const ownOperationalShips = state.ships.filter(
+      (candidate) =>
+        candidate.owner === playerId &&
+        candidate.lifecycle === 'active' &&
+        candidate.damage.disabledTurns === 0,
+    ).length;
+    const parityDeficitNukeAllowed =
+      ownOperationalShips > 1 || bestEnemyCurrentDist <= 1;
+
     if (
       difficulty === 'hard' &&
+      earlyTurnNukeAllowed &&
+      parityDeficitNukeAllowed &&
       Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange &&
       canLaunchNuke
     ) {

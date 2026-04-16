@@ -61,6 +61,33 @@ describe('checkActionGuards', () => {
     expect(result?.reason).toBe('stalePhase');
   });
 
+  it('forgives stalePhase when the action type is valid for the current phase', () => {
+    // Simulates the turn-1 astrogation → ordnance race: client sent an
+    // `astrogation` payload while the server was still in astrogation, but
+    // the expectedPhase guard claims `combat` for some reason. Without the
+    // action-aware check, the server would reject; with it, the guard is
+    // skipped because the action type is valid for the real phase anyway.
+    const other = state.phase === 'astrogation' ? 'combat' : 'astrogation';
+    expect(state.phase).toBe('astrogation');
+    const result = checkActionGuards({ expectedPhase: other }, state, 0, {
+      type: 'astrogation',
+      orders: [],
+    });
+    expect(result).toBeNull();
+  });
+
+  it('still rejects stalePhase when the action type does not match the real phase', () => {
+    // Counterpart to the forgiving case — a combat submission during the
+    // astrogation phase should still be rejected so we don't let a truly
+    // misrouted action through.
+    expect(state.phase).toBe('astrogation');
+    const result = checkActionGuards({ expectedPhase: 'combat' }, state, 0, {
+      type: 'combat',
+      attacks: [],
+    });
+    expect(result?.reason).toBe('stalePhase');
+  });
+
   it('does not reject on wrongActivePlayer during simultaneous phases', () => {
     // duel scenario starts in astrogation (simultaneous). Both seats may act.
     const inactive = state.activePlayer === 0 ? 1 : 0;
@@ -95,6 +122,20 @@ describe('IdempotencyKeyCache', () => {
     // The earliest key should be evicted; the most recent should remain.
     expect(cache.has(0, 'k0')).toBe(false);
     expect(cache.has(0, 'k39')).toBe(true);
+  });
+
+  it('refreshes a re-remembered key to the newest slot (LRU behavior)', () => {
+    const cache = new IdempotencyKeyCache();
+    cache.remember(0, 'oldest');
+    for (let i = 0; i < 31; i++) cache.remember(0, `k${i}`);
+    // Without the refresh, inserting one more key would evict 'oldest'.
+    // After re-remembering 'oldest' it should move to the newest position,
+    // and a subsequent insertion should evict k0 instead.
+    cache.remember(0, 'oldest');
+    cache.remember(0, 'newcomer');
+    expect(cache.has(0, 'oldest')).toBe(true);
+    expect(cache.has(0, 'k0')).toBe(false);
+    expect(cache.has(0, 'newcomer')).toBe(true);
   });
 });
 

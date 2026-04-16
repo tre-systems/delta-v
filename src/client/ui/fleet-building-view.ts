@@ -202,6 +202,7 @@ export const createFleetBuildingView = (
         );
 
         item.setAttribute('role', 'button');
+        item.setAttribute('data-testid', 'fleet-shop-item');
         item.tabIndex = itemView.disabled ? -1 : 0;
         item.setAttribute(
           'aria-label',

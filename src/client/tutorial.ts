@@ -6,6 +6,7 @@
 
 import { byId, listen, setTrustedHTML, text, visible } from './dom';
 import { createDisposalScope, withScope } from './reactive';
+import { isMobileViewport } from './ui-breakpoints';
 
 const STORAGE_KEY = 'deltav_tutorial_done';
 
@@ -84,6 +85,11 @@ export const createTutorial = (): Tutorial => {
   let completed = localStorage.getItem(STORAGE_KEY) === '1';
   let shownSteps = new Set<string>();
   let activeStepId: string | null = null;
+  // Cache mobile-ness at tutorial construction time. Re-evaluating on every
+  // showStep() can flip copy mid-tutorial during device rotation, which is
+  // jarring; users who rotate mid-tutorial keep their original variant and
+  // get the other on the next session.
+  let cachedMobile = isMobileViewport();
   let telemetryHandler:
     | ((event: string, props?: Record<string, unknown>) => void)
     | null = null;
@@ -114,8 +120,7 @@ export const createTutorial = (): Tutorial => {
 
     activeStepId = step.id;
 
-    const isMobile = window.innerWidth <= 760;
-    text(textEl, isMobile && step.mobileText ? step.mobileText : step.text);
+    text(textEl, cachedMobile && step.mobileText ? step.mobileText : step.text);
 
     visible(tipEl, true, 'block');
 
@@ -208,6 +213,12 @@ export const createTutorial = (): Tutorial => {
   withScope(scope, () => {
     listen(byId('tutorialNextBtn'), 'click', () => advance());
     listen(byId('tutorialSkipBtn'), 'click', () => skip());
+    // Only re-read the breakpoint on an explicit viewport change; no
+    // re-render of the active step because rotating mid-step should not
+    // re-flow the copy the user is currently reading.
+    listen(window, 'resize', () => {
+      cachedMobile = isMobileViewport();
+    });
   });
 
   return {

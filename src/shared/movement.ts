@@ -61,6 +61,11 @@ export const collectEnteredGravityEffects = (
 
   const line = analyzeHexLine(path[0], path[path.length - 1]);
 
+  // Gravity only applies to "definite" hexes — those the path crosses
+  // unambiguously under both nudge directions. Ambiguous pairs (hexside
+  // grazes) are intentionally excluded per the SPEC: "gravity ignores
+  // edge-grazes" (see hex.ts analyzeHexLine for the shared rule). LOS and
+  // asteroid hazards make different choices about ambiguous hexes.
   for (let i = 1; i < line.definite.length; i++) {
     const coord = line.definite[i];
     const hex = map.hexes.get(hexKey(coord));
