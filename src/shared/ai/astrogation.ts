@@ -53,10 +53,21 @@ import type { AIDifficulty } from './types';
 //   - easy: 0.4 — plan conservatively, assume the dice are slightly against you
 //   - normal: 0.5 — neutral expectation
 //   - hard: 0.6 — assume dice are slightly favorable, so commit to engagements
-const LOOKAHEAD_BIAS_BY_DIFFICULTY: Record<AIDifficulty, number> = {
+//
+// The triple below was picked by the `scripts/ai-bias-sweep.ts` harness;
+// see docs/SIMULATION_TESTING.md for the measurement protocol. Expose as
+// `let` so the sweep script can mutate in-process without a rebuild.
+export let LOOKAHEAD_BIAS_BY_DIFFICULTY: Record<AIDifficulty, number> = {
   easy: 0.4,
   normal: 0.5,
   hard: 0.6,
+};
+
+// Test/sweep-only override. Production callers never touch this.
+export const __setLookaheadBiasForSweep = (
+  next: Record<AIDifficulty, number>,
+): void => {
+  LOOKAHEAD_BIAS_BY_DIFFICULTY = next;
 };
 
 const createLookaheadRng = (difficulty: AIDifficulty): (() => number) => {

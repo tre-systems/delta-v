@@ -54,6 +54,27 @@ From `migrations/0001_create_events.sql`:
 - From client **`/error`**: `client_error` with `{ error, url, ua, ...context }`; current global handlers add either `{ source, line, col }` or `{ type: 'unhandledrejection' }`.
 - From **`game-do/telemetry.ts`**: `engine_error` with `{ code, phase, turn, message, stack? }`; `projection_parity_mismatch` with `{ gameId, liveTurn, livePhase, projectedTurn, projectedPhase }`; `game_abandoned` with `{ gameId, turn, phase, reason, scenario }` (server-side; `anon_id` null, `ip_hash` `'server'`).
 
+### Server-side lifecycle and side-channel events
+
+Emitted from `src/server/game-do/telemetry.ts` (`reportLifecycleEvent`, `reportSideChannelFailure`) and `src/server/matchmaker-do.ts`. All share `anon_id = null` and `ip_hash = 'server'`. Lifecycle events emit `console.log`; side-channel failures emit `console.error` so the two streams are easy to separate in Workers Logs.
+
+**Lifecycle (normal signals):**
+
+- `game_started` — `{ gameId, code, scenario }`
+- `game_ended` — `{ gameId, code, turn, winner, reason }` (`winner` is `null` on draws)
+- `disconnect_grace_started` — `{ code, player, disconnectAt }` (ms epoch the grace expires)
+- `disconnect_grace_resolved` — `{ code, player }` (marker cleared because the player reconnected)
+- `disconnect_grace_expired` — `{ code, player }` (grace ran out; engine will forfeit)
+- `turn_timeout_fired` — `{ code, gameId, turn, phase, activePlayer }`
+- `matchmaker_paired` — `{ code, scenario, leftKey, rightKey, waitMsLeft, waitMsRight }`
+
+**Side-channel failures (investigate on spike):**
+
+- `live_registry_register_failed` — `{ code, scenario, status?, error? }` (match may be missing from `/matches`)
+- `live_registry_deregister_failed` — `{ code, status?, error? }` (stale "Live now" entry)
+- `mcp_observation_timeout` — `{ handler, timeoutMs }` (10 s hard ceiling; future async paths could hang requests otherwise)
+- `matchmaker_pairing_split` — `{ code?, reason, conflicts?, status?, attempts? }` (`reason` ∈ `room_code_collision` / `allocation_failed` / `max_retries_exceeded`)
+
 Static **`GET /version.json`** (built into `dist/` at bundle time) exposes `{ packageVersion, assetsHash }` for support — it is not written to D1.
 
 ## Sample D1 queries
@@ -115,6 +136,10 @@ These are practical defaults until formal dashboards/alerts are added.
 - `projection_parity_mismatch` > 0 in a 15-minute window: page maintainer (high severity).
 - `client_error`: warn when current 15-minute count is >3x the same weekday/hour baseline.
 - `POST /telemetry` or `POST /error` 429 rate spikes: investigate abuse/noisy clients and consider tighter global WAF caps.
+- `mcp_observation_timeout` > 0 in any rolling 15-minute window: investigate — expected rate is 0.
+- `live_registry_register_failed` or `live_registry_deregister_failed` > 2 in 15 minutes: LiveRegistryDO may be down; `/matches` will lag reality.
+- `matchmaker_pairing_split` / `matchmaker_paired` > 5% sustained over 1 hour: queue is hot enough to warrant coalesced allocation.
+- `disconnect_grace_expired` / (`disconnect_grace_resolved` + `disconnect_grace_expired`) > 50% over 1 hour: reconnect flow is failing for most players.
 
 ## PII / privacy stance (technical)
 
@@ -168,6 +193,68 @@ WHERE event = 'client_error'
 GROUP BY error_msg
 ORDER BY n DESC
 LIMIT 10;
+
+-- Lifecycle cadence (last 24h)
+SELECT event, COUNT(*) AS n
+FROM events
+WHERE ts > (strftime('%s','now') - 86400) * 1000
+  AND event IN (
+    'game_started', 'game_ended',
+    'disconnect_grace_started', 'disconnect_grace_resolved', 'disconnect_grace_expired',
+    'turn_timeout_fired', 'matchmaker_paired'
+  )
+GROUP BY event
+ORDER BY n DESC;
+
+-- Disconnect-grace outcomes — resolved (player reconnected) vs expired (forfeit).
+-- A high expired/(resolved+expired) ratio means reconnects are failing.
+SELECT
+  SUM(CASE WHEN event = 'disconnect_grace_resolved' THEN 1 ELSE 0 END) AS resolved,
+  SUM(CASE WHEN event = 'disconnect_grace_expired'  THEN 1 ELSE 0 END) AS expired
+FROM events
+WHERE ts > (strftime('%s','now') - 7 * 86400) * 1000
+  AND event IN ('disconnect_grace_resolved', 'disconnect_grace_expired');
+
+-- Matchmaker split rate (last 7 days). If splits / paired > ~1% in a quiet
+-- period, consider coalesced enqueue or longer retry budget in MatchmakerDO.
+SELECT
+  SUM(CASE WHEN event = 'matchmaker_paired'         THEN 1 ELSE 0 END) AS paired,
+  SUM(CASE WHEN event = 'matchmaker_pairing_split'  THEN 1 ELSE 0 END) AS splits
+FROM events
+WHERE ts > (strftime('%s','now') - 7 * 86400) * 1000
+  AND event IN ('matchmaker_paired', 'matchmaker_pairing_split');
+
+-- Matchmaker split reasons (breaks down the 'splits' counter above).
+SELECT json_extract(props, '$.reason') AS reason, COUNT(*) AS n
+FROM events
+WHERE event = 'matchmaker_pairing_split'
+  AND ts > (strftime('%s','now') - 7 * 86400) * 1000
+GROUP BY reason
+ORDER BY n DESC;
+
+-- MCP observation timeouts (last 24h). Expected value is 0; any spike
+-- suggests a hung dependency under buildObservation or DO contention.
+SELECT COUNT(*) AS n
+FROM events
+WHERE event = 'mcp_observation_timeout'
+  AND ts > (strftime('%s','now') - 86400) * 1000;
+
+-- LIVE_REGISTRY failures (last 24h). Non-zero means some matches never
+-- appeared on /matches (register) or stayed visible after end (deregister).
+SELECT event, COUNT(*) AS n
+FROM events
+WHERE event IN ('live_registry_register_failed', 'live_registry_deregister_failed')
+  AND ts > (strftime('%s','now') - 86400) * 1000
+GROUP BY event;
+
+-- Turn-timeout rate per scenario (last 7 days). Correlate with
+-- game_abandoned to tell "AFK player" from "engine wedge".
+SELECT json_extract(props, '$.phase') AS phase, COUNT(*) AS n
+FROM events
+WHERE event = 'turn_timeout_fired'
+  AND ts > (strftime('%s','now') - 7 * 86400) * 1000
+GROUP BY phase
+ORDER BY n DESC;
 ```
 
 ## Workers log filters
@@ -178,6 +265,9 @@ In the Cloudflare Workers **Logs** tab, filter by:
 - `Inactivity timeout` — room cleanup events
 - `Rate limit exceeded` — WebSocket abuse
 - `projection_parity_mismatch` — replay integrity issues (critical)
+- `[game_started]` / `[game_ended]` — lifecycle trace for a single match
+- `[matchmaker_pairing_split]` — immediate smoke-test when the matchmaker looks unhealthy
+- `[mcp_observation_timeout]` — any hit is unexpected; inspect the handler label in `props`
 
 ## Gaps and follow-ups
 
