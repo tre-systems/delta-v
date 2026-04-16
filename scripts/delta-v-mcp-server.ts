@@ -177,10 +177,18 @@ const pushEvent = (session: DeltaVSession, message: S2C): void => {
   }
 };
 
-// Returns true when the caller should decide and submit an action now:
-//   - simultaneous phases (fleetBuilding, astrogation) are always actionable by both seats
-//   - sequential phases are actionable only for the active player
-//   - waiting / gameOver phases are never actionable
+// Returns true when the caller should decide and submit an action now.
+//
+// Triplanetary uses I-Go-You-Go turns: each player completes all phases
+// (astrogation → ordnance → movement → combat → resupply) before the
+// other player goes. Only fleetBuilding is truly simultaneous (both
+// players submit purchases before the game starts).
+//
+// Astrogation is treated as actionable for both seats so agents can
+// pre-submit orders while the opponent's turn resolves. The server
+// holds pending orders in `pendingAstrogationOrders` until the phase
+// actually reaches this player. This avoids forcing agents to poll
+// for their exact turn window.
 const isActionable = (state: GameState, playerId: PlayerSeat): boolean => {
   switch (state.phase) {
     case 'waiting':
@@ -188,6 +196,9 @@ const isActionable = (state: GameState, playerId: PlayerSeat): boolean => {
       return false;
     case 'fleetBuilding':
     case 'astrogation':
+      // Fleet building: genuinely simultaneous (both submit before start).
+      // Astrogation: sequential per Triplanetary rules, but we allow
+      // pre-submission so agents don't miss their turn window.
       return true;
     case 'ordnance':
     case 'combat':
