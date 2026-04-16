@@ -79,4 +79,89 @@ test.describe('multiplayer smoke tests', () => {
       await session.close();
     }
   });
+
+  test('quick-match pairs two players into the same room', async ({
+    browser,
+  }) => {
+    // Smoke-tests the matchmaker's happy path end-to-end through the
+    // browser: two isolated contexts each hit the quick-match button and
+    // must land in the SAME room. Complements the unit-level coverage in
+    // matchmaker-do.more.test.ts (which covers 409 collisions and the
+    // pairing-split log line) — this one proves the full UI → HTTP →
+    // MatchmakerDO → GameDO → WebSocket path works for real.
+    //
+    // Each player needs a distinct `delta-v:player-profile` entry or the
+    // matchmaker treats them as the same enqueue. We seed each context's
+    // localStorage with a unique playerKey before boot.
+    const contextA = await browser.newContext();
+    const contextB = await browser.newContext();
+    const pageA = await contextA.newPage();
+    const pageB = await contextB.newPage();
+
+    const seedProfile = async (
+      page: typeof pageA,
+      playerKey: string,
+    ): Promise<void> => {
+      await page.addInitScript(
+        ({ key, profile }) => {
+          window.localStorage.setItem(
+            'delta-v:player-profile',
+            JSON.stringify(profile),
+          );
+          // Unset the test session-seeded flag used by seedLocalStorage so
+          // the subsequent openHomePage doesn't wipe the profile we just
+          // placed.
+          window.sessionStorage.setItem('__deltav_e2e_seeded', '1');
+          window.localStorage.setItem('deltav_tutorial_done', '1');
+          void key;
+        },
+        {
+          key: playerKey,
+          profile: {
+            playerKey,
+            username: playerKey,
+            updatedAt: Date.now(),
+          },
+        },
+      );
+    };
+
+    try {
+      await seedProfile(pageA, 'e2e-qm-player-a');
+      await seedProfile(pageB, 'e2e-qm-player-b');
+
+      await pageA.goto('/', { waitUntil: 'domcontentloaded' });
+      await pageB.goto('/', { waitUntil: 'domcontentloaded' });
+      await waitForDisplay(pageA, '#menu', 'flex');
+      await waitForDisplay(pageB, '#menu', 'flex');
+
+      await pageA.click('#quickMatchBtn');
+      await pageB.click('#quickMatchBtn');
+
+      // Both players must reach the HUD (matchmaker allocated a room,
+      // GameDO accepted the joins, WebSockets connected, state arrived).
+      await Promise.all([
+        waitForDisplay(pageA, '#hud', 'block', 30_000),
+        waitForDisplay(pageB, '#hud', 'block', 30_000),
+      ]);
+
+      // Room codes match → they are in the same game. Split pairings
+      // would land each in a different room. The quick-match flow calls
+      // `history.replaceState` with `?code=<roomCode>` when a match is
+      // found, so we read the code from each page's URL.
+      const readRoomCode = (page: typeof pageA): string => {
+        const url = new URL(page.url());
+        return url.searchParams.get('code') ?? '';
+      };
+
+      const codeA = readRoomCode(pageA);
+      const codeB = readRoomCode(pageB);
+      expect(codeA).toMatch(/^[A-Z0-9]{5}$/);
+      expect(codeA).toBe(codeB);
+    } finally {
+      await closePages(pageA, pageB);
+      await contextA.close();
+      await contextB.close();
+    }
+  });
 });
