@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createServer, type IncomingMessage } from 'node:http';
 import process from 'node:process';
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -204,6 +205,22 @@ const server = new McpServer(
       'Use this server to play Delta-V via quick match. Create a session, inspect state/events, send actions, and chat.',
   },
 );
+
+// HTTP tool handler registry: maps tool names to their async handler
+// functions so the HTTP endpoint can dispatch without MCP protocol overhead.
+// biome-ignore lint/suspicious/noExplicitAny: handlers accept varied argument shapes
+const httpHandlers = new Map<string, (args: any) => Promise<any>>();
+
+// Intercept registerTool to also capture handlers for HTTP dispatch.
+{
+  const orig = server.registerTool.bind(server);
+  // biome-ignore lint/suspicious/noExplicitAny: wrapping SDK generic
+  const wrapped: any = (name: string, config: any, handler: any) => {
+    if (typeof handler === 'function') httpHandlers.set(name, handler);
+    return orig(name, config, handler);
+  };
+  server.registerTool = wrapped;
+}
 
 server.registerTool(
   'delta_v_quick_match_connect',
@@ -663,9 +680,73 @@ server.registerTool(
   },
 );
 
+const DEFAULT_HTTP_PORT = 3939;
+
+const readBody = (req: IncomingMessage): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString()));
+    req.on('error', reject);
+  });
+
 const main = async (): Promise<void> => {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  const httpIdx = process.argv.indexOf('--http');
+  if (httpIdx === -1) {
+    // Default: stdio transport (backward compatible)
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    return;
+  }
+
+  // HTTP mode: lightweight JSON endpoint for concurrent multi-agent play.
+  // Each request is independent: POST { tool, arguments } → { result }.
+  // No MCP handshake needed — designed for local agent scripts.
+  const portArg = process.argv[httpIdx + 1];
+  const port =
+    portArg && !portArg.startsWith('-') ? Number(portArg) : DEFAULT_HTTP_PORT;
+
+  const httpServer = createServer(async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.writeHead(405);
+      res.end('Method not allowed');
+      return;
+    }
+
+    try {
+      const body = JSON.parse(await readBody(req)) as {
+        tool: string;
+        arguments?: Record<string, unknown>;
+      };
+      const handler = httpHandlers.get(body.tool);
+      if (!handler) {
+        res.writeHead(404);
+        res.end(JSON.stringify({ error: `Unknown tool: ${body.tool}` }));
+        return;
+      }
+      const result = await handler(body.arguments ?? {});
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result.structuredContent ?? result));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: msg }));
+    }
+  });
+
+  httpServer.listen(port, () => {
+    process.stderr.write(
+      `delta-v MCP server (HTTP) listening on http://127.0.0.1:${port}/\n`,
+    );
+  });
 };
 
 void main().catch((error: unknown) => {

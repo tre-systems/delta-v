@@ -29,6 +29,7 @@
     "llm:agent:claude": "npx tsx scripts/llm-agent-claude.ts",
     "llm:agent:groq": "tsx scripts/llm-agent-groq.ts",
     "mcp:delta-v": "tsx scripts/delta-v-mcp-server.ts",
+    "mcp:delta-v:http": "tsx scripts/delta-v-mcp-server.ts --http",
     "quickmatch:scrimmage": "tsx scripts/quick-match-scrimmage.ts",
     "quickmatch:agent": "tsx scripts/quick-match-agent.ts",
     "load:test": "tsx scripts/load-test.ts",
