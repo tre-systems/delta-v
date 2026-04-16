@@ -41,17 +41,18 @@ delta_v_wait_for_turn({
 })
 ```
 
-Note your `playerId` from the response.
+Note your `playerId` from the response. If this returns an error (gameOver or timeout), call `delta_v_get_observation` to check what happened.
 
 ### 3. Decision loop
 
 On each observation:
 
 1. If `state.phase === 'gameOver'`: announce result, call `delta_v_close_session`. Done.
-2. Read the `summary`, `spatialGrid`, `tactical`, and `labeledCandidates`.
-3. **Analyze the position** using the tactical principles below - don't just pick `recommendedIndex`.
-4. Choose an action: pick a candidate index OR craft a custom action.
-5. Send via `delta_v_send_action` with closed-loop response:
+2. If `state.activePlayer !== playerId` (not your turn in sequential phases): call `delta_v_wait_for_turn` (timeoutMs: 30000). If it errors with gameOver, get final observation and report result.
+3. Read the `summary`, `spatialGrid`, `tactical`, and `labeledCandidates`.
+4. **Analyze the position** using the tactical principles below — don't just pick `recommendedIndex`.
+5. Choose an action: pick a candidate OR craft a custom action.
+6. Send via `delta_v_send_action` with closed-loop response:
 
 ```
 delta_v_send_action({
@@ -63,8 +64,7 @@ delta_v_send_action({
 })
 ```
 
-6. If the next observation shows it's still your turn, go to step 2.
-7. If it's the opponent's turn, call `delta_v_wait_for_turn` (same enrichments, timeoutMs: 60000) then go to step 2.
+7. Check the response: if `accepted: true`, read the `nextObservation` and go to step 1. If `accepted: false`, the action was rejected (wrong phase, stale state) — get a fresh observation and retry. If `accepted: null` (pending), the server is waiting for the other player — call `delta_v_wait_for_turn`.
 
 For each turn, tell the user in 1-2 sentences what you see and your reasoning.
 
@@ -107,7 +107,8 @@ Launch torpedoes, mines, or nukes from ships with cargo space:
 ```
 
 - `torpedoAccel`: direction for initial boost. `torpedoAccelSteps`: 1 (close/slow target) or 2 (far/fast target).
-- Nukes launch at ship's velocity, no accel options. Nukes have no `torpedoAccel`/`torpedoAccelSteps`.
+- Torpedo candidate reasoning shows predicted first-turn position and distance to enemy — use this to judge intercept quality.
+- Nukes launch at ship's velocity, no accel options.
 - Mines are stationary. No accel options.
 - Skip: `{ "type": "skipOrdnance" }`
 
@@ -174,55 +175,55 @@ D = defensive only (can only counterattack, never initiate).
 
 ## Combat Mechanics
 
-- **Range modifier:** -1 per hex distance between attacker and target
-- **Velocity modifier:** -1 per hex of relative velocity difference above 2
-- **Modified roll** = d6 + rangeMod + velocityMod. Higher is better for attacker.
-- **Concentration pays off:** 2 ships attacking 1 target doubles your odds ratio (2:1 vs 1:1)
-- **Counterattack:** Defender always gets to shoot back at one attacker, same modifiers
-- **Disabled turns accumulate.** 6+ total = destroyed.
-
-Best combat conditions: range 0-1, relative velocity 0-2, concentrated fire.
+- **Range modifier:** -1 per hex of distance (range 3 = -3 penalty)
+- **Velocity modifier:** -1 per hex of relative velocity difference above 2 (rel. vel 5 = -3 penalty)
+- **Modified roll** = d6 - rangeMod - velocityMod. You need a high modified roll to damage.
+- If total penalty >= 4 (range + velocity), **skip combat** — even rolling 6 gives modified 2 or less, which almost never damages at 1:1 odds.
+- **Concentration pays off:** 2 ships attacking 1 target gives 2:1 odds (dramatically better damage table).
+- **Counterattack:** Defender always shoots back at one attacker with the same modifiers.
+- **Disabled turns accumulate.** 6+ total = destroyed. Disabled turns tick down by 1 each turn.
+- Candidate reasoning shows exact odds like `8 vs 8, range -2, vel -0, odds 1:1` — read these.
 
 ## Gravity
 
-Planets have gravity hexes. Ships entering a gravity hex get deflected one hex in the indicated direction on their NEXT move. Full gravity is mandatory. Weak gravity (Luna, Io, Callisto, Ganymede) can be ignored once, but two consecutive weak hexes from the same body force the second.
+Planets have gravity hexes (shown as `~` on the spatial grid). Ships entering a gravity hex get deflected one hex in the indicated direction on their NEXT move. Full gravity is mandatory. Weak gravity (Luna, Io, Callisto, Ganymede) can be ignored once, but two consecutive weak hexes from the same body force the second.
 
-**Sol is lethal** - entering Sol destroys the ship.
+**Sol is lethal** — entering Sol's surface destroys the ship. Candidate labels warn with `SOL DANGER` when a burn takes you close.
 
-Use gravity to: save fuel on turns, slingshot around planets, or predict where enemies will drift when disabled.
+Use gravity to: save fuel on turns, slingshot around planets, or predict where disabled enemies will drift.
 
 ## Tactical Reasoning Framework
 
 Before choosing each action, think through:
 
 ### Astrogation Analysis
-1. **Check candidate projections.** The `reasoning` field now shows projected destination, range to enemy, and RAM/SOL warnings. Read these before deciding.
-2. **Never go stationary.** Zeroing your velocity makes you a predictable target for ramming. Always keep some drift — it's both offense and defense.
-3. **Where will my ships be in 2 turns?** Add current velocity to position, then add the planned burn. Check for gravity hexes, map edges, and Sol.
-4. **Am I on an intercept course?** Think about where the enemy will be, not where they are. Predict their velocity + gravity drift.
-5. **Fuel budget:** Reserve at least 3 fuel for endgame course corrections. Running dry = helpless drift.
+1. **Read candidate projections.** The `reasoning` field shows projected destination, range to enemy, and `RAM WARNING` / `SOL DANGER` alerts. Compare candidates on these.
+2. **Never go stationary.** Zeroing your velocity makes you a sitting target for ramming. Always keep some drift — velocity is both offense and defense.
+3. **Where will my ships be in 2 turns?** The NEXT TURN PREDICTIONS section in the summary shows velocity + gravity drift for every ship.
+4. **Am I on an intercept course?** Think about where the enemy will be, not where they are now. Their prediction is in the summary too.
+5. **Fuel budget:** Reserve at least 3 fuel for endgame corrections. Running dry = helpless drift.
 6. **Gravity opportunities:** If near a planet, can I use its gravity to change heading for free?
-7. **Avoid Sol.** Any trajectory that passes through Sol's hex = instant death.
-8. **Ramming is powerful.** If your projected position lands on the enemy's hex, you'll ram. Ram damage ranges from 0 to D5 — it can instantly kill a damaged ship.
+7. **Ramming is powerful.** If a candidate shows `RAM WARNING`, decide: is ramming good here (enemy is damaged) or bad (you'll take damage too)? Ram damage ranges from 0 to D5.
+8. **A coast candidate is always available.** Compare burning vs coasting — sometimes saving fuel and drifting is the best move.
 
 ### Combat Analysis
-1. **Range + velocity mods:** Compute `hex_distance(attacker, target)` as range penalty. Compute velocity difference as velocity penalty. If total modifier <= -4, skip (you'll almost certainly miss).
-2. **Focus fire:** Always concentrate all available ships on one target. 2:1 odds are dramatically better than two 1:1 attacks.
-3. **Disable priority:** Target already-disabled ships to stack damage toward destruction (6 = eliminated).
-4. **Base defense zones:** Bases auto-attack adjacent enemies. Don't fly into enemy base hexes carelessly.
+1. **Read the odds in candidate reasoning.** It shows `attack vs defend, range -N, vel -N, odds X:Y`. If the total penalty is >= 4, skip.
+2. **Focus fire:** Always concentrate all available ships on one target.
+3. **Disable priority:** Target already-disabled ships to stack toward 6 (= destroyed).
+4. **Counterattack awareness:** The defender shoots back. At 1:1 odds you take as much as you dish out.
 
 ### Ordnance Analysis
-1. **Torpedoes:** Best when enemy is 3-6 hexes away and heading toward you. Aim torpedo accel direction at their predicted position.
-2. **Nukes:** High risk/reward. Only launch when enemy is close AND you can clear the blast zone. Your ships in the nuke hex die too.
-3. **Mines:** Drop when retreating or defending a chokepoint near gravity hexes.
-4. **Skip when uncertain.** Wasted ordnance is worse than no ordnance.
+1. **Torpedo candidates show intercept prediction.** e.g. `torpedo -> (2,2), 2 hex from p1s0`. If the distance is > 4, the torpedo probably won't intercept — skip.
+2. **Nukes** are high risk/reward. Only when enemy is close AND you can clear the blast zone.
+3. **Skip when uncertain.** Wasted ordnance is worse than no ordnance.
 
 ### Candidate Evaluation
-The observation gives you `labeledCandidates` with risk tags. Don't blindly follow `recommendedIndex`. Instead:
-1. Read each candidate's `label` and `risk` tag
-2. Evaluate whether the recommended action aligns with your strategic situation
-3. Consider: Is this a winning position (press the attack) or losing (conserve, retreat)?
-4. Custom actions are legal - you can craft burns the AI didn't suggest if you see a better trajectory
+Don't blindly follow `recommendedIndex`. The observation gives you `labeledCandidates` with:
+- `label`: what the action does
+- `reasoning`: projected outcomes (destination, range, fuel cost, combat odds, torpedo intercept, RAM/SOL warnings)
+- `risk`: low / medium / high
+
+Compare ALL candidates. The coast option may be better than the AI's recommended burn. A skip may be better than a nuke launch.
 
 ## Scenario Strategies
 
@@ -239,11 +240,12 @@ Asymmetric: fugitives run for the map edge, enforcers intercept. As fugitive: bu
 Protect or destroy a convoy crossing the map. Escort ships screen the transports. Attackers should isolate and destroy transports, not waste shots on escorts.
 
 ### Evacuation
-Evacuate passengers from a doomed station. Speed is everything - get transports loaded and moving before the enemy arrives.
+Evacuate passengers from a doomed station. Speed is everything — get transports loaded and moving before the enemy arrives.
 
 ## Error Handling
 
-- If `send_action` returns `accepted: false`, read the error and adjust (wrong phase, bad ship ID, illegal action).
-- If `wait_for_turn` times out, call `delta_v_get_state` to check if the game ended.
-- If you see `actionRejected` in events, your last action was illegal - check the reason and retry.
-- Keep playing through errors. Don't give up on a game because of one rejected action.
+- **`accepted: false`** means the action was rejected. Common causes: wrong phase (the game advanced while you were deciding), invalid ship ID, illegal action. Get a fresh observation and retry.
+- **`accepted: null` (pending)** means the server is waiting for both players (e.g. simultaneous astrogation). Call `delta_v_wait_for_turn` to block until resolved.
+- **`wait_for_turn` error: gameOver** means the game ended while you were waiting. Call `delta_v_get_observation` to see the final state, announce the result.
+- **`wait_for_turn` timeout** means the opponent hasn't moved yet. Retry with a fresh `wait_for_turn`.
+- **Keep playing through errors.** Don't give up on a game because of one rejected action.
