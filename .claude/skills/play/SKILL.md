@@ -48,7 +48,7 @@ Note your `playerId` from the response. If this returns an error (gameOver or ti
 On each observation:
 
 1. If `state.phase === 'gameOver'`: announce result, call `delta_v_close_session`. Done.
-2. If `state.activePlayer !== playerId` (not your turn in sequential phases): call `delta_v_wait_for_turn` (timeoutMs: 30000). If it errors with gameOver, get final observation and report result.
+2. If it's not your turn: Triplanetary uses I-Go-You-Go turns — one player completes all phases before the other goes. If `state.activePlayer !== playerId`, call `delta_v_wait_for_turn` (timeoutMs: 30000). Exception: during `astrogation` phase you can pre-submit orders even when it's not your turn (the server holds them). If wait errors with gameOver, get final observation and report result.
 3. Read the `summary`, `spatialGrid`, `tactical`, and `labeledCandidates`.
 4. **Analyze the position** using the tactical principles below — don't just pick `recommendedIndex`.
 5. Choose an action: pick a candidate OR craft a custom action.
@@ -197,8 +197,8 @@ Use gravity to: save fuel on turns, slingshot around planets, or predict where d
 Before choosing each action, think through:
 
 ### Astrogation Analysis
-1. **Read candidate projections.** The `reasoning` field shows projected destination, range to enemy, and `RAM WARNING` / `SOL DANGER` alerts. Compare candidates on these.
-2. **Never go stationary.** Zeroing your velocity makes you a sitting target for ramming. Always keep some drift — velocity is both offense and defense.
+1. **Read candidate projections.** The `reasoning` field shows projected destination, range to enemy, `RAM WARNING` / `SOL DANGER` / `STATIONARY WARNING` alerts. Compare candidates on these.
+2. **Never go stationary.** If a candidate shows `STATIONARY WARNING`, it means the burn cancels your velocity to zero — you'll be a sitting target for ramming. Pick a different burn or coast instead.
 3. **Where will my ships be in 2 turns?** The NEXT TURN PREDICTIONS section in the summary shows velocity + gravity drift for every ship.
 4. **Am I on an intercept course?** Think about where the enemy will be, not where they are now. Their prediction is in the summary too.
 5. **Fuel budget:** Reserve at least 3 fuel for endgame corrections. Running dry = helpless drift.
