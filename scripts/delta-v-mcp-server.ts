@@ -53,10 +53,53 @@ const asTextContent = (text: string): { type: 'text'; text: string } => ({
   text,
 });
 
-const toolOk = <T>(text: string, structuredContent: T) => ({
-  content: [asTextContent(text)],
-  structuredContent,
-});
+const MAX_EMBEDDED_JSON_CHARS = 25_000;
+const toolOk = <T extends Record<string, unknown>>(
+  text: string,
+  structuredContent: T,
+) => {
+  // Cursor's MCP tool UI often shows only `content[0].text` to the LLM, while
+  // `structuredContent` can be hidden. Embed a (bounded) JSON copy so agents
+  // can still parse the observation/candidate actions.
+  let jsonText: string | undefined;
+  try {
+    jsonText = JSON.stringify(structuredContent);
+  } catch {
+    // ignore
+  }
+  const embedded =
+    jsonText && jsonText.length <= MAX_EMBEDDED_JSON_CHARS
+      ? `${text}\n\nSTRUCTURED_RESULT_JSON:\n${jsonText}`
+      : `${text}${
+          jsonText
+            ? `\n\nSTRUCTURED_RESULT_JSON (not embedded; ${jsonText.length} chars)`
+            : ''
+        }`;
+  return {
+    content: [asTextContent(embedded)],
+    structuredContent,
+  };
+};
+
+const stripStateForLLM = <T extends { state?: unknown }>(
+  obs: T,
+): Omit<T, 'state'> & {
+  state?: { phase?: unknown; turnNumber?: unknown; activePlayer?: unknown };
+} => {
+  // Observations can include a full `state` object, which is large. Keep a
+  // tiny subset needed by the repo's agent skills (e.g. `state.phase`).
+  const { state, ...rest } = obs;
+  if (!state) return rest;
+  const safeState = state as Record<string, unknown>;
+  return {
+    ...rest,
+    state: {
+      phase: safeState.phase,
+      turnNumber: safeState.turnNumber,
+      activePlayer: safeState.activePlayer,
+    },
+  };
+};
 
 const normalizeServerUrl = (raw: string): string => raw.replace(/\/+$/, '');
 
@@ -182,7 +225,10 @@ const attachSessionListeners = (session: DeltaVSession): void => {
   });
 
   const onClosed = (): void => {
-    sessions.delete(session.sessionId);
+    // Give any in-flight / immediately-following tool calls a short grace
+    // window before deleting session state. This avoids transient
+    // `Unknown sessionId` errors.
+    setTimeout(() => sessions.delete(session.sessionId), 30_000);
   };
 
   session.ws.on('close', onClosed);
@@ -277,6 +323,22 @@ server.registerTool(
     // Attach listeners before awaiting open so early welcome/state messages are not lost.
     attachSessionListeners(session);
     await waitForOpen(ws);
+
+    // Ensure we received the initial welcome/playerId before returning. Some
+    // ws close paths happen before welcome; in those cases, subsequent calls
+    // would fail with Unknown sessionId.
+    const welcomeDeadline = Date.now() + 10_000;
+    while (Date.now() < welcomeDeadline && session.playerId === null) {
+      const remaining = welcomeDeadline - Date.now();
+      // Wait for any next state-bearing message (welcome counts).
+      const arrived = await waitForNextState(session, remaining);
+      if (!arrived) break;
+    }
+    if (session.playerId === null) {
+      throw new Error(
+        `Timed out waiting for welcome/playerId on session ${sessionId}`,
+      );
+    }
 
     return toolOk(
       `Connected Delta-V session ${sessionId} (code ${matched.code}).`,
@@ -376,10 +438,11 @@ server.registerTool(
       includeSpatialGrid,
       includeCandidateLabels,
     });
+    const observationForLLM = stripStateForLLM(observation);
 
     return toolOk(
       `Observation for session ${sessionId} (turn ${session.lastState.turnNumber}, phase ${session.lastState.phase}).`,
-      { ...observation } as Record<string, unknown>,
+      observationForLLM as Record<string, unknown>,
     );
   },
 );
@@ -429,9 +492,10 @@ server.registerTool(
             includeSpatialGrid,
             includeCandidateLabels,
           });
+          const observationForLLM = stripStateForLLM(observation);
           return toolOk(
             `Actionable observation for session ${sessionId} (turn ${state.turnNumber}, phase ${state.phase}).`,
-            { ...observation } as Record<string, unknown>,
+            observationForLLM as Record<string, unknown>,
           );
         }
       }
@@ -554,16 +618,15 @@ server.registerTool(
     ): Record<string, unknown> | undefined => {
       if (!includeNextObservation) return undefined;
       if (session.playerId === null) return undefined;
-      return {
-        ...buildObservation(state, session.playerId, {
-          gameCode: session.code,
-          includeSummary,
-          includeLegalActionInfo,
-          includeTactical,
-          includeSpatialGrid,
-          includeCandidateLabels,
-        }),
-      } as Record<string, unknown>;
+      const observation = buildObservation(state, session.playerId, {
+        gameCode: session.code,
+        includeSummary,
+        includeLegalActionInfo,
+        includeTactical,
+        includeSpatialGrid,
+        includeCandidateLabels,
+      });
+      return stripStateForLLM(observation) as Record<string, unknown>;
     };
 
     while (Date.now() < deadline) {
