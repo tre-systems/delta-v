@@ -211,15 +211,20 @@ const SCENARIOS_INTERNAL = {
   duel: {
     name: 'Duel',
     tags: ['Combat'],
-    description: 'Frigates clash near Mercury ' + '— last ship standing wins',
+    description:
+      'Frigates face off across Mercury ' +
+      '— use gravity to outmaneuver your opponent',
+    rules: {
+      planetaryDefenseEnabled: false,
+    },
     startingPlayer: 1,
     players: [
       {
         ships: [
           {
             type: 'frigate',
-            position: getBodyOffset('Mercury', -1, -1),
-            velocity: { dq: 0, dr: 0 },
+            position: getBodyOffset('Mercury', 2, -3),
+            velocity: { dq: -1, dr: 1 },
             startLanded: false,
           },
         ],
@@ -232,8 +237,8 @@ const SCENARIOS_INTERNAL = {
         ships: [
           {
             type: 'frigate',
-            position: getBodyOffset('Mercury', 1, 1),
-            velocity: { dq: 0, dr: 0 },
+            position: getBodyOffset('Mercury', -2, 3),
+            velocity: { dq: 1, dr: -1 },
             startLanded: false,
           },
         ],
