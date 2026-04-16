@@ -16,7 +16,7 @@ The hook runs, in order:
 5. `rm -rf coverage` then `npm run test:coverage` (clean output dir)
 6. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e` (Playwright; see below)
 7. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e:a11y` (Playwright + axe baseline)
-8. `npm run simulate all 25 -- --ci`
+8. `npm run simulate all 40 -- --ci` (enough games per scenario to keep seat-balance checks meaningful; occasional non-fatal warnings can still appear for extreme seeds)
 
 ### Coverage (`test:coverage`)
 

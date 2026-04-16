@@ -181,8 +181,8 @@ Only direct room-code sharing. No lobby, no ranked ladder. Out of scope for beta
 |-------|--------|-------|
 | CI pipeline | Pass | All stages green |
 | TypeScript | Zero errors | Strict mode |
-| 1,818 unit tests | All pass | 130 test files |
-| 300+ AI simulations | 0 crashes | 9 scenarios × 25 iterations |
+| Unit tests | All pass | See latest CI run for counts |
+| AI simulations | 0 crashes | CI: 9 scenarios × 100 iterations; pre-commit: × 40 |
 | Wrangler config | Complete | DO + D1 + R2 + rate-limit + domain |
 | D1 migrations | Versioned | Applied on push |
 | Dry-run deploy | Pass | In CI |

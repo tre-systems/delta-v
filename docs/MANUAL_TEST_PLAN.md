@@ -938,7 +938,7 @@ Run the following command — all available scenarios
 should complete with **0 engine crashes**:
 
 ```
-npm run simulate -- all 25
+npm run simulate -- all 40
 ```
 
 The simulation randomises the starting player during
@@ -1084,7 +1084,7 @@ These complement manual testing and run in CI:
 | `npm test`                   | Unit, property, and regression tests across engine, client, and server                                                              |
 | `npm run test:e2e`           | Thin Playwright browser smoke coverage for boot, basic turn flow, mobile HUD/help, and core multiplayer join/chat/reconnect paths  |
 | `npm run test:e2e:a11y`      | Playwright + axe DOM accessibility baseline for menu, lobby, HUD/help overlay, and keyboard focus behaviour                       |
-| `npm run simulate -- all 25` | Engine stability / balance sweep across the current scenario roster                                                                 |
+| `npm run simulate -- all 40` | Engine stability / balance sweep across the current scenario roster (pre-commit / verify; CI uses 100×9)                                                                 |
 | `npm run lint`               | Code style                                                                                                                          |
 | `npm run typecheck:all`      | Type safety for app and tooling                                                                             |
 

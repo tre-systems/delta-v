@@ -58,9 +58,7 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
   escape: [0.0, 0.7], // Asymmetric — enforcers favored after moral victory tightening
   convoy: [0.3, 0.7], // Asymmetric escort
   evacuation: [0.0, 0.5], // Asymmetric sprint — corsair heavily favored in AI vs AI
-  // Head-to-head at low N is high-variance; keep a sanity band without flaky
-  // pre-commit when mirror AI collides on short openings (see duel scenario).
-  duel: [0.2, 0.8],
+  duel: [0.3, 0.7], // Symmetric combat (harness randomizes starting seat)
   blockade: [0.25, 0.65], // Asymmetric speed vs combat
   interplanetaryWar: [0.3, 0.7], // Equal credits, different bases
   fleetAction: [0.45, 0.8], // Mars has nav advantage
