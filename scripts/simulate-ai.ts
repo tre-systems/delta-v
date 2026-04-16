@@ -68,6 +68,9 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
 // Symmetric fleet-building scenarios where the starting player
 // should be randomized to cancel first-mover advantage.
 const RANDOMIZE_START_SCENARIOS: ReadonlySet<string> = new Set([
+  // Symmetric starts: cancel fixed scenario.startingPlayer so P0/P1 balance
+  // checks are not dominated by first-mover effects at low iteration counts.
+  'duel',
   'interplanetaryWar',
   'fleetAction',
 ]);
