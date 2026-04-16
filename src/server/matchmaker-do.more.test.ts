@@ -361,4 +361,47 @@ describe('MatchmakerDO additional coverage', () => {
     });
     expect(initFetch).toHaveBeenCalledTimes(2);
   });
+
+  it('emits a matchmaker_pairing_split console.error when allocation retries', async () => {
+    // Regression for P2-6: split pairings should be observable in production.
+    // We intercept console.error because the test harness doesn't provide a
+    // D1 binding; the structured log line is enough to verify the event is
+    // fired at the right moment.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    let calls = 0;
+    const { matchmaker } = createMatchmaker(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response('collision', { status: 409 });
+      }
+      return Response.json({ ok: true }, { status: 201 });
+    });
+
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: { playerKey: 'playerSplitA', username: 'Pilot A' },
+        }),
+      }),
+    );
+
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: { playerKey: 'playerSplitB', username: 'Pilot B' },
+        }),
+      }),
+    );
+
+    const splitLogCall = errorSpy.mock.calls.find(
+      ([tag]) =>
+        typeof tag === 'string' && tag.includes('matchmaker_pairing_split'),
+    );
+    expect(splitLogCall).toBeDefined();
+  });
 });

@@ -94,7 +94,7 @@ export const launchFleetActionScenario = async (page: Page): Promise<void> => {
   await page.click('[data-scenario="fleetAction"]');
   await waitForDisplay(page, '#fleetBuilding', 'flex');
   await page
-    .locator('.fleet-shop-item:not(.disabled)')
+    .locator('[data-testid="fleet-shop-item"]:not(.disabled)')
     .filter({ hasText: 'Corvette' })
     .first()
     .click();

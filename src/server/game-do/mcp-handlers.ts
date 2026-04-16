@@ -46,6 +46,10 @@ export interface McpRequestDeps {
     turn: number,
     err: unknown,
   ) => void;
+  // Structured observability for MCP observation requests that exceed the
+  // wall-clock budget. Injected by GameDO so this module stays unaware of
+  // the reporter implementation.
+  reportObservationTimeout?: (props: Record<string, unknown>) => void;
   handlers: ReturnType<typeof createGameStateActionHandlers>;
   idempotencyCache: IdempotencyKeyCache;
   stateWaiters: StateWaiters;
@@ -69,6 +73,50 @@ const json = (body: unknown, status = 200): Response =>
 
 const error = (status: number, message: string): Response =>
   json({ ok: false, error: message }, status);
+
+// Hard ceiling for an observation request. `buildObservation` is pure but
+// the dep pipeline (`resolvePlayerState`, `getCoachDirective`) can touch
+// storage and could hang if a future refactor makes something async. Give
+// observers a distinct error ("timeout") rather than letting Cloudflare
+// kill the request after its wall.
+const OBSERVATION_TIMEOUT_MS = 10_000;
+
+const withObservationTimeout = async <T>(
+  label: string,
+  deps: Pick<McpRequestDeps, 'reportObservationTimeout'>,
+  task: () => Promise<T>,
+): Promise<{ ok: true; value: T } | { ok: false; response: Response }> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const raced = await Promise.race<
+      { kind: 'value'; value: T } | { kind: 'timeout' }
+    >([
+      task().then((value) => ({ kind: 'value' as const, value })),
+      new Promise<{ kind: 'timeout' }>((resolve) => {
+        timer = setTimeout(
+          () => resolve({ kind: 'timeout' as const }),
+          OBSERVATION_TIMEOUT_MS,
+        );
+      }),
+    ]);
+    if (raced.kind === 'value') {
+      return { ok: true, value: raced.value };
+    }
+    deps.reportObservationTimeout?.({
+      handler: label,
+      timeoutMs: OBSERVATION_TIMEOUT_MS,
+    });
+    return {
+      ok: false,
+      response: error(
+        504,
+        `Observation request timed out after ${OBSERVATION_TIMEOUT_MS}ms`,
+      ),
+    };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
 
 // Look up which seat a presented token belongs to. Same logic as
 // resolveSeatAssignment but read-only.
@@ -183,15 +231,24 @@ const handleObservationRequest = async (
   const auth = await authorizeRequest(deps, url);
   if (!auth.ok) return auth.response;
   const { playerId, roomConfig } = auth.value;
-  const view = await resolvePlayerState(deps, playerId);
-  if (!view) return error(409, 'Game has no state yet — wait for gameStart');
-  const opts = parseObservationOptions(url.searchParams);
-  opts.gameCode = roomConfig.code;
-  opts.coachDirective =
-    (await getCoachDirective(deps.storage, playerId)) ?? undefined;
-  const observation = buildObservation(view.filtered, playerId, opts);
-  await deps.touchInactivity();
-  return json({ ok: true, ...observation });
+  const result = await withObservationTimeout('observation', deps, async () => {
+    const view = await resolvePlayerState(deps, playerId);
+    if (!view) {
+      return { kind: 'no-state' as const };
+    }
+    const opts = parseObservationOptions(url.searchParams);
+    opts.gameCode = roomConfig.code;
+    opts.coachDirective =
+      (await getCoachDirective(deps.storage, playerId)) ?? undefined;
+    const observation = buildObservation(view.filtered, playerId, opts);
+    await deps.touchInactivity();
+    return { kind: 'ok' as const, observation };
+  });
+  if (!result.ok) return result.response;
+  if (result.value.kind === 'no-state') {
+    return error(409, 'Game has no state yet — wait for gameStart');
+  }
+  return json({ ok: true, ...result.value.observation });
 };
 
 // Mirrors scripts/llm-player.ts:sendForState. fleetBuilding is the only

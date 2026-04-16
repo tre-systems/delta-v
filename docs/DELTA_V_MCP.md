@@ -4,8 +4,8 @@ This document is the MCP server/tool reference only.
 
 For onboarding and workflow:
 
-- `docs/AGENTS.md` (quick start + tuning workflow)
-- `AGENT_SPEC.md` (deep protocol/architecture)
+- [`AGENTS.md`](./AGENTS.md) (quick start + tuning workflow)
+- [`AGENT_SPEC.md`](../AGENT_SPEC.md) (deep protocol/architecture, lives at repo root)
 
 ## Discovery endpoints
 

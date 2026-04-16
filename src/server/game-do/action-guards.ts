@@ -3,8 +3,9 @@
 // clear `actionRejected` with the current state, not a silent drop or a
 // confusing phase error.
 
+import { allowedActionTypesForPhase } from '../../shared/agent/candidates';
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import type { ActionGuards, S2C } from '../../shared/types/protocol';
+import type { ActionGuards, C2S, S2C } from '../../shared/types/protocol';
 
 export type ActionRejectedMessage = Extract<S2C, { type: 'actionRejected' }>;
 
@@ -18,10 +19,21 @@ export interface ActionGuardRejection {
 // Check the caller-supplied guards against the current authoritative state.
 // Returns null when the action is safe to dispatch. Idempotency is checked
 // separately because it needs per-session state.
+//
+// The action `msg` is optional; when passed, an "expected phase" mismatch
+// is FORGIVEN if the action type is already valid for the current phase.
+// Rationale: `expectedPhase` is a stale-action replay guard, but the
+// action-type → phase mapping already provides the same protection. On the
+// turn-1 astrogation → ordnance transition, agents that race their next
+// submission occasionally carry an expectedPhase that lags the server by
+// one step; the engine would accept the action anyway, so there is no
+// safety value in rejecting it. See
+// `docs/AGENT_IMPROVEMENTS_LOG.md` for the observed behaviour.
 export const checkActionGuards = (
   guards: ActionGuards | undefined,
   state: GameState,
   playerId: PlayerId,
+  msg?: C2S,
 ): ActionGuardRejection | null => {
   if (!guards) return null;
 
@@ -36,10 +48,18 @@ export const checkActionGuards = (
   }
 
   if (guards.expectedPhase && guards.expectedPhase !== state.phase) {
-    return {
-      reason: 'stalePhase',
-      message: `expected phase ${guards.expectedPhase} but server is in ${state.phase}`,
-    };
+    const actionTypeOkForCurrentPhase =
+      msg !== undefined &&
+      allowedActionTypesForPhase(state.phase).has(msg.type as C2S['type']);
+    if (!actionTypeOkForCurrentPhase) {
+      return {
+        reason: 'stalePhase',
+        message: `expected phase ${guards.expectedPhase} but server is in ${state.phase}`,
+      };
+    }
+    // Stale guard, but the action type is valid for the real phase — let
+    // the engine handle it so agents that race their next submission stop
+    // seeing spurious turn-1 rejections.
   }
 
   // wrongActivePlayer is only meaningful for sequential phases; simultaneous
@@ -77,11 +97,18 @@ export class IdempotencyKeyCache {
       set = new Set();
       this.byPlayer.set(playerId, set);
     }
+    // Re-add to refresh insertion order so the ring behaves as LRU.
+    if (set.has(key)) {
+      set.delete(key);
+    }
     set.add(key);
-    // Trim to the most recent N keys so the ring stays bounded.
-    if (set.size > MAX_KEYS_PER_PLAYER) {
-      const trimmed = Array.from(set).slice(-MAX_KEYS_PER_PLAYER);
-      this.byPlayer.set(playerId, new Set(trimmed));
+    // Trim to the most recent N keys. Set iteration is guaranteed
+    // insertion-ordered, so shifting from the front drops the oldest entry
+    // without allocating a new Set.
+    while (set.size > MAX_KEYS_PER_PLAYER) {
+      const oldest = set.values().next().value as string | undefined;
+      if (oldest === undefined) break;
+      set.delete(oldest);
     }
   }
 

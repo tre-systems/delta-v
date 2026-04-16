@@ -80,6 +80,12 @@ const buildAIOrdnanceLogEntries = (
   });
 };
 
+// Single-player AI runs against the client's local simulation, not an
+// authoritative server. Local play doesn't have access to a seeded match
+// RNG, so a deterministic mid-bias function keeps heuristics stable across
+// replays of the same opening. Callers may override in tests.
+const LOCAL_AI_RNG: () => number = () => 0.5;
+
 export const deriveAIActionPlan = (
   state: GameState | null,
   playerId: PlayerId,
@@ -91,6 +97,7 @@ export const deriveAIActionPlan = (
     logistics: aiLogistics,
     combat: aiCombat,
   },
+  rng: () => number = LOCAL_AI_RNG,
 ): AIActionPlan => {
   if (!state || state.phase === 'gameOver') {
     return { kind: 'none' };
@@ -111,6 +118,7 @@ export const deriveAIActionPlan = (
         aiPlayer,
         map,
         difficulty,
+        rng,
       ),
       errorPrefix: 'AI astrogation error:',
     };
@@ -122,6 +130,7 @@ export const deriveAIActionPlan = (
       aiPlayer,
       map,
       difficulty,
+      rng,
     );
     return {
       kind: 'ordnance',

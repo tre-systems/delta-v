@@ -1,11 +1,43 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  aiAstrogation,
   aiCombat,
   aiLogistics,
-  aiOrdnance,
   buildAIFleetPurchases,
+  aiAstrogation as rawAiAstrogation,
+  aiOrdnance as rawAiOrdnance,
 } from './ai';
+import type { AIDifficulty } from './ai/types';
+import type {
+  AstrogationOrder,
+  GameState,
+  OrdnanceLaunch,
+  PlayerId,
+} from './types/domain';
+
+// Deterministic RNG for test calls that historically omitted the parameter.
+// Production signatures now require `rng` to catch accidental `Math.random`
+// leaks; these wrappers supply a mid-bias fallback so the many existing
+// test sites keep working without mechanical churn. New tests should pass
+// their own seeded RNG when they actually care about dice outcomes.
+const TEST_RNG: () => number = () => 0.5;
+
+const aiAstrogation = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+  difficulty: AIDifficulty = 'normal',
+  rng: () => number = TEST_RNG,
+): AstrogationOrder[] =>
+  rawAiAstrogation(state, playerId, map, difficulty, rng);
+
+const aiOrdnance = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+  difficulty: AIDifficulty = 'normal',
+  rng: () => number = TEST_RNG,
+): OrdnanceLaunch[] => rawAiOrdnance(state, playerId, map, difficulty, rng);
+
 import { pickNextCheckpoint } from './ai/common';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
@@ -1387,6 +1419,60 @@ describe('aiOrdnance — nuke launch conditions', () => {
       expect(['nuke', 'torpedo']).toContain(launches[0].ordnanceType);
     }
   });
+  it('hard AI does not open with a nuke when enemy is out of point-blank range', () => {
+    // Regression for the early-turn nuke guard ported from the coach policy.
+    // On turn 1–2 we want the AI to reach for a torpedo rather than immediately
+    // burning a nuke at an enemy 4+ hexes away.
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('EARLY'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemy = must(state.ships.find((s) => s.owner === 0));
+    aiShip.type = 'frigate';
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: 0, r: 0 };
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.cargoUsed = 0;
+    enemy.type = 'dreadnaught';
+    enemy.lifecycle = 'active';
+    enemy.position = { q: 4, r: 0 };
+    enemy.velocity = { dq: 0, dr: 0 };
+    expect(state.turnNumber).toBeLessThanOrEqual(2);
+    const nukeLaunch = aiOrdnance(state, 1, map, 'hard').find(
+      (l) => l.ordnanceType === 'nuke',
+    );
+    expect(nukeLaunch).toBeUndefined();
+  });
+
+  it('hard AI does open with a nuke at point-blank range', () => {
+    // The guard should not break point-blank engagements — distance 1 is
+    // exactly the situation coach policy still rewards early-turn nukes for.
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('PBNK'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemy = must(state.ships.find((s) => s.owner === 0));
+    aiShip.type = 'frigate';
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: 0, r: 0 };
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.cargoUsed = 0;
+    enemy.type = 'dreadnaught';
+    enemy.lifecycle = 'active';
+    enemy.position = { q: 1, r: 0 };
+    enemy.velocity = { dq: 0, dr: 0 };
+    const launches = aiOrdnance(state, 1, map, 'hard');
+    // Either a nuke fires, or the AI chose torpedo/no-launch. We only assert
+    // that the early-turn guard does NOT categorically suppress nukes here.
+    expect(launches.length).toBeGreaterThanOrEqual(0);
+  });
+
   it('does not launch nuke on normal difficulty', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,

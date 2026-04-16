@@ -15,7 +15,7 @@ test.describe('gameplay lifecycle', () => {
     });
 
     // Escape scenario gives player 0 three transports
-    await expect(page.locator('#shipList .ship-entry')).toHaveCount(3);
+    await expect(page.locator('[data-testid="ship-entry"]')).toHaveCount(3);
 
     // Multi-ship: confirm hidden, skip visible
     await expect(page.locator('#confirmBtn')).toBeHidden();

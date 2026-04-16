@@ -10,6 +10,7 @@ const sharedContractFixtures = JSON.parse(
   ),
 ) as {
   c2s: Record<string, { raw: unknown; expected: unknown }>;
+  c2sRejected?: Record<string, { raw: unknown; expectedOk: false }>;
 };
 
 const normalizeFixtureValue = (value: unknown): unknown => {
@@ -1486,6 +1487,21 @@ describe('C2S contract fixtures', () => {
       expect(normalizeFixtureValue(validateClientMessage(fixture.raw))).toEqual(
         fixture.expected,
       );
+    }
+  });
+
+  it('rejects every documented invalid C2S payload', () => {
+    // Negative-case fixtures live alongside the happy paths so regressions
+    // surface immediately: if someone relaxes a schema and an invalid
+    // payload silently starts passing, the corresponding fixture here
+    // fails and calls attention to the change.
+    const rejected = sharedContractFixtures.c2sRejected ?? {};
+    for (const [name, fixture] of Object.entries(rejected)) {
+      const result = validateClientMessage(fixture.raw);
+      expect(
+        result.ok,
+        `expected rejection for fixture ${name}, got: ${JSON.stringify(result)}`,
+      ).toBe(false);
     }
   });
 });

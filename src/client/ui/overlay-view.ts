@@ -260,6 +260,27 @@ export const createOverlayView = (
 
     visible(gameOverEl, gameOverShellVisible, 'flex');
 
+    // Keyboard escape from the game-over modal: route to `Exit` (returning
+    // the player to the menu) rather than `Rematch`, since Exit is the
+    // least-committing and matches Escape's conventional "dismiss" meaning.
+    // Listening at the document level so we catch Escape regardless of
+    // where focus lives when the modal opens; the visibility check
+    // prevents triggering when the modal is closed. The document-contains
+    // guard keeps jsdom tests that reset `document.body.innerHTML` between
+    // cases from firing orphaned listeners from previous fixtures.
+    listen(document, 'keydown', (event) => {
+      if (!document.contains(gameOverEl)) return;
+      if (!gameOverShellVisible.value) return;
+      const keyEvent = event as KeyboardEvent;
+      if (keyEvent.key !== 'Escape') return;
+      const exitBtn = document.getElementById(
+        'exitBtn',
+      ) as HTMLButtonElement | null;
+      if (!exitBtn || exitBtn.disabled) return;
+      keyEvent.preventDefault();
+      exitBtn.click();
+    });
+
     effect(() => {
       const gameOverView = state.gameOverViewSignal.value;
       const replayActive = state.replayControlsSignal.value.active;

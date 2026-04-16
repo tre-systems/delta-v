@@ -15,6 +15,7 @@ import type {
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
+import { MOBILE_BREAKPOINT_PX } from '../ui-breakpoints';
 
 export interface CoursePreviewPlanningState {
   selectedShipId: string | null;
@@ -221,7 +222,8 @@ const buildBurnMarkers = (
       12,
     );
 
-    const showLabel = typeof window === 'undefined' || window.innerWidth > 760;
+    const showLabel =
+      typeof window === 'undefined' || window.innerWidth > MOBILE_BREAKPOINT_PX;
     marker.label = showLabel ? String(direction + 1) : null;
     marker.labelColor =
       isActive || isHovered ? 'rgba(0, 0, 0, 0.9)' : 'rgba(79, 195, 247, 0.7)';
