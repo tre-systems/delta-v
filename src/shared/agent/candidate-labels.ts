@@ -9,6 +9,7 @@ import {
   getCombatStrength,
 } from '../combat';
 import { SHIP_STATS } from '../constants';
+import { HEX_DIRECTIONS, hexDistance } from '../hex';
 import type { GameState, PlayerId, Ship } from '../types/domain';
 import type { C2S } from '../types/protocol';
 import { describeCandidate } from './describe';
@@ -121,6 +122,92 @@ const describeCombatOdds = (
   return ` ${atkStr} vs ${defStr}, range -${rangeMod}, vel -${velMod}, odds ${odds}.`;
 };
 
+// Project where a ship ends up after a burn + pending gravity, and check
+// for collisions with enemy ships or Sol. Returns a short annotation string.
+const describeAstrogationProjection = (
+  action: Extract<C2S, { type: 'astrogation' }>,
+  state: GameState,
+  playerId: PlayerId,
+): string => {
+  const opponentId: PlayerId = playerId === 0 ? 1 : 0;
+  const notes: string[] = [];
+
+  for (const order of action.orders) {
+    const ship = findShip(state, order.shipId);
+    if (!ship || ship.owner !== playerId) continue;
+
+    // Compute new velocity after burn + overload
+    let dq = ship.velocity.dq;
+    let dr = ship.velocity.dr;
+    if (order.burn !== null) {
+      const dir = HEX_DIRECTIONS[order.burn];
+      if (dir) {
+        dq += dir.dq;
+        dr += dir.dr;
+      }
+    }
+    if (order.overload !== null) {
+      const dir = HEX_DIRECTIONS[order.overload];
+      if (dir) {
+        dq += dir.dq;
+        dr += dir.dr;
+      }
+    }
+
+    // Apply pending gravity
+    for (const grav of ship.pendingGravityEffects ?? []) {
+      if (grav.ignored) continue;
+      const dir = HEX_DIRECTIONS[grav.direction];
+      if (dir) {
+        dq += dir.dq;
+        dr += dir.dr;
+      }
+    }
+
+    const destQ = ship.position.q + dq;
+    const destR = ship.position.r + dr;
+
+    // Check for collision with enemy ships
+    for (const enemy of state.ships) {
+      if (enemy.owner === opponentId && enemy.lifecycle !== 'destroyed') {
+        if (enemy.position.q === destQ && enemy.position.r === destR) {
+          notes.push(
+            `RAM WARNING: ${ship.id} -> (${destQ},${destR}) collides with ${enemy.id}!`,
+          );
+        }
+      }
+    }
+
+    // Check proximity to Sol (destructive body at q=-2,r=2, surface radius 2)
+    const solDist = hexDistance({ q: destQ, r: destR }, { q: -2, r: 2 });
+    if (solDist <= 2) {
+      notes.push(
+        `SOL DANGER: ${ship.id} -> (${destQ},${destR}) is ${solDist} hex from Sol!`,
+      );
+    }
+
+    // Show projected destination and range to nearest enemy
+    let nearestEnemy = '';
+    let nearestDist = Infinity;
+    for (const enemy of state.ships) {
+      if (enemy.owner === opponentId && enemy.lifecycle !== 'destroyed') {
+        const d = hexDistance({ q: destQ, r: destR }, enemy.position);
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearestEnemy = enemy.id;
+        }
+      }
+    }
+    if (nearestEnemy) {
+      notes.push(
+        `${ship.id} -> (${destQ},${destR}), range ${nearestDist} to ${nearestEnemy}.`,
+      );
+    }
+  }
+
+  return notes.length > 0 ? ` ${notes.join(' ')}` : '';
+};
+
 const describeAstrogationCost = (
   action: Extract<C2S, { type: 'astrogation' }>,
   state: GameState,
@@ -172,7 +259,8 @@ const reasoningFor = (
         bits.push(`${overloads} overload${overloads === 1 ? '' : 's'}`);
       if (coasting > 0) bits.push(`${coasting} coasting`);
       const fuelInfo = describeAstrogationCost(action, state, playerId);
-      return `${prefix}: astrogation (${bits.join(', ') || 'no movement'}) on turn ${state.turnNumber}.${fuelInfo}`;
+      const projection = describeAstrogationProjection(action, state, playerId);
+      return `${prefix}: astrogation (${bits.join(', ') || 'no movement'}) on turn ${state.turnNumber}.${fuelInfo}${projection}`;
     }
     case 'ordnance':
       return `${prefix}: launch ${action.launches.length} ordnance (${action.launches

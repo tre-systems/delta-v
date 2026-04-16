@@ -99,7 +99,9 @@ export const buildStateSummary = (
   }
   if (predictions.length > 0) {
     lines.push('');
-    lines.push('NEXT TURN PREDICTIONS (velocity + gravity, before burns):');
+    lines.push(
+      'NEXT TURN PREDICTIONS (drift only — pending gravity will be applied during movement):',
+    );
     lines.push(...predictions);
   }
 

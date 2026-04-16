@@ -196,11 +196,14 @@ Use gravity to: save fuel on turns, slingshot around planets, or predict where e
 Before choosing each action, think through:
 
 ### Astrogation Analysis
-1. **Where will my ships be in 2 turns?** Add current velocity to position, then add the planned burn. Check for gravity hexes, map edges, and Sol.
-2. **Am I on an intercept course?** To reach an enemy at position (eq, er) with velocity (edq, edr), I need to match their position in N turns. Think about where they'll be, not where they are.
-3. **Fuel budget:** Reserve at least 3 fuel for endgame course corrections. Running dry = helpless drift.
-4. **Gravity opportunities:** If near a planet, can I use its gravity to change heading for free?
-5. **Avoid Sol.** Any trajectory that passes through Sol's hex = instant death.
+1. **Check candidate projections.** The `reasoning` field now shows projected destination, range to enemy, and RAM/SOL warnings. Read these before deciding.
+2. **Never go stationary.** Zeroing your velocity makes you a predictable target for ramming. Always keep some drift — it's both offense and defense.
+3. **Where will my ships be in 2 turns?** Add current velocity to position, then add the planned burn. Check for gravity hexes, map edges, and Sol.
+4. **Am I on an intercept course?** Think about where the enemy will be, not where they are. Predict their velocity + gravity drift.
+5. **Fuel budget:** Reserve at least 3 fuel for endgame course corrections. Running dry = helpless drift.
+6. **Gravity opportunities:** If near a planet, can I use its gravity to change heading for free?
+7. **Avoid Sol.** Any trajectory that passes through Sol's hex = instant death.
+8. **Ramming is powerful.** If your projected position lands on the enemy's hex, you'll ram. Ram damage ranges from 0 to D5 — it can instantly kill a damaged ship.
 
 ### Combat Analysis
 1. **Range + velocity mods:** Compute `hex_distance(attacker, target)` as range penalty. Compute velocity difference as velocity penalty. If total modifier <= -4, skip (you'll almost certainly miss).
@@ -224,7 +227,7 @@ The observation gives you `labeledCandidates` with risk tags. Don't blindly foll
 ## Scenario Strategies
 
 ### Duel
-1v1 frigate fight near Mercury. Planetary defense bases attack adjacent enemies. Key: use your base's defense zone, lure enemy into it. Don't rush blindly into their base hex. Games are short (2-5 turns).
+1v1 frigate fight across Mercury's gravity well. No base defense — pure ship combat. Ships start 6 hexes apart with initial velocity toward Mercury. Key tactics: use gravity for free course changes, time ordnance for close-range intercepts, and watch for ramming opportunities. Never go stationary — you'll get rammed. Games last 4-8 turns.
 
 ### Biplanetary
 Land a ship on the enemy's home planet. Split focus between objective (reaching their planet) and defense (stopping them from reaching yours). Gravity assists around Mercury are critical for fuel efficiency.
