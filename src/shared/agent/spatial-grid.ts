@@ -9,12 +9,7 @@
 
 import type { HexCoord } from '../hex';
 import { hexDistance } from '../hex';
-import type {
-  GameState,
-  PlayerId,
-  Ship,
-  SolarSystemMap,
-} from '../types/domain';
+import type { GameState, PlayerId, SolarSystemMap } from '../types/domain';
 
 const VIEWPORT_PADDING = 2;
 
@@ -29,6 +24,8 @@ interface Marker {
   legend: string;
 }
 
+// Maps "sign(dq),sign(dr)" to a Unicode arrow for the dominant velocity
+// direction. Used to annotate ship markers on the ASCII grid.
 const VELOCITY_ARROW: Record<string, string> = {
   '1,0': '►',
   '1,-1': '◥',
@@ -152,6 +149,7 @@ const computeViewport = (
     if (body) points.push(body.center);
   }
 
+  // Fallback viewport when no ships/bodies are visible (e.g. pre-game).
   if (points.length === 0) return { minQ: -3, maxQ: 3, minR: -3, maxR: 3 };
 
   let minQ = Number.POSITIVE_INFINITY;
@@ -222,24 +220,15 @@ export const renderSpatialGrid = (
     lines.push(parts.join(''));
   }
 
-  // Deduplicate legend entries by character when they collide.
-  const seenLegends = new Set<string>();
-  const legendLines: string[] = [];
-  for (const marker of markers.values()) {
-    if (seenLegends.has(marker.legend)) continue;
-    seenLegends.add(marker.legend);
-    legendLines.push(marker.legend);
-  }
+  // Deduplicate legend entries; filter empty strings (e.g. gravity markers).
+  const legendLines = [
+    ...new Set(
+      [...markers.values()].map((m) => m.legend).filter((l) => l !== ''),
+    ),
+  ];
 
   // Summary footer (distance hint keeps agents from parsing coordinates twice).
-  const ownShips = state.ships.filter(
-    (s) => s.owner === playerId && s.lifecycle !== 'destroyed',
-  );
-  const opponentId: PlayerId = playerId === 0 ? 1 : 0;
-  const detectedEnemies = state.ships.filter(
-    (s) => s.owner === opponentId && s.detected && s.lifecycle !== 'destroyed',
-  );
-  const nearest = nearestDistance(ownShips, detectedEnemies);
+  const nearest = computeNearestEnemyDistance(state, playerId);
 
   const header =
     'Legend: @ = your ship  ! = detected enemy  * = body  ' +
@@ -253,13 +242,25 @@ export const renderSpatialGrid = (
   return [header, '', ...lines, '', ...legendLines, '', footer].join('\n');
 };
 
-const nearestDistance = (
-  owned: readonly Ship[],
-  detected: readonly Ship[],
+// Compute nearest hex distance between any own operational ship and any
+// detected enemy ship. Shared logic with tactical.ts (which also computes
+// nearestEnemyDistance) — kept here as a private helper to avoid a circular
+// dependency on the tactical module.
+const computeNearestEnemyDistance = (
+  state: GameState,
+  playerId: PlayerId,
 ): number | null => {
+  const opponentId: PlayerId = playerId === 0 ? 1 : 0;
   let best: number | null = null;
-  for (const own of owned) {
-    for (const enemy of detected) {
+  for (const own of state.ships) {
+    if (own.owner !== playerId || own.lifecycle === 'destroyed') continue;
+    for (const enemy of state.ships) {
+      if (
+        enemy.owner !== opponentId ||
+        enemy.lifecycle === 'destroyed' ||
+        !enemy.detected
+      )
+        continue;
       const d = hexDistance(own.position, enemy.position);
       if (best === null || d < best) best = d;
     }
