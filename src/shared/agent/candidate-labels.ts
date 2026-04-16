@@ -177,6 +177,25 @@ const describeAstrogationDetails = (
     const destR = ship.position.r + dr;
     const dest = { q: destQ, r: destR };
 
+    // Warn if burn cancels velocity to zero — stationary ships are easy
+    // ram targets and can't maneuver if disabled.
+    let postBurnDq = ship.velocity.dq;
+    let postBurnDr = ship.velocity.dr;
+    for (const burnDir of [order.burn, order.overload]) {
+      if (burnDir !== null) {
+        const bDir = HEX_DIRECTIONS[burnDir];
+        if (bDir) {
+          postBurnDq += bDir.dq;
+          postBurnDr += bDir.dr;
+        }
+      }
+    }
+    if (postBurnDq === 0 && postBurnDr === 0) {
+      notes.push(
+        `STATIONARY WARNING: ${ship.id} will have zero velocity after this burn.`,
+      );
+    }
+
     // Collision check: ram warning if landing on an enemy hex
     for (const enemy of enemies) {
       if (enemy.position.q === destQ && enemy.position.r === destR) {
