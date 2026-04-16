@@ -22,9 +22,37 @@ export interface LabeledCandidate {
   risk: 'low' | 'medium' | 'high';
 }
 
-// Heuristic risk tagging. Skip actions are always low risk. Nukes are high.
-// Overload burns and multi-attacker combat against unseen targets skew medium.
-// This is deliberately crude — it gives the LLM a prior, not a verdict.
+// --- Shared helpers ---
+
+const findShip = (state: GameState, id: string): Ship | undefined =>
+  state.ships.find((s) => s.id === id);
+
+const getEnemyShips = (state: GameState, playerId: PlayerId): Ship[] => {
+  const opponentId: PlayerId = playerId === 0 ? 1 : 0;
+  return state.ships.filter(
+    (s) => s.owner === opponentId && s.lifecycle !== 'destroyed',
+  );
+};
+
+// Find nearest enemy from a given hex position. Returns { id, distance } or
+// null when no enemies exist. Used by astrogation projections and torpedo
+// intercept prediction to avoid duplicating the inner distance loop.
+const findNearestEnemy = (
+  pos: { q: number; r: number },
+  enemies: readonly Ship[],
+): { id: string; distance: number } | null => {
+  let best: { id: string; distance: number } | null = null;
+  for (const enemy of enemies) {
+    const d = hexDistance(pos, enemy.position);
+    if (!best || d < best.distance) best = { id: enemy.id, distance: d };
+  }
+  return best;
+};
+
+// Heuristic risk tagging. Crude but consistent:
+//   high  = nukes, surrender (irreversible, large consequences)
+//   medium = overloads, ordnance, base emplacement, attacking undetected ships
+//   low   = everything else (skips, normal burns, detected-target combat)
 const riskFor = (
   action: C2S,
   state: GameState,
@@ -38,60 +66,39 @@ const riskFor = (
     case 'ping':
     case 'rematch':
     case 'endCombat':
-      return 'low';
-
     case 'fleetReady':
+    case 'beginCombat':
+    case 'logistics':
       return 'low';
 
-    case 'astrogation': {
-      const hasOverload = action.orders.some((o) => o.overload !== null);
-      return hasOverload ? 'medium' : 'low';
-    }
+    case 'astrogation':
+      return action.orders.some((o) => o.overload !== null) ? 'medium' : 'low';
 
     case 'surrender':
       return 'high';
 
-    case 'ordnance': {
-      const hasNuke = action.launches.some((l) => l.ordnanceType === 'nuke');
-      return hasNuke ? 'high' : 'medium';
-    }
+    case 'ordnance':
+      return action.launches.some((l) => l.ordnanceType === 'nuke')
+        ? 'high'
+        : 'medium';
 
     case 'emplaceBase':
       return 'medium';
 
-    case 'beginCombat':
-      return 'low';
-
     case 'combat':
     case 'combatSingle': {
-      // Attacking an undetected target we think we know about is risky.
-      // An attack against a resolved (detected) ship is low risk; targeting
-      // ordnance is always low risk. Ships missing from the projection get
-      // treated as unseen.
+      // Attacking undetected targets is risky; detected targets are routine.
       const attacks =
         action.type === 'combat' ? action.attacks : [action.attack];
-      const opponentId: PlayerId = playerId === 0 ? 1 : 0;
-      const enemyShipIds = new Set(
-        state.ships
-          .filter((s) => s.owner === opponentId)
-          .map((s) => s.id as string),
-      );
       const enemyById = new Map(
-        state.ships
-          .filter((s) => s.owner === opponentId)
-          .map((s) => [s.id as string, s] as const),
+        getEnemyShips(state, playerId).map((s) => [s.id as string, s]),
       );
       const anyUnseen = attacks.some((atk) => {
-        const targetId = atk.targetId as unknown as string;
-        if (!enemyShipIds.has(targetId)) return false; // targeting ordnance
-        const target = enemyById.get(targetId);
-        return target ? !target.detected : true;
+        const target = enemyById.get(String(atk.targetId));
+        return target ? !target.detected : false;
       });
       return anyUnseen ? 'medium' : 'low';
     }
-
-    case 'logistics':
-      return 'low';
 
     default: {
       const _exhaustive: never = action;
@@ -100,8 +107,7 @@ const riskFor = (
   }
 };
 
-const findShip = (state: GameState, id: string): Ship | undefined =>
-  state.ships.find((s) => s.id === id);
+// --- Combat odds ---
 
 const describeCombatOdds = (
   attackerIds: readonly string[],
@@ -122,39 +128,43 @@ const describeCombatOdds = (
   return ` ${atkStr} vs ${defStr}, range -${rangeMod}, vel -${velMod}, odds ${odds}.`;
 };
 
-// Project where a ship ends up after a burn + pending gravity, and check
-// for collisions with enemy ships or Sol. Returns a short annotation string.
-const describeAstrogationProjection = (
+// --- Astrogation: fuel cost, projected destination, collision warnings ---
+// Combined into one function to iterate orders once rather than twice.
+
+const describeAstrogationDetails = (
   action: Extract<C2S, { type: 'astrogation' }>,
   state: GameState,
   playerId: PlayerId,
 ): string => {
-  const opponentId: PlayerId = playerId === 0 ? 1 : 0;
+  const enemies = getEnemyShips(state, playerId);
   const notes: string[] = [];
+  let totalCost = 0;
+  let totalFuelBefore = 0;
+  let totalFuelCapacity = 0;
 
   for (const order of action.orders) {
     const ship = findShip(state, order.shipId);
     if (!ship || ship.owner !== playerId) continue;
 
-    // Compute new velocity after burn + overload
+    // Fuel accounting
+    totalFuelBefore += ship.fuel;
+    const stats = SHIP_STATS[ship.type];
+    totalFuelCapacity += Number.isFinite(stats.fuel) ? stats.fuel : 0;
+    if (order.burn !== null) totalCost += 1;
+    if (order.overload !== null) totalCost += 1;
+
+    // Project destination: velocity + burn + overload + pending gravity
     let dq = ship.velocity.dq;
     let dr = ship.velocity.dr;
-    if (order.burn !== null) {
-      const dir = HEX_DIRECTIONS[order.burn];
-      if (dir) {
-        dq += dir.dq;
-        dr += dir.dr;
+    for (const burnDir of [order.burn, order.overload]) {
+      if (burnDir !== null) {
+        const dir = HEX_DIRECTIONS[burnDir];
+        if (dir) {
+          dq += dir.dq;
+          dr += dir.dr;
+        }
       }
     }
-    if (order.overload !== null) {
-      const dir = HEX_DIRECTIONS[order.overload];
-      if (dir) {
-        dq += dir.dq;
-        dr += dir.dr;
-      }
-    }
-
-    // Apply pending gravity
     for (const grav of ship.pendingGravityEffects ?? []) {
       if (grav.ignored) continue;
       const dir = HEX_DIRECTIONS[grav.direction];
@@ -163,74 +173,46 @@ const describeAstrogationProjection = (
         dr += dir.dr;
       }
     }
-
     const destQ = ship.position.q + dq;
     const destR = ship.position.r + dr;
+    const dest = { q: destQ, r: destR };
 
-    // Check for collision with enemy ships
-    for (const enemy of state.ships) {
-      if (enemy.owner === opponentId && enemy.lifecycle !== 'destroyed') {
-        if (enemy.position.q === destQ && enemy.position.r === destR) {
-          notes.push(
-            `RAM WARNING: ${ship.id} -> (${destQ},${destR}) collides with ${enemy.id}!`,
-          );
-        }
+    // Collision check: ram warning if landing on an enemy hex
+    for (const enemy of enemies) {
+      if (enemy.position.q === destQ && enemy.position.r === destR) {
+        notes.push(
+          `RAM WARNING: ${ship.id} -> (${destQ},${destR}) collides with ${enemy.id}!`,
+        );
       }
     }
 
-    // Check proximity to Sol (destructive body at q=-2,r=2, surface radius 2)
-    const solDist = hexDistance({ q: destQ, r: destR }, { q: -2, r: 2 });
+    // Sol proximity check (center q=-2 r=2, surface radius 2)
+    const solDist = hexDistance(dest, { q: -2, r: 2 });
     if (solDist <= 2) {
       notes.push(
         `SOL DANGER: ${ship.id} -> (${destQ},${destR}) is ${solDist} hex from Sol!`,
       );
     }
 
-    // Show projected destination and range to nearest enemy
-    let nearestEnemy = '';
-    let nearestDist = Infinity;
-    for (const enemy of state.ships) {
-      if (enemy.owner === opponentId && enemy.lifecycle !== 'destroyed') {
-        const d = hexDistance({ q: destQ, r: destR }, enemy.position);
-        if (d < nearestDist) {
-          nearestDist = d;
-          nearestEnemy = enemy.id;
-        }
-      }
-    }
-    if (nearestEnemy) {
+    // Projected position + range to nearest enemy
+    const nearest = findNearestEnemy(dest, enemies);
+    if (nearest) {
       notes.push(
-        `${ship.id} -> (${destQ},${destR}), range ${nearestDist} to ${nearestEnemy}.`,
+        `${ship.id} -> (${destQ},${destR}), range ${nearest.distance} to ${nearest.id}.`,
       );
     }
   }
 
-  return notes.length > 0 ? ` ${notes.join(' ')}` : '';
-};
-
-const describeAstrogationCost = (
-  action: Extract<C2S, { type: 'astrogation' }>,
-  state: GameState,
-  playerId: PlayerId,
-): string => {
-  let totalCost = 0;
-  let totalFuelBefore = 0;
-  for (const order of action.orders) {
-    const ship = findShip(state, order.shipId);
-    if (!ship || ship.owner !== playerId) continue;
-    totalFuelBefore += ship.fuel;
-    if (order.burn !== null) totalCost += 1;
-    if (order.overload !== null) totalCost += 1;
+  // Compose: fuel info (if any burns) + projection notes
+  const parts: string[] = [];
+  if (totalCost > 0) {
+    const remaining = totalFuelBefore - totalCost;
+    parts.push(
+      `Fuel: -${totalCost}, remaining ${remaining}/${totalFuelCapacity}.`,
+    );
   }
-  if (totalCost === 0) return '';
-  const maxFuel = action.orders.reduce((sum, o) => {
-    const ship = findShip(state, o.shipId);
-    if (!ship || ship.owner !== playerId) return sum;
-    const stats = SHIP_STATS[ship.type];
-    return sum + (Number.isFinite(stats.fuel) ? stats.fuel : 0);
-  }, 0);
-  const remaining = totalFuelBefore - totalCost;
-  return ` Fuel: -${totalCost}, remaining ${remaining}/${maxFuel}.`;
+  parts.push(...notes);
+  return parts.length > 0 ? ` ${parts.join(' ')}` : '';
 };
 
 const reasoningFor = (
@@ -258,16 +240,16 @@ const reasoningFor = (
       if (overloads > 0)
         bits.push(`${overloads} overload${overloads === 1 ? '' : 's'}`);
       if (coasting > 0) bits.push(`${coasting} coasting`);
-      const fuelInfo = describeAstrogationCost(action, state, playerId);
-      const projection = describeAstrogationProjection(action, state, playerId);
-      return `${prefix}: astrogation (${bits.join(', ') || 'no movement'}) on turn ${state.turnNumber}.${fuelInfo}${projection}`;
+      const details = describeAstrogationDetails(action, state, playerId);
+      return `${prefix}: astrogation (${bits.join(', ') || 'no movement'}) on turn ${state.turnNumber}.${details}`;
     }
     case 'ordnance': {
+      const enemies = getEnemyShips(state, playerId);
       const launchDetails = action.launches
         .map((l) => {
           const ship = findShip(state, l.shipId);
           if (!ship) return l.ordnanceType;
-          // Predict torpedo trajectory: ship velocity + accel direction
+          // Predict torpedo first-turn position: ship velocity + accel
           if (
             l.ordnanceType === 'torpedo' &&
             l.torpedoAccel != null &&
@@ -277,22 +259,14 @@ const reasoningFor = (
             if (accelDir) {
               const tDq = ship.velocity.dq + accelDir.dq * l.torpedoAccelSteps;
               const tDr = ship.velocity.dr + accelDir.dr * l.torpedoAccelSteps;
-              const t1Q = ship.position.q + tDq;
-              const t1R = ship.position.r + tDr;
-              // Check proximity to nearest enemy
-              const opId: PlayerId = playerId === 0 ? 1 : 0;
-              let nearDist = Infinity;
-              let nearId = '';
-              for (const e of state.ships) {
-                if (e.owner === opId && e.lifecycle !== 'destroyed') {
-                  const d = hexDistance({ q: t1Q, r: t1R }, e.position);
-                  if (d < nearDist) {
-                    nearDist = d;
-                    nearId = e.id;
-                  }
-                }
+              const dest = {
+                q: ship.position.q + tDq,
+                r: ship.position.r + tDr,
+              };
+              const nearest = findNearestEnemy(dest, enemies);
+              if (nearest) {
+                return `torpedo -> (${dest.q},${dest.r}), ${nearest.distance} hex from ${nearest.id}`;
               }
-              return `torpedo -> (${t1Q},${t1R}), ${nearDist} hex from ${nearId}`;
             }
           }
           return l.ordnanceType;
@@ -304,7 +278,11 @@ const reasoningFor = (
       const targets = new Set(action.attacks.map((a) => a.targetId));
       const oddsDetails = action.attacks
         .map((a) =>
-          describeCombatOdds(a.attackerIds as string[], a.targetId, state),
+          describeCombatOdds(
+            a.attackerIds.map(String),
+            String(a.targetId),
+            state,
+          ),
         )
         .filter(Boolean)
         .join(' ');
@@ -312,8 +290,8 @@ const reasoningFor = (
     }
     case 'combatSingle': {
       const oddsDetail = describeCombatOdds(
-        action.attack.attackerIds as string[],
-        action.attack.targetId,
+        action.attack.attackerIds.map(String),
+        String(action.attack.targetId),
         state,
       );
       return `${prefix}: single attack on ${action.attack.targetId}.${oddsDetail}`;
