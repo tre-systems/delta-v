@@ -26,6 +26,7 @@ const WELCOME_TIMEOUT_MS = 10_000; // wait for playerId after WebSocket open
 const WAIT_FOR_TURN_DEFAULT_MS = 30_000; // delta_v_wait_for_turn default
 const ACTION_RESULT_DEFAULT_MS = 5_000; // delta_v_send_action waitForResult
 const SESSION_CLEANUP_DELAY_MS = 30_000; // grace period before deleting closed sessions
+const PING_INTERVAL_MS = 25_000; // keepalive ping to prevent proxy idle disconnects
 
 type PlayerSeat = 0 | 1;
 
@@ -242,7 +243,22 @@ const attachSessionListeners = (session: DeltaVSession): void => {
     }
   });
 
+  // Keepalive: send protocol-level pings to prevent proxy/load-balancer
+  // idle timeouts from killing the WebSocket (code 1006). The game server
+  // responds with pong and resets its own inactivity timer.
+  const pingInterval = setInterval(() => {
+    if (session.ws.readyState === WebSocket.OPEN) {
+      try {
+        const ping: C2S = { type: 'ping', t: Date.now() };
+        session.ws.send(JSON.stringify(ping));
+      } catch {
+        // send failure on a dying socket — close handler will clean up
+      }
+    }
+  }, PING_INTERVAL_MS);
+
   const onClosed = (): void => {
+    clearInterval(pingInterval);
     // Give any in-flight / immediately-following tool calls a short grace
     // window before deleting session state. This avoids transient
     // `Unknown sessionId` errors.
