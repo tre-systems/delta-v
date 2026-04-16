@@ -44,7 +44,9 @@ export const buildStateSummary = (
   lines.push(
     `Active player: ${state.activePlayer === playerId ? 'YOU' : 'opponent'}`,
   );
-  lines.push(`Objective: target=${player.targetBody}, home=${player.homeBody}`);
+  const targetLabel = player.targetBody ? player.targetBody : '—';
+  const homeLabel = player.homeBody ? player.homeBody : '—';
+  lines.push(`Objective: target=${targetLabel}, home=${homeLabel}`);
 
   lines.push('');
   lines.push('YOUR SHIPS:');
