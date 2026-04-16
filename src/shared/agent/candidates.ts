@@ -149,5 +149,14 @@ export const buildCandidates = (
   if (state.phase === 'combat') seeds.push({ type: 'skipCombat' });
   if (state.phase === 'logistics') seeds.push({ type: 'skipLogistics' });
 
+  // Always include a coast (all ships idle) option for astrogation so agents
+  // can choose to save fuel even when every AI difficulty picks a burn.
+  if (state.phase === 'astrogation') {
+    seeds.push({
+      type: 'astrogation',
+      orders: buildIdleAstrogationOrders(state, playerId),
+    });
+  }
+
   return dedupeCandidates(seeds);
 };
