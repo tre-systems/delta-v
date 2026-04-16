@@ -4,6 +4,7 @@ import type {
   GameState,
   MovementEvent,
   OrdnanceMovement,
+  Phase,
   PlayerId,
   ShipMovement,
 } from '../../shared/types/domain';
@@ -73,6 +74,24 @@ export type ClientMessagePlan =
       kind: 'error';
       message: string;
       code?: import('../../shared/types/domain').ErrorCode;
+    }
+  | {
+      kind: 'actionRejected';
+      reason:
+        | 'staleTurn'
+        | 'stalePhase'
+        | 'wrongActivePlayer'
+        | 'duplicateIdempotencyKey';
+      message: string;
+      expected: {
+        turn?: number;
+        phase?: Phase;
+      };
+      actual: {
+        turn: number;
+        phase: Phase;
+        activePlayer: PlayerId;
+      };
     }
   | {
       kind: 'chat';
@@ -180,12 +199,12 @@ export const deriveClientMessagePlan = (
         code: msg.code,
       };
     case 'actionRejected':
-      // The browser client never sets ActionGuards, so it never receives this.
-      // If it arrives anyway (e.g. during agent+human mixed sessions), surface
-      // the server-provided reason via the existing error kind.
       return {
-        kind: 'error',
+        kind: 'actionRejected',
+        reason: msg.reason,
         message: msg.message,
+        expected: msg.expected,
+        actual: msg.actual,
       };
     case 'chat':
       return { kind: 'chat', playerId: msg.playerId, text: msg.text };

@@ -44,6 +44,8 @@ interface ConnectionRuntime {
   pingInterval: number | null;
   reconnectTimer: number | null;
   suppressDisconnectHandling: boolean;
+  /** Last WebSocket close from the active transport (for UX + telemetry). */
+  lastClose: { code: number; reason: string; wasClean: boolean } | null;
 }
 
 const PING_INTERVAL_MS = 5000;
@@ -94,6 +96,7 @@ export const createConnectionManager = (
     pingInterval: null,
     reconnectTimer: null,
     suppressDisconnectHandling: false,
+    lastClose: null,
   };
 
   const send = (msg: unknown) => {
@@ -177,6 +180,32 @@ export const createConnectionManager = (
     }, delayMs);
   };
 
+  const connectFailureToast = (): void => {
+    const close = runtime.lastClose;
+    deps.trackEvent('ws_connect_closed', {
+      code: close?.code ?? null,
+      wasClean: close?.wasClean ?? null,
+      reasonLen: close?.reason?.length ?? 0,
+    });
+    if (!close || close.code === 1000) {
+      deps.showToast('Could not connect to game', 'error');
+      return;
+    }
+    if (close.code === 1006) {
+      deps.showToast('Could not reach game server', 'error');
+      return;
+    }
+    if (close.code === 1008) {
+      deps.showToast('Connection rejected by server', 'error');
+      return;
+    }
+    if (close.code === 1011) {
+      deps.showToast('Server error — try again shortly', 'error');
+      return;
+    }
+    deps.showToast('Could not connect to game', 'error');
+  };
+
   const handleDisconnect = () => {
     stopPing();
     const currentState = deps.getClientState();
@@ -193,7 +222,7 @@ export const createConnectionManager = (
 
     if (handling.nextState === 'menu') {
       if (currentState === 'connecting') {
-        deps.showToast('Could not connect to game', 'error');
+        connectFailureToast();
       }
       deps.exitToMenu();
       return;
@@ -204,10 +233,15 @@ export const createConnectionManager = (
     }
   };
 
-  const handleSocketClose = (socket: WebSocket) => {
+  const handleSocketClose = (socket: WebSocket, ev: CloseEvent) => {
     if (runtime.ws === socket) {
       runtime.ws = null;
     }
+    runtime.lastClose = {
+      code: ev.code,
+      reason: ev.reason,
+      wasClean: ev.wasClean,
+    };
 
     const shouldHandleDisconnect = !runtime.suppressDisconnectHandling;
     runtime.suppressDisconnectHandling = false;
@@ -219,6 +253,7 @@ export const createConnectionManager = (
 
   const connect = (code: string) => {
     runtime.suppressDisconnectHandling = false;
+    runtime.lastClose = null;
     const spectator = deps.isSpectatorSession();
     const socket = new WebSocket(
       buildWebSocketUrl(
@@ -232,10 +267,12 @@ export const createConnectionManager = (
     socket.onmessage = (e) => {
       handleSocketMessage(e.data);
     };
-    socket.onclose = () => {
-      handleSocketClose(socket);
+    socket.onclose = (ev) => {
+      handleSocketClose(socket, ev);
     };
-    socket.onerror = () => {}; // onclose fires after onerror
+    socket.onerror = () => {
+      deps.trackEvent('ws_connect_error');
+    };
     deps.setTransport(createWebSocketTransport((msg) => send(msg)));
     startPing();
   };

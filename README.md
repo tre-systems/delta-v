@@ -23,6 +23,7 @@ Use the docs by role so the same decision is not maintained in three places:
 
 - [**SPEC.md**](./docs/SPEC.md): gameplay rules, scenario behavior, protocol shapes, state concepts, and implementation status
 - [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md): implementation structure, data flow, Durable Object design, replay/recovery model, and the current client reactive/session architecture
+- [**COORDINATED_RELEASE_CHECKLIST.md**](./docs/COORDINATED_RELEASE_CHECKLIST.md): schema/protocol bump and deploy steps (single version line)
 - [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md): coding conventions, refactoring guidance, and shared implementation patterns
 - [**CONTRIBUTING.md**](./docs/CONTRIBUTING.md): contributor workflow, pre-commit behavior, verification commands, and local environment gotchas
 - [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): release/regression manual checks across gameplay, UX, and recovery flows
