@@ -17,7 +17,7 @@
     "test:e2e:a11y": "playwright test e2e/a11y.spec.ts",
     "test:e2e:headed": "playwright test --headed",
     "test:watch": "vitest",
-    "verify": "npm run lint && npm run typecheck:all && npm run test:coverage && npm run build && npm run test:e2e && npm run test:e2e:a11y && npm run simulate all 25 -- --ci",
+    "verify": "npm run lint && npm run typecheck:all && npm run test:coverage && npm run build && npm run test:e2e && npm run test:e2e:a11y && npm run simulate all 40 -- --ci",
     "lint": "biome check src scripts e2e vitest.config.ts playwright.config.ts esbuild.client.mjs esbuild.watch.mjs scripts/bundle-style-css.mjs",
     "lint:fix": "biome check --write src scripts e2e vitest.config.ts playwright.config.ts esbuild.client.mjs esbuild.watch.mjs scripts/bundle-style-css.mjs",
     "format": "biome format --write src scripts e2e vitest.config.ts playwright.config.ts esbuild.client.mjs esbuild.watch.mjs scripts/bundle-style-css.mjs",
