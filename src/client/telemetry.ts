@@ -27,13 +27,23 @@ export const getOrCreateAnonId = (storage: StorageLike): string => {
   }
 };
 
-// Eagerly resolve on module load
-let anonId: string;
-try {
-  anonId = getOrCreateAnonId(localStorage);
-} catch {
-  anonId = crypto.randomUUID();
-}
+let cachedAnonId: string | null = null;
+
+const resolveAnonId = (): string => {
+  if (cachedAnonId) {
+    return cachedAnonId;
+  }
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      cachedAnonId = getOrCreateAnonId(window.localStorage);
+      return cachedAnonId;
+    }
+  } catch {
+    /* private mode / unsupported storage */
+  }
+  cachedAnonId = crypto.randomUUID();
+  return cachedAnonId;
+};
 
 const post = (path: string, body: Record<string, unknown>): void => {
   try {
@@ -42,7 +52,7 @@ const post = (path: string, body: Record<string, unknown>): void => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...body,
-        anonId,
+        anonId: resolveAnonId(),
         ts: Date.now(),
       }),
       keepalive: true,

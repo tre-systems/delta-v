@@ -19,7 +19,7 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - Client-to-server WebSocket messages are runtime-validated before any engine handler executes, and malformed payloads are rejected instead of being trusted structurally.
 - After a WebSocket is accepted, **per-socket message rate limiting** (10 messages per second, then close with code 1008) caps garbage traffic to the Durable Object. Chat is also throttled in-memory (minimum 500ms between accepted chat messages per player).
 - Room codes are generated from a cryptographically strong RNG rather than `Math.random()` (see `generateRoomCode` in `src/server/protocol.ts`).
-- `GET /join/:code` and `GET /replay/:code` have combined hashed-IP probe throttling in the Worker (100 requests / 60s, per isolate), reducing casual room-scan and replay-probe abuse.
+- `GET /join/:code`, `GET /quick-match/:ticket`, and `GET /api/matches` share a **join-style** hashed-IP probe throttle in the Worker (**100** GETs / 60s, per isolate). `GET /replay/:code` uses a **separate** replay probe bucket (**250** GETs / 60s, per isolate) so replay traffic cannot exhaust the join budget.
 - `GET /ws/:code` WebSocket upgrades have a hashed-IP in-memory cap (20 upgrades / 60s, per isolate), reducing repeated socket-churn abuse in lower environments.
 - `POST /telemetry` and `POST /error` are JSON-only with a 4KB cap and hashed-IP window limits, limiting abuse and D1 write amplification in the default path.
 
@@ -112,7 +112,8 @@ When no binding is configured, the worker uses a per-isolate in-memory map (5 cr
 | WebSocket **messages** (after connect)  | 10 msg/s per socket (DO)                                                            | same                                                       |
 | `POST /telemetry` and `POST /error`     | **120** / **40** posts per hashed IP per 60s (per isolate); body capped at 4KB JSON | add **WAF** or `[[ratelimits]]` for global / stricter caps |
 | Bot challenge (Turnstile)               | not present                                                                         | configurable via CF dashboard                              |
-| `GET /join/:code` / `GET /replay/:code` | **100** combined GETs per hashed IP per 60s (per isolate)                           | optional WAF for global / stricter caps                    |
+| `GET /join/:code` (+ quick-match ticket GET + `GET /api/matches`) | **100** GETs per hashed IP per 60s (per isolate)          | optional WAF for global / stricter caps                    |
+| `GET /replay/:code`                                               | **250** GETs per hashed IP per 60s (per isolate)           | optional WAF for global / stricter caps                    |
 | Room-code guessing                      | 5-char codes, ~33.6M space, only per-isolate join/replay probe throttling by default | same unless extra global controls are configured           |
 
 **Deployment recommendation:**

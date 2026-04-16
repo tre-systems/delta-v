@@ -56,6 +56,19 @@ export function postprocessDistStatic() {
       .replace('/client.js', `/client.js?v=${hash}`),
   );
 
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+  writeFileSync(
+    'dist/version.json',
+    `${JSON.stringify(
+      {
+        packageVersion: pkg.version ?? '0.0.0',
+        assetsHash: hash,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
   return hash;
 }
 

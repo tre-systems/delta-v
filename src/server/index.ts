@@ -17,7 +17,8 @@ import {
   insertEvent,
   isCreateRateLimited,
   isErrorReportRateLimited,
-  isJoinReplayProbeRateLimited,
+  isJoinProbeRateLimited,
+  isReplayProbeRateLimited,
   isTelemetryReportRateLimited,
   isWsConnectRateLimited,
   tooManyRequests,
@@ -36,7 +37,8 @@ export {
   hashIp,
   isCreateRateLimited,
   isCreateRateLimitedInMemory,
-  joinReplayProbeRateMap,
+  joinProbeRateMap,
+  replayProbeRateMap,
   telemetryReportRateMap,
   wsConnectRateMap,
 } from './reporting';
@@ -128,7 +130,7 @@ export default {
       const ipHash = await hashIp(
         request.headers.get('cf-connecting-ip') ?? 'unknown',
       );
-      if (isJoinReplayProbeRateLimited(ipHash)) {
+      if (isJoinProbeRateLimited(ipHash)) {
         return tooManyRequests();
       }
 
@@ -148,7 +150,7 @@ export default {
       const ipHash = await hashIp(
         request.headers.get('cf-connecting-ip') ?? 'unknown',
       );
-      if (isJoinReplayProbeRateLimited(ipHash)) {
+      if (isJoinProbeRateLimited(ipHash)) {
         return tooManyRequests();
       }
       return handleJoinCheck(request, env, asRoomCode(joinMatch[1]));
@@ -160,7 +162,7 @@ export default {
       const ipHash = await hashIp(
         request.headers.get('cf-connecting-ip') ?? 'unknown',
       );
-      if (isJoinReplayProbeRateLimited(ipHash)) {
+      if (isReplayProbeRateLimited(ipHash)) {
         return tooManyRequests();
       }
       return handleReplayFetch(request, env, asRoomCode(replayMatch[1]));
@@ -262,7 +264,7 @@ export default {
       if (!isLoopbackRequest(request)) {
         const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
         const ipHash = await hashIp(ip);
-        if (isJoinReplayProbeRateLimited(ipHash)) {
+        if (isJoinProbeRateLimited(ipHash)) {
           return tooManyRequests();
         }
       }

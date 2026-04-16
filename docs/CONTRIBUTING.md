@@ -46,7 +46,7 @@ Pre-commit is a POSIX shell script (`rm`, `export`, subshell). Use **Git Bash**,
 git commit --no-verify
 ```
 
-Prefer fixing the underlying issue. **CI** runs lint, typecheck (app + tools), coverage, build, browser smoke (`test:e2e`), and the multi-scenario simulation pass. It does **not** currently run `test:e2e:a11y`. **Pre-commit** and **`npm run verify`** additionally run the Playwright + axe accessibility baseline.
+Prefer fixing the underlying issue. **CI** runs lint, typecheck (app + tools), coverage, build, browser smoke (`test:e2e`), Playwright + axe (`test:e2e:a11y`), and the multi-scenario simulation pass. **`npm run test` / `test:coverage`** set `NODE_OPTIONS=--localstorage-file=/tmp/deltav-vitest-localstorage` so Vitest stays quiet on Node 25+ (experimental web storage warning); if you invoke `vitest` directly, set the same flag or expect harmless warnings.
 
 ## Full verification
 

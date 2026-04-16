@@ -8,9 +8,13 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-*No active items. See future features below.*
+1. **Duel / quick-match pacing (data-driven).** Use `quickmatch:scrimmage --json-out` (now includes `quickMatchPairingSplitRetries`) to measure turn distributions and pairing retries, then tune **Duel** `ScenarioRules` / starting geometry or queue presets if median length stays too low — without changing core phase invariants.
 
-*Recently shipped: Live match spectating from /matches — `LIVE_REGISTRY` DO, `GET /api/matches?status=live`, "Live now" section with 15-second polling, `spectatorMode` feature flag enabled.*
+2. **Optional: stress-test MatchmakerDO** under parallel quick-match enqueue (many pairs) or add a scheduled job that alerts when `quickMatchPairingSplitRetries` is often ≥2 in production exports.
+
+3. **SPEC / engine follow-ups (bounded).** Contact geometry and dummy-counter logistics remain as documented in [SPEC.md](./SPEC.md); add tests or rules changes only when product prioritizes them.
+
+**Shipped from the prior architecture pass:** split join vs replay rate limits; WebSocket connect failure telemetry + clearer toasts; CI Playwright a11y; Vitest `environmentMatchGlobs` for `src/client/**` + lazy telemetry `anonId`; structured `actionRejected` client handling; `dist/version.json` build artifact; [COORDINATED_RELEASE_CHECKLIST.md](./COORDINATED_RELEASE_CHECKLIST.md); OBSERVABILITY + SECURITY rate-limit updates; registry test for every `GAME_STATE_ACTION_TYPES` handler; [BETA_READINESS_REVIEW.md](../BETA_READINESS_REVIEW.md) refresh.
 
 ---
 
@@ -38,7 +42,7 @@ Add a single sanitizer boundary (e.g. DOMPurify inside `dom.ts`) and route all u
 
 **Trigger:** distributed scans wake durable objects or cost too much.
 
-Baseline per-isolate rate limiting is already shipped (100 combined GET /join + /replay per 60s per IP). Add WAF or `[[ratelimits]]` only if the baseline proves insufficient.
+Baseline per-isolate rate limiting is already shipped (100 join-style GETs including `/join`, quick-match ticket polling, and `/api/matches` per 60s per IP; **250** `/replay` GETs per 60s on a separate counter). Add WAF or `[[ratelimits]]` only if the baseline proves insufficient.
 
 **Files:** `wrangler.toml`, Cloudflare dashboard, `src/server/index.ts`
 

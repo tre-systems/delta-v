@@ -18,8 +18,13 @@ const TELEMETRY_RATE_LIMIT = 120;
 const ERROR_REPORT_RATE_WINDOW_MS = 60_000;
 const ERROR_REPORT_RATE_LIMIT = 40;
 
-const JOIN_REPLAY_PROBE_WINDOW_MS = 60_000;
-const JOIN_REPLAY_PROBE_LIMIT = 100;
+const JOIN_PROBE_WINDOW_MS = 60_000;
+/** Preflight for real joins and quick-match ticket polling (per hashed IP, per isolate). */
+const JOIN_PROBE_LIMIT = 100;
+
+const REPLAY_PROBE_WINDOW_MS = 60_000;
+/** Replay history probes — separate bucket so replay scraping cannot starve joins. */
+const REPLAY_PROBE_LIMIT = 250;
 
 const WS_CONNECT_WINDOW_MS = 60_000;
 const WS_CONNECT_LIMIT = 20;
@@ -39,7 +44,12 @@ export const errorReportRateMap = new Map<
   { count: number; windowStart: number }
 >();
 
-export const joinReplayProbeRateMap = new Map<
+export const joinProbeRateMap = new Map<
+  string,
+  { count: number; windowStart: number }
+>();
+
+export const replayProbeRateMap = new Map<
   string,
   { count: number; windowStart: number }
 >();
@@ -122,12 +132,21 @@ export const isCreateRateLimited = async (
   return isCreateRateLimitedInMemory(ipHash);
 };
 
-export const isJoinReplayProbeRateLimited = (ipHash: string): boolean =>
+export const isJoinProbeRateLimited = (ipHash: string): boolean =>
   checkWindowedRateLimit(
-    joinReplayProbeRateMap,
+    joinProbeRateMap,
     ipHash,
-    JOIN_REPLAY_PROBE_LIMIT,
-    JOIN_REPLAY_PROBE_WINDOW_MS,
+    JOIN_PROBE_LIMIT,
+    JOIN_PROBE_WINDOW_MS,
+    2000,
+  );
+
+export const isReplayProbeRateLimited = (ipHash: string): boolean =>
+  checkWindowedRateLimit(
+    replayProbeRateMap,
+    ipHash,
+    REPLAY_PROBE_LIMIT,
+    REPLAY_PROBE_WINDOW_MS,
     2000,
   );
 

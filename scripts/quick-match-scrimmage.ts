@@ -127,6 +127,8 @@ interface ScrimmageExport {
   turns: number | null;
   replayEntries: number;
   phaseCounts: Record<string, number>;
+  /** How many times quick-match split the two seats across rooms before a shared room succeeded (0 = first pairing matched). */
+  quickMatchPairingSplitRetries: number;
   players: ScrimmageExportPlayer[];
 }
 
@@ -560,6 +562,7 @@ const pairPlayersInSameRoom = async (
   right: QueuePlayer;
   leftMatch: QuickMatchResult;
   rightMatch: QuickMatchResult;
+  quickMatchPairingSplitRetries: number;
 }> => {
   const maxAttempts = 5;
   let lastMismatch: { leftCode: string; rightCode: string } | null = null;
@@ -576,13 +579,24 @@ const pairPlayersInSameRoom = async (
     ]);
 
     if (leftMatch.code === rightMatch.code) {
-      return { left, right, leftMatch, rightMatch };
+      return {
+        left,
+        right,
+        leftMatch,
+        rightMatch,
+        quickMatchPairingSplitRetries: attempt - 1,
+      };
     }
 
     lastMismatch = { leftCode: leftMatch.code, rightCode: rightMatch.code };
     console.warn(
       `matchmaking split attempt ${attempt}/${maxAttempts}: ${leftMatch.code} vs ${rightMatch.code}; retrying`,
     );
+    if (attempt >= 3) {
+      console.warn(
+        'matchmaking split retries >= 2 — consider MatchmakerDO load or queue fairness investigation',
+      );
+    }
     await delay(config.pollMs);
   }
 
@@ -597,7 +611,7 @@ const pairPlayersInSameRoom = async (
 
 const main = async (): Promise<void> => {
   const config = parseArgs(process.argv.slice(2));
-  const { left, right, leftMatch, rightMatch } =
+  const { left, right, leftMatch, rightMatch, quickMatchPairingSplitRetries } =
     await pairPlayersInSameRoom(config);
 
   const code = leftMatch.code;
@@ -749,6 +763,7 @@ const main = async (): Promise<void> => {
       turns: replaySummary.finalTurn,
       replayEntries: replaySummary.entries,
       phaseCounts: replaySummary.phaseCounts,
+      quickMatchPairingSplitRetries,
       players: [
         {
           label: left.label,

@@ -296,4 +296,32 @@ describe('game-client-message-plans', () => {
       latencyMs: 100,
     });
   });
+
+  it('derives a structured actionRejected plan', () => {
+    const state = createState({ turnNumber: 5, phase: 'ordnance' });
+    expect(
+      derive({
+        type: 'actionRejected',
+        reason: 'stalePhase',
+        message: 'expected phase astrogation but server is in ordnance',
+        expected: { turn: 4, phase: 'astrogation' },
+        actual: {
+          turn: 5,
+          phase: 'ordnance',
+          activePlayer: 0,
+        },
+        state,
+      }),
+    ).toEqual({
+      kind: 'actionRejected',
+      reason: 'stalePhase',
+      message: 'expected phase astrogation but server is in ordnance',
+      expected: { turn: 4, phase: 'astrogation' },
+      actual: {
+        turn: 5,
+        phase: 'ordnance',
+        activePlayer: 0,
+      },
+    });
+  });
 });

@@ -17,7 +17,8 @@ import worker, {
   type Env,
   errorReportRateMap,
   hashIp,
-  joinReplayProbeRateMap,
+  joinProbeRateMap,
+  replayProbeRateMap,
   telemetryReportRateMap,
 } from './index';
 
@@ -899,23 +900,16 @@ describe('POST /error rate limiting', () => {
 
 describe('GET /join and /replay probe rate limiting', () => {
   beforeEach(() => {
-    joinReplayProbeRateMap.clear();
+    joinProbeRateMap.clear();
+    replayProbeRateMap.clear();
   });
 
-  it('returns 429 when join+replay GETs exceed shared limit per IP', async () => {
+  it('returns 429 when join GETs exceed join probe limit per IP', async () => {
     const { env, initFetch } = createEnv(async () => new Response('ok'));
 
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 100; i++) {
       await worker.fetch(
         new Request('https://delta-v.test/join/ABCDE', {
-          method: 'GET',
-          headers: { 'cf-connecting-ip': '7.7.7.7' },
-        }),
-        env as unknown as Env,
-        mockCtx(),
-      );
-      await worker.fetch(
-        new Request('https://delta-v.test/replay/VWXYZ', {
           method: 'GET',
           headers: { 'cf-connecting-ip': '7.7.7.7' },
         }),
@@ -935,6 +929,41 @@ describe('GET /join and /replay probe rate limiting', () => {
     );
     expect(blocked.status).toBe(429);
     expect(initFetch).toHaveBeenCalledTimes(100);
+  });
+
+  it('rate-limits replay probes independently from join probes', async () => {
+    const { env, initFetch } = createEnv(async () => new Response('ok'));
+
+    for (let i = 0; i < 100; i++) {
+      await worker.fetch(
+        new Request('https://delta-v.test/join/ABCDE', {
+          method: 'GET',
+          headers: { 'cf-connecting-ip': '8.8.8.8' },
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+    }
+    const joinBlocked = await worker.fetch(
+      new Request('https://delta-v.test/join/ABCDE', {
+        method: 'GET',
+        headers: { 'cf-connecting-ip': '8.8.8.8' },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(joinBlocked.status).toBe(429);
+
+    const replayOk = await worker.fetch(
+      new Request('https://delta-v.test/replay/VWXYZ', {
+        method: 'GET',
+        headers: { 'cf-connecting-ip': '8.8.8.8' },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(replayOk.status).toBe(200);
+    expect(initFetch).toHaveBeenCalledTimes(101);
   });
 
   it('uses independent limits per IP', async () => {

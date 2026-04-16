@@ -283,6 +283,29 @@ const applyErrorPlan: ClientMessagePlanHandler<'error'> = (
   }
 };
 
+const applyActionRejectedPlan: ClientMessagePlanHandler<'actionRejected'> = (
+  deps,
+  plan,
+): void => {
+  deps.trackEvent('action_rejected_received', {
+    reason: plan.reason,
+    expectedTurn: plan.expected.turn,
+    expectedPhase: plan.expected.phase,
+    actualTurn: plan.actual.turn,
+    actualPhase: plan.actual.phase,
+    activePlayer: plan.actual.activePlayer,
+  });
+  const hint =
+    plan.reason === 'stalePhase' || plan.reason === 'staleTurn'
+      ? 'The game moved on before that action could apply.'
+      : plan.reason === 'duplicateIdempotencyKey'
+        ? 'Duplicate action key — use a fresh idempotency key if retrying.'
+        : plan.reason === 'wrongActivePlayer'
+          ? 'It is not your turn to act in this phase.'
+          : plan.message;
+  deps.ui.overlay.showToast(hint, 'info');
+};
+
 const applyChatPlan: ClientMessagePlanHandler<'chat'> = (deps, plan): void => {
   const isOwn = plan.playerId === deps.ctx.playerId;
   const label = isOwn ? 'You' : 'Opponent';
@@ -325,6 +348,7 @@ const clientMessagePlanHandlers = {
   gameOver: applyGameOverPlan,
   rematchPending: applyRematchPendingPlan,
   error: applyErrorPlan,
+  actionRejected: applyActionRejectedPlan,
   chat: applyChatPlan,
   pong: applyPongPlan,
   opponentStatus: applyOpponentStatusPlan,

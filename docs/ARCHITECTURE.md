@@ -16,7 +16,7 @@ Document boundary: gameplay rules and protocol examples live in [SPEC.md](./SPEC
 - [6. Current Decisions and Planned Shifts](#6-current-decisions-and-planned-shifts)
 - [7. Client bundle and release hygiene](#7-client-bundle-and-release-hygiene)
 
-**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered “old client / new server” is **not** a supported requirement today. Breaking protocol changes need a **coordinated deploy** and, if needed, force reload / cache-bust the SPA; prefer **additive** JSON fields. There is no feature-flag protocol negotiation in the client today. When bumping **`GameState.schemaVersion`**, extend projector / replay / recovery coverage and track any remaining work in [BACKLOG.md](./BACKLOG.md).
+**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered “old client / new server” is **not** a supported requirement today. Breaking protocol changes need a **coordinated deploy** and, if needed, force reload / cache-bust the SPA; prefer **additive** JSON fields. There is no feature-flag protocol negotiation in the client today. When bumping **`GameState.schemaVersion`**, extend projector / replay / recovery coverage and follow [COORDINATED_RELEASE_CHECKLIST.md](./COORDINATED_RELEASE_CHECKLIST.md).
 
 Platform references:
 

@@ -44,6 +44,9 @@ jobs:
       - name: Browser smoke tests
         run: npm run test:e2e
 
+      - name: Playwright accessibility tests
+        run: npm run test:e2e:a11y
+
       - name: Run Headless Engine Simulations
         run: npm run simulate all 100 -- --ci
 
