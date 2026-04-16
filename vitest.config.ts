@@ -2,7 +2,6 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts'],
     exclude: ['e2e/**'],
     coverage: {
       provider: 'v8',
@@ -27,5 +26,23 @@ export default defineConfig({
         },
       },
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'client',
+          include: ['src/client/**/*.test.ts'],
+          environment: 'jsdom',
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'server-shared',
+          include: ['src/server/**/*.test.ts', 'src/shared/**/*.test.ts'],
+          environment: 'node',
+        },
+      },
+    ],
   },
 });

@@ -7,7 +7,7 @@ What Delta-V emits today and how to use it for incidents and tuning. Complements
 | Source                 | What                                                                             | Where to read it                                                       |
 | ---------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | **Worker + DO logs**   | `console.log` / `console.error` from `src/server/index.ts`, `GameDO`, handlers   | Cloudflare Workers **Logs** (observability enabled in `wrangler.toml`) |
-| **D1 `events`**        | Client telemetry, client errors, DO `engine_error`, `projection_parity_mismatch` | D1 **SQL** in dashboard or `wrangler d1 execute`                       |
+| **D1 `events`**        | Client telemetry, client errors, DO `engine_error`, `projection_parity_mismatch`, `game_abandoned` | D1 **SQL** in dashboard or `wrangler d1 execute`                       |
 | **D1 `match_archive`** | One row per completed match (metadata index)                                     | Same                                                                   |
 | **R2 `MATCH_ARCHIVE`** | Full JSON per match (`matches/{gameId}.json`)                                    | R2 bucket browser / API                                                |
 | **Client**             | `track()` → `POST /telemetry`, `reportError()` → `POST /error`                   | Implemented in `src/client/telemetry.ts`                               |
@@ -28,24 +28,33 @@ From `migrations/0001_create_events.sql`:
   - `join_game_succeeded` with no additional props
   - `join_game_retried_without_token` with `{ reason }`
   - `join_game_failed` with `{ reason, status?, hasPlayerToken }`
+  - `quick_match_attempted`, `quick_match_queued`, `quick_match_found`, `quick_match_failed`, `quick_match_expired` (props vary by path — see `session-api.ts`)
   - `spectate_join_succeeded` with no additional props
   - `reconnect_attempt_scheduled` with `{ attempt, delayMs }`
   - `reconnect_succeeded` with `{ attempts }`
   - `reconnect_failed` with `{ attempts }`
   - `replay_fetch_failed` with `{ reason, gameId, status? }`
   - `replay_fetch_succeeded` with `{ gameId }`
+  - `archived_replay_fetch_failed` / `archived_replay_fetch_succeeded` with `{ gameId, ... }`
   - `game_over` with `{ won, reason, scenario, mode, turn? }`
   - `server_error_received` with `{ message, code? }`
+  - `action_rejected_received` with `{ reason, expectedTurn?, expectedPhase?, actualTurn, actualPhase, activePlayer }` (browser path when ActionGuards reject)
   - `ws_parse_error` with no additional props
   - `ws_invalid_message` with `{ error }`
+  - `ws_connect_error` with no additional props (fires on `WebSocket` `error` before close)
+  - `ws_connect_closed` with `{ code, wasClean, reasonLen }` (first connect / reconnect close telemetry)
   - `turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
   - `first_turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
   - `scenario_browsed` with no additional props
   - `tutorial_started` with no additional props
   - `tutorial_completed` with no additional props
   - `tutorial_skipped` with no additional props
+  - `fleet_ready_submitted`, `surrender_submitted` (see `main-interactions.ts`)
+  - `ai_game_started` with `{ scenario, difficulty }` (local AI path)
 - From client **`/error`**: `client_error` with `{ error, url, ua, ...context }`; current global handlers add either `{ source, line, col }` or `{ type: 'unhandledrejection' }`.
-- From **`game-do/telemetry.ts`**: `engine_error` with `{ code, phase, turn, message, stack? }` and `projection_parity_mismatch` with `{ gameId, liveTurn, livePhase, projectedTurn, projectedPhase }` (server-side; `anon_id` null, `ip_hash` `'server'`).
+- From **`game-do/telemetry.ts`**: `engine_error` with `{ code, phase, turn, message, stack? }`; `projection_parity_mismatch` with `{ gameId, liveTurn, livePhase, projectedTurn, projectedPhase }`; `game_abandoned` with `{ gameId, turn, phase, reason, scenario }` (server-side; `anon_id` null, `ip_hash` `'server'`).
+
+Static **`GET /version.json`** (built into `dist/` at bundle time) exposes `{ packageVersion, assetsHash }` for support — it is not written to D1.
 
 ## Sample D1 queries
 

@@ -28,12 +28,12 @@ Strict mode is enabled. No `any` types observed in spot checks.
 
 ## Test Results
 
-**`npx vitest run` — 1,818 tests passing across 130 test files. Zero failures.**
+**`npx vitest run` — run locally or in CI for current counts** (see latest green workflow run; the repo targets full unit coverage across `src/**/*.test.ts`).
 
 Additional test suites:
-- E2E smoke tests: pass
-- A11Y Playwright tests: pass (exist but keyboard-only / screen reader untested manually)
-- AI simulation harness: 0 crashes across 300+ games (25 iterations × 9 scenarios at hard difficulty)
+- E2E smoke tests: pass in CI
+- A11Y Playwright tests: pass in CI (`npm run test:e2e:a11y`; keyboard-only / screen reader still need periodic manual passes per `docs/A11Y.md`)
+- AI simulation harness: 0 crashes in recent full matrices (CI runs `100` iterations × `9` scenarios at hard difficulty with `--ci`)
 - Load test harness (`npm run load:test`) exists but not run in CI by design — simulations are cheaper
 
 ---
@@ -93,7 +93,7 @@ All win rates in the 30–70% range. No lopsided scenarios. Balance is healthy.
 ### Multiplayer & Networking
 - Reconnection logic is explicit and well-tested: 5 attempts, exponential backoff (1s, 2s, 4s, 8s, 8s), 30-second disconnect grace window, UI shows attempt count, user can cancel
 - Per-socket message rate limiting: 10 msg/s
-- Per-IP join throttling: 20 WebSocket upgrades per 60s per isolate, 100 join-probe requests per 60s
+- Per-IP join throttling: 20 WebSocket upgrades per 60s per isolate; **100** join-style GET probes per 60s (join + quick-match ticket + `/api/matches`); **250** replay GET probes per 60s on a separate counter
 - All incoming `S2C` messages validated against schema (`validateServerMessage`) before engine touches them — untrusted input never reaches game logic
 - Durable Object is single-threaded per room — no intra-room race conditions possible
 - Room creation uses 5-char codes (~33.6M space) with hashed-IP probe throttling
@@ -107,7 +107,7 @@ All win rates in the 30–70% range. No lopsided scenarios. Balance is healthy.
 - Ship list and HUD adapt to narrow viewports
 
 ### Deployment Infrastructure
-- Full CI/CD: lint → typecheck:all → test:coverage → build → E2E → A11Y → 25×9 simulations → dry-run deploy
+- Full CI/CD: lint → typecheck:all → test:coverage → build → E2E → A11Y → `100×9` simulations → dry-run deploy
 - Wrangler config production-ready: Durable Objects, D1, R2, rate-limit namespace, custom domain `delta-v.tre.systems`
 - D1 migrations version-tagged and applied on main branch push
 - `npm run deploy` is one command; secrets in GitHub Actions context
@@ -122,26 +122,14 @@ All win rates in the 30–70% range. No lopsided scenarios. Balance is healthy.
 - TypeScript strict mode, zero errors
 - No stray TODOs/FIXMEs/HACs
 - No debug flags in production code
-- BACKLOG.md has "No active items"
+- Open engineering work is tracked in `docs/BACKLOG.md` (prioritized queue)
 - All hardcoded values named and in shared constants
 
 ---
 
 ## What's Broken or Fragile
 
-Nothing is blocking. Two minor fragilities:
-
-### 1. Silent socket error handler — `src/client/game/connection.ts:238`
-
-```ts
-socket.onerror = () => {};
-```
-
-Intentional design (browser fires `onclose` after `onerror`, so the close handler does the work), but a socket open failure before handshake only surfaces as a generic reconnect overlay. Users won't see a meaningful error message if the server is down before the WebSocket upgrades. Acceptable for beta.
-
-### 2. Replay probe shares rate-limit bucket with join probes
-
-`GET /replay/:code` shares the 100-req/60s per-IP bucket with legitimate game joins. A bad actor probing replays could exhaust the budget and block real players from joining. Irrelevant for invite-only closed beta; matters for public launch.
+Nothing is blocking for invite-only play. Residual risks are called out in `docs/BACKLOG.md` (for example duel pacing variance and ongoing manual accessibility passes).
 
 ---
 

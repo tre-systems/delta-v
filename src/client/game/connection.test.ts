@@ -14,11 +14,11 @@ type FakeWebSocketInstance = {
   url: string;
   readyState: number;
   onmessage: ((event: { data: string }) => void) | null;
-  onclose: (() => void) | null;
+  onclose: ((event: CloseEvent) => void) | null;
   onerror: (() => void) | null;
   sent: string[];
   send: (payload: string) => void;
-  close: () => void;
+  close: (ev?: Partial<CloseEvent>) => void;
 };
 
 type FakeWebSocketCtor = {
@@ -54,9 +54,17 @@ const createFakeWebSocketCtor = (): FakeWebSocketCtor => {
   ) {
     this.sent.push(payload);
   };
-  FakeWebSocket.prototype.close = function close(this: FakeWebSocketInstance) {
+  FakeWebSocket.prototype.close = function close(
+    this: FakeWebSocketInstance,
+    ev?: Partial<CloseEvent>,
+  ) {
     this.readyState = 3;
-    this.onclose?.();
+    const event = {
+      code: ev?.code ?? 1000,
+      reason: ev?.reason ?? '',
+      wasClean: ev?.wasClean ?? true,
+    } as CloseEvent;
+    this.onclose?.(event);
   };
 
   return FakeWebSocket;
@@ -297,6 +305,27 @@ describe('game-client-connection', () => {
     expect(spies.setReconnectOverlayState).not.toHaveBeenCalled();
     expect(spies.showToast).toHaveBeenCalledWith(
       'Could not connect to game',
+      'error',
+    );
+    expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it('emits telemetry and a clearer toast when the socket closes abnormally during connect', () => {
+    const { deps, setClientState, spies } = createDeps();
+    setClientState('connecting');
+    const manager = createConnectionManager(deps);
+
+    manager.connect('ABCDE');
+    const ws = FakeWebSocket.instances[0];
+    ws.close({ code: 1006, wasClean: false, reason: '' });
+
+    expect(spies.trackEvent).toHaveBeenCalledWith('ws_connect_closed', {
+      code: 1006,
+      wasClean: false,
+      reasonLen: 0,
+    });
+    expect(spies.showToast).toHaveBeenCalledWith(
+      'Could not reach game server',
       'error',
     );
     expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
