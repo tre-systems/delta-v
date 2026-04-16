@@ -20,6 +20,13 @@ const DEFAULT_SERVER_URL =
 const DEFAULT_SCENARIO = 'duel';
 const MAX_EVENTS_PER_SESSION = 500;
 
+// Timeout defaults for blocking tool calls. Extracted as constants so they're
+// easy to tune and clearly documented rather than buried in handler code.
+const WELCOME_TIMEOUT_MS = 10_000; // wait for playerId after WebSocket open
+const WAIT_FOR_TURN_DEFAULT_MS = 30_000; // delta_v_wait_for_turn default
+const ACTION_RESULT_DEFAULT_MS = 5_000; // delta_v_send_action waitForResult
+const SESSION_CLEANUP_DELAY_MS = 30_000; // grace period before deleting closed sessions
+
 type PlayerSeat = 0 | 1;
 
 interface SessionEvent {
@@ -228,7 +235,10 @@ const attachSessionListeners = (session: DeltaVSession): void => {
     // Give any in-flight / immediately-following tool calls a short grace
     // window before deleting session state. This avoids transient
     // `Unknown sessionId` errors.
-    setTimeout(() => sessions.delete(session.sessionId), 30_000);
+    setTimeout(
+      () => sessions.delete(session.sessionId),
+      SESSION_CLEANUP_DELAY_MS,
+    );
   };
 
   session.ws.on('close', onClosed);
@@ -327,7 +337,7 @@ server.registerTool(
     // Ensure we received the initial welcome/playerId before returning. Some
     // ws close paths happen before welcome; in those cases, subsequent calls
     // would fail with Unknown sessionId.
-    const welcomeDeadline = Date.now() + 10_000;
+    const welcomeDeadline = Date.now() + WELCOME_TIMEOUT_MS;
     while (Date.now() < welcomeDeadline && session.playerId === null) {
       const remaining = welcomeDeadline - Date.now();
       // Wait for any next state-bearing message (welcome counts).
@@ -472,7 +482,7 @@ server.registerTool(
     includeCandidateLabels,
   }) => {
     const session = getSessionOrThrow(sessionId);
-    const deadline = Date.now() + (timeoutMs ?? 30_000);
+    const deadline = Date.now() + (timeoutMs ?? WAIT_FOR_TURN_DEFAULT_MS);
 
     while (Date.now() < deadline) {
       const playerId = session.playerId;
@@ -612,7 +622,7 @@ server.registerTool(
       });
     }
 
-    const deadline = Date.now() + (waitTimeoutMs ?? 5_000);
+    const deadline = Date.now() + (waitTimeoutMs ?? ACTION_RESULT_DEFAULT_MS);
     const buildObs = (
       state: GameState,
     ): Record<string, unknown> | undefined => {
@@ -692,7 +702,7 @@ server.registerTool(
     // must submit before the phase advances (e.g. astrogation). The action
     // is still in flight; the caller can poll via wait_for_turn.
     return toolOk(
-      `Sent action ${action.type} on session ${sessionId}; no state update within ${waitTimeoutMs ?? 5_000}ms (still pending).`,
+      `Sent action ${action.type} on session ${sessionId}; no state update within ${waitTimeoutMs ?? ACTION_RESULT_DEFAULT_MS}ms (still pending).`,
       {
         sessionId,
         actionType: action.type,
