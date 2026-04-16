@@ -265,4 +265,100 @@ describe('MatchmakerDO additional coverage', () => {
 
     expect(response.status).toBe(404);
   });
+
+  it('matches a second human pair after the first pair completes', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { matchmaker, initFetch } = createMatchmaker();
+
+    const wave1a = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: { playerKey: 'playerwave1a', username: 'W1A' },
+        }),
+      }),
+    );
+    expect((await wave1a.json()) as { status: string }).toMatchObject({
+      status: 'queued',
+    });
+
+    const wave1b = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: { playerKey: 'playerwave1b', username: 'W1B' },
+        }),
+      }),
+    );
+    const matched1 = (await wave1b.json()) as { status: string; code: string };
+    expect(matched1).toMatchObject({ status: 'matched' });
+    expect(initFetch).toHaveBeenCalledTimes(1);
+
+    const wave2a = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: { playerKey: 'playerwave2a', username: 'W2A' },
+        }),
+      }),
+    );
+    expect((await wave2a.json()) as { status: string }).toMatchObject({
+      status: 'queued',
+    });
+
+    const wave2b = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: { playerKey: 'playerwave2b', username: 'W2B' },
+        }),
+      }),
+    );
+    const matched2 = (await wave2b.json()) as { status: string; code: string };
+    expect(matched2).toMatchObject({ status: 'matched' });
+    expect(initFetch).toHaveBeenCalledTimes(2);
+    expect(matched2.code).not.toBe(matched1.code);
+  });
+
+  it('retries room allocation when the game DO returns 409 collisions', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    let calls = 0;
+    const { matchmaker, initFetch } = createMatchmaker(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response('collision', { status: 409 });
+      }
+      return Response.json({ ok: true }, { status: 201 });
+    });
+
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: { playerKey: 'player409aaa', username: 'Pilot A' },
+        }),
+      }),
+    );
+
+    const second = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: { playerKey: 'player409bbb', username: 'Pilot B' },
+        }),
+      }),
+    );
+
+    expect(second.status).toBe(200);
+    expect((await second.json()) as { status: string }).toMatchObject({
+      status: 'matched',
+    });
+    expect(initFetch).toHaveBeenCalledTimes(2);
+  });
 });
