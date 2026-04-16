@@ -8,7 +8,7 @@ Use this file for unfinished actionable work only. Do not duplicate shipped hist
 
 ## Active work
 
-1. **Duel / quick-match pacing (data-driven).** Use `quickmatch:scrimmage --json-out` (includes `quickMatchPairingSplitRetries`) to measure turn distributions and pairing retries. **Geometry tweaks need simulation sweeps** (a naive one-hex start move regressed P0/P1 badly in harness testing). Prefer `ScenarioRules` / ordnance stocks / queue presets once a change shows higher median turns *and* stable seat balance across seeds.
+1. **Duel / quick-match pacing (data-driven).** Use `quickmatch:scrimmage --json-out` (includes `quickMatchPairingSplitRetries`) to measure turn distributions and pairing retries, and **`npm run simulate:duel-sweep`** for multi-seed duel AI-vs-AI balance/pacing tables before rule edits. **Geometry tweaks need simulation sweeps** (a naive one-hex start move regressed P0/P1 badly in harness testing). Prefer `ScenarioRules` / ordnance stocks / queue presets once a change shows higher median turns *and* stable seat balance across seeds.
 
 2. **Optional: stress-test MatchmakerDO** under parallel quick-match enqueue (many pairs) or add a scheduled job that alerts when `quickMatchPairingSplitRetries` is often ≥2 in production exports. **Coverage added:** sequential two-wave human pairing and 409→retry room allocation (`matchmaker-do.more.test.ts`).
 
