@@ -44,6 +44,7 @@ The current runner executes entirely in Node.js, outside the browser and Cloudfl
 - `--ci` fails the process on engine crashes and prints balance warnings without making them fatal.
 - `--randomize-start` forces start randomization for every scenario in that run; the harness also randomizes the starting seat automatically for **duel**, **interplanetaryWar**, and **fleetAction** so seat-order bias does not dominate short batches.
 - When using npm scripts, pass simulation arguments after `--`.
+- **`npm run simulate:duel-sweep`** runs `scripts/duel-seed-sweep.ts`: the same duel harness as CI (hard vs hard, seat randomized per game) across many **base seeds** in one table, so you can see pacing (`avgTurn`) and seat balance (`p0/dec%`) variance before changing duel geometry or rules. Options: `--iterations N`, `--from` / `--to`, `--seeds 0,1,2`, `--scenario <key>`, `--json`.
 
 ---
 

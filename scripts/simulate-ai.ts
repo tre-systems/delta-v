@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import {
   type AIDifficulty,
   aiAstrogation,
@@ -29,7 +30,7 @@ import {
 import { mulberry32 } from '../src/shared/prng';
 import type { GameState, PlayerId } from '../src/shared/types';
 
-interface SimulationMetrics {
+export interface SimulationMetrics {
   scenario: string;
   totalGames: number;
   player0Wins: number;
@@ -41,13 +42,15 @@ interface SimulationMetrics {
   reasons: Record<string, number>;
 }
 
-interface SimulationOptions {
+export interface SimulationOptions {
   p0Diff: AIDifficulty;
   p1Diff: AIDifficulty;
   randomizeStart: boolean;
   forcedStart: PlayerId | null;
   baseSeed: number;
   json: boolean;
+  /** When true, skip banner/progress/footer logs (errors still print). */
+  quiet?: boolean;
 }
 
 // Per-scenario P0 decided-game rate thresholds (min, max).
@@ -248,17 +251,21 @@ const runSingleGame = async (
   };
 };
 
-const runSimulation = async (
+export const runSimulation = async (
   scenarioName: ScenarioKey,
   iterations: number,
   options: SimulationOptions,
 ) => {
-  console.log(
-    `\n=== Starting Simulation: ${scenarioName} (${iterations} iterations, ` +
-      `P0=${options.p0Diff}, P1=${options.p1Diff}, seed=${options.baseSeed}` +
-      `${options.forcedStart !== null ? `, forcedStart=${options.forcedStart}` : ''}` +
-      `${options.randomizeStart ? ', randomizeStart=true' : ''}) ===\n`,
-  );
+  const quiet = options.quiet === true;
+
+  if (!quiet) {
+    console.log(
+      `\n=== Starting Simulation: ${scenarioName} (${iterations} iterations, ` +
+        `P0=${options.p0Diff}, P1=${options.p1Diff}, seed=${options.baseSeed}` +
+        `${options.forcedStart !== null ? `, forcedStart=${options.forcedStart}` : ''}` +
+        `${options.randomizeStart ? ', randomizeStart=true' : ''}) ===\n`,
+    );
+  }
 
   const metrics: SimulationMetrics = {
     scenario: scenarioName,
@@ -299,7 +306,7 @@ const runSimulation = async (
       metrics.reasons[reason] = (metrics.reasons[reason] || 0) + 1;
 
       // Print progress
-      if ((i + 1) % Math.max(1, Math.floor(iterations / 10)) === 0) {
+      if (!quiet && (i + 1) % Math.max(1, Math.floor(iterations / 10)) === 0) {
         process.stdout.write('.');
       }
     } catch (_err) {
@@ -311,28 +318,31 @@ const runSimulation = async (
   }
 
   const duration = Date.now() - startTime;
-  console.log(`\n\n=== Simulation Complete in ${duration}ms ===`);
-  console.log(`Total Games: ${metrics.totalGames}`);
-  console.log(
-    `Player 0 Wins: ${metrics.player0Wins} (${((metrics.player0Wins / metrics.totalGames) * 100).toFixed(1)}%)`,
-  );
-  console.log(
-    `Player 1 Wins: ${metrics.player1Wins} (${((metrics.player1Wins / metrics.totalGames) * 100).toFixed(1)}%)`,
-  );
-  console.log(
-    `Draws/Timeouts: ${metrics.draws} (${((metrics.draws / metrics.totalGames) * 100).toFixed(1)}%)`,
-  );
-  console.log(
-    `Average Turns: ${(metrics.totalTurns / metrics.totalGames).toFixed(1)}`,
-  );
-  console.log(`Engine Crashes: ${metrics.crashes}`);
-  if (metrics.crashSeeds.length > 0) {
-    console.log(`Crash Seeds: ${metrics.crashSeeds.join(', ')}`);
-  }
 
-  console.log(`\nWin Reasons:`);
-  for (const [reason, count] of Object.entries(metrics.reasons)) {
-    console.log(`  - ${reason}: ${count}`);
+  if (!quiet) {
+    console.log(`\n\n=== Simulation Complete in ${duration}ms ===`);
+    console.log(`Total Games: ${metrics.totalGames}`);
+    console.log(
+      `Player 0 Wins: ${metrics.player0Wins} (${((metrics.player0Wins / metrics.totalGames) * 100).toFixed(1)}%)`,
+    );
+    console.log(
+      `Player 1 Wins: ${metrics.player1Wins} (${((metrics.player1Wins / metrics.totalGames) * 100).toFixed(1)}%)`,
+    );
+    console.log(
+      `Draws/Timeouts: ${metrics.draws} (${((metrics.draws / metrics.totalGames) * 100).toFixed(1)}%)`,
+    );
+    console.log(
+      `Average Turns: ${(metrics.totalTurns / metrics.totalGames).toFixed(1)}`,
+    );
+    console.log(`Engine Crashes: ${metrics.crashes}`);
+    if (metrics.crashSeeds.length > 0) {
+      console.log(`Crash Seeds: ${metrics.crashSeeds.join(', ')}`);
+    }
+
+    console.log(`\nWin Reasons:`);
+    for (const [reason, count] of Object.entries(metrics.reasons)) {
+      console.log(`  - ${reason}: ${count}`);
+    }
   }
 
   return metrics;
@@ -348,6 +358,7 @@ const main = async () => {
     forcedStart: null,
     baseSeed: Date.now() | 0,
     json: false,
+    quiet: false,
   };
   const positionals: string[] = [];
 
@@ -381,6 +392,9 @@ const main = async () => {
       }
       case '--json':
         options.json = true;
+        break;
+      case '--quiet':
+        options.quiet = true;
         break;
       default:
         positionals.push(arg);
@@ -463,7 +477,19 @@ const main = async () => {
   }
 };
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+const shouldRunCli = (): boolean => {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return import.meta.url === pathToFileURL(entry).href;
+  } catch {
+    return false;
+  }
+};
+
+if (shouldRunCli()) {
+  void main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
