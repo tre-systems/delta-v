@@ -262,10 +262,44 @@ const reasoningFor = (
       const projection = describeAstrogationProjection(action, state, playerId);
       return `${prefix}: astrogation (${bits.join(', ') || 'no movement'}) on turn ${state.turnNumber}.${fuelInfo}${projection}`;
     }
-    case 'ordnance':
-      return `${prefix}: launch ${action.launches.length} ordnance (${action.launches
-        .map((l) => l.ordnanceType)
-        .join(', ')}).`;
+    case 'ordnance': {
+      const launchDetails = action.launches
+        .map((l) => {
+          const ship = findShip(state, l.shipId);
+          if (!ship) return l.ordnanceType;
+          // Predict torpedo trajectory: ship velocity + accel direction
+          if (
+            l.ordnanceType === 'torpedo' &&
+            l.torpedoAccel != null &&
+            l.torpedoAccelSteps
+          ) {
+            const accelDir = HEX_DIRECTIONS[l.torpedoAccel];
+            if (accelDir) {
+              const tDq = ship.velocity.dq + accelDir.dq * l.torpedoAccelSteps;
+              const tDr = ship.velocity.dr + accelDir.dr * l.torpedoAccelSteps;
+              const t1Q = ship.position.q + tDq;
+              const t1R = ship.position.r + tDr;
+              // Check proximity to nearest enemy
+              const opId: PlayerId = playerId === 0 ? 1 : 0;
+              let nearDist = Infinity;
+              let nearId = '';
+              for (const e of state.ships) {
+                if (e.owner === opId && e.lifecycle !== 'destroyed') {
+                  const d = hexDistance({ q: t1Q, r: t1R }, e.position);
+                  if (d < nearDist) {
+                    nearDist = d;
+                    nearId = e.id;
+                  }
+                }
+              }
+              return `torpedo -> (${t1Q},${t1R}), ${nearDist} hex from ${nearId}`;
+            }
+          }
+          return l.ordnanceType;
+        })
+        .join(', ');
+      return `${prefix}: launch ${action.launches.length} ordnance (${launchDetails}).`;
+    }
     case 'combat': {
       const targets = new Set(action.attacks.map((a) => a.targetId));
       const oddsDetails = action.attacks
