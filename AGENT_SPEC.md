@@ -582,7 +582,7 @@ Already shipped. `GET /replay/{code}` returns a full timeline of phase transitio
 
 Served at `https://delta-v.tre.systems/.well-known/agent.json`. Machine-readable manifest describing scenarios, endpoints, rate limits, WebSocket protocol, and bot conventions. Current source: `static/.well-known/agent.json`.
 
-**Known drift:** the manifest currently lists 5 of the 9 shipped scenarios. Agents that rely on discovery miss `blockade`, `interplanetaryWar`, `fleetAction`, `grandTour`. Syncing this is a tracked backlog item.
+**Known drift:** the manifest currently lists all 9 of the 9 shipped scenarios. (If you see otherwise, check for stale `static/.well-known/agent.json` artifacts in your deploy pipeline.)
 
 ### 11.2 Agent playbook
 
