@@ -300,3 +300,28 @@ Observations:
   - `docs/AGENTS.md` = practical workflow
   - `docs/DELTA_V_MCP.md` = MCP tool reference
   - `AGENT_SPEC.md` = deep design/protocol details
+
+## Session 2026-04-16 (Tooling consolidation + contract alignment)
+
+### Changes applied
+- `scripts/agent-tooling/run-json-command.ts` (new):
+  - Extracted shared subprocess JSON runner (`runJsonCommand`) and "last valid JSON line" parser (`parseJsonFromOutput`) for agent scripts.
+- `scripts/delta-v-agent-prompt.ts` (new):
+  - Extracted shared Delta-V rules + prompt builder used by external LLM agents.
+- Refactors to consume shared helpers:
+  - `scripts/llm-player.ts` now uses shared `runJsonCommand` for command-mode turn decisions.
+  - `scripts/quick-match-agent.ts` now uses shared `runJsonCommand` for post-game report calls.
+  - `scripts/quick-match-scrimmage.ts` now uses shared `runJsonCommand` and shared `queueForMatch()` for matchmaking, replacing local enqueue/poll duplication.
+  - `scripts/llm-agent-claude.ts` and `scripts/llm-agent-groq.ts` now share one prompt builder.
+- Contract/docs consistency updates:
+  - `static/agent-playbook.json` combat phase now documents bridge-aligned legal actions (`beginCombat`, `combat`, `skipCombat`) instead of including `combatSingle` / `endCombat`.
+  - `AGENT_SPEC.md` corrected stale wording about scenario discovery drift (manifest currently lists all 9 shipped scenarios).
+  - `src/shared/agent/discovery.test.ts` updated to match current playbook contract.
+- Style cleanup:
+  - `scripts/mcp-six-agent-harness.ts` removed `eslint-disable-next-line no-console` by writing final JSON summary to `process.stdout`.
+
+### Outcome
+- Lower maintenance overhead in agent scripts by removing repeated subprocess/prompt/matchmaking logic.
+- Reduced drift risk between Claude/Groq agent behavior by centralizing prompt construction.
+- Agent-facing docs and validation tests now match current bridge-exposed combat action semantics.
+- End-to-end hooks passed on commit (`lint`, `typecheck`, unit coverage, e2e, simulation), then pushed to `main`.
