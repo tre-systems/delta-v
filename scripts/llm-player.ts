@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import {
@@ -14,6 +13,10 @@ import { hexDistance } from '../src/shared/hex';
 import { buildSolarSystemMap, SCENARIOS } from '../src/shared/map-data';
 import type { GameState, PlayerId } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
+import {
+  parseJsonFromOutput,
+  runJsonCommand,
+} from './agent-tooling/run-json-command';
 
 const DEFAULT_SERVER_URL = process.env.SERVER_URL || 'http://127.0.0.1:8787';
 const DEFAULT_SCENARIO = 'duel';
@@ -170,93 +173,12 @@ Flags:
 `);
 };
 
-const parseJsonFromOutput = <T>(content: string): T => {
-  const trimmed = content.trim();
-  if (!trimmed) throw new Error('empty output');
-  try {
-    return JSON.parse(trimmed) as T;
-  } catch {
-    const lines = trimmed.split('\n');
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const candidate = lines[i].trim();
-      if (!candidate) continue;
-      try {
-        return JSON.parse(candidate) as T;
-      } catch {
-        // keep scanning for a valid JSON line
-      }
-    }
-    throw new Error('output did not contain valid JSON');
-  }
-};
-
 const runCommandAgent = async (
   command: string,
   payload: AgentTurnInput,
   timeoutMs: number,
 ): Promise<AgentTurnResponse> => {
-  return await new Promise<AgentTurnResponse>((resolve, reject) => {
-    const child = spawn('zsh', ['-lc', command], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-
-    const settle = (fn: () => void) => {
-      if (settled) return;
-      settled = true;
-      fn();
-    };
-
-    const timeout = setTimeout(() => {
-      settle(() => {
-        child.kill('SIGKILL');
-        reject(new Error(`agent command timed out after ${timeoutMs}ms`));
-      });
-    }, timeoutMs);
-
-    child.stdout.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-
-    child.on('error', (error) => {
-      clearTimeout(timeout);
-      settle(() => reject(error));
-    });
-
-    child.on('close', (code) => {
-      clearTimeout(timeout);
-      settle(() => {
-        if (code !== 0) {
-          reject(
-            new Error(
-              `agent command exited with code ${code}. stderr: ${stderr.trim() || '(none)'}`,
-            ),
-          );
-          return;
-        }
-
-        try {
-          resolve(parseJsonFromOutput<AgentTurnResponse>(stdout));
-        } catch (error) {
-          reject(
-            new Error(
-              `failed to parse agent response JSON: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            ),
-          );
-        }
-      });
-    });
-
-    child.stdin.write(JSON.stringify(payload));
-    child.stdin.end();
-  });
+  return await runJsonCommand<AgentTurnResponse>(command, payload, timeoutMs);
 };
 
 const runHttpAgent = async (

@@ -4,10 +4,11 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
+import { type QuickMatchResult, queueForMatch } from '../src/shared/agent';
 import { hexDistance } from '../src/shared/hex';
-import type { QuickMatchResponse } from '../src/shared/matchmaking';
 import type { ReplayTimeline } from '../src/shared/replay';
 import type { GameState, PlayerId, Ship } from '../src/shared/types/domain';
+import { runJsonCommand } from './agent-tooling/run-json-command';
 
 const DEFAULT_SERVER_URL = process.env.SERVER_URL || 'http://127.0.0.1:8787';
 const DEFAULT_SCENARIO = 'duel';
@@ -35,7 +36,7 @@ interface QueuePlayer {
   playerKey: string;
   agentCommand: string;
   ticket: string | null;
-  matched: Extract<QuickMatchResponse, { status: 'matched' }> | null;
+  matched: QuickMatchResult | null;
   playerId: PlayerId | null;
   logs: string[];
 }
@@ -234,96 +235,25 @@ const createQueuePlayer = (
   };
 };
 
-const parseJsonFromOutput = <T>(raw: string): T => {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    throw new Error('output was empty');
-  }
-
-  try {
-    return JSON.parse(trimmed) as T;
-  } catch {
-    const lines = trimmed.split(/\r?\n/);
-    for (let index = lines.length - 1; index >= 0; index -= 1) {
-      try {
-        return JSON.parse(lines[index]) as T;
-      } catch {
-        // keep scanning
-      }
-    }
-  }
-
-  throw new Error('output did not contain valid JSON');
-};
-
-const runJsonCommand = async <T>(
-  command: string,
-  payload: unknown,
-  timeoutMs: number,
-): Promise<T> =>
-  await new Promise<T>((resolve, reject) => {
-    const child = spawn('zsh', ['-lc', command], {
-      cwd: process.cwd(),
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-
-    const settle = (fn: () => void) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      fn();
-    };
-
-    const timeout = setTimeout(() => {
-      settle(() => {
-        child.kill('SIGKILL');
-        reject(new Error(`command timed out after ${timeoutMs}ms`));
-      });
-    }, timeoutMs);
-
-    child.stdout.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-    child.on('error', (error) => {
-      clearTimeout(timeout);
-      settle(() => reject(error));
-    });
-    child.on('close', (code) => {
-      clearTimeout(timeout);
-      settle(() => {
-        if (code !== 0) {
-          reject(
-            new Error(
-              `command exited with code ${code}. stderr: ${stderr.trim() || '(none)'}`,
-            ),
-          );
-          return;
-        }
-
-        try {
-          resolve(parseJsonFromOutput<T>(stdout));
-        } catch (error) {
-          reject(
-            new Error(
-              `failed to parse command JSON: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            ),
-          );
-        }
-      });
-    });
-
-    child.stdin.write(JSON.stringify(payload));
-    child.stdin.end();
+const resolveMatch = async (
+  config: Config,
+  player: QueuePlayer,
+): Promise<QuickMatchResult> => {
+  const match = await queueForMatch({
+    serverUrl: config.serverUrl,
+    scenario: config.scenario,
+    username: player.username,
+    playerKey: player.playerKey,
+    pollMs: config.pollMs,
+    // Scrimmage runs want “effectively unbounded” pairing; the queue
+    // helper’s default timeout is relatively small, so we override it.
+    timeoutMs: 60 * 60 * 1000,
   });
+
+  player.ticket = match.ticket;
+  player.matched = match;
+  return match;
+};
 
 const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(url, init);
@@ -331,78 +261,7 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${raw || 'request failed'}`);
   }
-
   return JSON.parse(raw) as T;
-};
-
-const enqueueQuickMatch = async (
-  config: Config,
-  player: QueuePlayer,
-): Promise<QuickMatchResponse> =>
-  await fetchJson<QuickMatchResponse>(`${config.serverUrl}/quick-match`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      scenario: config.scenario,
-      player: {
-        playerKey: player.playerKey,
-        username: player.username,
-      },
-    }),
-  });
-
-const pollQuickMatch = async (
-  config: Config,
-  ticket: string,
-): Promise<QuickMatchResponse> => {
-  while (true) {
-    const response = await fetch(`${config.serverUrl}/quick-match/${ticket}`);
-    const raw = await response.text();
-    const parsed = JSON.parse(raw) as QuickMatchResponse;
-    if (response.ok) {
-      if (parsed.status === 'matched') {
-        return parsed;
-      }
-      if (parsed.status === 'queued') {
-        await delay(config.pollMs);
-        continue;
-      }
-    }
-
-    if (response.status === 410 && parsed.status === 'expired') {
-      throw new Error(`queue ticket expired: ${parsed.reason}`);
-    }
-
-    throw new Error(
-      `unexpected quick-match response: HTTP ${response.status} ${raw}`,
-    );
-  }
-};
-
-const resolveMatch = async (
-  config: Config,
-  player: QueuePlayer,
-): Promise<Extract<QuickMatchResponse, { status: 'matched' }>> => {
-  const response = await enqueueQuickMatch(config, player);
-  if (response.status === 'matched') {
-    player.matched = response;
-    return response;
-  }
-
-  if (response.status !== 'queued') {
-    throw new Error(`unexpected enqueue status: ${response.status}`);
-  }
-
-  player.ticket = response.ticket;
-  const matched = await pollQuickMatch(config, response.ticket);
-  if (matched.status !== 'matched') {
-    throw new Error(`expected matched response for ${player.label}`);
-  }
-
-  player.matched = matched;
-  return matched;
 };
 
 const terminateProcess = (child: ReturnType<typeof spawn>): void => {
@@ -699,8 +558,8 @@ const pairPlayersInSameRoom = async (
 ): Promise<{
   left: QueuePlayer;
   right: QueuePlayer;
-  leftMatch: Extract<QuickMatchResponse, { status: 'matched' }>;
-  rightMatch: Extract<QuickMatchResponse, { status: 'matched' }>;
+  leftMatch: QuickMatchResult;
+  rightMatch: QuickMatchResult;
 }> => {
   const maxAttempts = 5;
   let lastMismatch: { leftCode: string; rightCode: string } | null = null;

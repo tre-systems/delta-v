@@ -45,19 +45,15 @@
       "legalC2S": [
         "beginCombat",
         "combat",
-        "combatSingle",
-        "endCombat",
         "skipCombat"
       ],
       "simultaneous": false,
       "requiredShape": {
-        "combat": { "type": "combat", "attacks": "CombatAttack[]" },
-        "combatSingle": { "type": "combatSingle", "attack": "CombatAttack" }
+        "combat": { "type": "combat", "attacks": "CombatAttack[]" }
       },
       "notes": [
         "beginCombat must be sent before combat attacks when state.pendingAsteroidHazards contains your ship ids",
-        "combatSingle resolves one attack at a time; combat batches multiple",
-        "endCombat advances the phase once you have no more attacks to make"
+        "combat attacks can be included in the single `combat` action for this turn"
       ]
     },
     "logistics": {

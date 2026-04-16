@@ -147,13 +147,7 @@ describe('agent-playbook.json', () => {
       new Set(['ordnance', 'emplaceBase', 'skipOrdnance']),
     );
     expect(new Set(playbook.phaseActionMap.combat.legalC2S)).toEqual(
-      new Set([
-        'beginCombat',
-        'combat',
-        'combatSingle',
-        'endCombat',
-        'skipCombat',
-      ]),
+      new Set(['beginCombat', 'combat', 'skipCombat']),
     );
     expect(new Set(playbook.phaseActionMap.logistics.legalC2S)).toEqual(
       new Set(['logistics', 'skipLogistics']),

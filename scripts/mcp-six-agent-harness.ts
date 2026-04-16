@@ -476,9 +476,8 @@ const main = async () => {
   const winCount = sessions.filter((s) => s.won === true).length;
   const decidedCount = sessions.filter((s) => s.won !== null).length;
 
-  // eslint-disable-next-line no-console
-  console.log(
-    JSON.stringify(
+  process.stdout.write(
+    `${JSON.stringify(
       {
         agents: sessions.length,
         sampleWinners: wins.slice(0, 6),
@@ -500,7 +499,7 @@ const main = async () => {
       },
       null,
       2,
-    ),
+    )}\n`,
   );
 };
 
