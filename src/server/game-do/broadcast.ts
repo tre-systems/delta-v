@@ -28,7 +28,10 @@ export const broadcastMessage = (
   }
 };
 
-export const broadcastFilteredMessage = (
+// Internal: only broadcastStateChange calls this. Kept non-exported so
+// call sites can't accidentally bypass the state-change pipeline
+// (publication parity checks, event append, checkpoint cadence).
+const broadcastFilteredMessage = (
   sockets: {
     getWebSockets: (tag?: string) => WebSocket[];
   },
