@@ -94,12 +94,6 @@ Extract a shared Durable Object storage mock helper with one `put` contract, the
 
 **Files:** `src/server/game-do/archive.test.ts`, `src/server/game-do/game-do.test.ts`, `src/server/game-do/alarm.test.ts`, `src/server/game-do/match.test.ts`, `src/server/game-do/turn-timeout.test.ts`
 
-### Extend coverage thresholds beyond shared engine code
-
-Ratchet coverage onto `src/server/game-do/**/*.ts` and a small set of high-value client modules so plumbing regressions stop slipping in under the unscoped threshold.
-
-**Files:** `vitest.config.ts`, selected `src/server/game-do/**/*.test.ts`, selected `src/client/**/*.test.ts`
-
 ### Client consistency cleanup
 
 Make unsupported local-transport methods explicit, route local emplacement through the same resolution path as other local actions, and add error containment/reporting for reactive effects.
