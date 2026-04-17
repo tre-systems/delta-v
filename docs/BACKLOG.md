@@ -10,22 +10,6 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 Findings from exploratory live-session testing on 2026-04-17 using paired quick-match queues, MCP sessions, and browser-driven player flows. Ordered by user impact and regression risk.
 
-### Honor requested scenario in quick match
-
-Quick-match requests are not reliably producing the requested scenario in live state. In multiple runs, matches requested as `biplanetary` and `convoy` resolved to `duel` in authoritative `state.scenario`.
-
-**Tasks:**
-- Trace scenario selection from client request through queue/ticket matching to game creation payload.
-- Add server-side invariant checks that reject/flag scenario mismatch at match creation time.
-- Add integration tests that start quick-match pairs for each scenario and assert `state.scenario` equals requested.
-- Add telemetry/structured logging for requested vs resolved scenario to catch drift in production.
-
-**Acceptance criteria:**
-- Quick-match pairs for `duel`, `biplanetary`, `convoy`, `escape`, and `evacuation` consistently create matches with matching `state.scenario`.
-- CI includes a scenario-propagation integration test that fails on mismatch.
-
-**Files:** quick-match queue/matching path, game creation path, scenario selection UI wiring, relevant integration tests
-
 ### Unify in-game state messaging with actual phase/turn state
 
 During active matches, stale pregame content (e.g. "Game Created", "Waiting for opponent...") can remain in the semantic tree while in-turn controls are already active. This causes user confusion and weakens accessibility semantics.
