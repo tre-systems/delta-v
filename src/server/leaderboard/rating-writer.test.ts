@@ -219,6 +219,15 @@ describe('writeMatchRatingIfEligible', () => {
     // First meeting → distinct_opponents bumps to 1 on both sides.
     expect(winner?.distinct_opponents).toBe(1);
     expect(loser?.distinct_opponents).toBe(1);
+
+    // Observability layer needs enough detail to emit a rating_applied
+    // event without a follow-up DB read.
+    expect(result.applied).toBeDefined();
+    expect(result.applied?.aKey).toBe('human_aaa12345');
+    expect(result.applied?.winnerKey).toBe('human_aaa12345');
+    expect(result.applied?.newOpponent).toBe(true);
+    expect(result.applied?.ratingBeforeA).toBe(1500);
+    expect(result.applied?.ratingAfterA).toBeGreaterThan(1500);
   });
 
   it('does not bump distinct_opponents on a rematch', async () => {

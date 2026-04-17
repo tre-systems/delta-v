@@ -183,6 +183,22 @@
     .outcome-p2 { color: var(--warning); border: 1px solid rgba(255, 197, 106, 0.4); }
     .outcome-draw { color: var(--muted); border: 1px solid var(--border); }
 
+    .outcome-named {
+      color: var(--accent);
+      border: 1px solid var(--border-strong);
+      font-family: var(--font-display);
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .loser-suffix {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-left: 0.35rem;
+    }
+
     .win-reason {
       display: block;
       color: var(--muted);
@@ -460,7 +476,14 @@
     const scenarioName = SCENARIO_NAMES[match.scenario] || match.scenario;
 
     let winnerCell;
-    if (match.winner === 0) {
+    if (match.winnerUsername) {
+      const loserSuffix = match.loserUsername
+        ? `<span class="loser-suffix">vs ${escapeHtml(match.loserUsername)}</span>`
+        : '';
+      winnerCell =
+        `<span class="outcome-winner outcome-named">${escapeHtml(match.winnerUsername)}</span>` +
+        loserSuffix;
+    } else if (match.winner === 0) {
       winnerCell = '<span class="outcome-winner outcome-p1">Player 1</span>';
     } else if (match.winner === 1) {
       winnerCell = '<span class="outcome-winner outcome-p2">Player 2</span>';
