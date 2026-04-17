@@ -27,6 +27,18 @@ export default defineConfig({
           functions: 78,
           lines: 83,
         },
+        // Tighter floor on the Durable Object layer specifically — the
+        // game-do/ subtree is where state, archiving, and MCP plumbing
+        // live, and silent regressions there cost production time to
+        // diagnose. Thresholds sit a hair below the current measured
+        // coverage so new code either stays above the floor or ships
+        // dedicated tests.
+        'src/server/game-do/**/*.ts': {
+          statements: 82,
+          branches: 76,
+          functions: 76,
+          lines: 83,
+        },
         // Modest baseline for the client so future regressions in the
         // reactive/UI layer surface; chosen to sit just below the current
         // measured coverage so the floor rises gradually with new tests.
