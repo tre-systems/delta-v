@@ -489,6 +489,7 @@ export class GameDO extends DurableObject<Env> {
       env: this.env,
       waitUntil: (promise) => this.waitUntil(promise),
       getGameCode: () => this.getGameCode(),
+      getRoomConfig: () => this.getRoomConfig(),
       verifyProjectionParity: (state) => this.verifyProjectionParity(state),
       broadcastStateChange: (state, primaryMessage) =>
         this.broadcastStateChange(state, primaryMessage),

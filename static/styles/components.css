@@ -188,6 +188,22 @@
   box-shadow: 0 0 0 3px rgba(122, 215, 255, 0.14);
 }
 
+.menu-profile-status {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  min-height: 1em;
+  color: rgba(199, 212, 234, 0.6);
+}
+
+.menu-profile-status.status-success {
+  color: rgba(138, 226, 164, 0.9);
+}
+
+.menu-profile-status.status-error {
+  color: rgba(255, 143, 143, 0.9);
+}
+
 #menu #createBtn {
   width: 100%;
 }

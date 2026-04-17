@@ -1,13 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Env } from '../env';
-import { verifyAgentToken } from './';
-import { handleAgentTokenIssue } from './issue-route';
+import { handleClaimName } from './claim-route';
 
-const TEST_SECRET = 'issue-route-test-secret-must-be-16-chars';
-
-// Minimal D1 mock matching the SELECT + INSERT + UPDATE shapes used by
-// player-store. Keyed by player_key; honours UNIQUE on username.
+// Minimal D1 mock matching the SELECT / INSERT / UPDATE shapes used by
+// player-store.
 const buildMockDb = () => {
   const byKey = new Map<string, Record<string, unknown>>();
   const byName = new Map<string, string>();
@@ -79,31 +76,27 @@ const buildMockDb = () => {
   return { db: { prepare } as unknown as D1Database, byKey };
 };
 
-const env = (db?: D1Database): Env =>
-  ({
-    AGENT_TOKEN_SECRET: TEST_SECRET,
-    DB: db,
-  }) as unknown as Env;
+const env = (db?: D1Database): Env => ({ DB: db }) as unknown as Env;
 
 const post = (body: unknown): Request =>
-  new Request('https://w.test/api/agent-token', {
+  new Request('https://w.test/api/claim-name', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 
-describe('handleAgentTokenIssue', () => {
+describe('handleClaimName', () => {
   it('rejects non-POST methods', async () => {
-    const res = await handleAgentTokenIssue(
-      new Request('https://w.test/api/agent-token', { method: 'GET' }),
+    const res = await handleClaimName(
+      new Request('https://w.test/api/claim-name', { method: 'GET' }),
       env(),
     );
     expect(res.status).toBe(405);
   });
 
   it('rejects malformed JSON', async () => {
-    const res = await handleAgentTokenIssue(
-      new Request('https://w.test/api/agent-token', {
+    const res = await handleClaimName(
+      new Request('https://w.test/api/claim-name', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: 'not-json',
@@ -113,143 +106,113 @@ describe('handleAgentTokenIssue', () => {
     expect(res.status).toBe(400);
   });
 
-  it('rejects missing playerKey', async () => {
-    const res = await handleAgentTokenIssue(post({}), env());
-    expect(res.status).toBe(400);
-  });
-
-  it('rejects non-agent_-prefixed playerKey', async () => {
-    const res = await handleAgentTokenIssue(
-      post({ playerKey: 'human_user' }),
+  it('rejects an invalid playerKey format', async () => {
+    const res = await handleClaimName(
+      post({ playerKey: 'short', username: 'Pilot' }),
       env(),
     );
     expect(res.status).toBe(400);
   });
 
-  it('issues a valid token for a well-formed agent_ key', async () => {
-    const res = await handleAgentTokenIssue(
-      post({ playerKey: 'agent_alpha-v1' }),
-      env(),
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      ok: boolean;
-      token: string;
-      expiresAt: number;
-      ttlMs: number;
-      playerKey: string;
-      tokenType: string;
-      player?: unknown;
-    };
-    expect(body.ok).toBe(true);
-    expect(body.tokenType).toBe('Bearer');
-    expect(body.playerKey).toBe('agent_alpha-v1');
-    expect(body.ttlMs).toBe(86_400_000);
-    expect(body.player).toBeUndefined();
-
-    const verified = await verifyAgentToken(body.token, {
-      secret: TEST_SECRET,
-    });
-    expect(verified.ok).toBe(true);
-    if (verified.ok) {
-      expect(verified.payload.playerKey).toBe('agent_alpha-v1');
-    }
-  });
-
-  it('issues a token AND creates a player row when claim is present', async () => {
-    const { db, byKey } = buildMockDb();
-    const res = await handleAgentTokenIssue(
-      post({
-        playerKey: 'agent_alpha-v1',
-        claim: { username: 'Zephyr' },
-      }),
+  it('rejects an agent_-prefixed playerKey', async () => {
+    const { db } = buildMockDb();
+    const res = await handleClaimName(
+      post({ playerKey: 'agent_reserved123', username: 'Pilot' }),
       env(db),
     );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      ok: boolean;
-      player?: {
-        username: string;
-        isAgent: boolean;
-        rating: number;
-        rd: number;
-        gamesPlayed: number;
-      };
-    };
-    expect(body.ok).toBe(true);
-    expect(body.player).toEqual({
-      username: 'Zephyr',
-      isAgent: true,
-      rating: 1500,
-      rd: 350,
-      gamesPlayed: 0,
-    });
-    expect(byKey.get('agent_alpha-v1')?.username).toBe('Zephyr');
-    expect(byKey.get('agent_alpha-v1')?.is_agent).toBe(1);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain('agent-token');
   });
 
-  it('rejects an invalid username without issuing a token', async () => {
+  it('rejects an invalid username', async () => {
     const { db, byKey } = buildMockDb();
-    const res = await handleAgentTokenIssue(
-      post({
-        playerKey: 'agent_alpha-v1',
-        claim: { username: 'has!bad!chars' },
-      }),
+    const res = await handleClaimName(
+      post({ playerKey: 'human_alpha-v1', username: 'has!bad!chars' }),
       env(db),
     );
     expect(res.status).toBe(400);
     expect(byKey.size).toBe(0);
   });
 
-  it('returns 409 when the name is already owned by another key', async () => {
+  it('accepts usernames with spaces (aligns with Callsign UX)', async () => {
     const { db } = buildMockDb();
-    await handleAgentTokenIssue(
-      post({
-        playerKey: 'agent_first-aaa',
-        claim: { username: 'Taken' },
-      }),
-      env(db),
-    );
-    const res = await handleAgentTokenIssue(
-      post({
-        playerKey: 'agent_second-bbb',
-        claim: { username: 'Taken' },
-      }),
-      env(db),
-    );
-    expect(res.status).toBe(409);
-    const body = (await res.json()) as { ok: boolean; error: string };
-    expect(body.ok).toBe(false);
-    expect(body.error).toBe('name_taken');
-  });
-
-  it('renames an existing agent when a different name is claimed', async () => {
-    const { db } = buildMockDb();
-    await handleAgentTokenIssue(
-      post({
-        playerKey: 'agent_same-xyz',
-        claim: { username: 'Original' },
-      }),
-      env(db),
-    );
-    const res = await handleAgentTokenIssue(
-      post({
-        playerKey: 'agent_same-xyz',
-        claim: { username: 'Renamed' },
-      }),
+    const res = await handleClaimName(
+      post({ playerKey: 'human_alpha-v1', username: 'Pilot 3BAA' }),
       env(db),
     );
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { player?: { username: string } };
-    expect(body.player?.username).toBe('Renamed');
+    const body = (await res.json()) as { player: { username: string } };
+    expect(body.player.username).toBe('Pilot 3BAA');
   });
 
-  it('returns 503 when a claim is requested but D1 is unbound', async () => {
-    const res = await handleAgentTokenIssue(
-      post({
-        playerKey: 'agent_alpha-v1',
-        claim: { username: 'Zephyr' },
-      }),
+  it('creates a new player row with is_agent=0', async () => {
+    const { db, byKey } = buildMockDb();
+    const res = await handleClaimName(
+      post({ playerKey: 'human_alpha-v1', username: 'Zephyr' }),
+      env(db),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      ok: boolean;
+      player: {
+        username: string;
+        isAgent: boolean;
+        rating: number;
+        rd: number;
+        gamesPlayed: number;
+      };
+      renamed: boolean;
+    };
+    expect(body.ok).toBe(true);
+    expect(body.player).toEqual({
+      username: 'Zephyr',
+      isAgent: false,
+      rating: 1500,
+      rd: 350,
+      gamesPlayed: 0,
+    });
+    expect(body.renamed).toBe(false);
+    expect(byKey.get('human_alpha-v1')?.is_agent).toBe(0);
+  });
+
+  it('returns 409 when the name is already owned by another key', async () => {
+    const { db } = buildMockDb();
+    await handleClaimName(
+      post({ playerKey: 'human_first-v1', username: 'Taken' }),
+      env(db),
+    );
+    const res = await handleClaimName(
+      post({ playerKey: 'human_second-v1', username: 'Taken' }),
+      env(db),
+    );
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('name_taken');
+  });
+
+  it('renames the same key to a new free username', async () => {
+    const { db } = buildMockDb();
+    await handleClaimName(
+      post({ playerKey: 'human_same-v1', username: 'Original' }),
+      env(db),
+    );
+    const res = await handleClaimName(
+      post({ playerKey: 'human_same-v1', username: 'Updated' }),
+      env(db),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      player: { username: string };
+      renamed: boolean;
+    };
+    expect(body.player.username).toBe('Updated');
+    expect(body.renamed).toBe(true);
+  });
+
+  it('returns 503 when D1 is unbound', async () => {
+    const res = await handleClaimName(
+      post({ playerKey: 'human_alpha-v1', username: 'Zephyr' }),
       env(),
     );
     expect(res.status).toBe(503);

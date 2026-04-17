@@ -86,6 +86,7 @@
         <div class="menu-profile">
           <label class="menu-profile-label" for="playerNameInput">Callsign</label>
           <input id="playerNameInput" class="menu-profile-input" maxlength="20" placeholder="Pilot" autocapitalize="words" spellcheck="false" aria-label="Callsign">
+          <div id="callsignStatus" class="menu-profile-status" role="status" aria-live="polite"></div>
         </div>
         <button id="quickMatchBtn" data-testid="quickMatchBtn" class="btn btn-primary">Quick Match</button>
         <div class="menu-surface-note">Find the next available commander in the duel queue.</div>
@@ -110,6 +111,7 @@
         </div>
       </div>
       <button id="menuHowToPlayBtn" class="menu-rules-btn">How to Play</button>
+      <a href="/leaderboard" class="menu-rules-btn">Leaderboard</a>
       <a href="/matches" class="menu-rules-btn">Recent matches</a>
       <a href="/agents" class="menu-rules-btn menu-agent-cta">Build a Bot →</a>
       <a href="https://ko-fi.com/N4N31DPNUS" target="_blank" rel="noopener" class="kofi-link">

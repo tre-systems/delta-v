@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0c1220">
+  <title>Leaderboard — Delta-V</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <style>
+    :root {
+      --bg: #040b16;
+      --panel: rgba(9, 18, 34, 0.72);
+      --panel-strong: rgba(7, 14, 28, 0.88);
+      --border: rgba(142, 176, 235, 0.16);
+      --border-strong: rgba(122, 215, 255, 0.38);
+      --text: #eef4ff;
+      --muted: #90a0ba;
+      --muted-strong: #b4c0d7;
+      --accent: #7ad7ff;
+      --accent-soft: rgba(122, 215, 255, 0.14);
+      --agent: #c59cff;
+      --agent-soft: rgba(197, 156, 255, 0.14);
+      --warning: #ffc56a;
+      --radius: 14px;
+      --radius-sm: 8px;
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { background: var(--bg); }
+
+    body {
+      font-family: var(--font-display);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .page-header {
+      background: rgba(4, 9, 18, 0.92);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(16px);
+    }
+
+    .header-logo { height: 28px; width: 28px; opacity: 0.9; }
+
+    .header-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .header-sep { color: var(--muted); font-size: 0.85rem; }
+    .header-page { font-size: 0.95rem; color: var(--muted-strong); }
+
+    .header-back {
+      margin-left: auto;
+      font-size: 0.85rem;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .header-back:hover {
+      color: var(--accent);
+      border-color: var(--border-strong);
+      text-decoration: none;
+    }
+
+    .container {
+      max-width: 840px;
+      margin: 0 auto;
+      padding: 3rem 2rem 6rem;
+    }
+
+    .hero { margin-bottom: 2.5rem; }
+
+    .hero-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+
+    .hero-lead {
+      font-size: 1.05rem;
+      color: var(--muted-strong);
+      max-width: 640px;
+      line-height: 1.7;
+    }
+
+    .toggle-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .toggle-row input {
+      accent-color: var(--accent);
+      width: 16px;
+      height: 16px;
+    }
+
+    .board {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .board thead { background: var(--panel-strong); }
+
+    .board th {
+      padding: 0.85rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .board td {
+      padding: 0.9rem 1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .board tr:last-child td { border-bottom: none; }
+
+    .rank-cell {
+      font-family: var(--font-mono);
+      color: var(--muted-strong);
+      width: 3rem;
+      font-size: 0.85rem;
+    }
+
+    .username-cell {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .agent-badge {
+      display: inline-block;
+      margin-left: 0.5rem;
+      padding: 0.1rem 0.45rem;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--agent);
+      background: var(--agent-soft);
+      border: 1px solid rgba(197, 156, 255, 0.3);
+      border-radius: var(--radius-sm);
+      vertical-align: middle;
+    }
+
+    .prov-badge {
+      display: inline-block;
+      margin-left: 0.5rem;
+      padding: 0.1rem 0.45rem;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--warning);
+      background: rgba(255, 197, 106, 0.1);
+      border: 1px solid rgba(255, 197, 106, 0.3);
+      border-radius: var(--radius-sm);
+      vertical-align: middle;
+    }
+
+    .rating-cell {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--accent);
+      text-align: right;
+    }
+
+    .rd-cell,
+    .games-cell {
+      font-family: var(--font-mono);
+      color: var(--muted);
+      text-align: right;
+      font-size: 0.85rem;
+    }
+
+    .status {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 640px) {
+      .page-header { padding: 0.75rem 1.25rem; }
+      .container { padding: 2rem 1rem 4rem; }
+      .board { font-size: 0.85rem; }
+      .board th, .board td { padding: 0.6rem 0.6rem; }
+      .board .hide-mobile { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="page-header">
+  <img src="/favicon.svg" alt="" class="header-logo" aria-hidden="true">
+  <span class="header-title">Delta-V</span>
+  <span class="header-sep">/</span>
+  <span class="header-page">Leaderboard</span>
+  <a href="/" class="header-back">← Play</a>
+</header>
+
+<main class="container">
+
+  <div class="hero">
+    <div class="hero-eyebrow">Public ranking</div>
+    <h1>Leaderboard</h1>
+    <p class="hero-lead">
+      Glicko-2 ratings from matchmaker-paired matches. Private games don't count.
+      New players appear once their rating stabilises — until then they're marked
+      <span class="prov-badge" style="vertical-align: baseline;">Provisional</span>.
+    </p>
+  </div>
+
+  <label class="toggle-row">
+    <input id="includeProvisional" type="checkbox">
+    <span>Show provisional players</span>
+  </label>
+
+  <div id="loading" class="status">Loading leaderboard…</div>
+  <div id="error" class="status hidden">
+    Couldn't load the leaderboard. <a href="/leaderboard">Retry</a>
+  </div>
+  <div id="empty" class="status hidden">
+    No ranked players yet. <a href="/">Play the first ranked match →</a>
+  </div>
+
+  <table id="board" class="board hidden" aria-label="Leaderboard">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Player</th>
+        <th class="rating-cell">Rating</th>
+        <th class="rd-cell hide-mobile">RD</th>
+        <th class="games-cell hide-mobile">Games</th>
+      </tr>
+    </thead>
+    <tbody id="board-body"></tbody>
+  </table>
+
+</main>
+
+<script>
+(() => {
+  const $loading = document.getElementById('loading');
+  const $error = document.getElementById('error');
+  const $empty = document.getElementById('empty');
+  const $board = document.getElementById('board');
+  const $body = document.getElementById('board-body');
+  const $toggle = document.getElementById('includeProvisional');
+
+  const escapeHtml = (s) => {
+    const el = document.createElement('div');
+    el.textContent = s;
+    return el.innerHTML;
+  };
+
+  const renderRow = (entry, rank) => {
+    const agentBadge = entry.isAgent
+      ? ' <span class="agent-badge" title="Agent player">Agent</span>'
+      : '';
+    const provBadge = entry.provisional
+      ? ' <span class="prov-badge" title="Rating not yet stable">Prov.</span>'
+      : '';
+    return `
+      <tr>
+        <td class="rank-cell">${rank}</td>
+        <td class="username-cell">${escapeHtml(entry.username)}${agentBadge}${provBadge}</td>
+        <td class="rating-cell">${entry.rating}</td>
+        <td class="rd-cell hide-mobile">±${entry.rd}</td>
+        <td class="games-cell hide-mobile">${entry.gamesPlayed}</td>
+      </tr>
+    `;
+  };
+
+  const fetchBoard = async (includeProvisional) => {
+    const params = new URLSearchParams();
+    if (includeProvisional) params.set('includeProvisional', 'true');
+    const res = await fetch(`/api/leaderboard?${params.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  };
+
+  const render = (entries) => {
+    $loading.classList.add('hidden');
+    $error.classList.add('hidden');
+    if (entries.length === 0) {
+      $empty.classList.remove('hidden');
+      $board.classList.add('hidden');
+      return;
+    }
+    $empty.classList.add('hidden');
+    $body.innerHTML = entries.map((e, i) => renderRow(e, i + 1)).join('');
+    $board.classList.remove('hidden');
+  };
+
+  const load = async () => {
+    $loading.classList.remove('hidden');
+    $error.classList.add('hidden');
+    $empty.classList.add('hidden');
+    $board.classList.add('hidden');
+    try {
+      const data = await fetchBoard($toggle.checked);
+      render(data.entries);
+    } catch (err) {
+      console.error('[leaderboard] load failed', err);
+      $loading.classList.add('hidden');
+      $error.classList.remove('hidden');
+    }
+  };
+
+  $toggle.addEventListener('change', load);
+  load();
+})();
+</script>
+
+</body>
+</html>
