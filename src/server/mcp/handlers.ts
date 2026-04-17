@@ -358,19 +358,25 @@ export const buildMcpServer = (
   server.registerTool(
     'delta_v_send_chat',
     {
-      description: 'Send a chat message in the current match (≤200 chars).',
+      description:
+        'Send a chat message in the current match (≤200 chars). The canonical argument name is `text`; `message` is accepted as an alias for clients that follow the conventional chat-field naming.',
       inputSchema: {
         ...matchTargetSchema,
-        text: z.string().min(1).max(200),
+        text: z.string().min(1).max(200).optional(),
+        message: z.string().min(1).max(200).optional(),
       },
     },
     async (args) => {
+      const chatText = args.text ?? args.message;
+      if (!chatText) {
+        fail('send_chat requires a non-empty `text` (alias: `message`).');
+      }
       const target = await resolveMatchTarget(args, env, agentIdentity);
       const response = await callDurableObject(env, target.code, {
         url: `${SERVER_INTERNAL}/mcp/chat?playerToken=${encodeURIComponent(target.playerToken)}`,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: args.text }),
+        body: JSON.stringify({ text: chatText }),
       });
       const body = (await response.json()) as JsonRecord;
       if (!response.ok) fail(`send_chat failed: ${JSON.stringify(body)}`);

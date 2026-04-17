@@ -69,7 +69,7 @@ All tools accept `sessionId` unless otherwise noted.
 | `delta_v_wait_for_turn` | Block until actionable turn window | `sessionId`, `timeoutMs?`, same include flags as observation | observation payload |
 | `delta_v_get_events` | Read buffered event stream | `sessionId`, `afterEventId?`, `limit?`, `clear?` | `{ events[], bufferedRemaining }` |
 | `delta_v_send_action` | Submit C2S action | `sessionId`, `action` | `{ actionType }` (or richer action result when enabled) |
-| `delta_v_send_chat` | Send chat message | `sessionId`, `text` | `{ text }` |
+| `delta_v_send_chat` | Send chat message | `sessionId`, `text` (alias: `message`) | `{ text }` |
 | `delta_v_close_session` | Close local MCP session | `sessionId` | `{ closed }` |
 
 Notes:
