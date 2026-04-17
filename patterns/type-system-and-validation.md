@@ -133,7 +133,7 @@ const CHAT_RATE_LIMIT_MS = 500;         // min gap between chat messages
 // Within window → silently dropped
 ```
 
-**Where it lives and what it limits.** Canonical values in [SECURITY.md](../docs/SECURITY.md#rate-limiting-architecture). Constants in `src/server/reporting.ts` (Worker-level, per-IP) and `src/server/game-do/socket.ts` (DO-level, per-socket / per-player).
+**Where it lives and what it limits.** Canonical values in [SECURITY.md#3-rate-limiting-architecture](../docs/SECURITY.md#3-rate-limiting-architecture). Constants in `src/server/reporting.ts` (Worker-level, per-IP) and `src/server/game-do/socket.ts` (DO-level, per-socket / per-player).
 
 **Why this shape.**
 

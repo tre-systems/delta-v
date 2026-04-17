@@ -232,7 +232,7 @@ coverage: {
 }
 ```
 
-**Where it lives.** [`vitest.config.ts`](../../vitest.config.ts). Reports in `coverage/` (gitignored).
+**Where it lives.** [`vitest.config.ts`](../vitest.config.ts). Reports in `coverage/` (gitignored).
 
 **Why this shape.**
 
