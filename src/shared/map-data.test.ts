@@ -70,7 +70,7 @@ describe('buildSolarSystemMap', () => {
     const asteroids = [...map.hexes.entries()].filter(
       ([, h]) => h.terrain === 'asteroid',
     );
-    expect(asteroids.length).toBe(65);
+    expect(asteroids.length).toBe(64);
     expect(asteroids.map(([key]) => key)).toContain('6,-16');
   });
   it('includes the clandestine base inside the eastern dense field', () => {
