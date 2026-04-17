@@ -238,6 +238,12 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     });
 
     listen(quickMatchBtn, 'click', () => {
+      // Ensure quick-match players are claimed for leaderboard/match history
+      // even if they never blur the callsign input first.
+      const normalised = deps.setPlayerName(playerNameInput.value);
+      playerNameInput.value = normalised;
+      const postClaim = deps.postClaimName ?? postClaimName;
+      runClaim(postClaim);
       deps.emit({ type: 'quickMatch' });
     });
 
