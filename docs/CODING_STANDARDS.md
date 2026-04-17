@@ -114,7 +114,7 @@ Pattern detail (fixtures, mock storage, seeded RNG in tests, coverage thresholds
 
 ## Common Patterns
 
-Pattern rationale — with examples, tradeoffs, and rough edges — lives in [`patterns/`](../patterns/README.md). This section lists the conventions that new code should follow.
+Pattern rationale — with examples and tradeoffs — lives in [`patterns/`](../patterns/README.md). This section lists the conventions that new code should follow.
 
 ### Discriminated unions
 

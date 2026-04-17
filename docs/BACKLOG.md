@@ -12,6 +12,96 @@ _No active items. The public-leaderboard arc shipped on 2026-04-17 — see commi
 
 ---
 
+## Architecture & correctness
+
+### Deterministic initial publication path
+
+Route `initGameSession` through `runPublicationPipeline`, then remove the remaining `getActionRng()` fallbacks to `Math.random` in paths that should already have persistent match identity.
+
+**Files:** `src/server/game-do/match.ts`, `src/server/game-do/publication.ts`, `src/server/game-do/game-do.ts`, `src/shared/prng.ts`
+
+### Replayable turn advancement
+
+Make reinforcement and fleet-conversion side effects fully replayable by either emitting explicit turn-advance events or sharing one mutation implementation between the live engine and the event projector.
+
+**Files:** `src/shared/engine/turn-advance.ts`, `src/shared/engine/victory.ts`, `src/shared/engine/event-projector/lifecycle.ts`, `src/shared/engine/engine-events.ts`
+
+### Cached current-state projection and checkpoint cleanup
+
+Avoid rebuilding current state from checkpoint + tail on every wake/read, and prune completed-match checkpoints once the durable archive is written.
+
+**Files:** `src/server/game-do/archive.ts`, `src/server/game-do/projection.ts`, `src/server/game-do/archive-storage.ts`, `src/server/game-do/game-do.ts`
+
+### Publication and broadcast safety rails
+
+Replace coarse JSON-string parity failures with structured diffs, converge normalization between production and tests, make lower-level broadcast helpers private, and add an exhaustive S2C builder/broadcast check similar to the C2S action map.
+
+**Files:** `src/server/game-do/publication.ts`, `src/server/game-do/broadcast.ts`, `src/server/game-do/message-builders.ts`, `src/server/game-do/archive.test.ts`
+
+### Boundary hardening and explicit client seams
+
+Hide clone-sensitive engine mutators behind non-exported modules, extend import-boundary enforcement to the missing directions, and finish the client kernel DI cleanup so `WebSocket` and `fetch` are injected rather than reached directly.
+
+**Files:** `src/shared/engine/victory.ts`, `src/shared/engine/turn-advance.ts`, `src/shared/import-boundary.test.ts`, `src/server/import-boundary.test.ts`, `src/client/game/client-kernel.ts`, `src/client/game/connection.ts`, `src/client/game/session-api.ts`, `biome.json`
+
+---
+
+## Type safety & scenario definitions
+
+### Close remaining stringly-typed registries and IDs
+
+Add `isHexKey`, tighten scenario/body registries around closed keys, and brand ship / ordnance identifiers so lookup-heavy paths stop depending on plain `string`.
+
+**Files:** `src/shared/hex.ts`, `src/shared/ids.ts`, `src/shared/map-data.ts`, `src/shared/types/domain.ts`, `src/server/room-routes.ts`, `src/server/game-do/http-handlers.ts`, `src/client/game/main-session-network.ts`
+
+### Scenario and map validation
+
+Validate scenario definitions and map data at load/game-creation time: conflicting rule combinations, unknown bodies, invalid spawn hexes, overlapping bodies, unreachable bases, and bounds that should be derived from body placement instead of hardcoded constants.
+
+**Files:** `src/shared/map-data.ts`, `src/shared/map-layout.ts`, `src/shared/engine/game-creation.ts`, `src/shared/types/domain.ts`
+
+### Finish moving AI difficulty behavior into config
+
+Remove the remaining `difficulty === 'hard'` / `'easy'` AI behavior branches that still live in code, and collapse presets around shared baselines so the real per-tier differences stay obvious.
+
+**Files:** `src/shared/ai/config.ts`, `src/shared/ai/fleet.ts`, `src/shared/ai/ordnance.ts`, `src/shared/ai/logistics.ts`
+
+### Standardized error surfaces and client recovery messaging
+
+Prefer `engineFailure()` everywhere, then surface typed rate-limit / validation handling in the client so user-facing error behavior can branch on error code instead of generic text alone.
+
+**Files:** `src/shared/engine/util.ts`, `src/shared/engine/astrogation.ts`, `src/shared/engine/ordnance.ts`, `src/shared/engine/logistics.ts`, `src/shared/engine/combat.ts`, `src/shared/types/domain.ts`, `src/server/game-do/socket.ts`, `src/client/game/connection.ts`, `src/client/game/message-handler.ts`
+
+---
+
+## Testing & client consistency
+
+### Broaden engine and protocol coverage
+
+Add property tests for ordnance-launch and logistics-transfer invariants, complete the missing positive C2S fixtures, and add negative protocol fixtures for invalid payloads.
+
+**Files:** `src/shared/ordnance.property.test.ts`, `src/shared/logistics.property.test.ts`, `src/shared/__fixtures__/contracts.json`, `src/shared/protocol.test.ts`, `src/server/game-do/__fixtures__/transport.json`
+
+### Consolidated DO test helpers and hibernation seed coverage
+
+Extract a shared Durable Object storage mock helper with one `put` contract, then add an explicit test that `matchSeed` survives checkpoint/replay and DO hibernation paths.
+
+**Files:** `src/server/game-do/archive.test.ts`, `src/server/game-do/game-do.test.ts`, `src/server/game-do/alarm.test.ts`, `src/server/game-do/match.test.ts`, `src/server/game-do/turn-timeout.test.ts`
+
+### Extend coverage thresholds beyond shared engine code
+
+Ratchet coverage onto `src/server/game-do/**/*.ts` and a small set of high-value client modules so plumbing regressions stop slipping in under the unscoped threshold.
+
+**Files:** `vitest.config.ts`, selected `src/server/game-do/**/*.test.ts`, selected `src/client/**/*.test.ts`
+
+### Client consistency cleanup
+
+Make unsupported local-transport methods explicit, route local emplacement through the same resolution path as other local actions, and add error containment/reporting for reactive effects.
+
+**Files:** `src/client/game/transport.ts`, `src/client/game/local.ts`, `src/client/reactive.ts`
+
+---
+
 ## Future features (not currently planned)
 
 These items are potential future work that depend on product decisions or external triggers. They are not in the active queue.
@@ -55,6 +145,14 @@ Add Turnstile verification to `POST /api/claim-name`: include a site-key widget 
 Symmetric in spirit to the Turnstile gate on human claims. Server issues a challenge; client submits a nonce whose hash beats a threshold. A few seconds of CPU for a legit agent, painful at bulk. No new infra or billing. Keep the per-IP rate limit in place alongside.
 
 **Files:** `src/server/auth/agent-token.ts`, `src/shared/pow.ts` (new)
+
+### Spectator delay for organized competitive play
+
+**Trigger:** organized matches or tournaments make real-time spectator leakage a meaningful competitive risk.
+
+Delay spectator-facing state/replay updates without affecting player latency.
+
+**Files:** `src/server/game-do/broadcast.ts`, `src/shared/engine/resolve-movement.ts`, replay/socket viewer paths
 
 ### OpenClaw SKILL.md on ClawHub
 

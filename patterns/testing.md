@@ -2,7 +2,7 @@
 
 How the Delta-V test suites are structured and what each layer covers. [CODING_STANDARDS.md](../docs/CODING_STANDARDS.md) gives the test conventions (co-location, property tests, coverage floors); [SIMULATION_TESTING.md](../docs/SIMULATION_TESTING.md) describes the simulation and load harnesses. This chapter walks through the patterns inside the Vitest suite.
 
-Each section: the pattern, a minimal example, where it lives, and why this shape. Rough edges at the end of each section.
+Each section: the pattern, a minimal example, where it lives, and why this shape.
 
 ---
 
@@ -69,10 +69,6 @@ test('higher odds never produce worse combat results', () => {
 - **Shrinking finds minimal repros.** When a property fails, fast-check reduces the counterexample automatically.
 - **Cheap coverage.** A ~20-line property test often covers what would take a dozen example tests.
 
-**Rough edges.**
-
-- No property suites yet for ordnance-launch validity or logistics-transfer constraints. Both have invariants worth fuzzing (a ship can't launch more than its cargo capacity; a transfer can't leave either ship with negative fuel).
-
 ---
 
 ## Data-Driven Tests with `it.each`
@@ -98,10 +94,6 @@ it.each([
 - **Boilerplate shrinks.** 20 test bodies collapse into 20 input rows and one assertion.
 - **Readable as data.** Combat-table tests read like a spec.
 - **Failure messages are descriptive.** `%o` / `%i` placeholders show the failing row.
-
-**Rough edges.**
-
-- Invalid-input rejection tests are still individual `it` blocks — consolidating to `it.each([input, expectedError] as const)` would reduce duplication.
 
 ---
 
@@ -133,11 +125,6 @@ it.each([
 - **`"__STATE__"` sentinel** insulates fixtures from `GameState` churn. Envelope changes still need manual fixture updates.
 - **Round-trip normalization.** Tests convert `undefined` → `null` to mirror JSON fidelity.
 
-**Rough edges.**
-
-- Missing C2S fixtures: `surrender`, `emplaceBase`, `combatSingle`.
-- No negative (invalid payload) fixtures — only success cases. Negative contract tests catch parser regressions best.
-
 ---
 
 ## Mock Durable Object Storage
@@ -166,11 +153,6 @@ const storage: DurableObjectStorage = {
 
 - **Tests skip the Wrangler runtime.** Faster, deterministic, easier to debug.
 - **Narrow surface area.** Each mock implements only what its test needs. `list` and `transaction` aren't implemented because Delta-V uses simple key-value I/O.
-
-**Rough edges.**
-
-- Each test file defines its own mock factory — no shared `test-helpers/mock-storage.ts`. Extracting one would reduce duplication.
-- Minor inconsistency: simpler mocks return `Promise<void>` from `put`; richer mocks return `Promise<boolean>`. Converging on one shape would help.
 
 ---
 
@@ -204,10 +186,6 @@ expect(seq).toMatchInlineSnapshot('[0.123, 0.456, …]');
 - **Required RNG parameter** on turn-resolution entry points makes this the only viable approach — tests can't forget to pass one.
 - **`deriveActionRng`** means replaying an event range doesn't require replaying the history before it.
 
-**Rough edges.**
-
-- No explicit test verifying `matchSeed` persistence/restoration across DO hibernation (implicitly covered by archive tests).
-
 ---
 
 ## Coverage Thresholds
@@ -240,11 +218,6 @@ coverage: {
 - **`src/shared/` only.** The engine is the replay contract — its coverage matters most. Server and client coverage is useful but not yet enforced.
 - **Branch threshold intentionally lower.** Defensive branches in complex game rules are hard to exercise; forcing 85 % branch coverage would encourage exercises that don't add real confidence.
 
-**Rough edges.**
-
-- No enforced thresholds on `src/server/game-do/**/*.ts` or selective `src/client/**/*.ts` hotspots. The server plumbing is well-tested but could slip quietly.
-- No automated ratchet tool — thresholds are updated manually when coverage improves meaningfully.
-
 ---
 
 ## Cross-Pattern Reinforcement
@@ -256,4 +229,4 @@ The testing patterns reinforce each other:
 - **Contract fixtures** + **data-driven tests** exercise the protocol boundary comprehensively.
 - **Mock storage** enables unit testing of the entire event-sourced persistence layer without Cloudflare runtime.
 
-The main consolidation opportunity is a shared mock-storage module plus negative contract fixtures — both would tighten what's already mostly solid.
+The main consolidation opportunity is a shared mock-storage module plus broader negative contract coverage — both would tighten what's already mostly solid.

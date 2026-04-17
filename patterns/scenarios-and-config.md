@@ -2,7 +2,7 @@
 
 How Delta-V varies behavior across scenarios and difficulty levels without branching engine code. [SPEC.md](../docs/SPEC.md) describes the nine shipped scenarios; this chapter walks through the config patterns that drive their differences.
 
-Each section: the pattern, a minimal example, where it lives, and why this shape. Rough edges at the end of each section.
+Each section: the pattern, a minimal example, where it lives, and why this shape.
 
 ---
 
@@ -43,12 +43,6 @@ const best = maxBy(candidates, (c) => scoreCourse(ship, c, map, cfg));
 - **New scoring dimensions = new function + new config key.** No existing code changes. This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data.
 - **Difficulty tuning is pure data.** Adjusting `hard` weights doesn't touch any function — just change the record.
 - **Testable in isolation.** Each score function is pure; invariants like "more hard than normal makes the AI close faster" are easy property tests.
-
-**Rough edges.**
-
-- A few behaviors still live in code instead of config: edge-of-map avoidance weights (`severity * severity * 25`), easy-mode 25 % random burn override, hard-only target distribution gated by string comparison. These should be promoted to config flags (`distributeInterceptTargets: boolean`, `randomBurnProbability: number`).
-- `normal` and `easy` share most values; `hard` differs in a handful. A spread-based preset (`hard: { ...normal, multiplier: 1.5, torpedoRange: 12 }`) would make actual differences visible and reduce maintenance.
-- No runtime tuning — configs are compile-time constants. If live A/B testing becomes desirable, `resolveAIConfig` is the natural injection point.
 
 ---
 
@@ -108,10 +102,6 @@ const cfg = AI_CONFIG[difficulty];   // AIDifficultyConfig, never undefined
 - **Compile-time exhaustiveness.** Adding a new `AIDifficulty` value fails to compile until `AI_CONFIG` has an entry.
 - **No runtime fallbacks.** `AI_CONFIG[difficulty] ?? AI_CONFIG.normal` is a smell — the union should guarantee the key exists.
 
-**Rough edges — open-keyed registries lose this guarantee.**
-
-`SCENARIOS` is typed `Record<string, ScenarioDefinition>` (open). Lookup sites defensively fallback: `SCENARIOS[scenario] ?? SCENARIOS.biplanetary`. A `ScenarioKey` union type would eliminate the fallback and catch scenario renames at compile time. Same issue for scenario tags (`'Beginner'`, `'Asymmetric'`), body names (`'Mars'`, `'Venus'`), and ship type strings.
-
 ---
 
 ## Scenario Rules as Feature Flags
@@ -152,11 +142,6 @@ if (state.scenarioRules.combatDisabled) {
 - **New scenarios don't need engine changes.** Grand Tour disabled combat, Convoy enables logistics — each just sets a flag.
 - **Permissive defaults keep simple scenarios minimal.** Bi-Planetary's rules object is short because it doesn't opt out of anything.
 - **Client derivation stays consistent.** The ordnance HUD and ordnance-phase auto-selection read from the same helpers the engine uses — restricted scenarios don't drift between UI and server.
-
-**Rough edges.**
-
-- Flag count (14) is growing. Nothing wrong yet, but grouping (`combatRules: { disabled, closingWeight }`, `logisticsRules: { enabled, passengers, targetRequiresPassengers }`) would scale better past ~20.
-- No schema validation at game creation: a scenario with `targetWinRequiresPassengers: true` but no `targetBody` will silently never win. Conflicting-flag detection would be a small addition.
 
 ---
 
@@ -200,12 +185,6 @@ const state = createGame(SCENARIOS[scenario], map, rng);
 - **Bodies can move.** A scenario that says "frigate 2 hexes east of Mercury" still works if Mercury's center hex shifts.
 - **Snapshot into state.** Once `createGame` runs, `GameState` owns its ships — scenario definition edits don't affect in-progress games.
 
-**Rough edges.**
-
-- No validation that scenario definitions are self-consistent (`targetBody` exists on the map, ship positions are valid hexes).
-- No scenario versioning for in-progress games. Mitigated by snapshot-into-state.
-- All scenarios share one map. The engine already takes `map` as a parameter, so per-scenario maps would be mechanical — no infrastructure exists yet.
-
 ---
 
 ## Data-Driven Solar System Map
@@ -242,12 +221,6 @@ const MARS: BodyDefinition = {
 - **Editable without code changes.** Adjusting Mars's gravity strength is a one-field edit; engine never cares.
 - **One source of truth.** Body-relative helpers work off the same definitions, so if a body moves, scenarios and renderer follow.
 - **`BODY_DEF_BY_NAME` lookup** is built at module load from the array — readers, renderers, and the AI all query the same object.
-
-**Rough edges.**
-
-- Asteroid belt and clandestine base use hardcoded coordinate arrays — irregular shapes don't formulate cleanly, but it breaks the declarative pattern.
-- Map bounds are hardcoded constants rather than computed from body positions.
-- No programmatic map validation (overlapping bodies, gravity conflicts, unreachable bases).
 
 ---
 

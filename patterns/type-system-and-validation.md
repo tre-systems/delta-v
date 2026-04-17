@@ -2,7 +2,7 @@
 
 How Delta-V keeps bad data out of the engine and bad requests out of the server. [CODING_STANDARDS.md](../docs/CODING_STANDARDS.md) covers general TypeScript style; this chapter walks through the project-specific techniques.
 
-Each section: the pattern, a minimal example, where it lives, and why this shape. Rough edges at the end of each section.
+Each section: the pattern, a minimal example, where it lives, and why this shape.
 
 ---
 
@@ -36,11 +36,6 @@ lookup(hexKey({q: 0, r: 0}));   // fine
 - **Boundary discipline.** `hexKey(coord)` is the structured constructor, `asHexKey(str)` is the unsafe cast — the two names tell reviewers which invariants hold.
 - **Compile-time bug-finding.** Pre-branded, a function taking `string` could be called with any string; post-branded, only the right kind.
 
-**Rough edges.**
-
-- `HexKey` has no `isHexKey` runtime guard. A format check (`/^-?\d+,-?\d+$/`) would let `asHexKey` validate instead of blindly casting.
-- Ship IDs, ordnance IDs, and body names are still plain `string`. They're used as lookup keys across many modules — branding them would catch mistakes like `getShip(ordnanceId)`.
-
 ---
 
 ## Multi-Stage Validation Pipeline
@@ -67,12 +62,6 @@ flowchart TD
 - **Fail early and cheaply.** Flood detection and JSON parsing are O(bytes) before we spend time on shape checks.
 - **Each stage owns its error.** Stage 2 returns a `Result<C2S>` with a clear "invalid shape" message; Stage 3 returns an `EngineFailure` with an `ErrorCode`.
 - **Bounded bodies.** Stage 2 enforces `MAX_FLEET_PURCHASES = 64`, `MAX_ASTROGATION_ORDERS`, `MAX_ORDNANCE_LAUNCHES`, `MAX_COMBAT_ATTACKS`. No engine code has to defensively check array sizes.
-
-**Rough edges.**
-
-- All validation is hand-written (no Zod/io-ts). Keeps the bundle lean but requires a manual update for every new field.
-- Some engine modules return `{ error: { code, message } }` directly; others use the `engineFailure()` helper. The helper should be preferred everywhere.
-- S2C validation (`validateServerMessage`) is structural only — the server is authoritative, so deep `GameState` validation on outbound is intentionally absent. A compromised server could send malformed state.
 
 ---
 
@@ -108,12 +97,6 @@ enum ErrorCode {
 - **Client can branch.** `STATE_CONFLICT` means re-read state and retry; `INVALID_INPUT` means the UI sent something invalid and should surface a different message.
 - **`code` is optional.** Errors from outside the engine (rate limits, server internals) don't have to invent a code.
 
-**Rough edges.**
-
-- `INVALID_PLAYER` is defined but unused anywhere.
-- Rate-limit closures use WebSocket close code 1008 instead of an error code — a `RATE_LIMITED` code would give clients a way to back off cleanly.
-- Client tracks `plan.code` for telemetry but doesn't branch on it for user-facing messages yet. Context-aware error UI is a backlog opportunity.
-
 ---
 
 ## Rate Limiting
@@ -140,11 +123,6 @@ const CHAT_RATE_LIMIT_MS = 500;         // min gap between chat messages
 - **Layers catch different attacks.** Per-IP Worker limits catch mass room-creation or probe scanning; per-socket DO limits catch a single connection flooding; per-player chat throttle catches spam from a legitimate socket.
 - **Pure functions.** `applySocketRateLimit(now, ws)` takes `now` as a parameter and stores state in `WeakMap<WebSocket, RateWindow>`. Deterministic to test.
 - **Soft vs hard.** Chat is *silently dropped* over the window (user just retries); socket flood is *hard-closed* (abusive).
-
-**Rough edges.**
-
-- No per-action rate limit beyond the socket-wide 10/s — one socket could burn its whole budget on fleetReady if it wanted. Legitimate clients never approach it.
-- Per-socket only, not per-IP — multiple sockets from one IP each get 10/s. Worker-layer per-IP limits cover connection churn but not in-connection activity.
 
 ---
 

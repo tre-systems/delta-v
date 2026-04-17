@@ -1,6 +1,6 @@
 # Delta-V Pattern Catalogue
 
-A guided tour of the patterns that hold Delta-V together. Read these when you want to understand *why* the code looks the way it does — not just the rules ([CODING_STANDARDS](../docs/CODING_STANDARDS.md)) or the module inventory ([ARCHITECTURE](../docs/ARCHITECTURE.md)), but the recurring design choices, their tradeoffs, and where the current implementation is still rough.
+A guided tour of the patterns that hold Delta-V together. Read these when you want to understand *why* the code looks the way it does — not just the rules ([CODING_STANDARDS](../docs/CODING_STANDARDS.md)) or the module inventory ([ARCHITECTURE](../docs/ARCHITECTURE.md)), but the recurring design choices and their tradeoffs.
 
 Each chapter is self-contained. Start wherever the question is.
 
@@ -18,6 +18,4 @@ Each chapter follows the same structure:
 1. **What the pattern is** — a short description of the shape.
 2. **Where it lives** — file paths to the canonical implementation.
 3. **Why it's shaped that way** — the tradeoffs behind the choice.
-4. **Known gaps or rough edges** — honest notes on where the pattern isn't fully realized yet.
-
-The gap notes are not a backlog. They are context for reviewers and contributors: if you're touching one of these areas, expect to encounter the rough edge. Actionable follow-ups belong in [BACKLOG.md](../docs/BACKLOG.md).
+Actionable follow-ups live in [BACKLOG.md](../docs/BACKLOG.md) instead of inside the chapters.

@@ -2,7 +2,7 @@
 
 How the authoritative server stays consistent and why the shared engine has the shape it does. Read [ARCHITECTURE.md](../docs/ARCHITECTURE.md) first for the high-level layer diagrams and module inventory; this chapter zooms into the recurring patterns behind those layers.
 
-Each section has four parts: **the pattern**, a **minimal example**, **where it lives**, and **why this shape**. A short "rough edges" list at the end of each section flags places where the pattern isn't fully realized yet.
+Each section has four parts: **the pattern**, a **minimal example**, **where it lives**, and **why this shape**.
 
 ---
 
@@ -54,12 +54,6 @@ runPublicationPipeline(deps, {
 - **Chunked storage** (64 events per key) keeps individual DO storage values well under the 128 KB limit while surviving the ~100–300 events a typical match produces in a handful of writes.
 - **Checkpoints at turn boundaries** amortize projection cost — reconnecting mid-match reads the latest checkpoint plus a short tail, not the whole history.
 
-**Rough edges.**
-
-- Initial game creation (`match.ts::initGameSession`) still publishes directly instead of going through `runPublicationPipeline`. Five different patterns converge on this — fixing it would tighten all of them at once.
-- `getCurrentGameState` re-projects on every read; there is no in-memory cached read model. Checkpoints mitigate but don't eliminate the cost.
-- The event model under-specifies `turnAdvanced`: `advanceTurn()` performs reinforcement and fleet-conversion in memory, but the projector only replays player rotation and damage recovery. Turn-advance mutations should be event-explicit or the projector should share the mutation code.
-
 ---
 
 ## Parity Check Between Live and Projected State
@@ -72,11 +66,6 @@ runPublicationPipeline(deps, {
 
 - Replay correctness is the core invariant of the whole event-sourcing design. If live ≠ projected, the stream is lying about the match.
 - Observability-only (not fatal) — a parity bug shouldn't take matches offline. The log-and-move-on stance accepts correctness-risk for availability while alerts fire.
-
-**Rough edges.**
-
-- `JSON.stringify` equality is coarse. A structured diff would make mismatch triage much faster.
-- Normalization is split across production and tests: production strips `player.connected`, tests additionally strip `ready` / `detected`. The two should converge.
 
 ---
 
@@ -102,11 +91,6 @@ return { state: working, engineEvents, results };
 - **Speculative branching** — AI search and projection verification can invoke engine functions freely without defensive cloning.
 - **Testability** — every engine call is a pure function (given RNG). Property-based fuzzing is cheap.
 
-**Rough edges.**
-
-- `advanceTurn` and `checkGameEnd` / `applyCheckpoints` in `victory.ts` are internal mutators that *don't* clone. They are safe because they only run inside an already-cloned parent call, but they're exported — someone could call them directly on uncloned state. Moving them to a restricted sub-module would close the hole.
-- The clone-on-entry contract is convention, not a type-system guarantee. A deeply-applied `Readonly<GameState>` would enforce it at compile time at the cost of pervasive type churn.
-
 ---
 
 ## Deterministic RNG via Per-Match Seed
@@ -130,11 +114,6 @@ const result = processCombat(state, playerId, attacks, map, rng);
 - **Jumpable RNG** — Knuth multiplicative hashing (`0x9e3779b9`) means we don't need to replay 1..N-1 to derive the Nth action's RNG.
 - **Injectable in tests** — `() => 0.5` or a seeded sequence pins outcomes.
 
-**Rough edges.**
-
-- `createGame` still defaults `rng` to `Math.random` because production `initGameSession` doesn't thread the allocated `matchSeed` through initial setup. The projector works around this with a zero-RNG reconstruction plus corrective `fugitiveDesignated` events. Threading the seed through initial creation would remove the workaround.
-- `getActionRng` falls back to `Math.random` when `gameId` or `matchSeed` is missing. That fallback is probably unreachable for new matches; it could become an explicit error instead of a silent determinism downgrade.
-
 ---
 
 ## Single Choke Points for Side Effects
@@ -156,11 +135,6 @@ const result = processCombat(state, playerId, attacks, map, rng);
 
 - Drift between similar flows is the main cost of duplication. If five call sites each "save state and broadcast," one of them will forget to restart the turn timer.
 - Tests get a narrow seam — you can assert the whole publication pipeline fired by stubbing one collaborator.
-
-**Rough edges.**
-
-- `broadcastStateChange` is still reachable as a lower-level helper inside the DO wiring, so the choke is conventional rather than structurally enforced. Making it module-private would prevent new code from sneaking around it.
-- `initGameSession` bypasses `runPublicationPipeline`. See the event-sourcing section above.
 
 ---
 
@@ -188,11 +162,6 @@ const actions = createCombatActions(deps);
 - **Callable getters** (`getGameState()` vs direct reference) ensure collaborators always read the *current* state and let us break circular init-order dependencies without `Proxy`.
 - The kernel is the only place where "which module talks to which" is visible. Collaborators don't reach for globals.
 
-**Rough edges.**
-
-- `createGameClient` uses mutable closure variables (`let applyGameState`, `let setState`, …) to resolve circular deps between the session shell and kernel. These are assigned after construction, which obscures the dependency graph.
-- `connection.ts` calls `new WebSocket(...)` directly and `session-api.ts` calls `fetch()` directly rather than receiving injected factories — the last two platform seams that bypass DI.
-
 ---
 
 ## Layer Boundaries (shared / server / client)
@@ -209,10 +178,6 @@ const actions = createCombatActions(deps);
 
 - The shared engine is the contract between client and server. If one side pulls the other's code, the boundary blurs and replay/parity breaks silently.
 - Running the engine in Node for simulation or in the browser for local AI games uses the exact same code.
-
-**Rough edges.**
-
-- Only `server → client` and `shared → both` are test-enforced today. `client → server` and `shared/engine → rest-of-shared` are convention-only. Tightening `shared/engine/` specifically (no imports from `shared/client-only-helpers` even if such a thing appears) would harden the single most-replayed module.
 
 ---
 

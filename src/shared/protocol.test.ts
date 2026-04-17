@@ -1443,6 +1443,20 @@ describe('C2S contract fixtures', () => {
     });
   });
 
+  it('supports shorthand surrender wire shape without shipIds', () => {
+    const result = validateClientMessage({
+      type: 'surrender',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        type: 'surrender',
+        shipIds: [],
+      },
+    });
+  });
+
   it('parameterless action wire shapes', () => {
     for (const type of [
       'skipOrdnance',
