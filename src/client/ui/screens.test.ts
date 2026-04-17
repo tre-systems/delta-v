@@ -49,6 +49,7 @@ describe('ui-screens', () => {
       statusText: 'Waiting for opponent...',
       scenarioText: null,
       showCopyActions: true,
+      cancelActionLabel: 'Cancel',
     });
 
     expect(
@@ -63,6 +64,7 @@ describe('ui-screens', () => {
       statusText: 'Searching for an opponent...',
       scenarioText: null,
       showCopyActions: false,
+      cancelActionLabel: 'Cancel search',
     });
   });
 
