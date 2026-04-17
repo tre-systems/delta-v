@@ -376,4 +376,45 @@ describe('LobbyView', () => {
     expect(showMenu).not.toHaveBeenCalled();
     expect(emit).not.toHaveBeenCalled();
   });
+
+  it('claims the current callsign before quick-match emit', async () => {
+    const emit = vi.fn();
+    const setPlayerName = vi.fn((name: string) => name.trim());
+    const postClaimName = vi.fn(async () => ({
+      ok: true as const,
+      player: {
+        username: 'Pilot 1',
+        isAgent: false,
+        rating: 1500,
+        rd: 350,
+        gamesPlayed: 0,
+      },
+      renamed: false,
+    }));
+    createLobbyView({
+      emit,
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName,
+      getPlayerKey: () => 'humankey12345678',
+      postClaimName,
+    });
+
+    const playerNameInput = document.getElementById(
+      'playerNameInput',
+    ) as HTMLInputElement;
+    playerNameInput.value = '  Pilot 1  ';
+
+    document.getElementById('quickMatchBtn')?.click();
+    await Promise.resolve();
+
+    expect(setPlayerName).toHaveBeenCalledWith('  Pilot 1  ');
+    expect(postClaimName).toHaveBeenCalledWith({
+      playerKey: 'humankey12345678',
+      username: 'Pilot 1',
+    });
+    expect(emit).toHaveBeenCalledWith({ type: 'quickMatch' });
+  });
 });
