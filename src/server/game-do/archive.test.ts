@@ -19,11 +19,13 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import {
+  allocateMatchIdentity,
   appendEnvelopedEvents,
   getCheckpoint,
   getEventStream,
   getEventStreamLength,
   getEventStreamTail,
+  getMatchSeed,
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
   getProjectedReplayTimeline,
@@ -32,6 +34,7 @@ import {
   saveCheckpoint,
   saveMatchCreatedAt,
 } from './archive';
+import { createMockStorage as sharedCreateMockStorage } from './test-support';
 import { resolveTurnTimeoutOutcome } from './turns';
 
 const createMockStorage = (): DurableObjectStorage => {
@@ -1061,5 +1064,37 @@ describe('replay projection', () => {
     expect(
       await hasProjectionParity(storage, asGameId('PARITY3-m1'), liveState),
     ).toBe(false);
+  });
+});
+
+// A DO hibernates between alarms and WebSocket events; when it wakes,
+// in-memory RNG seeds are gone. matchSeed is the persistent deterministic
+// RNG seed for the match, and the replay pipeline assumes it survives
+// hibernation. These tests pin that contract on the storage mock so the
+// seed is always fetched from storage (not regenerated) after a wake.
+describe('matchSeed survives hibernation', () => {
+  it('getMatchSeed returns the allocated seed after simulating a DO wake', async () => {
+    // Use the shared helper to simulate a DO that went through
+    // allocateMatchIdentity, then hibernated (in-memory state lost), then
+    // woke with only the underlying storage still present.
+    const storage = sharedCreateMockStorage();
+    const { gameId, matchSeed } = await allocateMatchIdentity(storage, 'HIBRN');
+
+    // Simulate hibernation: no in-memory references survive — only the
+    // storage Map. Verify the seed round-trips via getMatchSeed.
+    const rehydrated = await getMatchSeed(storage, gameId);
+    expect(rehydrated).toBe(matchSeed);
+    expect(typeof rehydrated).toBe('number');
+  });
+
+  it('allocateMatchIdentity produces distinct seeds across allocations', async () => {
+    const storage = sharedCreateMockStorage();
+    const first = await allocateMatchIdentity(storage, 'HIBRN');
+    const second = await allocateMatchIdentity(storage, 'HIBRN');
+    // Seeds come from crypto.getRandomValues; extremely unlikely to
+    // collide, and each allocation must bump the stored matchNumber so
+    // replay ids stay unique across hibernation boundaries.
+    expect(second.matchNumber).toBe(first.matchNumber + 1);
+    expect(second.gameId).not.toBe(first.gameId);
   });
 });

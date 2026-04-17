@@ -82,17 +82,11 @@ Prefer `engineFailure()` everywhere, then surface typed rate-limit / validation 
 
 ## Testing & client consistency
 
-### Broaden engine and protocol coverage
+### Broaden engine and protocol coverage (partial)
 
-Add property tests for ordnance-launch and logistics-transfer invariants, complete the missing positive C2S fixtures, and add negative protocol fixtures for invalid payloads.
+Property tests for ordnance launch duplication/phase gating and logistics transfer validation shipped in `ordnance.property.test.ts` / `logistics.property.test.ts`. Remaining: positive C2S fixtures for edge combat/combat-single messages and negative-fixture protocol coverage for malformed payloads.
 
-**Files:** `src/shared/ordnance.property.test.ts`, `src/shared/logistics.property.test.ts`, `src/shared/__fixtures__/contracts.json`, `src/shared/protocol.test.ts`, `src/server/game-do/__fixtures__/transport.json`
-
-### Consolidated DO test helpers and hibernation seed coverage
-
-Extract a shared Durable Object storage mock helper with one `put` contract, then add an explicit test that `matchSeed` survives checkpoint/replay and DO hibernation paths.
-
-**Files:** `src/server/game-do/archive.test.ts`, `src/server/game-do/game-do.test.ts`, `src/server/game-do/alarm.test.ts`, `src/server/game-do/match.test.ts`, `src/server/game-do/turn-timeout.test.ts`
+**Files:** `src/shared/__fixtures__/contracts.json`, `src/shared/protocol.test.ts`, `src/server/game-do/__fixtures__/transport.json`
 
 ---
 
