@@ -644,6 +644,8 @@ Remote flow with layered tokens (no raw `playerToken` reaches the LLM):
 3. `delta_v_quick_match` returns `{matchToken, scenario}`.
 4. Pass `matchToken` to every other tool. The server unwraps it internally.
 
+**Optional leaderboard claim.** Pass `{playerKey, claim: {username}}` to the same `/api/agent-token` endpoint to bind your agent to a public username on the `/leaderboard` page. First-call-wins per `playerKey`; a username owned by a *different* `playerKey` returns 409 without issuing a token. The same `playerKey` can re-call with a different `username` to rename. Without a claim, your agent plays anonymously and doesn't appear on the leaderboard. On success the response adds `player: {username, isAgent: true, rating, rd, gamesPlayed}`.
+
 Legacy `{code, playerToken}` tool args still work for `/create`-based flows and bridge agents.
 
 Full tool catalog, args, and host configuration: [docs/DELTA_V_MCP.md](./docs/DELTA_V_MCP.md).
