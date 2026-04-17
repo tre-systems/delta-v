@@ -38,11 +38,11 @@ Make reinforcement and fleet-conversion side effects fully replayable by either 
 
 **Files:** `src/shared/engine/turn-advance.ts`, `src/shared/engine/victory.ts`, `src/shared/engine/event-projector/lifecycle.ts`, `src/shared/engine/engine-events.ts`
 
-### Cached current-state projection and checkpoint cleanup
+### Cached current-state projection (partial — checkpoint cleanup done)
 
-Avoid rebuilding current state from checkpoint + tail on every wake/read, and prune completed-match checkpoints once the durable archive is written.
+Checkpoint pruning now happens inside `archiveCompletedMatch` after the R2 + D1 writes land, so completed matches no longer leave a permanent checkpoint in DO storage. The live-projection caching (avoid rebuilding current state from checkpoint + tail on every wake/read) remains — it requires an in-memory cache invalidated on every event append.
 
-**Files:** `src/server/game-do/archive.ts`, `src/server/game-do/projection.ts`, `src/server/game-do/archive-storage.ts`, `src/server/game-do/game-do.ts`
+**Files:** `src/server/game-do/projection.ts`, `src/server/game-do/game-do.ts`
 
 ### Publication and broadcast safety rails
 

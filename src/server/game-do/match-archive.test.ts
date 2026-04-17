@@ -18,25 +18,7 @@ import {
   type MatchArchive,
 } from './match-archive';
 
-const createMockStorage = (): DurableObjectStorage => {
-  const data = new Map<string, unknown>();
-
-  return {
-    async get<T>(key: string): Promise<T | undefined> {
-      return data.get(key) as T | undefined;
-    },
-    async put<T>(key: string | Record<string, T>, value?: T): Promise<void> {
-      if (typeof key === 'string') {
-        data.set(key, value);
-        return;
-      }
-
-      for (const [entryKey, entryValue] of Object.entries(key)) {
-        data.set(entryKey, entryValue);
-      }
-    },
-  } as unknown as DurableObjectStorage;
-};
+import { createMockStorage } from './test-support';
 
 const MockStorage = function MockStorage() {
   return createMockStorage();
@@ -130,6 +112,11 @@ describe('match archival', () => {
       expect.any(Number),
       0, // match_coached: falsy for uncoached match
     );
+
+    // The DO-side checkpoint is pruned after the archive lands. R2 now
+    // holds the canonical copy and nothing reads the DO checkpoint for
+    // completed matches, so keeping it would just be permanent residue.
+    expect(await storage.get('checkpoint:ARC-m1')).toBeUndefined();
   });
 
   it('persists match_coached flag when /coach was used', async () => {
