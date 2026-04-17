@@ -565,4 +565,30 @@ describe('handleMcpRequest', () => {
     expect(body.accepted).toBe(false);
     expect(body.rejection).toBeDefined();
   });
+
+  it('action route accepts shorthand surrender payloads', async () => {
+    const stateRef = { current: buildDuelState() };
+    const built = buildHandlersAgainst(stateRef);
+    const deps = buildDeps({
+      getCurrentGameState: async () => stateRef.current,
+      handlers: built.handlers,
+    });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/action', { playerToken: TOKEN_B }), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: { type: 'surrender' },
+          autoGuards: false,
+          waitForResult: false,
+        }),
+      }),
+    );
+    expect(res?.status).toBe(400);
+    const body = (await res?.json()) as Record<string, unknown>;
+    // Duel disallows logistics/surrender, but shorthand should now parse and
+    // reach engine validation (not fail schema validation).
+    expect(body.error).toBe('Logistics not enabled for this scenario');
+  });
 });

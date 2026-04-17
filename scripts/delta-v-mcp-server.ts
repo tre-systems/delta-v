@@ -278,6 +278,36 @@ const getSessionOrThrow = (sessionId: string): DeltaVSession => {
   return session;
 };
 
+const inferSurrenderShipIds = (session: DeltaVSession, action: C2S): C2S => {
+  if (action.type !== 'surrender' || action.shipIds !== undefined) {
+    return action;
+  }
+  const { lastState, playerId } = session;
+  if (!lastState || playerId === null) {
+    throw new Error(
+      'Cannot infer surrender shipIds before receiving state and playerId',
+    );
+  }
+  const shipIds = lastState.ships
+    .filter(
+      (ship) =>
+        ship.owner === playerId &&
+        ship.lifecycle !== 'destroyed' &&
+        ship.control !== 'captured' &&
+        ship.control !== 'surrendered',
+    )
+    .map((ship) => ship.id);
+  if (shipIds.length === 0) {
+    throw new Error(
+      'surrender requires shipIds (none could be inferred for this player)',
+    );
+  }
+  return {
+    ...action,
+    shipIds,
+  };
+};
+
 const server = new McpServer(
   {
     name: 'delta-v-mcp',
@@ -624,7 +654,7 @@ server.registerTool(
     }
 
     const shouldAutoGuard = autoGuards ?? true;
-    const rawAction = action as C2S;
+    const rawAction = inferSurrenderShipIds(session, action as C2S);
     const payload: C2S =
       shouldAutoGuard && session.lastState && !rawAction.guards
         ? ({
