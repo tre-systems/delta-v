@@ -19,7 +19,7 @@ import type {
   SolarSystemMap,
 } from '../types';
 import { minBy, sumBy } from '../util';
-import { AI_CONFIG } from './config';
+import { resolveAIConfig } from './config';
 import type { AIDifficulty } from './types';
 
 interface ScoredTarget {
@@ -37,7 +37,12 @@ export const aiCombat = (
 ): CombatAttack[] => {
   if (!deriveCapabilities(state.scenarioRules).combatEnabled) return [];
 
-  const cfg = AI_CONFIG[difficulty];
+  const cfg = resolveAIConfig(
+    difficulty,
+    state.scenarioRules?.aiConfigOverrides as
+      | Parameters<typeof resolveAIConfig>[1]
+      | undefined,
+  );
   const myShips = state.ships.filter(
     (ship) =>
       ship.owner === playerId &&

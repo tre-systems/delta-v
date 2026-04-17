@@ -433,6 +433,13 @@ export interface ScenarioRules {
   targetWinRequiresPassengers?: boolean;
   reinforcements?: Reinforcement[];
   fleetConversion?: FleetConversion;
+  // Scenario-scoped AI scoring overrides. Only the listed fields are
+  // replaced; everything else falls through to the base difficulty
+  // config. Used by duel to reduce combat-closing pressure so the AI
+  // plays range-managed engagements instead of rushing. Typed as a
+  // loose record here because the concrete AIDifficultyConfig lives in
+  // the ai module and domain.ts must not import from there.
+  aiConfigOverrides?: Readonly<Record<string, unknown>>;
 }
 
 // ScenarioShip is needed here because Reinforcement

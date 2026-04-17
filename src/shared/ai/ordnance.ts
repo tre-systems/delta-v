@@ -12,7 +12,7 @@ import type {
 } from '../types';
 import { maxBy, minBy } from '../util';
 import { findDirectionToward } from './common';
-import { AI_CONFIG } from './config';
+import { resolveAIConfig } from './config';
 import type { AIDifficulty } from './types';
 
 interface ScoredEnemyTarget {
@@ -84,7 +84,12 @@ export const aiOrdnance = (
   // silent `Math.random` leak.
   rng: () => number,
 ): OrdnanceLaunch[] => {
-  const cfg = AI_CONFIG[difficulty];
+  const cfg = resolveAIConfig(
+    difficulty,
+    state.scenarioRules?.aiConfigOverrides as
+      | Parameters<typeof resolveAIConfig>[1]
+      | undefined,
+  );
   const launches: OrdnanceLaunch[] = [];
   const caps = deriveCapabilities(state.scenarioRules);
 

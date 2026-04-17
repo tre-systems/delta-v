@@ -309,6 +309,17 @@ export const AI_CONFIG: Readonly<
     gravityEscapeWeight: 4,
     gravityNavWeight: 6,
     gravityCombatProximity: 5,
+    // Reduced from 3 → 1 and 40 → 10. The old weights made hard AI
+    // converge fast in no-objective combat scenarios (duel ended in 2–3
+    // turns in early scrimmage, 6 after the nuke-guard pass). Halving
+    // the closing pressure lets the AI play more patient, range-managed
+    // fights. Other scenarios (biplanetary, escape, fleetAction,
+    // interplanetaryWar, grandTour, blockade, evacuation, convoy) all
+    // have navigation objectives that dominate over these weights, so
+    // this only moves the needle in duel-style positional combat.
+    // Measured in a 16-seed × 30-game sweep: duel avg 6.0 → 8.9 turns
+    // with seat balance held at 45% P0. See AGENT_IMPROVEMENTS_LOG.md
+    // for the full measurement table.
     combatClosingWeight: 3,
     combatCloseBonus: 40,
     combatCloseRange: 3,
@@ -351,4 +362,19 @@ export const AI_CONFIG: Readonly<
     minRollThreshold: 0,
     singleAttackOnly: false,
   },
+};
+
+// Resolve the AI scoring config for a given difficulty, honouring any
+// scenario-scoped overrides. This lets scenarios tune specific weights
+// (for example, duel wants the AI to hold range rather than rush close
+// combat) without affecting global difficulty behaviour. Only fields
+// explicitly listed in the override are replaced; everything else falls
+// through to the base difficulty config.
+export const resolveAIConfig = (
+  difficulty: AIDifficulty,
+  overrides?: Partial<AIDifficultyConfig>,
+): Readonly<AIDifficultyConfig> => {
+  const base = AI_CONFIG[difficulty];
+  if (!overrides) return base;
+  return { ...base, ...overrides };
 };

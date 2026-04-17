@@ -334,6 +334,9 @@ export const createGame = (
                 : undefined,
             }
           : undefined,
+        aiConfigOverrides: scenario.rules?.aiConfigOverrides
+          ? { ...scenario.rules.aiConfigOverrides }
+          : undefined,
       },
       escapeMoralVictoryAchieved: false,
       turnNumber: 1,
