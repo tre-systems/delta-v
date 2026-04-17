@@ -51,6 +51,12 @@ export const hexKey = ({ q, r }: HexCoord): HexKey => `${q},${r}` as HexKey;
 /** Cast a trusted `"q,r"` string literal to HexKey. Use only at serialization boundaries and in tests. */
 export const asHexKey = (key: string): HexKey => key as HexKey;
 
+const HEX_KEY_PATTERN = /^-?\d+,-?\d+$/;
+
+/** Type-guard for strings that match the `"q,r"` hex-key format. */
+export const isHexKey = (value: unknown): value is HexKey =>
+  typeof value === 'string' && HEX_KEY_PATTERN.test(value);
+
 // Inverse of hexKey: parse "q,r" string back.
 export const parseHexKey = (key: HexKey): HexCoord => {
   const [q, r] = key.split(',').map(Number);

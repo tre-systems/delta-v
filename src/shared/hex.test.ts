@@ -17,6 +17,7 @@ import {
   hexSubtract,
   hexToPixel,
   hexVecLength,
+  isHexKey,
   parseHexKey,
   pixelToHex,
 } from './hex';
@@ -324,6 +325,25 @@ describe('analyzeHexLine', () => {
     const definiteKeys = new Set(result.definite.map(hexKey));
     expect(definiteKeys.has(asHexKey('0,0'))).toBe(true);
     expect(definiteKeys.has(asHexKey('1,1'))).toBe(true);
+  });
+});
+
+describe('isHexKey', () => {
+  it('accepts valid "q,r" shapes for any integer coords', () => {
+    expect(isHexKey('0,0')).toBe(true);
+    expect(isHexKey('5,10')).toBe(true);
+    expect(isHexKey('-3,-4')).toBe(true);
+    expect(isHexKey('-3,4')).toBe(true);
+  });
+
+  it('rejects arbitrary strings and non-string values', () => {
+    expect(isHexKey('')).toBe(false);
+    expect(isHexKey('q,r')).toBe(false);
+    expect(isHexKey('1,')).toBe(false);
+    expect(isHexKey(',')).toBe(false);
+    expect(isHexKey('1,2,3')).toBe(false);
+    expect(isHexKey(42)).toBe(false);
+    expect(isHexKey(null)).toBe(false);
   });
 });
 

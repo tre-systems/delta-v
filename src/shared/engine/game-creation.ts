@@ -91,6 +91,31 @@ const validateScenarioPlayerCount = (
   return null;
 };
 
+// Fail fast if a scenario references a body that no longer exists on
+// the map (typo in a new scenario, a body rename, etc.). The live
+// engine otherwise silently falls back to "no valid landed starting
+// hex", which points at the scenario rather than the unknown name.
+// Skipped when the map has no bodies — test harnesses construct empty
+// maps for focused engine assertions and deliberately bypass map-level
+// constraints.
+const validateScenarioBodyReferences = (
+  scenario: ScenarioDefinition,
+  map: SolarSystemMap,
+): EngineError | null => {
+  if (map.bodies.length === 0) return null;
+  const knownBodyNames = new Set(map.bodies.map((b) => b.name));
+  for (const player of scenario.players) {
+    if (player.homeBody && !knownBodyNames.has(player.homeBody)) {
+      return engineError(
+        ErrorCode.INVALID_INPUT,
+        `Scenario ${scenario.name} references unknown body ` +
+          `"${player.homeBody}" in player.homeBody`,
+      );
+    }
+  }
+  return null;
+};
+
 type PlacementResult =
   | { position: { q: number; r: number }; lifecycle: 'active' | 'landed' }
   | { error: EngineError };
@@ -173,6 +198,11 @@ export const createGame = (
 
   if (playerCountError) {
     return { ok: false, error: playerCountError };
+  }
+
+  const bodyRefError = validateScenarioBodyReferences(scenario, map);
+  if (bodyRefError) {
+    return { ok: false, error: bodyRefError };
   }
   const playerBases = scenario.players.map((player) =>
     resolveControlledBases(player, map),
