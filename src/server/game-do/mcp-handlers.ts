@@ -365,9 +365,48 @@ interface ActionRequestBody {
   includeCandidateLabels?: unknown;
 }
 
+const inferSurrenderShipIds = (
+  action: Record<string, unknown> & { type: string },
+  state: GameState,
+  playerId: PlayerId,
+):
+  | { ok: true; value: Record<string, unknown> & { type: string } }
+  | {
+      ok: false;
+      error: string;
+    } => {
+  if (action.type !== 'surrender' || action.shipIds !== undefined) {
+    return { ok: true, value: action };
+  }
+  const shipIds = state.ships
+    .filter(
+      (ship) =>
+        ship.owner === playerId &&
+        ship.lifecycle !== 'destroyed' &&
+        ship.control !== 'captured' &&
+        ship.control !== 'surrendered',
+    )
+    .map((ship) => ship.id);
+  if (shipIds.length === 0) {
+    return {
+      ok: false,
+      error:
+        'surrender requires shipIds (none could be inferred for the current player)',
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      ...action,
+      shipIds,
+    },
+  };
+};
+
 const buildActionPayload = (
   raw: unknown,
   state: GameState,
+  playerId: PlayerId,
   shouldAutoGuard: boolean,
 ): { ok: true; value: C2S } | { ok: false; error: string } => {
   if (!raw || typeof raw !== 'object') {
@@ -389,6 +428,9 @@ const buildActionPayload = (
       },
     };
   }
+  const inferred = inferSurrenderShipIds(candidate, state, playerId);
+  if (!inferred.ok) return inferred;
+  candidate = inferred.value;
   const validated = validateClientMessage(candidate);
   if (!validated.ok) return { ok: false, error: validated.error };
   return { ok: true, value: validated.value };
@@ -429,7 +471,12 @@ const handleActionRequest = async (
   if (!stateBefore) return error(409, 'Game has no state yet');
 
   const shouldAutoGuard = body.autoGuards !== false;
-  const built = buildActionPayload(body.action, stateBefore, shouldAutoGuard);
+  const built = buildActionPayload(
+    body.action,
+    stateBefore,
+    playerId,
+    shouldAutoGuard,
+  );
   if (!built.ok) return error(400, built.error);
   const action = built.value;
 

@@ -237,10 +237,41 @@ const createQueuePlayer = (
   };
 };
 
+const claimUsername = async (
+  config: Config,
+  player: QueuePlayer,
+): Promise<void> => {
+  try {
+    const res = await fetch(`${config.serverUrl}/api/claim-name`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerKey: player.playerKey,
+        username: player.username,
+      }),
+    });
+    if (!res.ok) {
+      // Don't block scrimmage on claim failure — claim is best-effort
+      // for the leaderboard. Private/unranked runs still work.
+      console.warn(
+        `[scrimmage] claim-name failed for ${player.label}: ${res.status}`,
+      );
+    }
+  } catch (err) {
+    console.warn(`[scrimmage] claim-name error for ${player.label}:`, err);
+  }
+};
+
 const resolveMatch = async (
   config: Config,
   player: QueuePlayer,
 ): Promise<QuickMatchResult> => {
+  // Pre-claim the username so the server-side rating writer has a
+  // `player` row to update when this match completes. A private
+  // scrimmage run without leaderboard wiring still works — the claim
+  // failure path is non-fatal.
+  await claimUsername(config, player);
+
   const match = await queueForMatch({
     serverUrl: config.serverUrl,
     scenario: config.scenario,
