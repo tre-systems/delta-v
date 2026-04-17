@@ -9,11 +9,15 @@ test.describe('single-player smoke tests', () => {
     await launchSinglePlayerScenario(page, 'biplanetary');
 
     await expect(page).toHaveTitle('Delta-V');
-    await expect(page.locator('#objective')).toContainText('Land on');
-    await expect(page.locator('#logLatestText')).toContainText('burn (1 fuel)');
+    await expect(page.locator('[data-testid="objective"]')).toContainText(
+      'Land on',
+    );
+    await expect(page.locator('[data-testid="logLatestText"]')).toContainText(
+      'burn (1 fuel)',
+    );
     await expect(page.locator('[data-testid="ship-entry"]')).toHaveCount(1);
-    await expect(page.locator('#helpBtn')).toBeVisible();
-    await expect(page.locator('#tutorialTip')).toBeVisible();
+    await expect(page.locator('[data-testid="helpBtn"]')).toBeVisible();
+    await expect(page.locator('[data-testid="tutorialTip"]')).toBeVisible();
   });
 
   test('can select a ship, queue a burn, and confirm the first turn', async ({
@@ -23,14 +27,18 @@ test.describe('single-player smoke tests', () => {
 
     await page.click('[data-testid="ship-entry"]');
     await page.keyboard.press('1');
-    await expect(page.locator('#logLatestText')).toContainText('Burn set');
+    await expect(page.locator('[data-testid="logLatestText"]')).toContainText(
+      'Burn set',
+    );
 
-    await page.click('#confirmBtn');
+    await page.click('[data-testid="confirmBtn"]');
 
     await expect
-      .poll(async () => page.locator('#phaseInfo').textContent())
+      .poll(async () => page.locator('[data-testid="phaseInfo"]').textContent())
       .toContain("OPPONENT'S TURN");
-    await expect(page.locator('#fuelGauge')).toContainText('19/20');
+    await expect(page.locator('[data-testid="fuelGauge"]')).toContainText(
+      '19/20',
+    );
   });
 
   test('renders the touch-oriented HUD and help overlay in a mobile viewport', async ({
@@ -39,11 +47,15 @@ test.describe('single-player smoke tests', () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await launchSinglePlayerScenario(page, 'biplanetary');
 
-    await waitForDisplay(page, '#logLatestBar', 'block');
-    await expect(page.locator('#chatInputRow')).toBeHidden();
+    await waitForDisplay(page, '[data-testid="logLatestBar"]', 'block');
+    await expect(page.locator('[data-testid="chatInputRow"]')).toBeHidden();
 
     await openHelpOverlay(page);
-    await expect(page.locator('#helpOverlay')).toContainText('Tap ship');
-    await expect(page.locator('#helpOverlay')).toContainText('Tap arrow');
+    await expect(page.locator('[data-testid="helpOverlay"]')).toContainText(
+      'Tap ship',
+    );
+    await expect(page.locator('[data-testid="helpOverlay"]')).toContainText(
+      'Tap arrow',
+    );
   });
 });

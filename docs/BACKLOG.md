@@ -32,13 +32,9 @@ _All P3 items from the prior pass shipped. The difficulty-aware lookahead bias s
 
 ---
 
-## P4 — Tooling, tests, docs (quality-of-life)
+## P4 — Tooling, tests, docs
 
-### 2. Full `data-testid` sweep on HUD controls
-
-Only the two class-based Playwright selectors were swapped (`.ship-entry`, `.fleet-shop-item`). The remaining ID-based selectors are stable today and have no current refactor driver, so a blanket conversion is busy-work. Low priority.
-
-**Files:** `src/client/ui/**`, `e2e/**`
+_All P4 items shipped. The `data-testid` sweep completed on 2026-04-17: every ID-based Playwright selector in `e2e/` now reads from `data-testid` attributes, and each referenced element in `static/index.html` carries a matching `data-testid` alongside its `id` (30 elements, 104 selector-site swaps across 6 e2e specs). IDs are retained for CSS / JS selection; test selectors are now decoupled from DOM structure._
 
 ---
 
