@@ -36,13 +36,25 @@ The shared engine is side-effect-free. The server is authoritative and event-sou
 
 ## 📚 Documentation
 
-Each topic has one owner doc to keep decisions from drifting across files.
+Each topic has one owner doc to keep decisions from drifting.
+
+**If you're new**, read in this order:
+
+1. [CONTRIBUTING.md](./docs/CONTRIBUTING.md) — set up, pre-commit, verify
+2. [ARCHITECTURE.md](./docs/ARCHITECTURE.md) §1–2 — layer overview and the Durable Objects
+3. [CODING_STANDARDS.md](./docs/CODING_STANDARDS.md) — Core Principles section (first screen) only at this stage
+4. One [pattern chapter](./patterns/README.md) that matches the area you'll touch (client / engine / protocol / testing / scenarios / types)
+5. [SPEC.md](./docs/SPEC.md) if you're touching game rules; [PROTOCOL.md](./docs/PROTOCOL.md) if you're touching the wire format
+
+Doc index by purpose:
 
 | Doc | Purpose |
 | --- | --- |
-| [SPEC.md](./docs/SPEC.md) | Gameplay rules, scenarios, protocol shape, state model |
+| [SPEC.md](./docs/SPEC.md) | Game rules and scenarios |
+| [PROTOCOL.md](./docs/PROTOCOL.md) | Wire format, state shapes, hex math, HTTP/WS routes |
 | [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Module inventory, data flow, Durable Object design, replay/recovery |
-| [CODING_STANDARDS.md](./docs/CODING_STANDARDS.md) | Conventions, patterns, refactoring guidance |
+| [CODING_STANDARDS.md](./docs/CODING_STANDARDS.md) | Conventions and refactoring guidance |
+| [patterns/](./patterns/README.md) | Design-pattern walk-through: *why* the code looks the way it does |
 | [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Contributor workflow, pre-commit, verification |
 | [SECURITY.md](./docs/SECURITY.md) | Integrity, abuse controls, rate limits, data retention |
 | [OBSERVABILITY.md](./docs/OBSERVABILITY.md) | Telemetry events, D1 queries, incident triage |
@@ -52,12 +64,28 @@ Each topic has one owner doc to keep decisions from drifting across files.
 | [SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) | Headless AI simulation and websocket load harness |
 | [REVIEW_PLAN.md](./docs/REVIEW_PLAN.md) | Recurring cross-cutting review checklist |
 | [COORDINATED_RELEASE_CHECKLIST.md](./docs/COORDINATED_RELEASE_CHECKLIST.md) | Protocol/schema version bump steps |
-| [BACKLOG.md](./docs/BACKLOG.md) | Remaining actionable work, one priority order |
+| [BACKLOG.md](./docs/BACKLOG.md) | Remaining actionable work, in priority order |
 | [LORE.md](./docs/LORE.md) | Ship aesthetics and visual direction |
 | [AGENTS.md](./docs/AGENTS.md) | Practical guide for building Delta-V agents |
 | [DELTA_V_MCP.md](./docs/DELTA_V_MCP.md) | MCP tool reference and host configuration |
 | [AGENT_SPEC.md](./AGENT_SPEC.md) | Deep agent protocol and design reference |
-| [patterns/](./patterns/README.md) | Design patterns walk-through: *why* the code looks the way it does |
+
+### Glossary
+
+| Term | Meaning |
+| --- | --- |
+| **Room** | A game lobby identified by a 5-character code. One room can host multiple matches via rematch. |
+| **Match** | A single game session within a room. Has a stable `gameId` like `ROOM1-m2`. |
+| **Seat** | Slot for a player (0 or 1). Protected by a `playerToken` for reconnection. |
+| **Session** | On the server: the authoritative `GameDO` instance. On the client: `ClientSession` aggregate (signals, planning, transport). |
+| **Phase** | The authoritative `GameState.phase` — `fleetBuilding`, `astrogation`, `ordnance`, `combat`, `logistics`, `gameOver`. |
+| **Client state** | The UI-layer `ClientState` — finer-grained (e.g. `playing_movementAnim`) derived from phase. |
+| **Event** | An append-only domain fact in the match stream (`EngineEvent`) — not a DOM event. |
+| **Checkpoint** | A full `GameState` snapshot saved at turn boundaries. Speeds up projection. |
+| **Projection** | Reconstructing `GameState` from checkpoint + event tail. Used for reconnects, parity, replay. |
+| **Agent** | Any non-browser player (script, LLM, RL) connected via MCP, bridge, or raw WebSocket. Identified with `playerKey` prefix `agent_`. |
+| **Burn** | A fuel-costing course shift during astrogation (1 hex normally, 2 hex for warship overload). |
+| **Overload** | A 2-fuel warship course shift, usable once between maintenance stopovers. |
 
 ## 🚀 Quick Start
 

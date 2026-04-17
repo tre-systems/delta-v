@@ -47,18 +47,17 @@ lookup(hexKey({q: 0, r: 0}));   // fine
 
 **Pattern.** Incoming client messages pass through four distinct validation stages, each with its own error surface. Rate limits come first so flood attacks can't exhaust later stages; the engine is last and trusts its input.
 
-**Minimal example.**
-
-```
-WebSocket message arrives
-  ↓
-Stage 0: applySocketRateLimit()     → close 1008 if > 10 msg/s
-  ↓
-Stage 1: parseClientSocketMessage() → Result<unknown> (malformed JSON)
-  ↓
-Stage 2: validateClientMessage()    → Result<C2S>     (shape + size limits)
-  ↓
-Stage 3: engine call                → EngineFailure | { state, events, … }
+```mermaid
+flowchart TD
+  A[WebSocket message] --> B{Stage 0:<br/>rate limit}
+  B -->|> 10 msg/s| BX[Close code 1008]
+  B -->|OK| C{Stage 1:<br/>JSON parse}
+  C -->|malformed| CX[Result error]
+  C -->|OK: unknown| D{Stage 2:<br/>validateClientMessage}
+  D -->|wrong shape<br/>or oversize| DX[Result error<br/>→ S2C error]
+  D -->|OK: C2S| E{Stage 3:<br/>engine call}
+  E -->|phase / turn / resource<br/>violation| EX[EngineFailure<br/>with ErrorCode]
+  E -->|OK| F[state + events]
 ```
 
 **Where it lives.** Stage 0: `src/server/game-do/socket.ts::applySocketRateLimit`. Stage 1: `src/server/game-do/socket.ts::parseClientSocketMessage`. Stage 2: `src/shared/protocol.ts::validateClientMessage`. Stage 3: engine entry points in `src/shared/engine/*`. Runner `src/server/game-do/actions.ts::runGameStateAction` wraps engine calls in try/catch so unexpected throws become typed errors, not state corruption.
