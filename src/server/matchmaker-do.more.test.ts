@@ -40,25 +40,34 @@ const createMockStorage = (): MockStorage => {
 const createMatchmaker = (
   initImpl: (request: Request) => Promise<Response> = async () =>
     Response.json({ ok: true }, { status: 201 }),
+  db?: D1Database,
 ) => {
   const storage = createMockStorage();
+  const waitUntilPromises: Promise<unknown>[] = [];
   const initFetch = vi.fn(initImpl);
   const gameStub = {
     fetch: initFetch,
   } as unknown as DurableObjectStub;
   const matchmaker = new MatchmakerDO(
-    { storage } as unknown as DurableObjectState,
+    {
+      storage,
+      waitUntil(promise: Promise<unknown>) {
+        waitUntilPromises.push(promise);
+      },
+    } as unknown as DurableObjectState,
     {
       GAME: {
         idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
         get: vi.fn(() => gameStub),
       },
+      ...(db ? { DB: db } : {}),
     } as unknown as {
       GAME: DurableObjectNamespace;
+      DB?: D1Database;
     },
   );
 
-  return { matchmaker, initFetch, storage };
+  return { matchmaker, initFetch, storage, waitUntilPromises };
 };
 
 describe('MatchmakerDO additional coverage', () => {
@@ -403,5 +412,116 @@ describe('MatchmakerDO additional coverage', () => {
         typeof tag === 'string' && tag.includes('matchmaker_pairing_split'),
     );
     expect(splitLogCall).toBeDefined();
+  });
+
+  it('best-effort claims matched players into leaderboard rows', async () => {
+    const rowsByKey = new Map<string, Record<string, unknown>>();
+    const rowsByUsername = new Map<string, Record<string, unknown>>();
+    const db = {
+      prepare(sql: string) {
+        const lowered = sql.toLowerCase();
+        return {
+          bind(...args: unknown[]) {
+            return {
+              first: async () => {
+                if (lowered.includes('from player where player_key')) {
+                  return (rowsByKey.get(args[0] as string) ?? null) as Record<
+                    string,
+                    unknown
+                  > | null;
+                }
+                return null;
+              },
+              run: async () => {
+                if (lowered.startsWith('insert into player')) {
+                  const [playerKey, username, isAgent, createdAt] = args as [
+                    string,
+                    string,
+                    number,
+                    number,
+                  ];
+                  if (rowsByUsername.has(username)) {
+                    throw new Error(
+                      'UNIQUE constraint failed: player.username',
+                    );
+                  }
+                  const row = {
+                    player_key: playerKey,
+                    username,
+                    is_agent: isAgent,
+                    rating: 1500,
+                    rd: 350,
+                    volatility: 0.06,
+                    games_played: 0,
+                    distinct_opponents: 0,
+                    last_match_at: null,
+                    created_at: createdAt,
+                  };
+                  rowsByKey.set(playerKey, row);
+                  rowsByUsername.set(username, row);
+                  return { success: true };
+                }
+                if (lowered.startsWith('update player set username')) {
+                  const [username, playerKey] = args as [string, string];
+                  if (rowsByUsername.has(username)) {
+                    throw new Error(
+                      'UNIQUE constraint failed: player.username',
+                    );
+                  }
+                  const existing = rowsByKey.get(playerKey);
+                  if (existing) {
+                    rowsByUsername.delete(existing.username as string);
+                    existing.username = username;
+                    rowsByUsername.set(username, existing);
+                  }
+                  return { success: true };
+                }
+                return { success: true };
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { matchmaker, waitUntilPromises } = createMatchmaker(undefined, db);
+
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'agent_dupkey01',
+            username: 'Duplicate Name',
+          },
+        }),
+      }),
+    );
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'human_dupkey02',
+            username: 'Duplicate Name',
+          },
+        }),
+      }),
+    );
+    await Promise.all(waitUntilPromises);
+
+    expect(rowsByKey.get('agent_dupkey01')).toMatchObject({
+      is_agent: 1,
+    });
+    expect(rowsByKey.get('human_dupkey02')).toMatchObject({
+      is_agent: 0,
+    });
+    // One duplicate name must be resolved via fallback default username.
+    const usernames = Array.from(rowsByUsername.keys());
+    expect(usernames).toContain('Duplicate Name');
+    expect(usernames.length).toBe(2);
   });
 });
