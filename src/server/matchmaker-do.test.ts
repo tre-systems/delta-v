@@ -74,6 +74,94 @@ describe('MatchmakerDO', () => {
     vi.restoreAllMocks();
   });
 
+  it('propagates the requested scenario to the paired room init', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { matchmaker, initFetch } = createMatchmaker();
+
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'convoy',
+          player: { playerKey: 'playerkey1', username: 'Pilot One' },
+        }),
+      }),
+    );
+    const response = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'convoy',
+          player: { playerKey: 'playerkey2', username: 'Pilot Two' },
+        }),
+      }),
+    );
+
+    const payload = (await response.json()) as {
+      status: string;
+      scenario: string;
+    };
+    expect(payload.status).toBe('matched');
+    expect(payload.scenario).toBe('convoy');
+
+    expect(initFetch).toHaveBeenCalledTimes(1);
+    const initRequest = initFetch.mock.calls[0]?.[0];
+    if (!initRequest) throw new Error('Expected init request');
+    await expect(initRequest.json()).resolves.toMatchObject({
+      scenario: 'convoy',
+    });
+  });
+
+  it('does not match players across different requested scenarios', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { matchmaker, initFetch } = createMatchmaker();
+
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'duel',
+          player: { playerKey: 'duelplayerA', username: 'Duel A' },
+        }),
+      }),
+    );
+    const response = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'convoy',
+          player: { playerKey: 'convoyplayerB', username: 'Convoy B' },
+        }),
+      }),
+    );
+
+    const payload = (await response.json()) as { status: string };
+    expect(payload.status).toBe('queued');
+    expect(initFetch).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the default scenario when the request contains an unknown one', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { matchmaker } = createMatchmaker();
+
+    const response = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'not-a-real-scenario',
+          player: { playerKey: 'playerkey1', username: 'Pilot One' },
+        }),
+      }),
+    );
+    const payload = (await response.json()) as { scenario: string };
+    expect(payload.scenario).toBe('duel');
+  });
+
   it('returns 503 when the active queue is saturated', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_000);
     const { matchmaker } = createMatchmaker();

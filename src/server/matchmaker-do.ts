@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { PlayerToken, RoomCode } from '../shared/ids';
+import { isValidScenario } from '../shared/map-data';
 import {
   QUICK_MATCH_SCENARIO,
   type QuickMatchResponse,
@@ -110,11 +111,19 @@ const normalizeQuickMatchRequest = (
     return null;
   }
 
+  const requestedScenarioRaw = (raw as { scenario?: unknown }).scenario;
+  // Validate against the canonical scenario registry. Unknown keys
+  // (typos, stale clients) fall back to the quick-match default rather
+  // than propagating into game creation, where they would have silently
+  // collapsed to `biplanetary` inside normalizeScenarioKey.
+  const scenario =
+    typeof requestedScenarioRaw === 'string' &&
+    isValidScenario(requestedScenarioRaw)
+      ? requestedScenarioRaw
+      : QUICK_MATCH_SCENARIO;
+
   return {
-    scenario:
-      typeof (raw as { scenario?: unknown }).scenario === 'string'
-        ? ((raw as { scenario?: string }).scenario ?? QUICK_MATCH_SCENARIO)
-        : QUICK_MATCH_SCENARIO,
+    scenario,
     player: {
       playerKey,
       username:
@@ -148,6 +157,7 @@ export class MatchmakerDO extends DurableObject<Env> {
   }
 
   private async allocateQuickMatchRoom(
+    scenario: string,
     players: [PublicPlayerProfile, PublicPlayerProfile],
   ): Promise<{
     code: RoomCode;
@@ -169,7 +179,7 @@ export class MatchmakerDO extends DurableObject<Env> {
           },
           body: JSON.stringify({
             code,
-            scenario: QUICK_MATCH_SCENARIO,
+            scenario,
             playerToken: playerTokens[0],
             guestPlayerToken: playerTokens[1],
             players: [
@@ -296,7 +306,12 @@ export class MatchmakerDO extends DurableObject<Env> {
       return null;
     }
 
-    const room = await this.allocateQuickMatchRoom([left.player, right.player]);
+    // Both entries are matched on scenario before reaching matchEntries,
+    // so left.scenario and right.scenario agree — pick either.
+    const room = await this.allocateQuickMatchRoom(left.scenario, [
+      left.player,
+      right.player,
+    ]);
 
     if (!room) {
       return null;
@@ -366,7 +381,7 @@ export class MatchmakerDO extends DurableObject<Env> {
     const existingIndex = entries.findIndex(
       (entry) =>
         entry.player.playerKey === parsed.player.playerKey &&
-        entry.scenario === QUICK_MATCH_SCENARIO,
+        entry.scenario === parsed.scenario,
     );
 
     if (existingIndex >= 0) {
@@ -381,7 +396,7 @@ export class MatchmakerDO extends DurableObject<Env> {
         existing.matched ?? {
           status: 'queued',
           ticket: existing.ticket,
-          scenario: QUICK_MATCH_SCENARIO,
+          scenario: existing.scenario,
         },
       );
     }
@@ -390,7 +405,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       (entry) =>
         isActiveQueueEntry(entry, now) &&
         entry.player.playerKey !== parsed.player.playerKey &&
-        entry.scenario === QUICK_MATCH_SCENARIO,
+        entry.scenario === parsed.scenario,
     );
 
     // Reject new enqueues once storage is saturated. The cap counts
@@ -410,7 +425,7 @@ export class MatchmakerDO extends DurableObject<Env> {
     const ticket = ticketFromEntropy();
     entries.push({
       ticket,
-      scenario: QUICK_MATCH_SCENARIO,
+      scenario: parsed.scenario,
       player: parsed.player,
       queuedAt: now,
       lastSeenAt: now,
@@ -442,7 +457,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       current.matched ?? {
         status: 'queued',
         ticket: current.ticket,
-        scenario: QUICK_MATCH_SCENARIO,
+        scenario: current.scenario,
       },
     );
   }
@@ -458,6 +473,8 @@ export class MatchmakerDO extends DurableObject<Env> {
         {
           status: 'expired',
           ticket,
+          // No matching ticket in the queue — we don't know the requested
+          // scenario any more, so fall back to the canonical default.
           scenario: QUICK_MATCH_SCENARIO,
           reason: 'Queue expired',
         } satisfies Extract<QuickMatchResponse, { status: 'expired' }>,
@@ -507,7 +524,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       entries[index]?.matched ?? {
         status: 'queued',
         ticket,
-        scenario: QUICK_MATCH_SCENARIO,
+        scenario: entries[index]?.scenario ?? QUICK_MATCH_SCENARIO,
       },
     );
   }
