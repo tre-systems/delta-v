@@ -6,7 +6,13 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts'],
+      exclude: [
+        'src/**/*.test.ts',
+        // Test-only utilities (shared mocks, fixtures helpers) — no
+        // production code imports these, so they'd otherwise drag
+        // coverage down without reflecting real regressions.
+        'src/**/test-support.ts',
+      ],
       reporter: ['text', 'html', 'json-summary'],
       reportsDirectory: './coverage',
       thresholds: {
