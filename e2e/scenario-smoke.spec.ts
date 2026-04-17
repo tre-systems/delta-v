@@ -17,22 +17,30 @@ const STANDARD_SCENARIO_CASES: ScenarioSmokeCase[] = [
     name: 'Grand Tour shows checkpoint race objective',
     scenario: 'grandTour',
     assertLoaded: async (page) => {
-      await expect(page.locator('#objective')).toContainText('Tour:');
-      await expect(page.locator('#objective')).toContainText('/8');
+      await expect(page.locator('[data-testid="objective"]')).toContainText(
+        'Tour:',
+      );
+      await expect(page.locator('[data-testid="objective"]')).toContainText(
+        '/8',
+      );
     },
   },
   {
     name: 'Duel vs AI boots with combat objective',
     scenario: 'duel',
     assertLoaded: async (page) => {
-      await expect(page.locator('#phaseInfo')).toContainText('ASTROGATION');
+      await expect(page.locator('[data-testid="phaseInfo"]')).toContainText(
+        'ASTROGATION',
+      );
     },
   },
   {
     name: 'Convoy vs AI boots into astrogation',
     scenario: 'convoy',
     assertLoaded: async (page) => {
-      await expect(page.locator('#phaseInfo')).toContainText('ASTROGATION');
+      await expect(page.locator('[data-testid="phaseInfo"]')).toContainText(
+        'ASTROGATION',
+      );
       await expect(page.locator('[data-testid="ship-entry"]')).toHaveCount(3);
     },
   },
@@ -61,20 +69,22 @@ test.describe('scenario smoke coverage', () => {
       skipTutorial: true,
     });
 
-    await expect(page.locator('#menu')).toHaveAttribute('aria-hidden', 'true');
-    await expect(page.locator('#scenarioSelect')).toHaveAttribute(
+    await expect(page.locator('[data-testid="menu"]')).toHaveAttribute(
       'aria-hidden',
       'true',
     );
-    await expect(page.locator('#waiting')).toHaveAttribute(
+    await expect(
+      page.locator('[data-testid="scenarioSelect"]'),
+    ).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.locator('[data-testid="waiting"]')).toHaveAttribute(
       'aria-hidden',
       'true',
     );
-    await expect(page.locator('#fleetBuilding')).toHaveAttribute(
+    await expect(page.locator('[data-testid="fleetBuilding"]')).toHaveAttribute(
       'aria-hidden',
       'true',
     );
-    await expect(page.locator('#helpOverlay')).toHaveAttribute(
+    await expect(page.locator('[data-testid="helpOverlay"]')).toHaveAttribute(
       'aria-hidden',
       'true',
     );
@@ -87,7 +97,7 @@ test.describe('scenario smoke coverage', () => {
         skipTutorial: true,
       });
 
-      await expect(page.locator('#objective')).toBeVisible();
+      await expect(page.locator('[data-testid="objective"]')).toBeVisible();
       await scenarioCase.assertLoaded(page);
     });
   }
@@ -97,7 +107,9 @@ test.describe('scenario smoke coverage', () => {
   }) => {
     await launchFleetActionScenario(page);
 
-    await expect(page.locator('#phaseInfo')).toContainText('ASTROGATION');
+    await expect(page.locator('[data-testid="phaseInfo"]')).toContainText(
+      'ASTROGATION',
+    );
     await expect(
       page.locator('[data-testid="ship-entry"]').first(),
     ).toBeVisible();
@@ -110,14 +122,13 @@ test.describe('scenario smoke coverage', () => {
     });
 
     await openHelpOverlay(page);
-    await expect(page.locator('#helpOverlay')).not.toHaveAttribute(
-      'aria-hidden',
-      'true',
-    );
+    await expect(
+      page.locator('[data-testid="helpOverlay"]'),
+    ).not.toHaveAttribute('aria-hidden', 'true');
 
-    await page.click('#helpCloseBtn');
-    await waitForDisplay(page, '#helpOverlay', 'none');
-    await expect(page.locator('#helpOverlay')).toHaveAttribute(
+    await page.click('[data-testid="helpCloseBtn"]');
+    await waitForDisplay(page, '[data-testid="helpOverlay"]', 'none');
+    await expect(page.locator('[data-testid="helpOverlay"]')).toHaveAttribute(
       'aria-hidden',
       'true',
     );

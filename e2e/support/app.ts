@@ -56,11 +56,11 @@ export const openHomePage = async (
 ): Promise<void> => {
   await seedLocalStorage(page, options);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await waitForDisplay(page, '#menu', 'flex');
+  await waitForDisplay(page, '[data-testid="menu"]', 'flex');
 };
 
 export const skipTutorialIfPresent = async (page: Page): Promise<void> => {
-  const skip = page.locator('#tutorialSkipBtn');
+  const skip = page.locator('[data-testid="tutorialSkipBtn"]');
 
   if (await skip.isVisible().catch(() => false)) {
     await skip.click();
@@ -77,10 +77,10 @@ export const launchSinglePlayerScenario = async (
   }: ScenarioLaunchOptions = {},
 ): Promise<void> => {
   await openHomePage(page, { tutorialDone });
-  await page.click('#singlePlayerBtn');
-  await waitForDisplay(page, '#scenarioSelect', 'flex');
+  await page.click('[data-testid="singlePlayerBtn"]');
+  await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
   await page.click(`[data-scenario="${scenario}"]`);
-  await waitForDisplay(page, '#hud', 'block', timeout);
+  await waitForDisplay(page, '[data-testid="hud"]', 'block', timeout);
 
   if (skipTutorial) {
     await skipTutorialIfPresent(page);
@@ -89,17 +89,17 @@ export const launchSinglePlayerScenario = async (
 
 export const launchFleetActionScenario = async (page: Page): Promise<void> => {
   await openHomePage(page, { tutorialDone: true });
-  await page.click('#singlePlayerBtn');
-  await waitForDisplay(page, '#scenarioSelect', 'flex');
+  await page.click('[data-testid="singlePlayerBtn"]');
+  await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
   await page.click('[data-scenario="fleetAction"]');
-  await waitForDisplay(page, '#fleetBuilding', 'flex');
+  await waitForDisplay(page, '[data-testid="fleetBuilding"]', 'flex');
   await page
     .locator('[data-testid="fleet-shop-item"]:not(.disabled)')
     .filter({ hasText: 'Corvette' })
     .first()
     .click();
-  await page.click('#fleetReadyBtn');
-  await waitForDisplay(page, '#hud', 'block', 30_000);
+  await page.click('[data-testid="fleetReadyBtn"]');
+  await waitForDisplay(page, '[data-testid="hud"]', 'block', 30_000);
   await skipTutorialIfPresent(page);
 };
 
@@ -107,13 +107,14 @@ export const createRoom = async (
   page: Page,
   scenario = 'biplanetary',
 ): Promise<string> => {
-  await page.click('#createBtn');
-  await waitForDisplay(page, '#scenarioSelect', 'flex');
+  await page.click('[data-testid="createBtn"]');
+  await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
   await page.click(`[data-scenario="${scenario}"]`);
-  await waitForDisplay(page, '#waiting', 'flex', 10_000);
+  await waitForDisplay(page, '[data-testid="waiting"]', 'flex', 10_000);
 
   const roomCode =
-    (await page.locator('#gameCode').textContent())?.trim() ?? '';
+    (await page.locator('[data-testid="gameCode"]').textContent())?.trim() ??
+    '';
   expect(roomCode).toMatch(/^[A-Z0-9]{5}$/);
 
   return roomCode;
@@ -121,15 +122,15 @@ export const createRoom = async (
 
 export const joinRoom = async (page: Page, roomCode: string): Promise<void> => {
   await submitRoomJoin(page, roomCode);
-  await waitForDisplay(page, '#hud', 'block');
+  await waitForDisplay(page, '[data-testid="hud"]', 'block');
 };
 
 export const submitRoomJoin = async (
   page: Page,
   roomCode: string,
 ): Promise<void> => {
-  await page.fill('#codeInput', roomCode);
-  await page.click('#joinBtn');
+  await page.fill('[data-testid="codeInput"]', roomCode);
+  await page.click('[data-testid="joinBtn"]');
 };
 
 export const createMultiplayerSession = async (
@@ -147,7 +148,7 @@ export const createMultiplayerSession = async (
   const roomCode = await createRoom(host, scenario);
   await Promise.all([
     joinRoom(guest, roomCode),
-    waitForDisplay(host, '#hud', 'block'),
+    waitForDisplay(host, '[data-testid="hud"]', 'block'),
   ]);
 
   return {
@@ -161,17 +162,17 @@ export const createMultiplayerSession = async (
 export const expandDesktopLog = async (page: Page): Promise<void> => {
   await skipTutorialIfPresent(page);
   const logAlreadyVisible = await page
-    .locator('#gameLog')
+    .locator('[data-testid="gameLog"]')
     .evaluate((el) => getComputedStyle(el).display !== 'none');
   if (!logAlreadyVisible) {
-    await page.click('#logLatestBar');
+    await page.click('[data-testid="logLatestBar"]');
   }
-  await waitForDisplay(page, '#gameLog', 'flex');
+  await waitForDisplay(page, '[data-testid="gameLog"]', 'flex');
 };
 
 export const openHelpOverlay = async (page: Page): Promise<void> => {
-  await page.click('#helpBtn');
-  await waitForDisplay(page, '#helpOverlay', 'flex');
+  await page.click('[data-testid="helpBtn"]');
+  await waitForDisplay(page, '[data-testid="helpOverlay"]', 'flex');
 };
 
 export const closePages = async (...pages: Page[]): Promise<void> => {
