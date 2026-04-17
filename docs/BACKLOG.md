@@ -14,6 +14,12 @@ _No active items. The public-leaderboard arc shipped on 2026-04-17 — see commi
 
 ## Architecture & correctness
 
+### Extract MCP adapter into a dedicated subpackage
+
+Move hosted and local MCP surfaces into a separate workspace package (for example `packages/mcp-adapter`) with its own `package.json` so `@modelcontextprotocol/sdk` and `zod` are scoped to MCP integration instead of the core game/runtime package. Keep the existing MCP behavior and tool contracts unchanged while making the core app build path dependency-light.
+
+**Files:** `packages/mcp-adapter/` (new), `src/server/mcp/handlers.ts`, `scripts/delta-v-mcp-server.ts`, `src/server/index.ts`, root `package.json`/workspace config, MCP docs
+
 ### Deterministic initial publication path
 
 Route `initGameSession` through `runPublicationPipeline`, then remove the remaining `getActionRng()` fallbacks to `Math.random` in paths that should already have persistent match identity.
