@@ -253,19 +253,33 @@ webSocketMessage(ws: WebSocket, message: string) {
 
 A single C2S action threads these patterns in order:
 
-```
-1. acceptWebSocket (hibernation) + tag with player:N
-2. webSocketMessage wakes the DO
-3. applySocketRateLimit  (see Type System chapter)
-4. validateClientMessage  (see Type System chapter)
-5. runGameStateAction → engine call → engineEvents[]
-6. runPublicationPipeline:
-   - archive.append (chunked)
-   - checkpointIfNeeded (turn boundary)
-   - verifyProjectionParity (observability)
-   - archive-on-end (R2 + D1 match_archive)
-   - restartTurnTimer
-   - broadcastFilteredMessage → filterStateForPlayer per viewer
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant DO as GameDO<br/>(hibernatable)
+  participant S as Storage
+  participant R as R2 / D1
+
+  C->>DO: C2S message (WebSocket)
+  Note over DO: webSocketMessage wakes DO<br/>tags identify player
+
+  DO->>DO: applySocketRateLimit<br/>(Type System chapter)
+  DO->>DO: validateClientMessage<br/>(Type System chapter)
+  DO->>DO: runGameStateAction<br/>→ engine call → engineEvents[]
+
+  rect rgb(230, 240, 255)
+    Note over DO,S: runPublicationPipeline
+    DO->>S: append events (chunked)
+    opt turn boundary
+      DO->>S: save checkpoint
+    end
+    DO->>S: verify projection parity
+    opt game over
+      DO->>R: archive match (R2 + D1)
+    end
+    DO->>DO: restart turn timer
+    DO->>C: broadcastFilteredMessage<br/>(filtered per viewer)
+  end
 ```
 
 Every step has a single owner, a single reason to exist, and a single place to look when debugging.
