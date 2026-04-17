@@ -160,6 +160,30 @@ export interface AIDifficultyConfig {
   minRollThreshold: number;
   // When true (easy), fire only one attack per turn per ship.
   singleAttackOnly: boolean;
+
+  // --- Fleet composition ---
+  // Max per-match count of each high-end capital ship. Lower tiers keep
+  // these off the board; the hard tier opens them up for fleet-action
+  // scenarios where concentrated firepower matters.
+  maxDreadnaughts: number;
+  maxTorches: number;
+  // When true, the AI will route orbital-base purchases through the
+  // fleet-building logic (carrier allocation + base-carrier slot check).
+  // Gated on hard today because the tactical payoff only shows up when
+  // the AI can reliably escort the base through early-game combat.
+  allowsOrbitalBases: boolean;
+
+  // --- Ordnance doctrine ---
+  // When true the AI is willing to spend a nuke on favourable mid-game
+  // geometry. Easy / normal keep nukes holstered so a human scrimmage
+  // partner doesn't get one-shot by an opening attack.
+  willCommitNukes: boolean;
+
+  // --- Logistics doctrine ---
+  // Upper bound on transfer orders issued per logistics phase. Easy
+  // micromanages poorly (one per turn); normal is balanced; hard runs
+  // the full three-transfer budget the rules allow.
+  maxLogisticsTransfersPerTurn: number;
 }
 
 export const AI_CONFIG: Readonly<
@@ -226,6 +250,11 @@ export const AI_CONFIG: Readonly<
     nukeThreatRange: 6,
     minRollThreshold: 3,
     singleAttackOnly: true,
+    maxDreadnaughts: 0,
+    maxTorches: 0,
+    allowsOrbitalBases: false,
+    willCommitNukes: false,
+    maxLogisticsTransfersPerTurn: 1,
   },
   normal: {
     multiplier: 1.0,
@@ -288,6 +317,11 @@ export const AI_CONFIG: Readonly<
     nukeThreatRange: 6,
     minRollThreshold: 1,
     singleAttackOnly: false,
+    maxDreadnaughts: 0,
+    maxTorches: 0,
+    allowsOrbitalBases: false,
+    willCommitNukes: false,
+    maxLogisticsTransfersPerTurn: 2,
   },
   hard: {
     multiplier: 1.5,
@@ -361,6 +395,11 @@ export const AI_CONFIG: Readonly<
     nukeThreatRange: 6,
     minRollThreshold: 0,
     singleAttackOnly: false,
+    maxDreadnaughts: 1,
+    maxTorches: 1,
+    allowsOrbitalBases: true,
+    willCommitNukes: true,
+    maxLogisticsTransfersPerTurn: 3,
   },
 };
 

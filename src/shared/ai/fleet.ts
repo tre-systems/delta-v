@@ -13,6 +13,7 @@ import type {
   PurchasableShipType,
 } from '../types';
 import { sumBy } from '../util';
+import { AI_CONFIG } from './config';
 import type { AIDifficulty } from './types';
 
 const DEFAULT_FLEET_PURCHASES = (Object.keys(SHIP_STATS) as ShipType[]).filter(
@@ -127,6 +128,7 @@ const buildOptimizedCombatFleetPurchases = (
   let bestPurchases: FleetPurchase[] = [];
   let bestScore = -Infinity;
 
+  const cfg = AI_CONFIG[difficulty];
   const getMaxCount = (shipType: PurchasableShipType): number => {
     if (getMaxCountOverride) {
       return getMaxCountOverride(shipType);
@@ -134,9 +136,9 @@ const buildOptimizedCombatFleetPurchases = (
 
     switch (shipType) {
       case 'dreadnaught':
-        return difficulty === 'hard' ? 1 : 0;
+        return cfg.maxDreadnaughts;
       case 'torch':
-        return difficulty === 'hard' ? 1 : 0;
+        return cfg.maxTorches;
       default:
         return Math.floor(credits / SHIP_STATS[shipType].cost);
     }
@@ -250,12 +252,13 @@ export const buildAIFleetPurchases = (
       remainingCredits >= 600 ||
       available.has('orbitalBaseCargo'));
 
+  const cfg = AI_CONFIG[difficulty];
   const getMaxCount = (shipType: PurchasableShipType): number => {
     switch (shipType) {
       case 'dreadnaught':
-        return difficulty === 'hard' && heavyCapitalFriendlyBattle ? 1 : 0;
+        return heavyCapitalFriendlyBattle ? cfg.maxDreadnaughts : 0;
       case 'torch':
-        return difficulty === 'hard' && heavyCapitalFriendlyBattle ? 1 : 0;
+        return heavyCapitalFriendlyBattle ? cfg.maxTorches : 0;
       case 'tanker':
         return wantsTanker ? 1 : 0;
       case 'transport':
@@ -311,7 +314,7 @@ export const buildAIFleetPurchases = (
     return true;
   };
 
-  if (difficulty === 'hard' && available.has('orbitalBaseCargo')) {
+  if (cfg.allowsOrbitalBases && available.has('orbitalBaseCargo')) {
     const carrierType = available.has('transport')
       ? 'transport'
       : available.has('packet')

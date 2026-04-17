@@ -14,7 +14,7 @@ import type {
 } from '../types';
 import { maxBy, minBy } from '../util';
 import { findNearestBase } from './common';
-import type { AIDifficultyConfig } from './config';
+import { AI_CONFIG, type AIDifficultyConfig } from './config';
 import { scoreCourse } from './scoring';
 import type { AIDifficulty } from './types';
 
@@ -585,8 +585,7 @@ export const aiLogistics = (
   }
 
   const workingState = structuredClone(state);
-  const maxTransfers =
-    difficulty === 'easy' ? 1 : difficulty === 'normal' ? 2 : 3;
+  const maxTransfers = AI_CONFIG[difficulty].maxLogisticsTransfersPerTurn;
   const transfers: TransferOrder[] = [];
 
   while (transfers.length < maxTransfers) {
