@@ -39,6 +39,7 @@ const createMockStorage = (): MockStorage => {
 
 const createCtx = () => ({
   storage: createMockStorage(),
+  waitUntil(_promise: Promise<unknown>) {},
 });
 
 const createMatchmaker = () => {
@@ -157,6 +158,55 @@ describe('MatchmakerDO', () => {
           playerKey: 'playerkey1',
           username: 'Pilot One',
           kind: 'human',
+        }),
+      ],
+    });
+  });
+
+  it('assigns agent kind by player key for either seat', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { matchmaker, initFetch } = createMatchmaker();
+
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'agent_bot12345',
+            username: 'Bot One',
+          },
+        }),
+      }),
+    );
+
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'humanplay123',
+            username: 'Pilot Human',
+          },
+        }),
+      }),
+    );
+
+    const firstInitRequest = initFetch.mock.calls[0]?.[0];
+    expect(firstInitRequest).toBeInstanceOf(Request);
+    if (!firstInitRequest) {
+      throw new Error('Expected first init request');
+    }
+    await expect(firstInitRequest.json()).resolves.toMatchObject({
+      players: [
+        expect.objectContaining({
+          playerKey: 'humanplay123',
+          kind: 'human',
+        }),
+        expect.objectContaining({
+          playerKey: 'agent_bot12345',
+          kind: 'agent',
         }),
       ],
     });
