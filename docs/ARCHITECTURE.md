@@ -49,7 +49,41 @@ Three DO classes back the server, bound in [`wrangler.toml`](../wrangler.toml):
 | `MATCHMAKER` | `MatchmakerDO` | Singleton `global` instance — quick-match ticket queue and seat pairing |
 | `LIVE_REGISTRY` | `LiveRegistryDO` | Singleton — "Live now" registry powering `GET /api/matches?status=live` |
 
-`GameDO` carries nearly all game state and is the focus of this document. The other two are small support DOs with their own modules (`src/server/matchmaker-do.ts`, `src/server/live-registry-do.ts`).
+```mermaid
+flowchart TB
+  W[Cloudflare Worker<br/>src/server/index.ts]
+
+  subgraph GAME[GAME binding: many GameDO instances, one per room]
+    direction LR
+    G1[GameDO<br/>room ABC12]
+    G2[GameDO<br/>room XY345]
+    GN[GameDO<br/>...]
+  end
+
+  subgraph MATCHMAKER[MATCHMAKER binding: one MatchmakerDO singleton]
+    M[MatchmakerDO<br/>global]
+  end
+
+  subgraph LIVE_REGISTRY[LIVE_REGISTRY binding: one LiveRegistryDO singleton]
+    L[LiveRegistryDO]
+  end
+
+  W -->|POST /quick-match<br/>GET /quick-match/:ticket| M
+  W -->|POST /create<br/>GET /join,replay,ws| GAME
+  W -->|GET /api/matches?status=live| L
+
+  M -.->|once paired<br/>idFromName| GAME
+  GAME -.->|game_started /<br/>game_ended notifications| L
+
+  D[(D1<br/>events<br/>match_archive)]
+  R[(R2<br/>MATCH_ARCHIVE<br/>matches/*.json)]
+
+  GAME -->|parity mismatch,<br/>engine errors,<br/>match metadata| D
+  GAME -->|full archive<br/>on game end| R
+  W -->|/telemetry, /error| D
+```
+
+`GameDO` carries nearly all game state and is the focus of the rest of this document. The two support DOs are small (`src/server/matchmaker-do.ts`, `src/server/live-registry-do.ts`) and each lives behind a singleton binding (`idFromName('global')`) so there's exactly one of each in the cluster.
 
 ### Diagrams (Mermaid)
 
