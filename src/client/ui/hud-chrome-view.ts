@@ -467,6 +467,17 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       fireBtn.className = 'btn btn-skip';
     });
 
+    // Clicking the backdrop (the overlay element itself, not its content
+    // card) closes the help modal. Without this, users who tap "outside"
+    // the card see no response and conclude the overlay is still a
+    // silently-intercepting layer on top of their gameplay controls.
+    listen(helpOverlayEl, 'click', (event) => {
+      if (!helpOverlayVisibleSignal.peek()) return;
+      if (event.target === helpOverlayEl) {
+        toggleHelpOverlay();
+      }
+    });
+
     listen(helpOverlayEl, 'keydown', (event) => {
       if (!helpOverlayVisibleSignal.peek()) {
         return;
