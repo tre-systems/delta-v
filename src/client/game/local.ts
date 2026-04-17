@@ -7,6 +7,7 @@ import {
   type MovementResult,
   processAstrogation,
   processCombat,
+  processEmplacement,
   processLogistics,
   processOrdnance,
   processSingleCombat,
@@ -135,6 +136,24 @@ export const resolveOrdnanceStep = (
   }
 
   return { kind: 'movement', result };
+};
+
+export const resolveEmplaceBaseStep = (
+  state: GameState,
+  playerId: PlayerId,
+  emplacements: import('../../shared/types/domain').OrbitalBaseEmplacement[],
+  map: SolarSystemMap,
+): LocalResolution => {
+  const result = processEmplacement(state, playerId, emplacements, map);
+
+  if ('error' in result) {
+    return toErrorResolution(result);
+  }
+
+  // Emplacement returns { state, engineEvents } like logistics — the event
+  // list is unused client-side today (no UI animation), so collapse to a
+  // plain state resolution for consistency with the other engine steps.
+  return toStateResolution(result.state);
 };
 
 export const resolveSkipOrdnanceStep = (

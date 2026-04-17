@@ -27,6 +27,41 @@ let activeScope: DisposalScope | null = null;
 let batchDepth = 0;
 const pending = new Set<() => void>();
 
+// Optional error reporter for effect failures. Kept as an injection
+// point so host code (telemetry, Sentry, etc.) can observe reactive
+// crashes without reaching into this module. The default logs to
+// console.error; tests can override it to assert a known failure
+// path without polluting the console.
+type ReactiveErrorReporter = (err: unknown) => void;
+let reactiveErrorReporter: ReactiveErrorReporter = (err) => {
+  console.error('[reactive] effect threw; subsequent effects preserved', err);
+};
+
+export const setReactiveErrorReporter = (
+  reporter: ReactiveErrorReporter | null,
+): void => {
+  reactiveErrorReporter =
+    reporter ??
+    ((err) => {
+      console.error(
+        '[reactive] effect threw; subsequent effects preserved',
+        err,
+      );
+    });
+};
+
+const reportReactiveError = (err: unknown): void => {
+  try {
+    reactiveErrorReporter(err);
+  } catch {
+    // A reporter that throws is useless — fall through to a best-effort
+    // console log so the original error still makes it somewhere.
+    try {
+      console.error('[reactive] error reporter threw', err);
+    } catch {}
+  }
+};
+
 export const withScope = <T>(scope: DisposalScope, fn: () => T): T => {
   const prev = activeScope;
   activeScope = scope;
@@ -182,6 +217,13 @@ export const effect = (fn: () => void): Dispose => {
     active = { run, deps };
     try {
       fn();
+    } catch (err) {
+      // Contain per-effect failures so one thrown exception cannot
+      // poison other subscribers sharing the same signal write or
+      // batched-flush pass. Logs via console.error (plus an optional
+      // reporter via setReactiveErrorReporter) so regressions still
+      // surface in development.
+      reportReactiveError(err);
     } finally {
       active = prev;
       cleanups = ownerCleanups;
@@ -207,7 +249,17 @@ export const batch = (fn: () => void): void => {
     if (batchDepth === 0) {
       const fns = [...pending];
       pending.clear();
-      for (const f of fns) f();
+      for (const f of fns) {
+        // Defend the flush loop: a throwing effect must not skip the
+        // rest of the pending queue. The individual effect's run()
+        // already contains its own error — this is a belt-and-braces
+        // guard for any future callers that call the raw run fn.
+        try {
+          f();
+        } catch (err) {
+          reportReactiveError(err);
+        }
+      }
     }
   }
 };
