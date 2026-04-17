@@ -2,7 +2,7 @@
 
 How WebSocket actions turn into persisted events and back into broadcast state. [ARCHITECTURE.md](../docs/ARCHITECTURE.md) shows the high-level action path; this chapter zooms into the patterns that make replay, reconnection, and spectating correct.
 
-Each section: the pattern, a minimal example, where it lives, and why this shape. Rough edges at the end of each section.
+Each section: the pattern, a minimal example, where it lives, and why this shape.
 
 ---
 
@@ -27,11 +27,6 @@ eventSeq:ROOM1-m2           → 128
 - **Value-size ceiling.** Durable Object storage values max out at 128 KB. A typical match is 100–300 events (~6–32 KB per chunk), well inside the limit.
 - **Atomic appends.** Writing modified chunk + chunk-count + seq in one `storage.put(record)` call prevents split-brain after a crash.
 - **Fast tail reads.** `Math.floor(afterSeqExclusive / EVENT_CHUNK_SIZE)` jumps directly to the first chunk needing replay — reconnection doesn't scan the whole stream.
-
-**Rough edges.**
-
-- `readChunkedEventStream` loads chunks sequentially with `await` per iteration. `Promise.all` would parallelize, but most matches fit in ≤ 5 chunks so the impact is minimal.
-- The tail-read formula may read one extra chunk at exact boundaries; per-envelope seq filtering handles it but is wasted I/O.
 
 ---
 
@@ -73,10 +68,6 @@ interface EventEnvelope {
 - **Turn boundaries, not every event.** Checkpointing every event would 10× storage writes for no recovery benefit — a turn's events are a natural atomic unit.
 - **Non-atomic with event append is benign.** A crash between checkpoint save and event append leaves a stale checkpoint, but the tail covers the gap — correctness never depends on both writes committing together.
 
-**Rough edges.**
-
-- No checkpoint pruning for completed matches. Old checkpoints persist until DO eviction, which may never happen for rooms with lingering spectators.
-
 ---
 
 ## Publication Pipeline (Single Writer)
@@ -100,10 +91,6 @@ await runPublicationPipeline(deps, {
 
 - Any new action automatically gets event persistence, checkpoint cadence, parity verification, archive-on-end, timer management, and broadcasting — *for free*. There's no way to forget a step.
 - Tests stub one collaborator (`storage`, `broadcast`, `archive`) and assert on the whole pipeline.
-
-**Rough edges.**
-
-- `initGameSession` in `match.ts` still publishes directly rather than through the pipeline — the most frequently cited architecture gap.
 
 ---
 
@@ -136,11 +123,6 @@ const HANDLERS = {
 - **Single source of truth.** Client and server share the union; neither can ship a message shape the other doesn't understand.
 - **Compile-time exhaustiveness.** Adding a new C2S variant fails to compile on the server until a handler exists.
 - **Clean rate-limit boundary.** `AuxMessage` lets the DO route chat/ping separately from game-state actions without re-parsing.
-
-**Rough edges.**
-
-- No `satisfies Record<…>` equivalent on the S2C broadcast side — a new S2C variant can be added without a guaranteed broadcast implementation.
-- `emplaceBase` has no `skipEmplacement` counterpart (unlike ordnance/combat/logistics) because emplacement is optional within astrogation. Correct, but breaks the visual symmetry.
 
 ---
 
@@ -195,11 +177,6 @@ for (const ws of getWebSockets()) {
 - **Early-return optimization.** When no ship has identity fields and the scenario doesn't use hidden-identity rules, the original state is returned by reference (zero allocation).
 - **Same filter for replays and live spectators.** `?viewer=spectator` on the WebSocket URL tags the socket; replay timelines pass through the same code. No parallel "filter for replay" implementation.
 
-**Rough edges.**
-
-- Today's filter only handles `identity` stripping. Fog-of-war (hiding ship positions) would need extension, but the single-chokepoint design makes that straightforward.
-- No spectator delay — spectators see the same timing as players, which could be exploited in organized competitive play.
-
 ---
 
 ## Hibernatable WebSocket
@@ -227,11 +204,6 @@ webSocketMessage(ws: WebSocket, message: string) {
 - **Cost.** Hibernation lets a DO idle without tearing down its sockets. Alarm-driven wake-ups stay cheap.
 - **Tags replace an in-memory socket map.** `getWebSockets(['player:0'])` looks up by tag — no parallel `Map<playerId, WebSocket>` to keep in sync.
 - **`WeakMap<WebSocket, …>` survives wake cycles.** Cloudflare preserves WebSocket objects across hibernation, so per-socket rate limits and replaced-socket sets stay valid within a wake.
-
-**Rough edges.**
-
-- Every action pays a projection cost — `getProjectedCurrentStateRaw` rebuilds from checkpoint + tail on each wake. Checkpoints amortize, but a cached read model would be cheaper still.
-- `WeakMap` state is lost on full DO eviction. That's fine for 1-second rate-limit windows; it would be a problem for anything needing longer memory.
 
 ---
 

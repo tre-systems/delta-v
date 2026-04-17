@@ -2,7 +2,7 @@
 
 How the framework-free browser client stays coherent. [CODING_STANDARDS.md](../docs/CODING_STANDARDS.md) covers naming conventions (`derive*`, `build*`, `apply*`, `create*`), function prefix tables, factory patterns, and the `el()` / `listen()` / `visible()` / `text()` / `cls()` helper APIs — this chapter walks through the patterns that tie input, state, rendering, and DOM together.
 
-Each section follows the same structure: the pattern, a minimal example, where it lives, and why this shape. Known rough edges live at the end of each section.
+Each section follows the same structure: the pattern, a minimal example, where it lives, and why this shape.
 
 ---
 
@@ -64,10 +64,6 @@ dispatchGameCommand(commands[0], deps);
 - The handler map in Layer 3 uses `satisfies CommandHandlerMap` so adding a new `GameCommand` variant fails to compile until a handler exists.
 - Raw DOM and game rules never share a scope — a hover event can't accidentally set a ship's velocity.
 
-**Rough edges.**
-
-- Camera drag/pan, pinch zoom, double-click centering, and minimap clicks in `input.ts` mutate camera state directly, bypassing commands. Defensible for continuous interactions, but camera behavior is therefore not replayable from the command log.
-
 ---
 
 ## Client State Machine
@@ -95,11 +91,6 @@ applyClientStateTransition(ctx, next);   // single applier owns screen + effects
 - Derivation means the client state can't diverge from the server state — the server sends `GameState`, we compute our view of it.
 - `Record<ClientState, …>` + exhaustive `switch` in `deriveInteractionMode` catch missing cases at compile time.
 - A single applier is the only place that mutates stored state, starts timers, resets cameras, or triggers tutorials — so state entry effects can't scatter.
-
-**Rough edges.**
-
-- `playing_movementAnim`, `connecting`, and `waitingForOpponent` are set imperatively — they're client-only concepts with no corresponding server `phase`.
-- No compile-time prevention of illegal transitions (`menu` → `playing_combat` is representable). `derivePhaseTransition` refuses to return such transitions, so in practice it's fine.
 
 ---
 
@@ -130,13 +121,6 @@ visible(confirmBtn, computed(() => stateSignal() === 'playing_astrogation'));
 - **Narrow scope** — signals remove the class of bugs where "the HUD forgot to re-render when turn changed," without paying for React.
 - **Auto-tracking** — effects record which signals they read, no manual subscription.
 - **Scopes + `listen` + smart helpers** — teardown is LIFO and automatic inside any `withScope` block.
-
-**Rough edges.**
-
-- Diamond dependencies outside a `batch()` can fire effects more than once. Tests explicitly allow this and assert only on final-state correctness.
-- No error boundaries — thrown errors in effects propagate uncaught.
-- `computed` is eager (evaluates at creation); simpler than lazy memo but does more work if the value is rarely read.
-- `withScope` context is module-level global state. Single-threaded in practice but would be brittle under concurrent async interleaving.
 
 ---
 
@@ -207,11 +191,6 @@ const hud = computed(() => deriveHudViewModel({
 - **Static scene caching** — redrawing thousands of hex tiles every frame is wasteful when the camera is idle. Cache key includes camera pos/zoom, canvas dims, body animation bucket (250 ms), and destroyed asteroids.
 - **Build-then-draw** (`buildBodyView` → `renderBodies`) separates view computation from Canvas drawing, making view logic testable without a Canvas context.
 
-**Rough edges.**
-
-- `document.addEventListener('visibilitychange')` and `window.addEventListener('resize')` on the renderer are never removed. Acceptable for app-lifetime, but worth remembering.
-- `HEX_SIZE` (28) is defined in `renderer.ts` and imported centrally — if a second game wanted a different hex size, this would need to become configuration.
-
 ---
 
 ## Animation Manager with Completion Guarantees
@@ -238,10 +217,6 @@ const hud = computed(() => deriveHudViewModel({
 
 - If user-controlled content ever renders as HTML (chat, player names, modded scenarios), one boundary can add a sanitizer. Scattered `innerHTML` writes would make that audit impossible.
 - Grep-enforced keeps the boundary from re-opening during refactors.
-
-**Rough edges.**
-
-- `hud-chrome-view.ts` sets `soundBtn.innerHTML` directly with a static SVG string rather than going through `setTrustedHTML`. Hardcoded so not a security risk, but it breaks grep auditability and should route through the boundary.
 
 ---
 
@@ -281,11 +256,6 @@ scope.dispose();   // tears everything down LIFO
 
 - Action code is identical for multiplayer and single-player — the engine is the same.
 - Adding a new mode (bridge, MCP-driven local session) only needs a new transport factory.
-
-**Rough edges.**
-
-- `submitSurrender` and `sendChat` on the local transport are no-ops. A future `LocalTransport` user shouldn't assume all methods have effect — either implement them or assert on the unused ones.
-- `submitEmplacement` on the local transport calls `processEmplacement` directly instead of going through the `dispatchLocalResolution` pattern used by every other action — error handling therefore differs from other actions.
 
 ---
 

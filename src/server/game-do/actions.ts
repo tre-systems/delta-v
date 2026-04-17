@@ -15,10 +15,12 @@ import {
   skipLogistics,
   skipOrdnance,
 } from '../../shared/engine/game-engine';
-import type {
-  EngineError,
-  GameState,
-  PlayerId,
+import type { ShipId } from '../../shared/ids';
+import {
+  type EngineError,
+  ErrorCode,
+  type GameState,
+  type PlayerId,
 } from '../../shared/types/domain';
 import type { C2S } from '../../shared/types/protocol';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
@@ -110,6 +112,30 @@ export const defineGameStateActionHandler = <
   handler: GameStateActionHandler<T, Success>,
 ): GameStateActionHandler<T, Success> => handler;
 
+const inferSurrenderShipIds = (
+  gameState: GameState,
+  playerId: PlayerId,
+): { shipIds: ShipId[] } | { error: EngineError } => {
+  const shipIds = gameState.ships
+    .filter(
+      (ship) =>
+        ship.owner === playerId &&
+        ship.lifecycle !== 'destroyed' &&
+        ship.control !== 'captured' &&
+        ship.control !== 'surrendered',
+    )
+    .map((ship) => ship.id);
+  if (shipIds.length === 0) {
+    return {
+      error: {
+        code: ErrorCode.NOT_ALLOWED,
+        message: 'No eligible ships available to surrender',
+      },
+    };
+  }
+  return { shipIds };
+};
+
 export const createGameStateActionHandlers = (deps: ActionDeps) => {
   const publishForActor = async (
     playerId: PlayerId,
@@ -164,7 +190,16 @@ export const createGameStateActionHandlers = (deps: ActionDeps) => {
         gameState,
         playerId,
         message: GameStateActionMessageOf<'surrender'>,
-      ) => processSurrender(gameState, playerId, message.shipIds),
+      ) => {
+        if (message.shipIds.length > 0) {
+          return processSurrender(gameState, playerId, message.shipIds);
+        }
+        const inferred = inferSurrenderShipIds(gameState, playerId);
+        if ('error' in inferred) {
+          return inferred;
+        }
+        return processSurrender(gameState, playerId, inferred.shipIds);
+      },
       publish: async (playerId, result) => {
         await publishForActor(
           playerId,

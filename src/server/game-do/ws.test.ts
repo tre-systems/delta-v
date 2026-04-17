@@ -78,6 +78,32 @@ describe('handleGameDoWebSocketMessage', () => {
     expect(dispatchAuxMessage).not.toHaveBeenCalled();
   });
 
+  it('parses shorthand surrender and dispatches with empty shipIds', async () => {
+    const dispatchGameStateAction = vi.fn().mockResolvedValue(undefined);
+    const ws = {} as WebSocket;
+
+    await handleGameDoWebSocketMessage(
+      {
+        msgRates: new WeakMap(),
+        getPlayerId: () => 0,
+        isSpectatorSocket: () => false,
+        touchInactivity: vi.fn().mockResolvedValue(undefined),
+        send: vi.fn(),
+        isGameStateActionMessage: (msg): msg is GameStateActionMessage =>
+          msg.type === 'surrender',
+        dispatchGameStateAction,
+        dispatchAuxMessage: vi.fn(),
+      },
+      ws,
+      JSON.stringify({ type: 'surrender' }),
+    );
+
+    expect(dispatchGameStateAction).toHaveBeenCalledWith(0, ws, {
+      type: 'surrender',
+      shipIds: [],
+    });
+  });
+
   it('sends invalid-input errors for malformed messages', async () => {
     const send = vi.fn();
 

@@ -293,6 +293,12 @@ const parseSingleCombatAttack = (raw: unknown): CombatAttack | null => {
 };
 
 const parseSurrenderShipIds = (raw: unknown): ShipId[] | null => {
+  // Support shorthand `{ type: "surrender" }` from some MCP/agent clients.
+  // The game server expands an empty list to "all surrenderable own ships".
+  if (raw === undefined) {
+    return [];
+  }
+
   if (
     !Array.isArray(raw) ||
     raw.length === 0 ||
