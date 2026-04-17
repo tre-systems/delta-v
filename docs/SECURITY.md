@@ -34,7 +34,7 @@ Agents that connect via the hosted MCP endpoint (`POST https://delta-v.tre.syste
 | `agentToken` | Long-lived agent identity (embeds `playerKey`) | 24 h, renewable | `Authorization: Bearer …` header | `POST /api/agent-token` |
 | `matchToken` | Per-match credential (encrypts `code` + `playerToken`) | 4 h | Tool args field `matchToken` | `delta_v_quick_match` (when called with agentToken auth) |
 
-Both are HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET` (set via `wrangler secret put AGENT_TOKEN_SECRET` in production; falls back to a clearly-marked dev secret if unset, with a one-time stderr warning so production deploys can't silently rely on it).
+Both are HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET` (set via `wrangler secret put AGENT_TOKEN_SECRET` in production). **Known gap:** when the secret is unset the Worker logs a one-shot `console.warn` and signs with a public dev constant checked into `src/server/auth/secret.ts`. Nothing fails closed — a deploy that forgets the secret will accept tokens forged by anyone reading the repo. Hard-failing on missing secret is tracked in [BACKLOG.md](./BACKLOG.md) under "Cost & abuse hardening". Until that ships, verify `wrangler secret list` on every production deploy.
 
 `matchToken` embeds a SHA-256 hash of the issuing `agentToken`. A leaked `matchToken` alone (e.g. via tool-call logs) cannot be replayed by a different agent — the server requires the matching `agentToken` in the `Authorization` header.
 
@@ -88,7 +88,10 @@ This is the canonical rate-limit table for the project. Other docs should link h
 | `POST /error` | 40 | 60 s | per hashed IP | in-memory (per isolate); body capped at 4 KB | 429 |
 | WebSocket messages (after connect) | 10 | 1 s | per socket | in-memory (`WeakMap<WebSocket, RateWindow>`) | close 1008 |
 | Chat messages | 1 per 500 ms | — | per player ID | in-memory | silently dropped |
+| `POST /mcp` (hosted MCP entry) | **none** | — | — | — | — |
 | Room-code guessing | 32⁵ ≈ 33.6 M combinations | — | — | cryptographic RNG | collision-checked at `/create` |
+
+**Known gap:** `POST /mcp` has no request-level rate limit or body-size precheck today — tracked in [BACKLOG.md](./BACKLOG.md) under "Cost & abuse hardening". Abuse surfaces via `delta_v_quick_match` polling storms and `/mcp/wait` long-polls that hold GAME DOs warm.
 
 Constants live in [`src/server/reporting.ts`](../src/server/reporting.ts) (per-IP Worker layer) and [`src/server/game-do/socket.ts`](../src/server/game-do/socket.ts) (per-socket DO layer).
 
@@ -114,7 +117,21 @@ per-isolate hashed-IP window in application code, but they are not globally
 message-throttled at the edge; abuse is further mitigated by two seats per room and by
 **per-socket message** limits once connected.
 
-### 4. Bot challenge protection (optional)
+### 4. Cost-abuse surface (current gaps)
+
+Distinct from competitive integrity — these are paths where a motivated attacker can drive Cloudflare billing faster than the current controls throttle them. All are tracked in [BACKLOG.md](./BACKLOG.md) under "Cost & abuse hardening".
+
+- `POST /mcp` is un-rate-limited and un-size-capped (see row above).
+- `POST /telemetry` and `POST /error` rate limits are per-isolate `Map`s, not edge-global; a distributed caller can cycle POPs to bypass them. Each accepted POST writes a ~4 KB D1 `events` row with **no retention TTL** in application code.
+- `AGENT_TOKEN_SECRET` falls back to a public constant on missing secret (see above).
+- `MatchmakerDO` serializes the full quick-match queue under one legacy-KV key (128 KB ceiling). Sustained distributed heartbeats can push the queue past that limit — enqueue then throws and quick-match stops working globally.
+- `archiveRoomState()` leaves `roomConfig`, event chunks, and checkpoints in DO storage on inactivity timeout. Abandoned `/create` rooms accumulate permanently.
+- `GET /replay/{code}` re-projects the full event stream on every hit with no `Cache-Control`, even for terminal states.
+- `GET /api/leaderboard` has edge `s-maxage=60` but no cache-key normalization; querystring-busting scrapers bypass the cache.
+
+Unbounded-growth tables / stores today: D1 `events`, D1 `match_archive`, D1 `player` (one row per unique playerKey with a claimed username), R2 `matches/{gameId}.json`, and per-room DO storage. None have automatic retention in application code (see the "Data retention" section below).
+
+### 5. Bot challenge protection (optional)
 
 Cloudflare Turnstile can be added to the room creation flow with a narrow integration surface:
 
