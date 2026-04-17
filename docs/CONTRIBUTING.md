@@ -57,3 +57,5 @@ Runs the local release gate: lint, typecheck (app + tools), coverage, build, e2e
 ## Documentation
 
 One owner doc per topic (see [README.md](../README.md#-documentation)). Update docs when behavior or architecture decisions materially change — prefer anchored sections over new files. Recurring review cadence lives in [REVIEW_PLAN.md](./REVIEW_PLAN.md); open work lives in [BACKLOG.md](./BACKLOG.md).
+
+Run `npm run check:doc-links` after doc edits — it walks every `[text](path#anchor)` link under `README.md`, `AGENT_SPEC.md`, `docs/`, and `patterns/`, verifying files exist and anchors match heading slugs.

@@ -1,151 +1,83 @@
-# Delta-V Simulation Testing Strategy
+# Simulation and Load Testing
 
-Delta-V has three complementary simulation layers:
+Delta-V has three complementary simulation layers. Because the shared engine is side-effect-free and deterministic given injected RNG, high-speed simulation is cheap and reproducible.
 
-- **Headless Engine Simulation (AI vs AI)** is implemented and runs in CI.
-- **Network Integration Simulation (PvP Bot Stress Testing)** is implemented as a usable load/chaos harness.
-- **LLM/Agent WebSocket Player Bridge** is implemented for one-seat automation against browser or another agent.
+| Layer | Script | Purpose |
+| --- | --- | --- |
+| Headless engine (AI vs AI) | `scripts/simulate-ai.ts` | Scenario balance, AI effectiveness, crash-finding |
+| Network load / chaos | `scripts/load-test.ts` | DO lifecycle, WebSocket, reconnection, concurrency |
+| LLM / agent bridge | `scripts/llm-player.ts` | External model-driven agent against browser or another agent |
 
-Since the core `engine/game-engine.ts` is purely functional and deterministic apart from injected RNG, high-speed simulation is practical.
-
-Related docs: [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md), [SPEC](./SPEC.md), [ARCHITECTURE](./ARCHITECTURE.md).
-
----
-
-## 1. Headless Engine Simulation (AI vs AI)
-
-**Goal:** Run large batches of AI-vs-AI games quickly to test scenario balance, AI effectiveness, and find crash-inducing edge cases deep in the game tree. This is implemented in `scripts/simulate-ai.ts`.
-
-**Approach:**
-The current runner executes entirely in Node.js, outside the browser and Cloudflare Worker runtime.
-
-1. **Setup:** Initialize `GameState` using `createGame(SCENARIOS[name], map, ...)`.
-2. **Starting player:** By default the runner respects the scenario's authored `startingPlayer`. Pass `--randomize-start` to override that per game when you explicitly want an alternate balance sweep.
-3. **Game Loop:** Put the engine in a `while (state.phase !== 'gameOver')` loop.
-4. **Turn Execution:**
-   - **Astrogation:** If it's Player 0's turn, call `aiAstrogation(state, 0, map, 'hard')`. Same for Player 1. Pass the orders into `processAstrogation()`.
-   - **Ordnance:** Call `aiOrdnance()` and pass to `processOrdnance()` (or call `skipOrdnance()`).
-   - **Logistics:** Call `aiLogistics()` and pass to `processLogistics()` (or `skipLogistics()`).
-   - **Combat:** First call `beginCombatPhase()` so asteroid hazards and other automatic pre-combat effects resolve, then call `aiCombat()` and pass the attacks to `processCombat()` (or `skipCombat()`).
-5. **Data Collection:** Track metrics like win rates (Player 0 vs Player 1), draws/timeouts, average turns, crash count, and win reasons.
-
-**Implementation Details:**
-
-- Because `game-engine.ts` has no DOM or Canvas dependencies, this runs quickly in practice.
-- You can run Monte Carlo-style sweeps (for example many runs of `escape`) to quantify directional balance trends.
-- **Randomness:** All engine entry points (`processAstrogation`, `processCombat`, `processOrdnance`, etc.) require a mandatory `rng: () => number` parameter — there are no `Math.random` fallbacks in the turn-resolution path. Passing a seeded RNG allows completely reproducible replays when a simulation encounters a crash or an infinite loop.
-- CI balance warnings use per-scenario decided-game win-rate bands rather than one global threshold. Cooperative or race scenarios (e.g. Grand Tour) are excluded from balance checks.
-
-**Current usage:**
-
-- `npm run simulate` runs 100 headless games of the default scenario.
-- Pre-commit and CI both run **`npm run simulate all 60 -- --ci`** so a scenario that passes locally doesn't get rejected by CI variance alone. If you change either invocation, update the other and this doc in the same commit. Sixty iterations is a balance between pre-commit wall-time and per-scenario variance; short duel runs especially benefit from the extra samples.
-- `--ci` fails the process on engine crashes and prints balance warnings without making them fatal.
-- `--randomize-start` forces start randomization for every scenario in that run; the harness also randomizes the starting seat automatically for **duel**, **interplanetaryWar**, and **fleetAction** so seat-order bias does not dominate short batches.
-- When using npm scripts, pass simulation arguments after `--`.
-- **`npm run simulate:duel-sweep`** runs `scripts/duel-seed-sweep.ts`: the same duel harness as CI (hard vs hard, seat randomized per game) across many **base seeds** in one table, so you can see pacing (`avgTurn`) and seat balance (`p0/dec%`) variance before changing duel geometry or rules. Options: `--iterations N`, `--from` / `--to`, `--seeds 0,1,2`, `--scenario <key>`, `--json`.
+Related docs: [AGENTS.md](./AGENTS.md) (agent workflow), [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md), [ARCHITECTURE](./ARCHITECTURE.md).
 
 ---
 
-## 2. Network Integration Simulation (PvP Stress Testing)
+## 1. Headless engine simulation
 
-**Goal:** Validate the Cloudflare Durable Object lifecycle, WebSocket handling, reconnection logic, and server scaling.
+**Goal.** Run large batches of AI-vs-AI games to test balance and find crash edges deep in the game tree. Runs in Node, no browser or Worker runtime.
 
-**Approach (implemented as a usable harness):**
-Use `scripts/load-test.ts` to create real rooms over HTTP,
-join both seats over WebSockets, and drive valid turns with
-the existing AI helpers.
+**Loop shape.** `createGame` → `while phase !== 'gameOver'` → call the appropriate AI helper for the active phase (`aiAstrogation` / `aiOrdnance` / `aiLogistics` / `aiCombat`) → pass the result to the matching engine entry point. All engine calls take a mandatory `rng`, so a seed reproduces the game exactly.
 
-1. **Lobby Creation:** The script makes an HTTP POST request to `/create` to get a 5-character room code (letters and digits, excluding ambiguous `I`/`O`/`0`/`1` — see `CODE_CHARS` in `src/server/protocol.ts`).
-2. **Seat-aware Connections:** The host joins with the creator token returned by `/create`; the guest joins tokenless, receives its `welcome.playerToken`, and reuses that token on reconnect.
-3. **Bot Logic:** Each seat is a `createBotClient()` instance (closure state, `connect` / `disconnect`). On each state-bearing `S2C` message, the active player waits a short randomized think delay and sends a valid `C2S` action:
-   - `fleetReady` purchases for fleet-building scenarios
-   - `astrogation` orders from `aiAstrogation()`
-   - `ordnance` launches from `aiOrdnance()` or `skipOrdnance`
-   - `beginCombat` for owned asteroid hazards, then `combat` attacks from `aiCombat()` or `skipCombat`
-   - `skipLogistics` for logistics
-4. **Stress Testing:** Run many concurrent matches with `--games` and `--concurrency` to exercise room creation, seat assignment, turn flow, reconnect handling, and completion under load.
-5. **Chaos Testing:** Use `--disconnect-rate` and `--reconnect-delay-ms` to force a percentage of bots to drop once and reconnect with their stored token during live play.
+**Commands.**
 
-**Current usage:**
+```bash
+npm run simulate                             # 100 games of the default scenario
+npm run simulate -- all 60 --ci              # CI gate: all 9 scenarios × 60 games
+npm run simulate -- duel 30 --randomize-start
+npm run simulate:duel-sweep                  # duel pacing/seat-balance across many seeds
+```
 
-- `npm run load:test -- --games 20 --concurrency 5`
-- `npm run load:test -- --games 10 --concurrency 3 --scenario duel`
-- `npm run load:test -- --games 12 --concurrency 4 --disconnect-rate 0.25`
+- `--ci` fails on engine crashes; balance warnings print but are non-fatal.
+- `--randomize-start` forces per-game seat randomization. Duel, interplanetaryWar, and fleetAction auto-randomize seat anyway so seat-order bias doesn't dominate short batches.
+- CI balance warnings use per-scenario decided-game win-rate bands. Cooperative / race scenarios (Grand Tour) are excluded from balance checks.
 
-**Local setup note:**
+**CI + pre-commit iteration count.** Both run `simulate all 60 -- --ci` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) and [`.husky/pre-commit`](../.husky/pre-commit)). `npm run verify` uses 40 to stay responsive for manual invocation. Change all three together if the count changes.
 
-- If your local Wrangler D1 state predates the latest schema, apply migrations before long stress runs:
-  `npx wrangler d1 migrations apply delta-v-telemetry --local`
-
-**Current reporting:**
-
-- Per-match summary with room code, winner, turns, duration, actions sent, and reconnect count
-- Aggregate summary for completed/failed matches, reconnect success, server/socket errors, total actions sent, and win reasons
+`npm run simulate:duel-sweep` runs `scripts/duel-seed-sweep.ts` — the same duel harness across many base seeds in one table, showing pacing (`avgTurn`) and seat balance (`p0/dec%`) variance before changing duel geometry or rules. Options: `--iterations N`, `--from` / `--to`, `--seeds 0,1,2`, `--scenario <key>`, `--json`.
 
 ---
 
-## 3. LLM / Agent WebSocket Player Bridge
+## 2. Network load and chaos
 
-**Goal:** Let external model-driven agents (LLMs, custom planners, tool-using bots) play real online matches using the same room protocol as browser clients.
+**Goal.** Validate the Durable Object lifecycle, WebSocket handling, reconnection, and concurrency. Drives real rooms over HTTP with both seats as bots.
 
-**Implementation:** `scripts/llm-player.ts`
+**Loop shape.** `POST /create` → both seats open WebSockets (`createBotClient()`) → on each state-bearing S2C, the active player thinks briefly and submits a valid C2S from the existing AI helpers. Chaos mode forces drops + reconnects with the stored `playerToken`.
 
-For a consolidated agent-onboarding flow (MCP vs bridge, contract summary, and tuning workflow), see `docs/AGENTS.md`.
+**Commands.**
 
-The bridge can either:
+```bash
+npm run load:test -- --games 20 --concurrency 5
+npm run load:test -- --games 10 --concurrency 3 --scenario duel
+npm run load:test -- --games 12 --concurrency 4 --disconnect-rate 0.25
+```
 
-1. **Create** a game and play one seat while another player joins from browser automation or manual browser play.
-2. **Join** an existing room code and play that seat.
+**Local setup.** If your local Wrangler D1 predates the latest schema, apply migrations before long runs: `npx wrangler d1 migrations apply delta-v-telemetry --local`.
 
-Run two bridge processes (one create, one join) for **LLM-vs-LLM**.
-
-### Usage examples
-
-- Host with external command agent and share code with browser opponent:
-  - `npm run llm:player -- --mode create --scenario duel --agent command --agent-command "python ./tools/my_agent.py"`
-- Join existing code with HTTP agent:
-  - `npm run llm:player -- --mode join --code ABCDE --agent http --agent-url http://127.0.0.1:8080/turn`
-- Baseline fallback policy (no external agent):
-  - `npm run llm:player -- --mode create --agent builtin`
-- Reference command-agent policy (returns recommended candidate):
-  - `npm run llm:player -- --mode create --agent command --agent-command "npm run llm:agent:recommended --silent"`
-
-### Practical local flows
-
-- **Browser vs bridge seat**
-  1. Start worker (`npm run dev`).
-  2. Run `npm run llm:player -- --mode create --agent command --agent-command "npm run llm:agent:recommended --silent"`.
-  3. Join the printed `?code=XXXXX` URL in browser and play as the other seat.
-
-- **Bridge seat vs bridge seat (agent-vs-agent)**
-  1. Terminal A: `npm run llm:player -- --mode create --agent command --agent-command "npm run llm:agent:recommended --silent"`.
-  2. Copy the printed code.
-  3. Terminal B: `npm run llm:player -- --mode join --code XXXXX --agent command --agent-command "npm run llm:agent:recommended --silent"`.
-
-### Agent interface contract
-
-The bridge sends a per-turn JSON payload to your agent (`stdin` for command mode, `POST` body for HTTP mode):
-
-- `version`
-- `gameCode`
-- `playerId`
-- `state` (authoritative `GameState`)
-- `candidates` (`C2S[]` actions generated from built-in strategies)
-- `recommendedIndex` (index into `candidates`)
-
-Agent should return JSON:
-
-- `{ "candidateIndex": 0 }` to select one candidate, **or**
-- `{ "action": { ...C2S... } }` to provide a custom action.
-
-If agent output is invalid, times out, or mismatched for the current phase, the bridge falls back to built-in policy (`--difficulty`).
+**Reporting.** Per-match summary (code, winner, turns, duration, actions sent, reconnect count) plus an aggregate summary (completed/failed matches, reconnect success, server/socket errors, totals, win reasons).
 
 ---
 
-## Summary of Progress
+## 3. LLM / agent bridge
 
-1. **RNG Injection**: Completed. All engine entry points require mandatory `rng` parameter for deterministic simulations.
-2. **AI Runner**: Implemented. `npm run simulate` executes headless matches, and CI/verification runs the multi-scenario `--ci` pass.
-3. **Load Tester**: Implemented as a first usable websocket load / chaos harness. Future work can extend it with invalid-payload fuzzing, larger soak runs, and CI/staging automation.
-4. **LLM Bridge**: Implemented as a practical one-seat websocket bridge for browser-vs-agent and agent-vs-agent workflows.
+**Goal.** Let external model-driven agents (LLMs, custom planners, tool-using bots) play real online matches using the same room protocol as browser clients.
+
+**Script.** [`scripts/llm-player.ts`](../scripts/llm-player.ts). The bridge can **create** a new match (and wait for an opponent) or **join** an existing room code. Two bridge processes run LLM-vs-LLM end-to-end.
+
+Full agent onboarding — MCP vs bridge choice, contract, reliability checklist, tuning workflow — lives in [AGENTS.md](./AGENTS.md). The per-turn payload shape (`AgentTurnInput` / `AgentTurnResponse`) is defined in [AGENT_SPEC.md §4](../AGENT_SPEC.md#4-observation-model).
+
+**Quick examples.**
+
+```bash
+# Host with a stdin/stdout agent; share the printed code with a browser opponent
+npm run llm:player -- --mode create --scenario duel \
+  --agent command --agent-command "python ./tools/my_agent.py"
+
+# Join an existing code with an HTTP agent
+npm run llm:player -- --mode join --code ABCDE \
+  --agent http --agent-url http://127.0.0.1:8080/turn
+
+# Baseline fallback (built-in policy, no external agent)
+npm run llm:player -- --mode create --agent builtin
+```
+
+If the agent's output is invalid, times out, or mismatches the current phase, the bridge falls back to built-in policy (`--difficulty`).

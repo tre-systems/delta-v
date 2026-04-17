@@ -29,7 +29,7 @@ Avoid pushing browser, network, storage, or rendering concerns into `src/shared/
 
 ### Imperative boundaries
 
-Default to plain functions, typed data, and `createXxx()` managers. The pattern walkthrough is in [patterns/client.md](../patterns/client.md#composition-root-for-client-construction).
+Default to plain functions, typed data, and `createXxx()` managers. The pattern walkthrough is in [patterns/engine-and-architecture.md#composition-root-for-client-construction](../patterns/engine-and-architecture.md#composition-root-for-client-construction).
 
 **Required class:** `GameDO` in `src/server/game-do/game-do.ts` must `extend DurableObject` — Cloudflare's API, not a stylistic choice.
 
