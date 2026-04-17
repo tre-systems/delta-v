@@ -774,22 +774,30 @@ server.registerTool(
 server.registerTool(
   'delta_v_send_chat',
   {
-    description: 'Send chat text in a Delta-V session.',
+    description:
+      'Send chat text in a Delta-V session. Canonical arg is `text`; `message` is accepted as an alias for agents that follow the more common chat-field naming.',
     inputSchema: {
       sessionId: z.string(),
-      text: z.string().min(1).max(200),
+      text: z.string().min(1).max(200).optional(),
+      message: z.string().min(1).max(200).optional(),
     },
   },
-  async ({ sessionId, text }) => {
+  async ({ sessionId, text, message }) => {
+    const chatText = text ?? message;
+    if (!chatText) {
+      throw new Error(
+        'send_chat requires a non-empty `text` (alias: `message`).',
+      );
+    }
     const session = getSessionOrThrow(sessionId);
     if (session.ws.readyState !== WebSocket.OPEN) {
       throw new Error(`Session ${sessionId} socket is not open`);
     }
-    const action: C2S = { type: 'chat', text };
+    const action: C2S = { type: 'chat', text: chatText };
     session.ws.send(JSON.stringify(action));
     return toolOk(`Sent chat in session ${sessionId}.`, {
       sessionId,
-      text,
+      text: chatText,
     });
   },
 );
