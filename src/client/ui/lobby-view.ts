@@ -171,6 +171,20 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     pendingAIGameSignal.value = false;
   };
 
+  // True when the current URL will boot the client into a non-menu view
+  // (spectator, live join, archived replay). In that case the menu is
+  // never shown on initial load, so the best-effort rank lookup below
+  // is a wasted request that surfaces as a /leaderboard/me 404 in the
+  // Network tab for anonymous viewers.
+  const isInitialMenuBoot = (): boolean => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return !params.has('code') && !params.has('archivedReplay');
+    } catch {
+      return true;
+    }
+  };
+
   const setMenuLoading = (
     loading: boolean,
     kind: 'create' | 'quickMatch' = 'create',
@@ -348,10 +362,14 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       });
     };
 
-    // On initial show, fire a best-effort rank fetch so returning
-    // visitors see their "Rating · rank" hint without having to
-    // re-claim first. Failure is silent (e.g. never claimed a name).
-    refreshRank();
+    // Returning visitors see their "Rating · rank" hint without having
+    // to re-claim first. Skipped on URL boots that go straight into a
+    // game view (spectator/join/archived replay) so the /leaderboard/me
+    // 404 for anonymous viewers stops polluting the Network tab in a
+    // clean session. Failure is silent either way.
+    if (isInitialMenuBoot()) {
+      refreshRank();
+    }
 
     const commitPlayerName = () => {
       const prior = deps.getPlayerName();

@@ -34,7 +34,7 @@ import {
   parseCoachMessage,
   setCoachDirective,
 } from './coach';
-import type { StateWaiters } from './state-waiters';
+import { type StateWaiters, TooManyWaitersError } from './state-waiters';
 
 export interface McpRequestDeps {
   getRoomConfig: () => Promise<RoomConfig | null>;
@@ -339,8 +339,23 @@ const handleWaitRequest = async (
     }
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
-    const arrived = await deps.stateWaiters.wait(playerId, remaining);
-    if (!arrived) break;
+    try {
+      const arrived = await deps.stateWaiters.wait(playerId, remaining);
+      if (!arrived) break;
+    } catch (error) {
+      if (error instanceof TooManyWaitersError) {
+        return json(
+          {
+            ok: false,
+            error: 'too_many_waiters',
+            message:
+              'Seat already has the maximum number of concurrent long-polls.',
+          },
+          429,
+        );
+      }
+      throw error;
+    }
   }
 
   return json({
@@ -583,7 +598,22 @@ const handleActionRequest = async (
     }
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
-    await deps.stateWaiters.wait(playerId, remaining);
+    try {
+      await deps.stateWaiters.wait(playerId, remaining);
+    } catch (error) {
+      if (error instanceof TooManyWaitersError) {
+        return json(
+          {
+            ok: false,
+            error: 'too_many_waiters',
+            message:
+              'Seat already has the maximum number of concurrent long-polls.',
+          },
+          429,
+        );
+      }
+      throw error;
+    }
   }
 
   return json({

@@ -70,6 +70,14 @@ const reportMatchmakerEvent = (
 const MATCHMAKER_STORAGE_KEY = 'quickMatchQueue';
 const HEARTBEAT_TTL_MS = 15_000;
 const MATCH_RESULT_TTL_MS = 60_000;
+// Hard cap on the number of active queue entries. The legacy KV-backed
+// MatchmakerDO serialises the entire queue under a single 128 KB value,
+// so an unbounded enqueue path is a denial-of-service vector: an
+// attacker fanning out from distinct playerKeys can inflate the queue
+// until `storage.put` throws and every honest quick-match breaks. 200
+// keeps typical-case latency small while leaving plenty of headroom
+// above the expected concurrent-matchmaking population.
+const MAX_ACTIVE_QUEUE_ENTRIES = 200;
 
 const isActiveQueueEntry = (entry: QueueEntry, now: number): boolean =>
   entry.status === 'queued' && now - entry.lastSeenAt <= HEARTBEAT_TTL_MS;
@@ -384,6 +392,20 @@ export class MatchmakerDO extends DurableObject<Env> {
         entry.player.playerKey !== parsed.player.playerKey &&
         entry.scenario === QUICK_MATCH_SCENARIO,
     );
+
+    // Reject new enqueues once storage is saturated. The cap counts
+    // every retained entry (active queued + recently matched retained
+    // for MATCH_RESULT_TTL_MS) because storage.put serialises the whole
+    // array under one key and throws once the value exceeds the legacy
+    // KV 128 KB ceiling. Only new rows pay this cost — in-place updates
+    // for the same playerKey stay cheap, which is why the cap lives
+    // after the existing-index branch.
+    if (entries.length >= MAX_ACTIVE_QUEUE_ENTRIES) {
+      return new Response('Quick match queue is saturated', {
+        status: 503,
+        headers: { 'Retry-After': '30' },
+      });
+    }
 
     const ticket = ticketFromEntropy();
     entries.push({

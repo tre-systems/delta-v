@@ -24,10 +24,23 @@ import {
 import { validateUsername } from '../leaderboard/username';
 import {
   AGENT_TOKEN_DEFAULT_TTL_MS,
+  isAgentTokenSecretSet,
   issueAgentToken,
   isValidAgentPlayerKey,
   resolveAgentTokenSecret,
 } from './';
+import { MissingAgentTokenSecretError } from './secret';
+
+const missingSecretResponse = (): Response =>
+  Response.json(
+    {
+      ok: false,
+      error: 'server_misconfigured',
+      message:
+        'AGENT_TOKEN_SECRET is not set on this deployment. Contact the operator.',
+    },
+    { status: 500 },
+  );
 
 interface IssueBody {
   playerKey?: unknown;
@@ -64,6 +77,13 @@ export const handleAgentTokenIssue = async (
       status: 405,
       headers: { Allow: 'POST' },
     });
+  }
+  // Fail closed when the HMAC secret is missing in production. The dev
+  // fallback inside resolveAgentTokenSecret only kicks in under DEV_MODE,
+  // so a mis-deployed Worker returns 500 instead of signing with a
+  // placeholder readable from the repo.
+  if (!isAgentTokenSecretSet(env) && env.DEV_MODE !== '1') {
+    return missingSecretResponse();
   }
   let body: IssueBody;
   try {
@@ -114,7 +134,15 @@ export const handleAgentTokenIssue = async (
     player = outcome.player;
   }
 
-  const secret = resolveAgentTokenSecret(env);
+  let secret: string;
+  try {
+    secret = resolveAgentTokenSecret(env);
+  } catch (error) {
+    if (error instanceof MissingAgentTokenSecretError) {
+      return missingSecretResponse();
+    }
+    throw error;
+  }
   const { token, expiresAt } = await issueAgentToken({
     secret,
     playerKey: body.playerKey,

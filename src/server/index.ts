@@ -14,7 +14,8 @@ import { handleMcpHttpRequest } from './mcp/handlers';
 export type { CreateRateLimiterBinding, Env } from './env';
 
 import {
-  corsHeaders,
+  buildReportingCorsHeaders,
+  EVENTS_RETENTION_MS,
   handleReport,
   hashIp,
   insertEvent,
@@ -24,6 +25,7 @@ import {
   isReplayProbeRateLimited,
   isTelemetryReportRateLimited,
   isWsConnectRateLimited,
+  purgeOldEvents,
   tooManyRequests,
 } from './reporting';
 import {
@@ -40,6 +42,8 @@ export {
   hashIp,
   isCreateRateLimited,
   isCreateRateLimitedInMemory,
+  isErrorReportRateLimitedInMemory,
+  isTelemetryReportRateLimitedInMemory,
   joinProbeRateMap,
   replayProbeRateMap,
   telemetryReportRateMap,
@@ -84,7 +88,7 @@ export default {
     ) {
       return new Response(null, {
         status: 204,
-        headers: corsHeaders,
+        headers: buildReportingCorsHeaders(request),
       });
     }
 
@@ -176,7 +180,7 @@ export default {
       const ipHash = await hashIp(
         request.headers.get('cf-connecting-ip') ?? 'unknown',
       );
-      if (isErrorReportRateLimited(ipHash)) {
+      if (await isErrorReportRateLimited(env, ipHash)) {
         return tooManyRequests();
       }
 
@@ -206,7 +210,7 @@ export default {
       const ipHash = await hashIp(
         request.headers.get('cf-connecting-ip') ?? 'unknown',
       );
-      if (isTelemetryReportRateLimited(ipHash)) {
+      if (await isTelemetryReportRateLimited(env, ipHash)) {
         return tooManyRequests();
       }
 
@@ -358,5 +362,22 @@ export default {
 
     // Serve static assets
     return env.ASSETS.fetch(request);
+  },
+  // Scheduled retention purge for telemetry / error rows. Wrangler cron
+  // fires the configured schedule (see wrangler.toml [triggers.crons]).
+  async scheduled(
+    _event: ScheduledEvent,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<void> {
+    if (!env.DB) return;
+    ctx.waitUntil(
+      (async () => {
+        const removed = await purgeOldEvents(env.DB, EVENTS_RETENTION_MS);
+        if (removed > 0) {
+          console.log(`[events purge] removed ${removed} rows`);
+        }
+      })(),
+    );
   },
 };
