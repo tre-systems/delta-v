@@ -26,13 +26,23 @@ import {
   type AgentTokenPayload,
   extractBearerToken,
   hashAgentToken,
+  isAgentTokenSecretSet,
   issueMatchToken,
+  MissingAgentTokenSecretError,
   resolveAgentTokenSecret,
   verifyAgentToken,
   verifyMatchToken,
 } from '../auth';
 import type { Env } from '../env';
+import { hashIp } from '../reporting';
 import { queueRemoteMatch } from './quick-match';
+
+// Maximum JSON-RPC payload the hosted MCP endpoint will parse. The tool
+// surface is intentionally small (a dozen tools, each with a few string
+// arguments); anything larger is a malformed payload or an attempt to
+// burn server CPU on parsing. Kept below Cloudflare's Worker request
+// body cap so this rejection short-circuits transport-level handling.
+const MCP_MAX_BODY_BYTES = 64 * 1024;
 
 const SERVER_INTERNAL = 'https://game.internal';
 
@@ -409,6 +419,79 @@ const resolveAgentIdentity = async (
   };
 };
 
+const missingAgentTokenSecretResponse = (): Response =>
+  Response.json(
+    {
+      error: 'server_misconfigured',
+      message:
+        'AGENT_TOKEN_SECRET is not set on this deployment. Contact the operator.',
+    },
+    { status: 500 },
+  );
+
+const payloadTooLargeResponse = (): Response =>
+  Response.json(
+    {
+      error: 'payload_too_large',
+      message: `MCP request body exceeds the ${MCP_MAX_BODY_BYTES}-byte cap.`,
+    },
+    { status: 413 },
+  );
+
+const tooManyMcpRequestsResponse = (): Response =>
+  new Response('Too many requests', {
+    status: 429,
+    headers: { 'Retry-After': '60' },
+  });
+
+// Rate-limit key: bind to the agentToken when available (a legitimate
+// agent uses one token across calls, so this blocks single-agent spam),
+// otherwise fall back to the hashed client IP for unauthenticated / legacy
+// callers. Hashing avoids storing raw IPs in the ratelimit namespace key.
+const deriveRateLimitKey = async (request: Request): Promise<string> => {
+  const bearer = extractBearerToken(request.headers.get('Authorization'));
+  if (bearer) {
+    return `agent:${await hashAgentToken(bearer)}`;
+  }
+  const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+  return `ip:${await hashIp(ip)}`;
+};
+
+const enforceMcpRateLimit = async (
+  env: Env,
+  request: Request,
+): Promise<Response | null> => {
+  if (!env.MCP_RATE_LIMITER) return null;
+  const key = await deriveRateLimitKey(request);
+  const { success } = await env.MCP_RATE_LIMITER.limit({ key });
+  return success ? null : tooManyMcpRequestsResponse();
+};
+
+const enforceMcpBodySize = async (
+  request: Request,
+): Promise<{ ok: true; body: string } | { ok: false; response: Response }> => {
+  if (request.method !== 'POST') {
+    return { ok: true, body: '' };
+  }
+  const declared = request.headers.get('content-length');
+  if (declared && Number(declared) > MCP_MAX_BODY_BYTES) {
+    return { ok: false, response: payloadTooLargeResponse() };
+  }
+  let body: string;
+  try {
+    body = await request.text();
+  } catch {
+    return {
+      ok: false,
+      response: Response.json({ error: 'bad_body' }, { status: 400 }),
+    };
+  }
+  if (body.length > MCP_MAX_BODY_BYTES) {
+    return { ok: false, response: payloadTooLargeResponse() };
+  }
+  return { ok: true, body };
+};
+
 // Per-request entry. Stateless: each request spins up a fresh McpServer +
 // transport, handles the JSON-RPC payload synchronously, and tears down.
 // `enableJsonResponse: true` returns a single JSON object instead of an SSE
@@ -423,8 +506,39 @@ export const handleMcpHttpRequest = async (
       headers: { Allow: 'POST, DELETE' },
     });
   }
+  // Fail closed on a mis-deployed Worker before any tool runs. The dev
+  // fallback only engages when DEV_MODE=1, so production with a missing
+  // secret returns 500 rather than signing / verifying with a placeholder
+  // that is readable from the repo.
+  if (!isAgentTokenSecretSet(env) && env.DEV_MODE !== '1') {
+    return missingAgentTokenSecretResponse();
+  }
+
+  // Size-cap the JSON-RPC payload before anything else touches it so a
+  // multi-megabyte body never reaches the MCP transport.
+  const bodyCheck = await enforceMcpBodySize(request);
+  if (!bodyCheck.ok) return bodyCheck.response;
+
+  // Global rate limit keyed on agentToken (preferred) or hashed IP.
+  // Limits spam of delta_v_quick_match (each call polls the matchmaker
+  // for up to 60s) and repeat /mcp/wait long-polls that would otherwise
+  // pin the GAME DO warm. Configured in wrangler.toml [[ratelimits]].
+  const rateLimited = await enforceMcpRateLimit(env, request);
+  if (rateLimited) return rateLimited;
+
   const auth = await resolveAgentIdentity(request, env);
   if (!auth.ok) return auth.response;
+
+  // Rebuild the Request with the body we already consumed so the MCP
+  // transport sees the original payload intact.
+  const rebuilt =
+    request.method === 'POST'
+      ? new Request(request.url, {
+          method: request.method,
+          headers: request.headers,
+          body: bodyCheck.body,
+        })
+      : request;
 
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -432,7 +546,15 @@ export const handleMcpHttpRequest = async (
   });
   const server = buildMcpServer(env, auth.identity);
   await server.connect(transport);
-  const response = await transport.handleRequest(request);
-  await transport.close();
-  return response;
+  try {
+    const response = await transport.handleRequest(rebuilt);
+    await transport.close();
+    return response;
+  } catch (error) {
+    await transport.close();
+    if (error instanceof MissingAgentTokenSecretError) {
+      return missingAgentTokenSecretResponse();
+    }
+    throw error;
+  }
 };

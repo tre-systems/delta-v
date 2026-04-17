@@ -17,7 +17,11 @@ export {
   type MatchTokenPayload,
   verifyMatchToken,
 } from './match-token';
-export { resolveAgentTokenSecret } from './secret';
+export {
+  isAgentTokenSecretSet,
+  MissingAgentTokenSecretError,
+  resolveAgentTokenSecret,
+} from './secret';
 export {
   type SignedTokenPayload,
   signToken,

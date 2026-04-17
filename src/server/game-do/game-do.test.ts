@@ -1382,7 +1382,7 @@ describe('GameDO', () => {
     expect(timeline.entries[0]?.phase).toBe('combat');
   });
 
-  it('keeps replay access available after inactivity cleanup', async () => {
+  it('purges per-match storage residue on inactivity cleanup', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(100_000);
     const ctx = createCtx();
     await ctx.storage.put('roomConfig', {
@@ -1399,12 +1399,28 @@ describe('GameDO', () => {
       }
     ).initGame();
 
+    // Pre-purge: the initialised match wrote its per-match keys.
+    expect(await ctx.storage.get('matchSeed:ABCDE-m1')).toBeDefined();
+    expect(await ctx.storage.get('eventChunkCount:ABCDE-m1')).toBeDefined();
+
     await ctx.storage.put('inactivityAt', 99_000);
     await game.alarm();
 
     expect(await ctx.storage.get('roomArchived')).toBe(true);
+    // roomConfig stays so subsequent join probes see a 410-archived
+    // response (not a misleading 404).
     expect(await ctx.storage.get('roomConfig')).toBeDefined();
+    // Per-match residue is gone — abandoned DO no longer keeps ~1–2 KB
+    // of event chunks / checkpoints / match identity forever.
+    expect(await ctx.storage.get('matchSeed:ABCDE-m1')).toBeUndefined();
+    expect(await ctx.storage.get('matchCreatedAt:ABCDE-m1')).toBeUndefined();
+    expect(await ctx.storage.get('eventChunkCount:ABCDE-m1')).toBeUndefined();
+    expect(await ctx.storage.get('eventSeq:ABCDE-m1')).toBeUndefined();
+    expect(await ctx.storage.get('checkpoint:ABCDE-m1')).toBeUndefined();
 
+    // Replay access is intentionally gone — completed matches have
+    // already mirrored to R2 via scheduleArchiveCompletedMatch, and
+    // inactivity cleanup is a terminal state for this DO.
     const response = await game.fetch(
       new Request(
         `https://room.internal/replay?playerToken=${'A'.repeat(32)}`,
@@ -1413,10 +1429,7 @@ describe('GameDO', () => {
         },
       ),
     );
-
-    expect(response.status).toBe(200);
-    const timeline = (await response.json()) as ReplayTimeline;
-    expect(timeline.gameId).toBe('ABCDE-m1');
+    expect(response.status).toBe(404);
   });
 
   it('rejects new joins for archived rooms', async () => {

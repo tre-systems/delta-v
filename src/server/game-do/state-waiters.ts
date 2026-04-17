@@ -27,16 +27,39 @@ type Waiter = {
   timer: ReturnType<typeof setTimeout>;
 };
 
+// Per-seat cap on concurrent long-polls. In practice a single agent keeps
+// at most one wait open at a time, so anything beyond this bound is a
+// misbehaving or adversarial caller trying to pin the DO warm by fanning
+// out /mcp/wait requests.
+export const MAX_CONCURRENT_WAITERS_PER_SEAT = 5;
+
+export class TooManyWaitersError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TooManyWaitersError';
+  }
+}
+
 export class StateWaiters {
   private readonly waitersBySeat = new Map<PlayerId, Set<Waiter>>();
 
   // Register a waiter for the given seat. Resolves true when wakeAll fires,
-  // false when timeoutMs elapses first. Multiple concurrent waiters per seat
-  // are supported.
+  // false when timeoutMs elapses first, and throws when the seat has
+  // already reached MAX_CONCURRENT_WAITERS_PER_SEAT so the caller returns a
+  // 429 to the abusive agent.
   wait(playerId: PlayerId, timeoutMs: number): Promise<boolean> {
+    const existing = this.waitersBySeat.get(playerId);
+    if (existing && existing.size >= MAX_CONCURRENT_WAITERS_PER_SEAT) {
+      return Promise.reject(
+        new TooManyWaitersError(
+          `seat ${playerId} already has ${existing.size} concurrent waiters`,
+        ),
+      );
+    }
+
     return new Promise<boolean>((resolve) => {
       let settled = false;
-      const set = this.waitersBySeat.get(playerId) ?? new Set<Waiter>();
+      const set = existing ?? new Set<Waiter>();
       this.waitersBySeat.set(playerId, set);
 
       const waiter: Waiter = {

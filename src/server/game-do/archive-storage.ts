@@ -131,6 +131,34 @@ export const getEventStreamLength = async (
   gameId: GameId,
 ): Promise<number> => (await storage.get<number>(eventSeqKey(gameId))) ?? 0;
 
+// Enumerate every storage key written by a single match (event chunks,
+// chunk count, seq cursor, matchCreatedAt, matchSeed). Used by
+// archiveRoomState() so abandoned rooms don't leave ~1–2 KB of per-match
+// residue in DO storage forever. Legacy flat-stream keys are included
+// so rooms that predate the chunked layout also get cleaned.
+export const listMatchScopedStorageKeys = (gameId: GameId): string[] => [
+  eventStreamKey(gameId),
+  eventChunkCountKey(gameId),
+  eventSeqKey(gameId),
+  matchCreatedAtKey(gameId),
+  matchSeedKey(gameId),
+];
+
+// Delete every key a match wrote to DO storage. Enumerates the known
+// chunk keys using the live chunk count so we clean them before
+// dropping the counter itself.
+export const purgeMatchScopedStorage = async (
+  storage: Storage,
+  gameId: GameId,
+): Promise<void> => {
+  const chunkCount = await getEventChunkCount(storage, gameId);
+  const chunkKeys = Array.from({ length: chunkCount }, (_, i) =>
+    eventChunkKey(gameId, i),
+  );
+  const allKeys = [...chunkKeys, ...listMatchScopedStorageKeys(gameId)];
+  await Promise.all(allKeys.map((key) => storage.delete(key)));
+};
+
 export const appendEventsToChunkedStream = async (
   storage: Storage,
   gameId: GameId,

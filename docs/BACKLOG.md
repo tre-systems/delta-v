@@ -6,66 +6,9 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 ---
 
-## Active work
-
-### Remove noisy `/api/leaderboard/me` failures in spectator/replay contexts
-
-Replay/spectator loads can emit non-blocking `404` errors for `/api/leaderboard/me?playerKey=...` when the viewer has an anonymous or unclaimed key. This pollutes console/network diagnostics and masks real failures during manual QA. Gate or degrade this request path so unauthenticated watchers do not surface avoidable errors.
-
-**Acceptance criteria:**
-- Replay/spectator page loads with zero expected console errors in a clean session.
-- `leaderboard/me` lookups are skipped when identity prerequisites are absent, or treated as an expected no-op state.
-- Any remaining non-2xx network responses are either user-visible actionable errors or captured as intentionally ignored telemetry.
-
-**Files:** `src/client/leaderboard/api.ts`, `src/client/game/session-api.ts`, `src/client/ui/lobby-view.ts`, `src/client/game/replay-controller.ts`, related client tests
-
----
-
 ## Cost & abuse hardening
 
 Findings from a 2026-04-17 cost-surface review. Ordered by expected blast radius on billing and auth integrity. See [SECURITY.md](./SECURITY.md) for the posture these close.
-
-### Hard-fail when `AGENT_TOKEN_SECRET` is unset
-
-`resolveAgentTokenSecret` currently logs a one-shot `console.warn` and signs with a public dev constant checked into the repo. A production deploy that forgets `wrangler secret put AGENT_TOKEN_SECRET` accepts agent / match tokens forged by anyone who reads the source — the warn-once is purely cosmetic. Replace the fallback with a hard 500 at request time when the secret is missing, gated by an explicit `DEV_MODE=1` env var so local dev and tests still work. Add a deploy-time check (CI or `predeploy` script) that `wrangler secret list` contains `AGENT_TOKEN_SECRET` before allowing `wrangler deploy` to main.
-
-**Files:** `src/server/auth/secret.ts`, `src/server/env.ts`, `.github/workflows/` (new CI step), `package.json`
-
-### Rate-limit and size-cap `/mcp`
-
-The hosted MCP entry point (`POST /mcp`) has no per-IP or per-agent rate limit and no body-size check. A caller can spam `delta_v_quick_match` (each call polls the matchmaker DO ~80 times over 60s), pin GAME DOs warm via repeated `/mcp/wait` long-polls, or feed oversized JSON-RPC payloads. Add a bucket keyed by `agentTokenHash || ipHash` (~20/min) backed by a new `[[ratelimits]]` namespace, reject bodies over ~64 KB before JSON-RPC parsing, and cap concurrent `stateWaiters` per seat so a single agent can't fan out long-polls.
-
-**Files:** `src/server/index.ts`, `src/server/mcp/handlers.ts`, `src/server/game-do/state-waiters.ts`, `src/server/reporting.ts`, `wrangler.toml`
-
-### Global rate limits and retention on `/telemetry` and `/error`
-
-Both reporting endpoints rate-limit via per-isolate `Map`s, so a distributed attacker bypasses by cycling Cloudflare POPs. Each accepted POST writes a ~4 KB D1 row into `events` with no TTL, so write amplification and storage growth scale with attack throughput. Move the per-IP windows to `[[ratelimits]]` namespaces (`TELEMETRY`, `ERROR`), scrub untrusted `stack` / `ua` fields before insert, tighten `Access-Control-Allow-Origin` from `*` to `https://delta-v.tre.systems` on these routes, and add a scheduled purge (Workers Cron or documented SQL runbook) that deletes `events` rows older than ~30 days.
-
-**Files:** `src/server/reporting.ts`, `src/server/index.ts`, `wrangler.toml`, new scheduled worker or SQL runbook in [OBSERVABILITY.md](./OBSERVABILITY.md)
-
-### Cap the matchmaker queue size
-
-`MatchmakerDO` serializes the entire queue under one key (`MATCHMAKER_STORAGE_KEY`), and the class ships as legacy KV storage (`new_classes`, 128 KB value ceiling). With distributed heartbeats the queue can grow until `storage.put` throws and quick-match breaks for everyone — a DoS that also strands `delta_v_quick_match` callers. Reject new enqueues once the active queue exceeds a bound (e.g. 200 entries), and either split across per-playerKey keys or migrate the class to `new_sqlite_classes` (needs a DO migration plan).
-
-**Files:** `src/server/matchmaker-do.ts`, `wrangler.toml`
-
-### Purge abandoned-room DO storage on inactivity archive
-
-`archiveRoomState()` sets `roomArchived=true` and deletes alarm markers, but leaves `roomConfig`, `gameCode`, event chunks, checkpoints, `matchSeed`, and `matchCreatedAt` in storage. Each `/create` that never reaches gameOver leaves a permanent ~1-2 KB residue per DO, unbounded in time. Track which storage keys each match writes (or key them by `gameId` and enumerate) and delete them on the inactivity-timeout branch; `storage.deleteAll()` is an option once the DO has no cross-match state to preserve.
-
-**Files:** `src/server/game-do/game-do.ts`, `src/server/game-do/archive-storage.ts`, `src/server/game-do/session.ts`, `src/server/game-do/storage-keys.ts`
-
-### Cache replay responses for terminal states
-
-`GET /replay/{code}` projects the full event stream on every hit and returns it with no `Cache-Control`. Completed matches are immutable post-archive, so repeated scrapes pay full projection cost on every request. Emit `Cache-Control: public, max-age=60, s-maxage=3600` when the projected state is `gameOver`, or serve from R2 via a signed URL once the archive write lands.
-
-**Files:** `src/server/game-do/http-handlers.ts`, `src/server/game-do/archive.ts`, `src/server/game-do/match-archive.ts`
-
-### Normalize leaderboard cache key
-
-`handleLeaderboardQuery` returns `Cache-Control: s-maxage=60`, but Cloudflare's edge cache keys include the full querystring. A scraper appending random params (`?cb=...`) bypasses the cache and forces a fresh D1 scan of up to 600 rows on every hit. Canonicalize the cache key to `?limit=&includeProvisional=` only (Workers Cache API with a derived key), or drop unknown query params server-side before deriving the cache entry.
-
-**Files:** `src/server/leaderboard/query-route.ts`
 
 ---
 
