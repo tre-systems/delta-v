@@ -1,81 +1,195 @@
-# Type System & Validation
+# Type System & Validation Patterns
 
-Patterns for nominal typing, multi-stage input validation, structured error handling, and abuse prevention. The coding standards doc covers general TypeScript conventions; this document focuses on project-specific type tricks, validation pipeline details, and known gaps.
+How Delta-V keeps bad data out of the engine and bad requests out of the server. [CODING_STANDARDS.md](../docs/CODING_STANDARDS.md) covers general TypeScript style; this chapter walks through the project-specific techniques.
 
-## Branded Types (27)
+Each section: the pattern, a minimal example, where it lives, and why this shape. Rough edges at the end of each section.
 
-Key files: `src/shared/hex.ts`, `src/shared/ids.ts`, `src/shared/types/protocol.ts`
+---
 
-Three branded types: `HexKey`, `RoomCode`, `PlayerToken`. All use the `string & { readonly [__brand]: never }` pattern with `declare const` unique symbols.
+## Branded Types for Nominal Typing
 
-Constructor naming convention:
-- `hexKey(coord)`: safe constructor from structured `HexCoord` data
-- `asHexKey(str)`: unsafe cast for serialization boundaries and tests
-- `asRoomCode(str)` / `asPlayerToken(str)`: unsafe casts only (no structured constructor needed)
+**Pattern.** Raw `string` values that mean different things (hex keys, room codes, player tokens) are branded at the type level so they can't be substituted for each other. The brand is a phantom property — zero runtime cost.
 
-`RoomCode` and `PlayerToken` have runtime guards (`isRoomCode`, `isPlayerToken`) and normalize functions. `HexKey` has no `isHexKey` guard -- `asHexKey` is used at serialization boundaries without format validation. A guard checking `/^-?\d+,-?\d+$/` would add safety.
+**Minimal example.**
 
-Missing branded types that could prevent bugs:
-- **Ship IDs** (`ship.id: string`) -- used pervasively in combat targeting, movement, logistics
-- **Ordnance IDs** (`ordnance.id: string`) -- engine generates `ord${n}` pattern but typed as plain `string`
-- **Game IDs** (`state.gameId: string`)
-- **Body names** (`body.name: string`) -- used as lookup keys throughout map system
+```ts
+// Declaration:
+type HexKey = string & { readonly [__brand]: never };
 
-Unsafe `as HexKey` casts appear in production code beyond tests, including protocol parsing for `weakGravityChoices` and map construction.
+// Safe constructor — only way to build a HexKey from structured data:
+const hexKey = ({ q, r }: HexCoord): HexKey => `${q},${r}` as HexKey;
 
-## Multi-Stage Validation (58)
+// Unsafe cast — only at serialization boundaries:
+const asHexKey = (s: string) => s as HexKey;
 
-Key files: `src/server/game-do/socket.ts` (stage 1), `src/shared/protocol.ts` (stage 2), engine modules (stage 3), `src/server/game-do/actions.ts` (runner)
+// TypeScript prevents mix-ups:
+function lookup(key: HexKey) { … }
+lookup('bananas');    // compile error — plain string can't pass as HexKey
+lookup(hexKey({q: 0, r: 0}));   // fine
+```
 
-Three stages with distinct error surfaces:
+**Where it lives.** `HexKey` in `src/shared/hex.ts`. `RoomCode`, `PlayerToken`, `GameId`, `AgentToken`, `MatchToken` in `src/shared/ids.ts`. Runtime guards `isRoomCode`, `isPlayerToken` and normalize functions for tokens.
 
-| Stage | Location | Catches | Returns |
-|-------|----------|---------|---------|
-| 0 (pre-parse) | `applySocketRateLimit` | Flood abuse | Socket close 1008 |
-| 1 (transport) | `parseClientSocketMessage` | Malformed JSON | `Result` error |
-| 2 (protocol) | `validateClientMessage` | Wrong types, missing fields, oversized arrays | `Result<C2S>` |
-| 3 (engine) | Engine functions | Phase/turn/ownership/resource violations | `EngineFailure` with `ErrorCode` |
+**Why this shape.**
 
-Stage 2 enforces size limits on every array (`MAX_FLEET_PURCHASES = 64`, `MAX_ASTROGATION_ORDERS`, etc.) and validates integer ranges. All validation is hand-written (no Zod/io-ts), keeping the bundle dependency-free but requiring manual code for each new field.
+- **Zero runtime cost.** Branded types vanish at runtime; they're pure TypeScript.
+- **Boundary discipline.** `hexKey(coord)` is the structured constructor, `asHexKey(str)` is the unsafe cast — the two names tell reviewers which invariants hold.
+- **Compile-time bug-finding.** Pre-branded, a function taking `string` could be called with any string; post-branded, only the right kind.
 
-The `runGameStateAction` runner wraps engine calls in try/catch, converting thrown exceptions (unexpected bugs) to error responses without corrupting game state.
+**Rough edges.**
 
-Minor inconsistency: some engine modules return `{ error: { code, message } }` directly while others use the `engineFailure()` helper. Same shape, different style.
+- `HexKey` has no `isHexKey` runtime guard. A format check (`/^-?\d+,-?\d+$/`) would let `asHexKey` validate instead of blindly casting.
+- Ship IDs, ordnance IDs, and body names are still plain `string`. They're used as lookup keys across many modules — branding them would catch mistakes like `getShip(ordnanceId)`.
 
-S2C validation (`validateServerMessage`) is lighter -- structural checks without deep `GameState` validation. Intentional since the server is authoritative, but means a corrupted server could send malformed state.
+---
 
-## Error Code Enum (59)
+## Multi-Stage Validation Pipeline
 
-Key files: `src/shared/types/domain.ts`, `src/shared/types/protocol.ts`, engine modules, `src/server/game-do/ws.ts`
+**Pattern.** Incoming client messages pass through four distinct validation stages, each with its own error surface. Rate limits come first so flood attacks can't exhaust later stages; the engine is last and trusts its input.
 
-String-valued enum with 10 members covering timing (`INVALID_PHASE`, `NOT_YOUR_TURN`), reference (`INVALID_SHIP`, `INVALID_TARGET`, `INVALID_SELECTION`), input (`INVALID_INPUT`), authorization (`NOT_ALLOWED`, `INVALID_PLAYER`), resources (`RESOURCE_LIMIT`), and consistency (`STATE_CONFLICT`).
+**Minimal example.**
 
-The S2C `error` message carries an optional `ErrorCode` -- optional because some errors (internal server errors, rate limits) originate outside the engine.
+```
+WebSocket message arrives
+  ↓
+Stage 0: applySocketRateLimit()     → close 1008 if > 10 msg/s
+  ↓
+Stage 1: parseClientSocketMessage() → Result<unknown> (malformed JSON)
+  ↓
+Stage 2: validateClientMessage()    → Result<C2S>     (shape + size limits)
+  ↓
+Stage 3: engine call                → EngineFailure | { state, events, … }
+```
 
-Gaps:
-- `INVALID_PLAYER` is defined but unused anywhere in the codebase
-- Rate limit violations bypass the error code system entirely (socket close, not error message) -- a `RATE_LIMITED` code could help client handling
-- Client-side handling tracks `plan.code` for telemetry but does not branch on it for context-specific messages or recovery guidance
+**Where it lives.** Stage 0: `src/server/game-do/socket.ts::applySocketRateLimit`. Stage 1: `src/server/game-do/socket.ts::parseClientSocketMessage`. Stage 2: `src/shared/protocol.ts::validateClientMessage`. Stage 3: engine entry points in `src/shared/engine/*`. Runner `src/server/game-do/actions.ts::runGameStateAction` wraps engine calls in try/catch so unexpected throws become typed errors, not state corruption.
 
-Server-level mapping: `INVALID_INPUT` for malformed messages, `STATE_CONFLICT` for caught exceptions.
+**Why this shape.**
 
-## Rate Limiting (60)
+- **Fail early and cheaply.** Flood detection and JSON parsing are O(bytes) before we spend time on shape checks.
+- **Each stage owns its error.** Stage 2 returns a `Result<C2S>` with a clear "invalid shape" message; Stage 3 returns an `EngineFailure` with an `ErrorCode`.
+- **Bounded bodies.** Stage 2 enforces `MAX_FLEET_PURCHASES = 64`, `MAX_ASTROGATION_ORDERS`, `MAX_ORDNANCE_LAUNCHES`, `MAX_COMBAT_ATTACKS`. No engine code has to defensively check array sizes.
 
-Key files: `src/server/game-do/socket.ts`, `src/server/game-do/ws.ts`
+**Rough edges.**
 
-Two mechanisms:
+- All validation is hand-written (no Zod/io-ts). Keeps the bundle lean but requires a manual update for every new field.
+- Some engine modules return `{ error: { code, message } }` directly; others use the `engineFailure()` helper. The helper should be preferred everywhere.
+- S2C validation (`validateServerMessage`) is structural only — the server is authoritative, so deep `GameState` validation on outbound is intentionally absent. A compromised server could send malformed state.
 
-**Socket-level**: `WeakMap<WebSocket, RateWindow>` tracking per-socket message counts. `WS_MSG_RATE_LIMIT = 10` messages per `WS_MSG_RATE_WINDOW_MS = 1_000` (1-second window). Exceeding the limit closes the socket with code 1008. The `WeakMap` keys on WebSocket objects, so entries are garbage-collected on socket close and survive DO hibernation wake cycles.
+---
 
-**Chat-level**: `Map<number, number>` tracking last chat timestamp per player ID. `CHAT_RATE_LIMIT_MS = 500`. Messages within the window are silently dropped (soft enforcement vs. the hard socket close above).
+## Error Code Enum
 
-The `applySocketRateLimit` function is pure -- takes `now` as a parameter rather than calling `Date.now()` internally, making it deterministically testable.
+**Pattern.** A closed string enum carries the *category* of a runtime error across the protocol boundary. The client decides what to do with it; the server just names the category.
 
-Gaps:
-- No per-action rate limiting beyond the socket-wide 10/sec cap
-- No IP-level rate limiting (per-socket only -- multiple connections from same IP are not throttled; would need Worker-level enforcement)
-- No warning/backoff before socket close (aggressive but appropriate since legitimate clients never approach the limit)
+**Minimal example.**
+
+```ts
+enum ErrorCode {
+  INVALID_PHASE = 'INVALID_PHASE',     // timing
+  NOT_YOUR_TURN = 'NOT_YOUR_TURN',
+  INVALID_SHIP = 'INVALID_SHIP',       // reference
+  INVALID_TARGET = 'INVALID_TARGET',
+  INVALID_SELECTION = 'INVALID_SELECTION',
+  INVALID_INPUT = 'INVALID_INPUT',     // input
+  NOT_ALLOWED = 'NOT_ALLOWED',         // authorization
+  INVALID_PLAYER = 'INVALID_PLAYER',
+  RESOURCE_LIMIT = 'RESOURCE_LIMIT',   // resources
+  STATE_CONFLICT = 'STATE_CONFLICT',   // consistency
+}
+
+// S2C error carries it:
+{ type: 'error', message: 'Not your turn', code: ErrorCode.NOT_YOUR_TURN }
+```
+
+**Where it lives.** Enum in `src/shared/types/domain.ts`. Attached to S2C `error` in `src/shared/types/protocol.ts`. Engine returns it inside `EngineFailure`.
+
+**Why this shape.**
+
+- **Stable wire values.** String values survive serialization cleanly and read well in telemetry dashboards.
+- **Client can branch.** `STATE_CONFLICT` means re-read state and retry; `INVALID_INPUT` means the UI sent something invalid and should surface a different message.
+- **`code` is optional.** Errors from outside the engine (rate limits, server internals) don't have to invent a code.
+
+**Rough edges.**
+
+- `INVALID_PLAYER` is defined but unused anywhere.
+- Rate-limit closures use WebSocket close code 1008 instead of an error code — a `RATE_LIMITED` code would give clients a way to back off cleanly.
+- Client tracks `plan.code` for telemetry but doesn't branch on it for user-facing messages yet. Context-aware error UI is a backlog opportunity.
+
+---
+
+## Rate Limiting
+
+**Pattern.** Multiple rate-limit layers at different scopes. Edge/Worker layer caps per-IP; DO layer caps per-socket and per-player. Each layer has a tight reason to exist.
+
+**Minimal example.**
+
+```ts
+// Per-socket message cap (enforced in the DO):
+const WS_MSG_RATE_LIMIT = 10;           // messages
+const WS_MSG_RATE_WINDOW_MS = 1_000;    // per second
+// Exceeds → close socket with code 1008
+
+// Per-player chat soft-throttle:
+const CHAT_RATE_LIMIT_MS = 500;         // min gap between chat messages
+// Within window → silently dropped
+```
+
+**Where it lives and what it limits.** Canonical values in [SECURITY.md](../docs/SECURITY.md#rate-limiting-architecture). Constants in `src/server/reporting.ts` (Worker-level, per-IP) and `src/server/game-do/socket.ts` (DO-level, per-socket / per-player).
+
+**Why this shape.**
+
+- **Layers catch different attacks.** Per-IP Worker limits catch mass room-creation or probe scanning; per-socket DO limits catch a single connection flooding; per-player chat throttle catches spam from a legitimate socket.
+- **Pure functions.** `applySocketRateLimit(now, ws)` takes `now` as a parameter and stores state in `WeakMap<WebSocket, RateWindow>`. Deterministic to test.
+- **Soft vs hard.** Chat is *silently dropped* over the window (user just retries); socket flood is *hard-closed* (abusive).
+
+**Rough edges.**
+
+- No per-action rate limit beyond the socket-wide 10/s — one socket could burn its whole budget on fleetReady if it wanted. Legitimate clients never approach it.
+- Per-socket only, not per-IP — multiple sockets from one IP each get 10/s. Worker-layer per-IP limits cover connection churn but not in-connection activity.
+
+---
+
+## Result\<T, E\> and Engine-Style Returns
+
+**Pattern.** Two parallel conventions for "success or error" depending on context. `Result<T, E>` is the generic workhorse; engine-style `{ state, … } | { error }` is specialized for heterogeneous engine success shapes.
+
+**Minimal example.**
+
+```ts
+// Result<T, E> — parse / validate / lookup. Narrow with .ok:
+const parsed: Result<C2S> = validateClientMessage(raw);
+if (!parsed.ok) return sendError(ws, parsed.error);
+dispatch(parsed.value);
+
+// Engine-style — engine entry points. Narrow with 'error' in result:
+const result = processAstrogation(state, playerId, orders, map, rng);
+if ('error' in result) return result.error;
+return result.state;       // result also has `movements`, `engineEvents`, …
+```
+
+**Where it lives.** Generic `Result<T, E = string>` in `src/shared/types/domain.ts`. Engine-style shapes per entry point in `src/shared/engine/`.
+
+**Why this shape.**
+
+- **Two shapes because two patterns.** Validators return a single success value (`Result<C2S>`); engine entry points return state plus per-action extras (movements, events, transfer log entries) that vary. Unifying them would force every engine call into a single huge success type.
+- **Neither throws.** The engine doesn't throw for validation failures — callers see structured errors and can decide. Only the try/catch in `runGameStateAction` catches unexpected *bugs*.
+- **Implicit invariant.** `'error' in result` narrowing works because no success shape has an `error` field. Adding one would break narrowing — a more explicit discriminant would be safer if the types grow.
+
+---
 
 ## Cross-Pattern Flow
 
-The validation pipeline runs in strict order: rate limit (60) -> JSON parse (58 stage 1) -> protocol validation (58 stage 2) -> engine validation (58 stage 3). Error codes (59) are produced at stages 2-3 and flow to the client via the S2C `error` variant. Branded types (27) appear at stage 2 boundaries (e.g., `HexKey` in protocol parsing) but several production cast sites skip runtime validation.
+A single C2S message threads these patterns in order:
+
+```
+1. Worker-layer per-IP rate limits (if HTTP path)
+2. Socket flood rate limit (Stage 0)
+3. JSON parse (Stage 1, Result<unknown>)
+4. Shape + size validation (Stage 2, Result<C2S>, branded types applied)
+5. Engine call (Stage 3, structuredClone + RNG + engine)
+   → success: EngineEvent[] + new state
+   → failure: EngineFailure with ErrorCode
+6. S2C response — state-bearing success or { type: 'error', code, message }
+```
+
+Each layer can reject independently. A reader tracing a bug from "wrong error surfaced to user" can walk the pipeline in one direction.

@@ -1,44 +1,42 @@
 # Contributing
 
-This file covers contributor workflow only. Use [README.md](../README.md) for project onboarding, [ARCHITECTURE.md](./ARCHITECTURE.md) for system design, and [CODING_STANDARDS.md](./CODING_STANDARDS.md) for implementation conventions.
+Contributor workflow only. See [README.md](../README.md) for onboarding, [ARCHITECTURE.md](./ARCHITECTURE.md) for system design, and [CODING_STANDARDS.md](./CODING_STANDARDS.md) for conventions.
 
 ## Pre-commit (Husky)
 
-The hook runs, in order:
+[`.husky/pre-commit`](../.husky/pre-commit) runs, in order:
 
 1. `npm run lint`
 2. Grep-based boundary checks (fail the commit if any match):
-   - `innerHTML` assignment outside `dom.ts` (use `setTrustedHTML()`)
+   - `innerHTML` assignment outside `src/client/dom.ts` (use `setTrustedHTML()`)
    - `Math.random` in `src/shared/engine/` (use injected RNG)
    - `console.log/warn/error` in `src/shared/` (shared layer must be side-effect free)
 3. `npm run typecheck:all`
 4. `npx wrangler d1 migrations apply delta-v-telemetry --local`
-5. `rm -rf coverage` then `npm run test:coverage` (clean output dir)
-6. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e` (Playwright; see below)
+5. Fresh `coverage/` directory, then `npm run test:coverage`
+6. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e` (Playwright browser smoke)
 7. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e:a11y` (Playwright + axe baseline)
-8. `npm run simulate all 40 -- --ci` (enough games per scenario to keep seat-balance checks meaningful; occasional non-fatal warnings can still appear for extreme seeds)
+8. `npm run simulate all 60 -- --ci` (headless AI sweep across all 9 scenarios)
 
-### Coverage (`test:coverage`)
+CI runs the same list except for local D1 setup — see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
-Coverage uses **`--no-file-parallelism`** so Vitest’s v8 merger does not race on `coverage/.tmp/*.json` (intermittent `ENOENT` when many test files run in parallel).
+### Coverage
 
-If coverage still fails, remove `coverage/` and retry: `rm -rf coverage && npm run test:coverage`.
+`test:coverage` uses `--no-file-parallelism` so Vitest's v8 merger does not race on `coverage/.tmp/*.json`. If coverage fails unexpectedly, remove `coverage/` and retry.
 
-### Playwright / ports
+Both `npm test` and `npm run test:coverage` set `NODE_OPTIONS=--localstorage-file=/tmp/deltav-vitest-localstorage` to silence Node 25+ experimental web-storage warnings.
 
-Default Playwright port is **8787** (`playwright.config.ts`).
+### Playwright ports
 
-- Accessibility baseline run: `npm run test:e2e:a11y`
-- **CI** runs `npm run test:e2e` without `E2E_PORT`, so the web server uses **8787**.
-- **Pre-commit** assigns a **free TCP port** via Node, sets `E2E_PORT`, and sets `DELTAV_PRE_COMMIT_E2E=1` so Playwright does **not** reuse an existing server (avoids attaching to the wrong process if a fixed port is busy).
-- **Pre-commit** also applies local D1 migrations before coverage/e2e so Wrangler's local database matches the current schema.
-- To run e2e manually while **`npm run dev`** holds **8787**: `E2E_PORT=8788 npm run test:e2e` (or any free port).
+The default Playwright port is **8787** ([`playwright.config.ts`](../playwright.config.ts)).
 
-If e2e fails with a port error, check nothing else is bound to the chosen port.
+- **CI** runs `npm run test:e2e` on port 8787.
+- **Pre-commit** picks a free TCP port via Node, sets `E2E_PORT`, and sets `DELTAV_PRE_COMMIT_E2E=1` so Playwright does **not** reuse an existing server. This avoids attaching to a dev server on a fixed port.
+- To run e2e manually while `npm run dev` holds 8787: `E2E_PORT=8788 npm run test:e2e` (any free port).
 
 ### Windows
 
-Pre-commit is a POSIX shell script (`rm`, `export`, subshell). Use **Git Bash**, **WSL**, or similar. If you need **CMD** support, add a concrete follow-up item to [BACKLOG.md](./BACKLOG.md) or add `cross-env` locally.
+The pre-commit hook is a POSIX shell script. Use **Git Bash**, **WSL**, or similar.
 
 ### Skipping hooks (emergency only)
 
@@ -46,7 +44,7 @@ Pre-commit is a POSIX shell script (`rm`, `export`, subshell). Use **Git Bash**,
 git commit --no-verify
 ```
 
-Prefer fixing the underlying issue. **CI** runs lint, typecheck (app + tools), coverage, build, browser smoke (`test:e2e`), Playwright + axe (`test:e2e:a11y`), and the multi-scenario simulation pass. **`npm run test` / `test:coverage`** set `NODE_OPTIONS=--localstorage-file=/tmp/deltav-vitest-localstorage` so Vitest stays quiet on Node 25+ (experimental web storage warning); if you invoke `vitest` directly, set the same flag or expect harmless warnings.
+Prefer fixing the underlying issue — `--no-verify` skips all the checks that CI will then fail on.
 
 ## Full verification
 
@@ -54,8 +52,8 @@ Prefer fixing the underlying issue. **CI** runs lint, typecheck (app + tools), c
 npm run verify
 ```
 
-Matches local release expectations: lint, typecheck (app + tools), coverage, build, e2e, a11y e2e, simulation.
+Runs the local release gate: lint, typecheck (app + tools), coverage, build, e2e, a11y e2e, and `simulate all 40 -- --ci`. Pre-commit and CI use 60 iterations; `verify` uses 40 to stay responsive when invoked by hand.
 
 ## Documentation
 
-See [REVIEW_PLAN.md](./REVIEW_PLAN.md) for cross-cutting review areas, [CODING_STANDARDS.md](./CODING_STANDARDS.md) for code style, and [ARCHITECTURE.md](./ARCHITECTURE.md) for system design.
+One owner doc per topic (see [README.md](../README.md#-documentation)). Update docs when behavior or architecture decisions materially change — prefer anchored sections over new files. Recurring review cadence lives in [REVIEW_PLAN.md](./REVIEW_PLAN.md); open work lives in [BACKLOG.md](./BACKLOG.md).

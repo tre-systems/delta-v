@@ -1,97 +1,271 @@
-# Protocol & Persistence
+# Protocol & Persistence Patterns
 
-Patterns governing the event-sourced persistence layer and the WebSocket protocol between client and server. The architecture doc covers the high-level event-sourcing model and action path; this document focuses on implementation specifics, gaps, and cross-pattern interactions.
+How WebSocket actions turn into persisted events and back into broadcast state. [ARCHITECTURE.md](../docs/ARCHITECTURE.md) shows the high-level action path; this chapter zooms into the patterns that make replay, reconnection, and spectating correct.
 
-## Event Stream + Checkpoint Recovery (31)
+Each section: the pattern, a minimal example, where it lives, and why this shape. Rough edges at the end of each section.
 
-Key files: `src/server/game-do/archive.ts`, `src/server/game-do/publication.ts`, `src/server/game-do/projection.ts`, `src/shared/engine/event-projector/index.ts`, `src/server/game-do/archive-compat.ts`
+---
 
-Checkpoints fire only at turn boundaries (`turnAdvanced` or `gameOver` events), triggered centrally in `checkpointIfNeeded` from the single `runPublicationPipeline` function. Schema migration runs both on save (`normalizeArchivedGameState`) and load (`normalizeArchivedStateRecord`).
+## Chunked Event Storage
 
-Gap: checkpoint save and event append are separate `storage.put` calls, not a single atomic batch. A crash between them leaves a stale checkpoint, but this is benign since tail replay covers the gap.
+**Pattern.** Per-match events live in fixed-size chunks of 64 events per storage key, not one key per event and not one giant key per match. New events append to the current chunk; the chunk count and sequence counter update in one atomic `storage.put(entries)`.
 
-Gap: no checkpoint pruning for completed matches. Old checkpoints persist until DO eviction.
+**Minimal example.**
 
-Recovery serves two paths: live state (`getProjectedCurrentStateRaw` -- checkpoint + tail) and replay timeline (`getProjectedReplayTimeline` -- full stream with checkpoint fallback). Both handle missing checkpoints by falling back to full replay.
+```ts
+// Keys for gameId "ROOM1-m2":
+events:ROOM1-m2:chunk:0     → EventEnvelope[]  (first 64 events)
+events:ROOM1-m2:chunk:1     → EventEnvelope[]  (next 64)
+eventChunkCount:ROOM1-m2    → 2
+eventSeq:ROOM1-m2           → 128
+```
 
-## Parity Check (32)
+**Where it lives.** `src/server/game-do/archive-storage.ts` (`EVENT_CHUNK_SIZE = 64`, read/write helpers). `archive.ts` builds envelopes. `archive-compat.ts` lazily migrates legacy single-key streams on first access.
 
-Key files: `src/server/game-do/publication.ts`, `src/server/game-do/telemetry.ts`, `src/server/game-do/projection.ts`
+**Why this shape.**
 
-Runs on every incremental publication (not just turn boundaries). Reconstructs state via the same checkpoint-plus-tail path used for reconnection, then compares against live state using `JSON.stringify` equality after normalization.
+- **Value-size ceiling.** Durable Object storage values max out at 128 KB. A typical match is 100–300 events (~6–32 KB per chunk), well inside the limit.
+- **Atomic appends.** Writing modified chunk + chunk-count + seq in one `storage.put(record)` call prevents split-brain after a crash.
+- **Fast tail reads.** `Math.floor(afterSeqExclusive / EVENT_CHUNK_SIZE)` jumps directly to the first chunk needing replay — reconnection doesn't scan the whole stream.
 
-Normalization gap: production strips only `player.connected`, but some test comparisons also filter `ready` and `detected`. If those fields are legitimately non-replayable, production and test normalization should be aligned.
+**Rough edges.**
 
-Design choice: observability-only. Mismatches log + write to D1 telemetry but do not halt the match. `JSON.stringify` comparison is order-sensitive and produces coarse mismatch output -- structured diffs would improve debugging.
+- `readChunkedEventStream` loads chunks sequentially with `await` per iteration. `Promise.all` would parallelize, but most matches fit in ≤ 5 chunks so the impact is minimal.
+- The tail-read formula may read one extra chunk at exact boundaries; per-envelope seq filtering handles it but is wasted I/O.
 
-## Chunked Event Storage (33)
+---
 
-Key files: `src/server/game-do/archive-storage.ts`, `src/server/game-do/archive-compat.ts`
+## Event Envelopes
 
-Chunk size: `EVENT_CHUNK_SIZE = 64`. A typical match generates 100-300 events (2-5 chunks). Each chunk is roughly 6-32 KB, well within the 128 KB DO storage value limit. All writes (modified chunks + chunk count + seq counter) go in a single `storage.put(entries)` call for atomicity.
+**Pattern.** Raw engine events are wrapped in envelopes before persistence. Envelopes carry identity metadata — game, sequence, timestamp, actor — separate from the event payload. The engine never knows about envelopes; the publication pipeline wraps them.
 
-Lazy legacy migration: `migrateLegacyEventStreamIfNeeded` converts old single-key streams to chunked format on first access via `ensureArchiveStreamCompatibility`.
+**Minimal example.**
 
-Tail read formula: `startChunkIndex = Math.floor(afterSeqExclusive / EVENT_CHUNK_SIZE)` may read one extra chunk at exact boundaries, but per-envelope `seq` filtering ensures correctness.
+```ts
+interface EventEnvelope {
+  gameId: GameId;            // stable per-match id ("ROOM1-m2")
+  seq: number;               // monotonic within this match
+  ts: number;                // server time
+  actor: PlayerId | 'server';
+  event: EngineEvent;        // 1 of 32 domain event shapes
+}
+```
 
-Performance note: `readChunkedEventStream` loads chunks sequentially with `await` per iteration. `Promise.all` would parallelize, but most matches produce fewer than 5 chunks so the impact is minimal.
+**Where it lives.** Type in `src/shared/engine/engine-events.ts`. Construction in `src/server/game-do/archive.ts`. Used by projection (`event-projector/`) and replay timelines (`game-do/projection.ts`).
 
-## Discriminated Union Messages (47)
+**Why this shape.**
 
-Key files: `src/shared/types/protocol.ts`, `src/shared/protocol.ts`, `src/server/game-do/actions.ts`, `src/server/game-do/ws.ts`
+- **`seq` is authoritative ordering.** Timestamps drift; sequence numbers don't.
+- **`gameId` is stable even across room reuse.** A single room code can host multiple matches (`m1`, `m2` suffix on rematch) — the gameId disambiguates.
+- **`actor` enables per-player provenance** for replay viewers and anti-cheat audits without parsing the event body.
 
-C2S and S2C are discriminated unions on a `type` string field. Compile-time exhaustiveness is enforced on the action handler map via `satisfies Record<GameStateActionType, unknown>`. `AuxMessage = Exclude<C2S, { type: GameStateActionType }>` cleanly separates chat/ping/rematch from state-mutating actions.
+---
 
-Asymmetry: `validateServerMessage` casts via `as unknown as S2C` rather than constructing a fresh typed object (intentional -- server is authoritative). Neither validator uses a `never` default case for compile-time exhaustiveness; both fall through to `default: return invalid(...)`.
+## Checkpoints at Turn Boundaries
 
-Gap: no `satisfies Record<...>` equivalent for S2C broadcast paths. A new S2C type can be added to the union without a guaranteed broadcast implementation.
+**Pattern.** After every `turnAdvanced` or `gameOver` event, the server saves a full `GameState` snapshot. Reconstruction loads the latest checkpoint plus the event tail after it — not the whole stream.
 
-The `emplaceBase` C2S variant lacks a `skipEmplacement` counterpart (unlike ordnance/combat/logistics), because emplacement is optional within the astrogation phase. Domain-correct but breaks the visual symmetry of the protocol.
+**Where it lives.** `src/server/game-do/publication.ts::checkpointIfNeeded`, keyed by `checkpoint:${gameId}:${turn}`. Schema migration runs on both save (`normalizeArchivedGameState`) and load (`normalizeArchivedStateRecord`).
 
-## Single State-Bearing Message (48)
+**Why this shape.**
 
-Key files: `src/shared/types/protocol.ts`, `src/server/game-do/message-builders.ts`, `src/server/game-do/actions.ts`, `src/server/game-do/broadcast.ts`, `src/server/game-do/publication.ts`
+- **Bounded projection cost.** Without checkpoints, a 50-turn match takes 50 turns' worth of projection to reconstruct. With per-turn checkpoints, it's at most one turn's tail.
+- **Turn boundaries, not every event.** Checkpointing every event would 10× storage writes for no recovery benefit — a turn's events are a natural atomic unit.
+- **Non-atomic with event append is benign.** A crash between checkpoint save and event append leaves a stale checkpoint, but the tail covers the gap — correctness never depends on both writes committing together.
 
-Every state-mutating action produces exactly one S2C message with a full `state: GameState` field. The `StatefulServerMessage` type unifies `gameStart`, `stateUpdate`, `movementResult`, `combatResult`, and `combatSingleResult`. Clients replace local state wholesale on receipt -- no delta patching, no optimistic updates.
+**Rough edges.**
 
-Design trade-off: bandwidth-heavy for large fleets, but eliminates sync bugs from partial/out-of-order deltas. Reconnection requires only a single `stateUpdate` message.
+- No checkpoint pruning for completed matches. Old checkpoints persist until DO eviction, which may never happen for rooms with lingering spectators.
 
-`gameOver` is intentionally separate: `broadcastStateChange` sends the state message first, then `gameOver` as a follow-up. The state message still contains the terminal state.
+---
 
-## Viewer-Aware Filtering (49)
+## Publication Pipeline (Single Writer)
 
-Key files: `src/shared/engine/resolve-movement.ts`, `src/server/game-do/broadcast.ts`, `src/shared/engine/viewer-filter.test.ts`
+**Pattern.** Every state-changing action runs through one function that appends events, checkpoints at turn boundaries, verifies parity, writes the match archive on game-over, restarts the turn timer, and broadcasts. Not six separate helpers — one pipeline.
 
-`filterStateForPlayer` strips unrevealed ship identities based on `ViewerId` (player number or `'spectator'`). Early-return optimization: when no ships have identity fields and the scenario does not use hidden identity rules, the original state is returned by reference (zero allocation).
+**Minimal example.**
 
-Per-viewer broadcast in `broadcastFilteredMessage` uses DO socket tags (`player:0`, `player:1`, `spectator`) to route filtered copies.
+```ts
+await runPublicationPipeline(deps, {
+  result,                                       // from engine call
+  envelopeOf: (e) => ({ gameId, seq, ts, actor, event: e }),
+  broadcastMessage: messageBuilders.forResult(result),
+});
+// Equivalent to: append events → checkpoint? → parity → archive? → timer → broadcast
+```
 
-Limitation: only handles `identity` stripping. Fog-of-war (hiding ship positions) would need extension, but the single-chokepoint design makes this straightforward.
+**Where it lives.** `src/server/game-do/publication.ts`. Called by `game-do/actions.ts::runGameStateAction` for C2S actions and `game-do/turn-timeout.ts::runGameDoTurnTimeout` for alarm-driven timeouts.
 
-No spectator delay: spectators see the same timing as players, which could be exploited in competitive contexts.
+**Why this shape.**
 
-Replay timelines also pass through filtering, ensuring archived games do not leak hidden state.
+- Any new action automatically gets event persistence, checkpoint cadence, parity verification, archive-on-end, timer management, and broadcasting — *for free*. There's no way to forget a step.
+- Tests stub one collaborator (`storage`, `broadcast`, `archive`) and assert on the whole pipeline.
 
-## Hibernatable WebSocket (50)
+**Rough edges.**
 
-Key files: `src/server/game-do/game-do.ts`, `src/server/game-do/ws.ts`, `src/server/game-do/socket.ts`, `src/server/game-do/fetch.ts`, `src/server/game-do/session.ts`, `src/server/game-do/alarm.ts`
+- `initGameSession` in `match.ts` still publishes directly rather than through the pipeline — the most frequently cited architecture gap.
 
-Uses Cloudflare DO WebSocket Hibernation: `ctx.acceptWebSocket(server, tags)` during upgrade, then `webSocketMessage` / `webSocketClose` callbacks on wake. No in-memory state survives hibernation -- player identity comes from socket tags, game state from storage projection.
+---
 
-`WeakMap<WebSocket, RateWindow>` for rate limits and `replacedSockets` WeakSet survive within a single wake cycle (runtime preserves WebSocket objects) but are lost on full DO eviction. This is acceptable given the short rate-limit windows (1 second).
+## Discriminated Union Messages (C2S / S2C)
 
-Alarms (`ctx.storage.setAlarm()`) handle turn timeouts, disconnect grace periods, and inactivity cleanup. The alarm handler is hibernation-safe (reads state from storage).
+**Pattern.** All WebSocket messages are TypeScript discriminated unions keyed by `type`. Runtime validation produces typed values; TypeScript's exhaustive checking catches missing handlers.
 
-Cost of hibernation: every action reads current state via `getProjectedCurrentStateRaw` (checkpoint + event tail projection). Checkpoints amortize this cost.
+**Minimal example.**
 
-## Cross-Pattern Interactions
+```ts
+type C2S =
+  | { type: 'astrogation'; orders: AstrogationOrder[] }
+  | { type: 'combat'; attacks: CombatAttack[] }
+  | { type: 'skipOrdnance' }
+  | …;
 
-The persistence and protocol layers form a tight feedback loop:
+// Exhaustiveness enforced by `satisfies`:
+const HANDLERS = {
+  astrogation: handleAstrogation,
+  combat: handleCombat,
+  skipOrdnance: handleSkipOrdnance,
+  …
+} satisfies Record<GameStateActionType, unknown>;
+```
 
-1. Action arrives via hibernatable WebSocket (50) -> rate-limited (60) -> validated (47/58)
-2. Engine produces next state -> single state-bearing message built (48)
-3. Events appended to chunked stream (33) -> checkpoint saved at turn boundaries (31)
-4. State filtered per viewer (49) -> broadcast via tagged sockets (50)
-5. Parity check (32) reconstructs state from checkpoint + tail and compares against live state
+**Where it lives.** Types in `src/shared/types/protocol.ts`. Runtime validation in `src/shared/protocol.ts::validateClientMessage`. Dispatch map in `src/server/game-do/actions.ts`. `AuxMessage = Exclude<C2S, { type: GameStateActionType }>` separates chat/ping/rematch from state-mutating actions.
 
-The main unresolved cross-cutting concern is normalization consistency between parity checks and viewer filtering -- both transform `GameState` before comparison/broadcast, but their normalization logic is maintained independently.
+**Why this shape.**
+
+- **Single source of truth.** Client and server share the union; neither can ship a message shape the other doesn't understand.
+- **Compile-time exhaustiveness.** Adding a new C2S variant fails to compile on the server until a handler exists.
+- **Clean rate-limit boundary.** `AuxMessage` lets the DO route chat/ping separately from game-state actions without re-parsing.
+
+**Rough edges.**
+
+- No `satisfies Record<…>` equivalent on the S2C broadcast side — a new S2C variant can be added without a guaranteed broadcast implementation.
+- `emplaceBase` has no `skipEmplacement` counterpart (unlike ordnance/combat/logistics) because emplacement is optional within astrogation. Correct, but breaks the visual symmetry.
+
+---
+
+## Single State-Bearing Message per Action
+
+**Pattern.** Every state-mutating action produces exactly one S2C message that carries the full updated `GameState`. Clients replace their state wholesale — no delta patching, no optimistic updates.
+
+**Minimal example.**
+
+```ts
+// Server:
+publishStateChange(result);
+//   → broadcastMessage: { type: 'movementResult', movements, events, state }
+//   (exactly one state-bearing frame)
+//
+// Client:
+onStateBearingMessage((msg) => applyClientGameState(msg.state));
+```
+
+**Where it lives.** `StatefulServerMessage` union in `src/shared/types/protocol.ts` covers `gameStart`, `stateUpdate`, `movementResult`, `combatResult`, `combatSingleResult`. Builders in `src/server/game-do/message-builders.ts`. `gameOver` is intentionally separate — sent *after* the final state-bearing message.
+
+**Why this shape.**
+
+- **Reconnection is trivial.** A returning client gets one `stateUpdate` — no replaying of deltas.
+- **No ordering bugs.** With deltas, mis-ordered or dropped frames desynchronize the client from the server. With wholesale state, the latest message is the truth.
+- **Bandwidth cost is acceptable.** A typical `GameState` is a few KB and messages are turn-paced.
+
+---
+
+## Viewer-Aware Filtering
+
+**Pattern.** Before any state goes to a socket, it passes through `filterStateForPlayer(state, viewerId)` which strips hidden information per viewer. Players keep full own-state visibility; unrevealed enemy ships have `identity` stripped; spectators receive a spectator-safe projection.
+
+**Minimal example.**
+
+```ts
+// In broadcastFilteredMessage:
+for (const ws of getWebSockets()) {
+  const viewerId = ws.deserializeAttachment().viewerId;   // 0 | 1 | 'spectator'
+  ws.send(JSON.stringify({
+    ...message,
+    state: filterStateForPlayer(message.state, viewerId),
+  }));
+}
+```
+
+**Where it lives.** Filter in `src/shared/engine/resolve-movement.ts::filterStateForPlayer`. Broadcast in `src/server/game-do/broadcast.ts::broadcastFilteredMessage`. Socket tagging in `ctx.acceptWebSocket(ws, ['player:0'])` etc.
+
+**Why this shape.**
+
+- **Server-authoritative hidden state.** The fugitive ship in Escape never has `identity.hasFugitives = true` in an opponent's broadcast frame — the filter strips it before send.
+- **Early-return optimization.** When no ship has identity fields and the scenario doesn't use hidden-identity rules, the original state is returned by reference (zero allocation).
+- **Same filter for replays and live spectators.** `?viewer=spectator` on the WebSocket URL tags the socket; replay timelines pass through the same code. No parallel "filter for replay" implementation.
+
+**Rough edges.**
+
+- Today's filter only handles `identity` stripping. Fog-of-war (hiding ship positions) would need extension, but the single-chokepoint design makes that straightforward.
+- No spectator delay — spectators see the same timing as players, which could be exploited in organized competitive play.
+
+---
+
+## Hibernatable WebSocket
+
+**Pattern.** The Durable Object uses Cloudflare's hibernation API (`acceptWebSocket`, `webSocketMessage`, `webSocketClose`) instead of classic `addEventListener`. The DO can hibernate between messages — no in-memory state survives a wake.
+
+**Minimal example.**
+
+```ts
+// Upgrade path:
+ctx.acceptWebSocket(server, [`player:${playerId}`]);
+
+// Later, on wake:
+webSocketMessage(ws: WebSocket, message: string) {
+  const tags = ctx.getTags(ws);            // ["player:0"] — recovered from the socket
+  const state = await getProjectedCurrentStateRaw();  // from storage, not memory
+  …
+}
+```
+
+**Where it lives.** `src/server/game-do/game-do.ts` (accept + message/close callbacks). `game-do/ws.ts` (hibernation entrypoints). `game-do/fetch.ts` (welcome + reconnect). `game-do/session.ts` (disconnect grace).
+
+**Why this shape.**
+
+- **Cost.** Hibernation lets a DO idle without tearing down its sockets. Alarm-driven wake-ups stay cheap.
+- **Tags replace an in-memory socket map.** `getWebSockets(['player:0'])` looks up by tag — no parallel `Map<playerId, WebSocket>` to keep in sync.
+- **`WeakMap<WebSocket, …>` survives wake cycles.** Cloudflare preserves WebSocket objects across hibernation, so per-socket rate limits and replaced-socket sets stay valid within a wake.
+
+**Rough edges.**
+
+- Every action pays a projection cost — `getProjectedCurrentStateRaw` rebuilds from checkpoint + tail on each wake. Checkpoints amortize, but a cached read model would be cheaper still.
+- `WeakMap` state is lost on full DO eviction. That's fine for 1-second rate-limit windows; it would be a problem for anything needing longer memory.
+
+---
+
+## Single-Alarm Multi-Deadline Scheduling
+
+**Pattern.** One alarm per DO, rescheduled after each state change. Three independent deadlines (disconnect grace 30 s, turn timeout 2 min, inactivity 5 min) are tracked in storage; `getNextAlarmAt()` computes the nearest; a discriminated action type tells the handler what fired.
+
+**Where it lives.** `src/server/game-do/alarm.ts` (`resolveAlarmAction` returns `disconnectExpired` | `turnTimeout` | `inactivityTimeout`). Constants in `session.ts::DISCONNECT_GRACE_MS = 30_000`. `inactivityAt` cache flushed to storage at most once per 60 s to avoid write amplification from frequent pings.
+
+**Why this shape.**
+
+- **Single alarm slot.** DOs have one alarm — storing three deadlines and taking the min is the only way to multiplex cleanly.
+- **Discriminated action type.** The handler dispatches with an exhaustive `switch`; there's no "guess which deadline fired" logic.
+- **Flush throttling.** Inactivity pings happen often; each one doesn't need a storage write. In-memory cache + 60 s flush keeps writes bounded.
+
+---
+
+## Cross-Pattern Flow
+
+A single C2S action threads these patterns in order:
+
+```
+1. acceptWebSocket (hibernation) + tag with player:N
+2. webSocketMessage wakes the DO
+3. applySocketRateLimit  (see Type System chapter)
+4. validateClientMessage  (see Type System chapter)
+5. runGameStateAction → engine call → engineEvents[]
+6. runPublicationPipeline:
+   - archive.append (chunked)
+   - checkpointIfNeeded (turn boundary)
+   - verifyProjectionParity (observability)
+   - archive-on-end (R2 + D1 match_archive)
+   - restartTurnTimer
+   - broadcastFilteredMessage → filterStateForPlayer per viewer
+```
+
+Every step has a single owner, a single reason to exist, and a single place to look when debugging.

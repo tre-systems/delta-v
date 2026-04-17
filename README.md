@@ -7,174 +7,127 @@
 
 [![Delta-V in-game screenshot — tactical map and HUD](./screenshot.png)](https://delta-v.tre.systems/)
 
-### [Play Now at delta-v.tre.systems](https://delta-v.tre.systems/)
-
-<a href='https://ko-fi.com/N4N31DPNUS' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+### [Play now at delta-v.tre.systems](https://delta-v.tre.systems/)
 
 **Delta-V** is an online turn-based multiplayer tactical space combat and racing game featuring realistic vector movement and orbital gravity mechanics across the inner Solar System.
 
-Command your fleet, master astrogation trajectories, sling-shot around celestial bodies, and engage in high-stakes combat where positioning and velocity are just as crucial as firepower.
-
-Check out our [**Lore & Visual Direction Guide**](./docs/LORE.md) for ship aesthetics and hard-sci-fi technology grounding.
-
-## 📚 Documentation Guide
-
-Use the docs by role so the same decision is not maintained in three places:
-
-- [**SPEC.md**](./docs/SPEC.md): gameplay rules, scenario behavior, protocol shapes, state concepts, and implementation status
-- [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md): implementation structure, data flow, Durable Object design, replay/recovery model, and the current client reactive/session architecture
-- [**COORDINATED_RELEASE_CHECKLIST.md**](./docs/COORDINATED_RELEASE_CHECKLIST.md): schema/protocol bump and deploy steps (single version line)
-- [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md): coding conventions, refactoring guidance, and shared implementation patterns
-- [**CONTRIBUTING.md**](./docs/CONTRIBUTING.md): contributor workflow, pre-commit behavior, verification commands, and local environment gotchas
-- [**MANUAL_TEST_PLAN.md**](./docs/MANUAL_TEST_PLAN.md): release/regression manual checks across gameplay, UX, and recovery flows
-- [**SIMULATION_TESTING.md**](./docs/SIMULATION_TESTING.md): headless AI simulation, websocket load/chaos testing, and the agent bridge
-- [**AGENTS.md**](./docs/AGENTS.md): practical agent quick start (MCP vs bridge, contracts, reliability checklist, tuning loop)
-- [**AGENT_SPEC.md**](./AGENT_SPEC.md): deep agent protocol/design reference and roadmap
-- [**DELTA_V_MCP.md**](./docs/DELTA_V_MCP.md): MCP tool reference and host configuration details
-- [**SECURITY.md**](./docs/SECURITY.md): competitive integrity, abuse/cost controls, deployment hardening, and retention/security posture
-- [**OBSERVABILITY.md**](./docs/OBSERVABILITY.md): runtime signals, D1 queries, and incident triage
-- [**A11Y.md**](./docs/A11Y.md): DOM accessibility audit checklist and manual process
-- [**PRIVACY_TECHNICAL.md**](./docs/PRIVACY_TECHNICAL.md): technical storage behavior only; not user-facing policy text
-- [**BACKLOG.md**](./docs/BACKLOG.md): remaining actionable work only, in one global priority order
-- [**REVIEW_PLAN.md**](./docs/REVIEW_PLAN.md): recurring cross-cutting review cadence; concrete follow-up work belongs in the backlog
-- [**LORE.md**](./docs/LORE.md): ship aesthetics, technology pillars, concept art, and colour direction
+Command your fleet, master astrogation trajectories, slingshot around celestial bodies, and engage in high-stakes combat where positioning and velocity matter as much as firepower.
 
 ## 🌟 Features
 
-### ☄️ Realistic Vector Physics Spaceflight
-
-- **Vector Movement Engine**: Your velocity persists between turns. Plan your burns carefully; there's no friction to stop you.
-- **Orbital Mechanics**: Planetary gravity deflects your course. Master "Weak" and "Full" gravity wells to execute slingshot maneuvers.
-- **Continuous Rendering vs Discrete Logic**: The visual rendering provides a smooth, continuous-space aesthetic, whilst all game logic acts on a strict, pure axial hex-coordinate system.
-
-### ⚔️ Deep Tactical Combat
-
-- **Odds-Based Combat**: Gun combat utilizes a classic odds-based dice resolution system, influenced by relative velocity and range modifiers.
-- **Ordnance Management**: Equip and deploy mines, torpedoes, and devastating nukes.
-- **Damage & Repairs**: Complex damage tracking (disabled turns vs. cumulative elimination). Find safe harbor at planetary bases for repairs and resupply.
-
-### 🎮 Multiple Game Modes
-
-- **9 Playable Scenarios**: _Bi-Planetary_, _Escape_, _Lunar Evacuation_, _Convoy_, _Duel_, _Blockade Runner_, _Fleet Action_, _Interplanetary War_, and _Grand Tour_.
-- **Local AI Opponent**: Test your skills offline against an AI component with configurable difficulty levels.
-- **Online Multiplayer**: WebSocket-based remote play with tokenized reconnects and spectator support.
-
----
+- **Vector physics spaceflight** — velocity persists between turns; burn fuel to alter course; gravity deflects you one turn later.
+- **Orbital mechanics** — planetary gravity wells enable slingshot maneuvers; "weak" gravity at moons is a player choice.
+- **Tactical combat** — odds-based dice resolution with range and relative-velocity modifiers; mines, torpedoes, and nukes with per-scenario availability.
+- **Nine scenarios** — _Bi-Planetary_, _Escape_, _Lunar Evacuation_, _Convoy_, _Duel_, _Blockade Runner_, _Fleet Action_, _Interplanetary War_, _Grand Tour_.
+- **Play modes** — local AI at three difficulties, online multiplayer via 5-character room codes, spectator mode, and a machine-native agent API ([`/agents`](https://delta-v.tre.systems/agents)).
+- **Continuous rendering, discrete logic** — HTML5 Canvas paints a smooth space view while the engine operates on a strict axial hex grid.
 
 ## 🛠️ Architecture
 
-Delta-V has three runtime layers:
-
 ```text
 src/
-├── shared/   # Side-effect-free game engine and shared types
-├── server/   # Cloudflare Worker + Durable Object authority
-├── client/   # Session orchestration, Canvas renderer, DOM UI
-└── scripts/  # Simulation, load, and agent tooling
+├── shared/   # Side-effect-free engine and shared types (no I/O)
+├── server/   # Cloudflare Worker + Durable Objects (authoritative rooms)
+└── client/   # Canvas renderer, DOM UI, reactive session state
+scripts/      # Simulation, load, agent, and MCP tooling
 ```
 
-The shared engine is side-effect-free. The server is authoritative and event-sourced. The client uses reactive session/UI state where it removes duplicate mirrors or imperative fan-out, while input, transport, and transient presentation events stay explicit.
+The shared engine is side-effect-free. The server is authoritative and event-sourced. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for module inventories, data flow, and the Durable Object model.
 
-For module inventory, diagrams, dependency maps, and the full client/server data flow, see [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md).
+## 📚 Documentation
 
-For project conventions and refactoring guidance, see [**CODING_STANDARDS.md**](./docs/CODING_STANDARDS.md).
+Each topic has one owner doc to keep decisions from drifting across files.
 
----
+| Doc | Purpose |
+| --- | --- |
+| [SPEC.md](./docs/SPEC.md) | Gameplay rules, scenarios, protocol shape, state model |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Module inventory, data flow, Durable Object design, replay/recovery |
+| [CODING_STANDARDS.md](./docs/CODING_STANDARDS.md) | Conventions, patterns, refactoring guidance |
+| [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Contributor workflow, pre-commit, verification |
+| [SECURITY.md](./docs/SECURITY.md) | Integrity, abuse controls, rate limits, data retention |
+| [OBSERVABILITY.md](./docs/OBSERVABILITY.md) | Telemetry events, D1 queries, incident triage |
+| [A11Y.md](./docs/A11Y.md) | DOM accessibility audit checklist |
+| [PRIVACY_TECHNICAL.md](./docs/PRIVACY_TECHNICAL.md) | What the stack stores (technical, not legal) |
+| [MANUAL_TEST_PLAN.md](./docs/MANUAL_TEST_PLAN.md) | Release / regression manual checks |
+| [SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) | Headless AI simulation and websocket load harness |
+| [REVIEW_PLAN.md](./docs/REVIEW_PLAN.md) | Recurring cross-cutting review checklist |
+| [COORDINATED_RELEASE_CHECKLIST.md](./docs/COORDINATED_RELEASE_CHECKLIST.md) | Protocol/schema version bump steps |
+| [BACKLOG.md](./docs/BACKLOG.md) | Remaining actionable work, one priority order |
+| [LORE.md](./docs/LORE.md) | Ship aesthetics and visual direction |
+| [AGENTS.md](./docs/AGENTS.md) | Practical guide for building Delta-V agents |
+| [DELTA_V_MCP.md](./docs/DELTA_V_MCP.md) | MCP tool reference and host configuration |
+| [AGENT_SPEC.md](./AGENT_SPEC.md) | Deep agent protocol and design reference |
+| [patterns/](./patterns/README.md) | Design patterns walk-through: *why* the code looks the way it does |
 
 ## 🚀 Quick Start
 
-Get your thrusters firing locally in seconds:
-
-1. **Use the Project Node Version**
+1. **Use the project Node version** — `.nvmrc` pins **25** (matched by [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
 
    ```bash
    nvm use
    ```
 
-   Uses [`.nvmrc`](./.nvmrc) (**25**); CI matches `.github/workflows/ci.yml`.
-
-2. **Install Dependencies**
+2. **Install dependencies.**
 
    ```bash
    npm install
    ```
 
-3. **Install Playwright's Chromium Browser**
+3. **Install Playwright's Chromium** (pre-commit and CI use it for browser smoke tests).
 
    ```bash
    npx playwright install chromium
    ```
 
-   _Required for the browser smoke tests that now run in pre-commit and CI._
-
-4. **Start the Local Development Server**
+4. **Run the dev server.**
 
    ```bash
    npm run dev
    ```
 
-   _This starts the Wrangler server._
-
-5. **Play the Game**
-   - Open your browser to `http://localhost:8787`
-   - Open a **second tab** or window to the same URL.
-   - Create a game in tab 1, then join from tab 2 using the copied room link or the 5-character room code.
+5. **Play.** Open <http://localhost:8787>, create a game in tab 1, copy the room link or 5-character code, and join from tab 2.
 
 ### CLI Commands
 
-| Command                                              | Description                                                                                  |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `npm run dev`                                        | Start local development server (Wrangler/esbuild)                                            |
-| `npm run build`                                      | Build the client bundle                                                                      |
-| `npm run lint`                                       | Run Biome lint + format check on `src/`, `scripts/`, `e2e/`, and config files                |
-| `npm run typecheck`                                  | Typecheck application code (`src/` via `tsconfig.json`)                                      |
-| `npm run typecheck:all`                              | Typecheck app + tooling (`scripts/`, `e2e/`, root TS configs via `tsconfig.tools.json`)      |
-| `npm test`                                           | Run all unit tests via Vitest                                                                |
-| `npm run test:coverage`                              | Run tests with a coverage report under `coverage/`                                           |
-| `npm run test:e2e`                                   | Run Playwright browser smoke tests against a local Wrangler server                           |
-| `npm run test:e2e:headed`                            | Run the same Playwright suite with a visible browser                                         |
-| `npm run test:watch`                                 | Run Vitest in continuous watch mode                                                          |
-| `npm run verify`                                     | Pre-release sweep: lint, `typecheck:all`, coverage, build, e2e smoke, a11y e2e, and AI simulations |
-| `npm run simulate -- [scenario] [iterations] [--ci]` | Run headless AI vs AI matches to test engine stability and scenario balance                  |
-| `npm run load:test -- --games 20 --concurrency 5`    | Run the websocket load / chaos harness against a Wrangler or deployed server                 |
-| `npm run deploy`                                     | Deploy straight to Cloudflare Workers                                                        |
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start local development (Wrangler + esbuild) |
+| `npm run build` | Build the client bundle |
+| `npm run lint` | Biome lint + format check |
+| `npm run typecheck` | Typecheck `src/` |
+| `npm run typecheck:all` | Typecheck app + tooling (`scripts/`, `e2e/`, configs) |
+| `npm test` | Run all unit tests via Vitest |
+| `npm run test:coverage` | Run tests with coverage (enforced thresholds on `src/shared/`) |
+| `npm run test:e2e` | Playwright browser smoke against a local Wrangler server |
+| `npm run test:e2e:a11y` | Playwright + axe accessibility baseline |
+| `npm run test:e2e:headed` | Same smoke suite with a visible browser |
+| `npm run test:watch` | Vitest in watch mode |
+| `npm run verify` | Pre-release sweep (lint, typecheck, coverage, build, e2e, a11y, simulation) |
+| `npm run simulate -- [scenario] [iterations] [--ci]` | Headless AI-vs-AI matches |
+| `npm run load:test -- --games 20 --concurrency 5` | Websocket load / chaos harness |
+| `npm run deploy` | Deploy to Cloudflare Workers |
 
-Pass simulation arguments after npm's `--`, for example `npm run simulate -- all 25 -- --ci`.
+Pass simulation arguments after the npm `--`, e.g. `npm run simulate -- all 25 --ci`.
 
 ### Test Strategy
 
-Delta-V uses three complementary automated test layers:
+Three complementary layers keep the regression net cheap to run:
 
-- **Vitest** is the main regression net. Keep engine, protocol, client helper, and server logic covered with direct unit / property tests close to the source.
-- **AI simulation** (`npm run simulate`) covers scenario-wide engine stability and balance much more cheaply than browser automation.
-- **Playwright** stays intentionally small and fast. It is a **browser smoke suite**, not a full scenario matrix. Use it for a few end-to-end contracts that only a real browser can prove, such as booting the app, starting a match, basic multiplayer join/chat/reconnect, and other thin UI integration checks.
-- **Playwright + axe** (`npm run test:e2e:a11y`) provides a focused DOM accessibility baseline for menu/lobby/HUD/help and keyboard focus behavior.
+- **Vitest** — engine, protocol, client-helper, and server-logic unit / property tests. This is the main regression net.
+- **Headless AI simulation** (`npm run simulate`) — scenario-wide engine stability and balance sweeps; much cheaper than the browser.
+- **Playwright** — an intentionally thin browser smoke suite for boot, core multiplayer, and a11y baselines (`test:e2e` and `test:e2e:a11y`).
 
-When deciding where a new test belongs:
+When deciding where a new test belongs: rules/combat/protocol assertions → Vitest; broad scenario behavior across many turns → simulation; anything that requires a real browser, multiple pages, storage, or websocket wiring → Playwright. See [SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) for simulation detail and [CONTRIBUTING.md](./docs/CONTRIBUTING.md) for verification flow.
 
-- If the assertion is about rules, combat, movement, scenario logic, or protocol validation, prefer Vitest.
-- If the assertion is about broad scenario behavior over many turns, prefer headless simulation.
-- If the assertion requires a real browser, multiple pages, storage, layout, or websocket wiring, consider Playwright.
+## 📜 Game Rules
 
-Keep Playwright additions focused on browser-only risks so the suite remains fast and easy to maintain.
-
----
-
-## 📜 Game Rules Reference
-
-For the comprehensive ruleset detailing movement edge cases, damage tables, and specific scenario rules, refer to [SPEC.md](./docs/SPEC.md).
-
-Open engineering work lives in [**BACKLOG.md**](./docs/BACKLOG.md).
+The canonical ruleset — movement edge cases, damage tables, scenario-specific rules — lives in [SPEC.md](./docs/SPEC.md). Open engineering work lives in [BACKLOG.md](./docs/BACKLOG.md).
 
 ## 🔗 External References
 
-- [Cloudflare Workers](https://developers.cloudflare.com/workers/) and [Durable Objects](https://developers.cloudflare.com/durable-objects/)
-- [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) and [MDN Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
-- [web.dev Learn PWA](https://web.dev/learn/pwa/)
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/) · [Durable Objects](https://developers.cloudflare.com/durable-objects/) · [WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)
+- [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) · [MDN Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
 - [TypeScript Handbook: Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
-
-
----
 
 ## 📄 License
 
