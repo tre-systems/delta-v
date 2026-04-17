@@ -1,104 +1,262 @@
-# Scenarios & Config
+# Scenarios & Config Patterns
 
-Patterns for AI configuration, preset registries, scenario definition, feature flags, and map generation. The architecture doc covers the high-level scenario-driven design and `ScenarioRules` overview; this document captures implementation specifics, config shapes, and type safety gaps.
+How Delta-V varies behavior across scenarios and difficulty levels without branching engine code. [SPEC.md](../docs/SPEC.md) describes the nine shipped scenarios; this chapter walks through the config patterns that drive their differences.
 
-## Strategy Config Scoring (11)
+Each section: the pattern, a minimal example, where it lives, and why this shape. Rough edges at the end of each section.
 
-Key files: `src/shared/ai/config.ts`, `src/shared/ai/scoring.ts`, `src/shared/ai/astrogation.ts`, `src/shared/ai/combat.ts`, `src/shared/ai/ordnance.ts`, `src/shared/ai/logistics.ts`
+---
 
-`AIDifficultyConfig` has ~70+ numeric fields. All scoring functions take `cfg: AIDifficultyConfig` as a parameter (pure, no globals). The `scoreCourse` combiner sums independent strategy scores linearly.
+## AI Config as Weights, Not Code
 
-Key difficulty differences:
+**Pattern.** The AI doesn't have `if (difficulty === 'hard')` branches. Instead, a flat record of ~60 numeric weights and boolean flags drives pure scoring functions. Difficulty presets and per-scenario overrides adjust the weights; the logic stays identical.
 
-| Parameter | Easy | Normal | Hard |
-|-----------|------|--------|------|
-| `multiplier` | 0.7 | 1.0 | 1.5 |
-| `ordnanceSkipChance` | 0.3 | 0 | 0 |
-| `singleAttackOnly` | true | false | false |
-| `minRollThreshold` | 3 | 1 | 0 |
-| `torpedoRange` | 8 | 8 | 12 |
-| `mineRange` | 4 | 4 | 6 |
+**Minimal example.**
 
-Most parameters (navigation weights, combat positioning, fuel seeking) are identical across all three difficulties.
+```ts
+// Config type — data, not class hierarchies:
+interface AIDifficultyConfig {
+  multiplier: number;                  // global scaling
+  escapeDistWeight: number;
+  combatClosingWeight: number;
+  combatCloseBonus: number;
+  singleAttackOnly: boolean;
+  …60ish more fields
+}
 
-Hardcoded behavior that should be in config:
-- Map boundary avoidance weights (`severity * severity * 25`, `edgeDist < 5/8`)
-- Easy-mode random burn override probability (`rng() < 0.25`)
-- Passenger escort emergency weights (`* 5`, `* 180`, `* 10`)
-- Hard-mode target distribution gated by `difficulty === 'hard'` string comparison instead of a config flag like `distributeInterceptTargets`
+// Scoring — pure, takes config:
+const score = scoreCourse(ship, course, map, cfg);
+//  = scoreNavigation(…, cfg)
+//  + scoreEscape(…, cfg)
+//  + scoreRaceDanger(…, cfg)
+//  + scoreGravityLookAhead(…, cfg)
+//  + scoreCombatPositioning(…, cfg)
 
-No runtime config tuning mechanism -- all configs are compile-time constants.
+// Orchestration — evaluate all 7 burn options, pick highest score:
+const candidates = enumerateBurnOptions(ship);
+const best = maxBy(candidates, (c) => scoreCourse(ship, c, map, cfg));
+```
 
-## Multiton Preset Registries (22)
+**Where it lives.** Config types and presets: `src/shared/ai/config.ts`. Scoring functions: `src/shared/ai/scoring.ts`. Orchestration: `src/shared/ai/index.ts`. Per-phase decisions: `src/shared/ai/{astrogation,combat,ordnance,logistics}.ts`.
 
-Key files: `src/shared/scenario-definitions.ts`, `src/shared/ai/config.ts`, `src/shared/ai/types.ts`, `src/shared/map-layout.ts`
+**Why this shape.**
 
-Three registries with different type safety levels:
+- **New scoring dimensions = new function + new config key.** No existing code changes. This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data.
+- **Difficulty tuning is pure data.** Adjusting `hard` weights doesn't touch any function — just change the record.
+- **Testable in isolation.** Each score function is pure; invariants like "more hard than normal makes the AI close faster" are easy property tests.
 
-| Registry | Key Type | Exhaustiveness | Lookup Safety |
-|----------|----------|----------------|---------------|
-| `AI_CONFIG` | `Record<AIDifficulty, ...>` (closed union) | Compiler-enforced | Always returns value |
-| `SCENARIOS` | `Record<string, ...>` (open) | Not enforced | May return `undefined` |
-| `BODY_DEFS` | Array index | N/A | N/A |
+**Rough edges.**
 
-`SCENARIOS` lookup sites defensively fallback: `SCENARIOS[scenario] ?? SCENARIOS.biplanetary`. A `ScenarioKey` union type would eliminate magic strings and fallbacks.
+- A few behaviors still live in code instead of config: edge-of-map avoidance weights (`severity * severity * 25`), easy-mode 25 % random burn override, hard-only target distribution gated by string comparison. These should be promoted to config flags (`distributeInterceptTargets: boolean`, `randomBurnProbability: number`).
+- `normal` and `easy` share most values; `hard` differs in a handful. A spread-based preset (`hard: { ...normal, multiplier: 1.5, torpedoRange: 12 }`) would make actual differences visible and reduce maintenance.
+- No runtime tuning — configs are compile-time constants. If live A/B testing becomes desirable, `resolveAIConfig` is the natural injection point.
 
-Magic string proliferation: scenario keys appear as string literals in tests, session model defaults, UI routing, and telemetry. Renaming a scenario would silently break all these sites. Same issue for scenario tags (`'Beginner'`, `'Asymmetric'`, `'Combat'`, etc.) and body names (`'Mars'`, `'Venus'`, `'Terra'`).
+---
 
-AI difficulty type is well-contained in shared modules but the client UI layer weakens it: `src/client/ui/events.ts` redefines `AIDifficulty`, and `src/client/game/ui-event-router.ts` uses inline `'easy' | 'normal' | 'hard'` instead of importing the shared alias.
+## Scenario-Scoped AI Overrides
 
-AI config duplication: `normal` and `easy` share most values, `hard` differs in only a handful of fields. A spread-based approach (`hard: { ...normal, multiplier: 1.5, torpedoRange: 12 }`) would make actual differences visible and reduce maintenance.
+**Pattern.** `ScenarioRules.aiConfigOverrides` is a partial `AIDifficultyConfig`. At every AI call site, `resolveAIConfig(difficulty, overrides)` merges the scenario override over the difficulty preset. Un-listed knobs fall through unchanged.
 
-## Scenario Rules as Feature Flags (61)
+**Minimal example.**
 
-Key files: `src/shared/types/domain.ts` (`ScenarioRules`), `src/shared/types/scenario.ts`, `src/shared/scenario-definitions.ts`
+```ts
+// Duel's ScenarioRules:
+aiConfigOverrides: {
+  combatClosingWeight: 1,     // default is 3
+  combatCloseBonus: 10,       // default is 40
+}
 
-13 optional flags on `ScenarioRules`, all with implicit falsy defaults. Adding a new flag does not require updating existing scenarios. Engine code reads from `state.scenarioRules` (never checks scenario name). Client UI reads the same flags for button visibility and option rendering.
+// Every AI call site:
+const cfg = resolveAIConfig(difficulty, state.scenarioRules?.aiConfigOverrides);
+aiAstrogation(state, playerId, map, cfg);
+```
 
-Current flag set: `allowedOrdnanceTypes`, `availableFleetPurchases`, `planetaryDefenseEnabled`, `hiddenIdentityInspection`, `escapeEdge` (`'any' | 'north'`), `combatDisabled`, `checkpointBodies`, `sharedBases`, `logisticsEnabled`, `passengerRescueEnabled`, `targetWinRequiresPassengers`, `reinforcements`, `fleetConversion`.
+**Where it lives.** Helper in `src/shared/ai/config.ts::resolveAIConfig`. Field definition on `ScenarioRules` in `src/shared/types/domain.ts`. Scenarios opt in via `src/shared/scenario-definitions.ts`. All four AI call sites (`aiAstrogation`, `aiOrdnance`, `aiCombat`, passenger-escort lookahead) thread it through.
 
-Gaps:
-- No schema validation at game creation time for flag consistency (e.g., `targetWinRequiresPassengers` without a `targetBody` set)
-- No conflicting-flag detection
-- Growing flag count (13) -- if it expands further, grouping into sub-objects (`combatRules`, `logisticsRules`) would help organization
+**Why this shape.**
 
-## Config-Driven Scenarios (62)
+- **No special cases.** `if (scenario === 'duel')` never appears in AI code. The data decides.
+- **Opt-in at the scenario.** Scenarios that don't set overrides behave exactly as before.
+- **Measurable.** The duel pacing fix (2026-04-17) went through an empirical sweep harness — the mechanism was designed to support that loop.
 
-Key files: `src/shared/scenario-definitions.ts`, `src/shared/types/scenario.ts`, `src/shared/map-layout.ts`
+---
 
-9 scenarios defined as declarative `ScenarioDefinition` objects: `biplanetary`, `escape`, `evacuation`, `convoy`, `duel`, `blockade`, `interplanetaryWar`, `fleetAction`, `grandTour`. None contain procedural logic.
+## Preset Registries with Closed-Union Keys
 
-Ship positions use body-relative helpers: `getBodyOffset(bodyName, dq, dr)` computes absolute hex coordinates from a body's centre, `getControlledBaseHexes(...bodyNames)` returns base hexes. This means if a body moves, all scenario ships move with it.
+**Pattern.** Fixed-cardinality config sets are indexed by closed-union string types so TypeScript can enforce exhaustiveness. Lookup always returns a value — no `?? fallback`.
 
-`createGame()` snapshots the scenario definition into `GameState` at creation time -- the engine never references the original definition after that. This protects in-progress games from scenario definition changes.
+**Minimal example.**
 
-Minor inconsistency: some scenarios set `startLanded: false` explicitly while others omit it (defaults to `false`).
+```ts
+// Closed union:
+type AIDifficulty = 'easy' | 'normal' | 'hard';
 
-Gaps:
-- No compile-time or runtime validation that scenario definitions are self-consistent (e.g., `targetBody` exists on the map, ship positions are in valid hexes)
-- No scenario versioning for in-progress games (mitigated by snapshotting into `GameState`)
-- All scenarios use the same map -- no per-scenario map support
+// Record keyed by the union:
+const AI_CONFIG: Record<AIDifficulty, AIDifficultyConfig> = {
+  easy:   { multiplier: 0.7, … },
+  normal: { multiplier: 1.0, … },
+  hard:   { multiplier: 1.5, … },
+};
 
-## Data-Driven Maps (63)
+// Lookup is always safe:
+const cfg = AI_CONFIG[difficulty];   // AIDifficultyConfig, never undefined
+```
 
-Key files: `src/shared/map-layout.ts`, `src/shared/map-data.ts`
+**Where it lives.** `AI_CONFIG` in `src/shared/ai/config.ts`. Pattern used anywhere a fixed enum maps to a value — e.g. `CLIENT_STATE_ENTRY_RULES` in the client.
 
-11 bodies in `BODY_DEFS`: Sol, Mercury, Venus, Terra, Luna, Mars, Ceres, Jupiter, Io, Callisto, Ganymede. Each `BodyDefinition` specifies `center`, `surfaceRadius`, `gravityRings`, `gravityStrength` (`'full' | 'weak'`), `destructive`, `baseDirections`, `color`, `renderRadius`.
+**Why this shape.**
 
-`buildSolarSystemMap()` generates from definitions:
-- Surface hexes (`planetSurface`/`sunSurface`)
-- Gravity rings with direction vectors pointing toward body centre
-- Orbital bases at positions derived from `baseDirections`
-- Asteroid belt hexes from explicit coordinate arrays (not generated from formula -- irregular shapes)
+- **Compile-time exhaustiveness.** Adding a new `AIDifficulty` value fails to compile until `AI_CONFIG` has an entry.
+- **No runtime fallbacks.** `AI_CONFIG[difficulty] ?? AI_CONFIG.normal` is a smell — the union should guarantee the key exists.
 
-`BODY_DEF_BY_NAME` lookup map derived from the array at module load time.
+**Rough edges — open-keyed registries lose this guarantee.**
 
-Gaps:
-- Single map only -- architecture supports per-scenario maps in theory (map is a parameter to engine functions) but no infrastructure exists
-- No programmatic map validation for overlapping bodies, gravity conflicts, or unreachable bases
-- Map bounds are hardcoded constants rather than computed from body positions
-- Asteroid belt and Clandestine Base use hardcoded coordinates, breaking the declarative pattern
+`SCENARIOS` is typed `Record<string, ScenarioDefinition>` (open). Lookup sites defensively fallback: `SCENARIOS[scenario] ?? SCENARIOS.biplanetary`. A `ScenarioKey` union type would eliminate the fallback and catch scenario renames at compile time. Same issue for scenario tags (`'Beginner'`, `'Asymmetric'`), body names (`'Mars'`, `'Venus'`), and ship type strings.
 
-## Cross-Pattern Type Safety Summary
+---
 
-The biggest consistency gap across these patterns is untyped string keys. A unified effort to introduce union types for scenario keys, body names, scenario tags, and ship types would prevent silent breakage from renames and typos. The `AI_CONFIG` registry demonstrates the target pattern: closed union key + `Record` = compiler-enforced exhaustiveness with no fallback lookups needed.
+## Scenario Rules as Feature Flags
+
+**Pattern.** Scenario-specific behavior is a flat bag of optional flags on `ScenarioRules`. Defaults are permissive — omitting a field means the feature is available. Engine code checks flags at decision points; client UI derives button visibility from the same flags.
+
+**Minimal example.**
+
+```ts
+interface ScenarioRules {
+  allowedOrdnanceTypes?: Ordnance['type'][];   // default: all
+  availableFleetPurchases?: string[];          // default: all
+  planetaryDefenseEnabled?: boolean;           // default: true
+  combatDisabled?: boolean;                    // default: false
+  logisticsEnabled?: boolean;                  // default: false
+  hiddenIdentityInspection?: boolean;
+  escapeEdge?: 'any' | 'north';
+  checkpointBodies?: string[];
+  sharedBases?: string[];
+  passengerRescueEnabled?: boolean;
+  targetWinRequiresPassengers?: boolean;
+  reinforcements?: Reinforcement[];
+  fleetConversion?: FleetConversion;
+  aiConfigOverrides?: Partial<AIDifficultyConfig>;
+}
+
+// Engine check at decision point:
+if (state.scenarioRules.combatDisabled) {
+  state.phase = 'logistics';
+  return { state, engineEvents };
+}
+```
+
+**Where it lives.** Type in `src/shared/types/domain.ts`. Scenario-level settings in `src/shared/scenario-definitions.ts`. Derived capability layer in `src/shared/scenario-capabilities.ts::deriveCapabilities`.
+
+**Why this shape.**
+
+- **New scenarios don't need engine changes.** Grand Tour disabled combat, Convoy enables logistics — each just sets a flag.
+- **Permissive defaults keep simple scenarios minimal.** Bi-Planetary's rules object is short because it doesn't opt out of anything.
+- **Client derivation stays consistent.** The ordnance HUD and ordnance-phase auto-selection read from the same helpers the engine uses — restricted scenarios don't drift between UI and server.
+
+**Rough edges.**
+
+- Flag count (14) is growing. Nothing wrong yet, but grouping (`combatRules: { disabled, closingWeight }`, `logisticsRules: { enabled, passengers, targetRequiresPassengers }`) would scale better past ~20.
+- No schema validation at game creation: a scenario with `targetWinRequiresPassengers: true` but no `targetBody` will silently never win. Conflicting-flag detection would be a small addition.
+
+---
+
+## Declarative Scenario Definitions
+
+**Pattern.** Each scenario is a declarative object — ships, positions, rules, budget — with zero procedural logic. Positions use body-relative helpers so a body's coordinates can change without touching scenario definitions.
+
+**Minimal example.**
+
+```ts
+export const SCENARIOS: Record<string, ScenarioDefinition> = {
+  duel: {
+    name: 'Duel',
+    description: 'Two frigates near Mercury. Last ship standing wins.',
+    players: [
+      {
+        ships: [{ type: 'frigate', position: getBodyOffset('Mercury', 2, 0), velocity: ZERO }],
+        targetBody: '', homeBody: 'Mercury', escapeWins: false,
+      },
+      {
+        ships: [{ type: 'frigate', position: getBodyOffset('Mercury', -2, 0), velocity: ZERO }],
+        targetBody: '', homeBody: 'Mercury', escapeWins: false,
+      },
+    ],
+    rules: {
+      aiConfigOverrides: { combatClosingWeight: 1, combatCloseBonus: 10 },
+    },
+  },
+  …
+};
+
+// createGame snapshots the definition into GameState:
+const state = createGame(SCENARIOS[scenario], map, rng);
+```
+
+**Where it lives.** Definitions: `src/shared/scenario-definitions.ts`. Helpers: `getBodyOffset(bodyName, dq, dr)`, `getControlledBaseHexes(...bodyNames)` in `src/shared/map-layout.ts`.
+
+**Why this shape.**
+
+- **No conditionals at scenario start.** `createGame` is a simple "read the spec, build initial state" function.
+- **Bodies can move.** A scenario that says "frigate 2 hexes east of Mercury" still works if Mercury's center hex shifts.
+- **Snapshot into state.** Once `createGame` runs, `GameState` owns its ships — scenario definition edits don't affect in-progress games.
+
+**Rough edges.**
+
+- No validation that scenario definitions are self-consistent (`targetBody` exists on the map, ship positions are valid hexes).
+- No scenario versioning for in-progress games. Mitigated by snapshot-into-state.
+- All scenarios share one map. The engine already takes `map` as a parameter, so per-scenario maps would be mechanical — no infrastructure exists yet.
+
+---
+
+## Data-Driven Solar System Map
+
+**Pattern.** The map is generated from 11 body definitions (`Sol`, `Mercury`, `Venus`, `Terra`, `Luna`, `Mars`, `Ceres`, `Jupiter`, `Io`, `Callisto`, `Ganymede`) plus asteroid-belt arrays. No hand-drawn hex tables.
+
+**Minimal example.**
+
+```ts
+// A body is a declarative spec:
+const MARS: BodyDefinition = {
+  name: 'Mars',
+  center: { q: 10, r: -3 },
+  surfaceRadius: 1,
+  gravityRings: 1,
+  gravityStrength: 'full',
+  destructive: false,
+  baseDirections: [0, 1, 2, 3, 4, 5],   // all 6 sides have bases
+  color: '#c1440e',
+  renderRadius: 18,
+};
+
+// buildSolarSystemMap generates from these:
+// - surface hexes (typed planetSurface or sunSurface)
+// - gravity rings (direction vectors point toward body center)
+// - orbital bases (placed per baseDirections)
+// - asteroid belt hexes (from explicit coord arrays — irregular shapes don't formulate)
+```
+
+**Where it lives.** `src/shared/map-data.ts` (bodies, asteroid belt, map builder). `src/shared/map-layout.ts` (body offset helpers, controlled-base helpers).
+
+**Why this shape.**
+
+- **Editable without code changes.** Adjusting Mars's gravity strength is a one-field edit; engine never cares.
+- **One source of truth.** Body-relative helpers work off the same definitions, so if a body moves, scenarios and renderer follow.
+- **`BODY_DEF_BY_NAME` lookup** is built at module load from the array — readers, renderers, and the AI all query the same object.
+
+**Rough edges.**
+
+- Asteroid belt and clandestine base use hardcoded coordinate arrays — irregular shapes don't formulate cleanly, but it breaks the declarative pattern.
+- Map bounds are hardcoded constants rather than computed from body positions.
+- No programmatic map validation (overlapping bodies, gravity conflicts, unreachable bases).
+
+---
+
+## Cross-Pattern Theme: Untyped String Keys
+
+The type-safety gap that cuts across these patterns is **untyped string keys**. `AI_CONFIG` shows the target: closed union key + `Record` = compiler-enforced exhaustiveness with no runtime fallback. A parallel rollout would:
+
+- Introduce a `ScenarioKey = 'biplanetary' | 'escape' | …` union type.
+- Introduce a `BodyName = 'Sol' | 'Mercury' | …` union type.
+- Brand ship IDs, ordnance IDs, and game IDs (see the Type System chapter).
+
+Each step would replace a defensive fallback with a compile error, catching renames and typos automatically.

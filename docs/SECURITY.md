@@ -73,48 +73,30 @@ Current status: **acceptable for friendly matches, weak for public matchmaking**
 
 ### 3. Rate limiting architecture
 
-The worker enforces a two-tier rate limit on `POST /create`, plus per-isolate in-memory limits for WebSocket upgrades and reporting endpoints:
+This is the canonical rate-limit table for the project. Other docs should link here rather than restate values.
 
-**Tier 1 — Cloudflare edge binding (production):**
-The checked-in production `wrangler.toml` binds
-`CREATE_RATE_LIMITER` via Cloudflare's first-class
-`[[ratelimits]]` config. This enforces limits across all
-edge locations, not just within a single isolate.
+| Endpoint / scope | Limit | Window | Scope | Binding | On exceed |
+| --- | --- | --- | --- | --- | --- |
+| `POST /create` (production) | 5 | 60 s | per hashed IP | Cloudflare `CREATE_RATE_LIMITER` (global) | 429 + `Retry-After` |
+| `POST /create` (fallback) | 5 | 60 s | per hashed IP | in-memory (per isolate) | 429 + `Retry-After` |
+| `POST /api/agent-token` | 5 | 60 s | per hashed IP | reuses `CREATE_RATE_LIMITER` | 429 |
+| `POST /quick-match` | 5 | 60 s | per hashed IP | reuses `CREATE_RATE_LIMITER` | 429 |
+| `GET /ws/:code` (upgrade) | 20 | 60 s | per hashed IP | in-memory (per isolate) | 429 |
+| `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches` | 100 | 60 s | per hashed IP | in-memory (per isolate) | 429 |
+| `GET /replay/:code` | 250 | 60 s | per hashed IP | in-memory (per isolate, separate bucket) | 429 |
+| `POST /telemetry` | 120 | 60 s | per hashed IP | in-memory (per isolate); body capped at 4 KB | 429 |
+| `POST /error` | 40 | 60 s | per hashed IP | in-memory (per isolate); body capped at 4 KB | 429 |
+| WebSocket messages (after connect) | 10 | 1 s | per socket | in-memory (`WeakMap<WebSocket, RateWindow>`) | close 1008 |
+| Chat messages | 1 per 500 ms | — | per player ID | in-memory | silently dropped |
+| Room-code guessing | 32⁵ ≈ 33.6 M combinations | — | — | cryptographic RNG | collision-checked at `/create` |
 
-```toml
-[[ratelimits]]
-name = "CREATE_RATE_LIMITER"
-namespace_id = "1001"
-simple = { limit = 5, period = 60 }
-```
+Constants live in [`src/server/reporting.ts`](../src/server/reporting.ts) (per-IP Worker layer) and [`src/server/game-do/socket.ts`](../src/server/game-do/socket.ts) (per-socket DO layer).
 
-**Tier 1.5 — Match archive storage (production):**
-The checked-in production config also binds
-`MATCH_ARCHIVE` to the `delta-v-match-archive` R2 bucket
-so completed rooms can persist replay/support data after
-the Durable Object goes inactive.
+**Tier topology.**
 
-```toml
-[[r2_buckets]]
-binding = "MATCH_ARCHIVE"
-bucket_name = "delta-v-match-archive"
-```
-
-**Tier 2 — In-memory fallback (development / missing binding):**
-When no binding is configured, the worker uses a per-isolate in-memory map (5 creates per hashed IP per 60s window, stale entries evicted when map exceeds 1000 entries). This protects a single isolate but does not enforce globally across Cloudflare's edge.
-
-**What's enforced vs. what's not:**
-
-| Control                                 | In-memory fallback                                                                  | Edge binding                                               |
-| --------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Per-IP create throttle                  | per-isolate only                                                                    | global                                                     |
-| WebSocket **connection** / join storm   | **20** upgrades per hashed IP per 60s (per isolate)                                | same app limit; no extra global edge binding by default    |
-| WebSocket **messages** (after connect)  | 10 msg/s per socket (DO)                                                            | same                                                       |
-| `POST /telemetry` and `POST /error`     | **120** / **40** posts per hashed IP per 60s (per isolate); body capped at 4KB JSON | add **WAF** or `[[ratelimits]]` for global / stricter caps |
-| Bot challenge (Turnstile)               | not present                                                                         | configurable via CF dashboard                              |
-| `GET /join/:code` (+ quick-match ticket GET + `GET /api/matches`) | **100** GETs per hashed IP per 60s (per isolate)          | optional WAF for global / stricter caps                    |
-| `GET /replay/:code`                                               | **250** GETs per hashed IP per 60s (per isolate)           | optional WAF for global / stricter caps                    |
-| Room-code guessing                      | 5-char codes, ~33.6M space, only per-isolate join/replay probe throttling by default | same unless extra global controls are configured           |
+- **Edge binding** (`CREATE_RATE_LIMITER`, declared in [`wrangler.toml`](../wrangler.toml)) applies globally across Cloudflare's edge. Production has it; lower environments fall back to per-isolate in-memory limits.
+- **In-memory per-isolate** covers WebSocket upgrades, join/replay probes, and reporting endpoints by default. A distributed attacker spraying many edges could bypass this — optional WAF or additional `[[ratelimits]]` namespaces close that gap if observed.
+- **Per-socket DO layer** (the last two rows) is enforced after upgrade and does not scale with IPs.
 
 **Deployment recommendation:**
 Treat the checked-in `wrangler.toml` as the production

@@ -1,223 +1,269 @@
 # Client Patterns
 
-Supplement to `docs/CODING_STANDARDS.md`. That document covers naming conventions, function prefixes, `el()`/`listen()`/`visible()`/`text()`/`cls()` helper APIs, `setTrustedHTML`/`clearHTML` boundary rules, string-key serialization (`hexKey`/`parseHexKey`), derive/plan pattern, factory conventions, `Pick<T,K>` narrowing, and discriminated union style. This file documents gap analyses, consistency findings, known weaknesses, and implementation details not covered there.
+How the framework-free browser client stays coherent. [CODING_STANDARDS.md](../docs/CODING_STANDARDS.md) covers naming conventions (`derive*`, `build*`, `apply*`, `create*`), function prefix tables, factory patterns, and the `el()` / `listen()` / `visible()` / `text()` / `cls()` helper APIs — this chapter walks through the patterns that tie input, state, rendering, and DOM together.
 
-Source pattern files: 08, 09, 10, 13, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 64, 65.
-
----
-
-## Input & Commands
-
-### Command Pattern
-Key files: `game/commands.ts`, `game/command-router.ts`, `game/keyboard.ts`, `game/input-events.ts`, `game/main-interactions.ts`, `input.ts`
-
-**Flow**: DOM event -> `InputEvent`/`KeyboardAction` -> `GameCommand` -> `dispatchGameCommand` -> domain handler. No game logic reads raw DOM events directly.
-
-**Exhaustiveness**: The handler map uses `satisfies CommandHandlerMap` to guarantee compile-time coverage of every `GameCommand` type. Handler groups are split by domain (astrogation, combat, ordnance, logistics, fleet/navigation, UI/lifecycle) and spread into one object.
-
-**Gaps**:
-- Camera drag/pan, pinch zoom, double-click centering, and minimap clicks in `input.ts` mutate camera state directly, bypassing commands. Defensible for continuous interactions but means camera behaviour is not replayable.
-- `handleMinimapClick` writes `camera.targetX`/`camera.targetY` directly.
-- Some UI state changes in `session-signals.ts` are reactive derivations rather than commands -- appropriate since they are not user-initiated.
-
-### 3-Layer Input Pipeline
-Key files: `input.ts` (Layer 1: capture), `game/input-events.ts` (Layer 2: interpretation), `game/command-router.ts` (Layer 3: dispatch)
-
-Layer 1 knows camera transforms and pointer state but not planning or turn rules. Layer 2 (`interpretInput`) is pure -- takes snapshots, returns `GameCommand[]`. Layer 3 routes to domain handlers.
-
-Keyboard shortcuts and UI button clicks enter directly at Layer 3 by emitting `GameCommand` values. This is a sibling path, not a violation -- they share the same dispatch sink.
+Each section follows the same structure: the pattern, a minimal example, where it lives, and why this shape. Known rough edges live at the end of each section.
 
 ---
 
-## State Management
+## Three-Layer Input Pipeline
 
-### State Machine
-Key files: `game/phase.ts`, `game/interaction-fsm.ts`, `game/phase-entry.ts`, `game/state-transition.ts`, `game/session-model.ts`
+**Pattern.** DOM events never reach game logic. They pass through three layers: raw capture → game interpretation → command dispatch.
 
-`ClientState` is a flat string union (11 values). Transitions are derived, not imperative -- `derivePhaseTransition` examines authoritative `GameState` and produces a `PhaseTransitionPlan`. `deriveInteractionMode` maps `ClientState` to a coarser `InteractionMode` with exhaustive `never` guard.
+```
+DOM event   →   Layer 1: input.ts        →  InputEvent { clickHex, hoverHex, … }
+                Layer 2: input-events.ts →  GameCommand[] (pure function)
+                Layer 3: command-router  →  domain handler
+```
 
-`CLIENT_STATE_ENTRY_RULES` is a `Record<ClientState, ClientStateEntryRule>` ensuring every state has an entry rule.
+**Minimal example.**
 
-**Gaps**:
-- `playing_movementAnim` is set imperatively by the animation system (client-only concept with no server phase).
-- `connecting` and `waitingForOpponent` are set imperatively from connection lifecycle code (no corresponding `GameState`).
-- No compile-time enforcement of which transitions are legal. `menu` -> `playing_combat` is representable but prevented in practice by `derivePhaseTransition` only returning sensible next states.
-- A typed adjacency map (`Record<ClientState, Set<ClientState>>`) could add runtime validation but is not currently needed.
+```ts
+// Layer 1 — knows camera transforms, nothing about game rules
+canvas.addEventListener('click', (e) => emit({ kind: 'clickHex', hex: screenToHex(e) }));
 
-### Reactive Signals (Zero-Dependency)
-Key files: `reactive.ts` (213 lines, zero imports), `reactive.test.ts`
+// Layer 2 — pure function from (InputEvent, phase, state) → commands
+const commands = interpretInput(event, phase, planningState);
 
-Four primitives: `signal`, `computed`, `effect`, `batch`. Plus `DisposalScope` and `withScope`/`registerDisposer` for lifecycle management. No other reactivity system exists in the codebase.
+// Layer 3 — exhaustive dispatch, compile-time checked
+dispatchGameCommand(commands[0], deps);
+```
 
-**Implementation details**:
-- Auto-tracking via module-level `active` context that records which subscriber sets are accessed during evaluation.
-- `computed` is eager (evaluates at creation, stays live via internal effect). Simpler than lazy memo but does more work if rarely read.
-- `batch` coalesces signal writes into one flush. Used in `applyClientStateTransition` for multi-signal updates.
-- Reference equality (`===`) for change detection. Replacing `gameState` with a new object (every server update) always triggers effects even if logically identical. Effects must be cheap or guard internally.
-- No `untrack` utility -- use `peek()` to read without subscribing.
-- Diamond dependencies may fire effects more than once outside `batch`. The test suite explicitly allows this, verifying only final-state correctness.
-- No error boundaries -- thrown errors in effects propagate uncaught.
-- No debug tooling (signal graph visualizer or dependency logger).
+**Where it lives.** Layer 1: `src/client/input.ts`. Layer 2: `src/client/game/input-events.ts::interpretInput`. Layer 3: `src/client/game/command-router.ts::dispatchGameCommand`. Keyboard shortcuts (`game/keyboard.ts`) and UI button clicks (`game/main-interactions.ts`) enter directly at Layer 3 — a sibling path, not a violation, since they share the same dispatch sink.
 
-**Leak prevention**: Bare `effect()` calls outside any scope or parent effect have no automatic disposal path. The `ownerCleanups` stack handles nested effects. `peek()` prevents accidental subscriptions in init code.
+**Why this shape.**
 
-### Session Model (Aggregate Root)
-Key files: `game/session-model.ts`
+- Layer 2 is a pure function, which means every phase/state/input combination is testable without a browser.
+- The handler map in Layer 3 uses `satisfies CommandHandlerMap` so adding a new `GameCommand` variant fails to compile until a handler exists.
+- Raw DOM and game rules never share a scope — a hover event can't accidentally set a ship's velocity.
 
-`ClientSession` is the single source of truth. Every piece of client state lives on it or is reachable through it.
+**Rough edges.**
 
-**Reactive property pairs**: `defineReactiveSessionProperty` uses `Object.defineProperty` (non-configurable) so `session.state = 'menu'` transparently updates the backing signal. Companion `stateSignal` exposes `ReadonlySignal` for explicit subscriptions.
-
-**Owned sub-stores**: `planningState: PlanningStore`, `logisticsState: LogisticsStore | null`.
-
-**Narrowing**: `ClientSessionMessageContext`, `ClientSessionStateTransitionContext`, etc. use `Pick` to limit what each module can access.
-
-**Test support**: `stubClientSession(overrides)` for partial overrides.
-
-Non-reactive fields (`spectatorMode`, `scenario`, `aiDifficulty`, `transport`, `reconnectAttempts`) are plain properties -- they change infrequently or are not observed reactively.
-
-### Planning Store
-Key files: `game/planning.ts`
-
-Centralized ephemeral client-side planning state. Four sub-domains: selection, astrogation, ordnance, combat. All stored as `Map<string, ...>` or `Set<string>`.
-
-**Revision signal**: Single `revisionSignal` counter incremented on every mutation. Coarse-grained -- any change notifies all subscribers. Sufficient for current UI complexity; per-domain signals could be added if needed.
-
-**Phase reset**: `enterPhase()` resets all sub-domains via `Object.assign(planningStore, createXxxState())`.
-
-**Narrow view types**: `AstrogationPlanningView`, `CombatPlanningView`, etc. use `Pick<>` for read-only consumer access. No runtime enforcement -- relies on TypeScript's type system.
-
-**Consistency**: No scattered planning state found outside this store. Renderer receives `PlanningState` (read-only), command router receives `PlanningStore` (with mutations).
+- Camera drag/pan, pinch zoom, double-click centering, and minimap clicks in `input.ts` mutate camera state directly, bypassing commands. Defensible for continuous interactions, but camera behavior is therefore not replayable from the command log.
 
 ---
 
-## Rendering
+## Client State Machine
 
-### Canvas Renderer Factory
-Key files: `renderer/renderer.ts`, `renderer/static-scene.ts`, `renderer/static-layer.ts`, and ~15 drawing modules under `renderer/`
+**Pattern.** A flat string union describes where the UI is. Transitions are *derived* from authoritative `GameState`, not imperatively set; state-entry side effects go through a single applier.
 
-`createRenderer(canvas, planningState)` composes 17 rendering layers drawn in specific order each frame. Each layer's logic lives in its own module exporting pure drawing functions that receive `CanvasRenderingContext2D` and data.
+**Minimal example.**
 
-**Static scene caching**: Hex grids, stars, asteroids, gravity, and bodies render to an offscreen canvas. Cache key includes camera pos/zoom, canvas dims, body animation bucket (250ms), and destroyed asteroids. Avoids re-rendering thousands of hexes per frame. Falls back to regular canvas if `OffscreenCanvas` unavailable.
+```ts
+type ClientState =
+  | 'menu' | 'connecting' | 'waitingForOpponent'
+  | 'playing_astrogation' | 'playing_ordnance' | 'playing_combat'
+  | 'playing_logistics'   | 'playing_movementAnim' | 'playing_opponentTurn'
+  | 'gameOver';
 
-**Animation loop**: `requestAnimationFrame`-based. Computes delta time, checks canvas resize, updates camera, renders frame, completes elapsed animations.
+// Pure derivation from server state:
+const next = derivePhaseTransition(currentState, gameState);
+applyClientStateTransition(ctx, next);   // single applier owns screen + effects
+```
 
-**Permanent listeners**: `document.addEventListener('visibilitychange')` and `window.addEventListener('resize')` are added without removal. Acceptable for app-lifetime renderer but noted.
+**Where it lives.** State names in `src/client/game/session-model.ts`. Derivation in `src/client/game/phase.ts`. Entry-rule table in `src/client/game/phase-entry.ts::CLIENT_STATE_ENTRY_RULES` (`Record<ClientState, ClientStateEntryRule>` — exhaustive by construction). Apply in `game/state-transition.ts`. Interaction mode (coarser UI enum) in `game/interaction-fsm.ts`.
 
-**`HEX_SIZE`** (28) defined in `renderer.ts` and imported centrally.
+**Why this shape.**
 
-### Camera/Viewport Transform
-Key files: `renderer/camera.ts`
+- Derivation means the client state can't diverge from the server state — the server sends `GameState`, we compute our view of it.
+- `Record<ClientState, …>` + exhaustive `switch` in `deriveInteractionMode` catch missing cases at compile time.
+- A single applier is the only place that mutates stored state, starts timers, resets cameras, or triggers tutorials — so state entry effects can't scatter.
 
-`createCamera()` returns a `Camera` with current/target position+zoom, shake state, and canvas dimensions. Core operations: `applyTransform`, `screenToWorld`, `worldToScreen`, `zoomAt`, `pan`, `frameBounds`, `isVisible`, `shake`, `snapToTarget`.
+**Rough edges.**
 
-**Consistency**: All coordinate transforms go through the camera. No raw pixel calculations for screen/world conversion found outside it. `hexToPixel`/`pixelToHex` in `shared/hex.ts` operate in world space only.
-
-**Zoom-at-point**: Adjusts target position so the point under the cursor stays fixed. Clamps to `[minZoom, maxZoom]`.
-
-**Culling**: `isVisible` uses rectangular check with margin -- appropriate for flat hex grid, would need updating for rotated/perspective views.
-
-**Private state**: `CameraPrivate` is separate from public `Camera` interface.
-
-### Animation Manager
-Key files: `renderer/animation.ts`
-
-`createMovementAnimationManager()` handles ship/ordnance movement animations. Game state is updated to post-movement before animation starts -- animation is purely cosmetic interpolation.
-
-**Completion guarantees**:
-- Fallback timer fires at `duration + 500ms`.
-- Hidden tab: completes immediately on start or mid-animation via `handleVisibilityChange`.
-- `completeAnimation()` clears state before calling `onComplete()` to prevent re-entrant issues.
-
-**Trail accumulation**: `shipTrails` and `ordnanceTrails` (`Map<string, HexCoord[]>`) accumulate across turns with deduplication at join points. Cleared on game reset.
-
-**DI for testing**: Accepts optional `now`, `setTimeout`, `clearTimeout`, `isDocumentHidden`, `durationMs` for deterministic tests.
+- `playing_movementAnim`, `connecting`, and `waitingForOpponent` are set imperatively — they're client-only concepts with no corresponding server `phase`.
+- No compile-time prevention of illegal transitions (`menu` → `playing_combat` is representable). `derivePhaseTransition` refuses to return such transitions, so in practice it's fine.
 
 ---
 
-## DOM & HTML
+## Reactive Signals (Zero-Dependency)
 
-### Smart DOM Helpers
-Key files: `dom.ts`
+**Pattern.** A 213-line signals library (`signal`, `computed`, `effect`, `batch`, plus `DisposalScope` / `withScope`) owns durable UI state where it removes imperative fan-out. Transient events (toasts, sounds) stay imperative.
 
-**Signal overloads**: `visible()`, `text()`, `cls()` accept either static values or `ReadonlySignal`, automatically creating effects for signals. Clean dual-mode API.
+**Minimal example.**
 
-**Where raw DOM is justified**:
-- Renderer: `document.createElement('canvas')` for canvas elements.
-- Audio: `document.addEventListener` for one-time click/touchstart resume.
-- Viewport: `addEventListener` for resize/orientationchange (infrastructure-level).
-- Telemetry: global error handlers.
+```ts
+// Session owns reactive state:
+const stateSignal = signal<ClientState>('menu');
 
-**Missing helpers**: No `attr()` for arbitrary reactive attribute setting. `el()` handles `disabled`, `title`, `data` but direct `setAttribute` calls exist where needed.
+// Views subscribe without subscribing:
+effect(() => {
+  const state = stateSignal();         // auto-tracked read
+  applyUIVisibility(buildScreenVisibility(state));
+});
 
-### Trusted HTML Boundary
-Key files: `dom.ts` (lines 98-120)
+// Smart DOM helpers accept signals directly:
+visible(confirmBtn, computed(() => stateSignal() === 'playing_astrogation'));
+```
 
-**Known violation**: `hud-chrome-view.ts` sets `soundBtn.innerHTML` directly with static SVG markup instead of using `setTrustedHTML()`. Not a security risk (hardcoded SVG) but breaks auditability. Should use `setTrustedHTML(soundBtn, ...)`.
+**Where it lives.** Primitives in `src/client/reactive.ts` (zero imports, tested in `reactive.test.ts`). Consumers: `ClientSession` reactive properties, `PlanningStore.revisionSignal`, overlay/replay/timer view models, and the `visible()` / `text()` / `cls()` helpers in `src/client/dom.ts`.
 
-**Enforcement gap**: No lint rule (e.g., ESLint `no-restricted-properties` on `innerHTML`) to catch boundary violations automatically.
+**Why this shape.**
 
-### Disposal Scope
-Key files: `reactive.ts` (lines 7-12, 30-48, 91-127)
+- **Narrow scope** — signals remove the class of bugs where "the HUD forgot to re-render when turn changed," without paying for React.
+- **Auto-tracking** — effects record which signals they read, no manual subscription.
+- **Scopes + `listen` + smart helpers** — teardown is LIFO and automatic inside any `withScope` block.
 
-`createDisposalScope()` collects disposables (effects, computeds, plain functions) and disposes LIFO on `scope.dispose()`. Late registration guard: if scope is already disposed, new resources are immediately disposed.
+**Rough edges.**
 
-**`withScope`**: Sets module-level `activeScope` so nested `effect()` and `listen()` calls auto-register. Used in input handler and UI manager setup.
-
-**Owner cleanup within effects**: On re-run, nested effects and `registerDisposer` calls from the previous run are cleaned up before the new run. Prevents stacking subscriptions.
-
-**No scope hierarchy**: Flat scopes only. Nesting via `scope.add(childScope)` or `scope.add(childDispose)`. Sufficient for current architecture.
-
-**Thread safety**: `withScope` context is module-level global state. Could theoretically interleave in concurrent async tests, but client is single-threaded so not a real risk.
-
----
-
-## Data Structures
-
-### String-Key Serialization
-Key files: `shared/hex.ts`
-
-**Typing gap**: `PlanningState.lastSelectedHex` is typed `string | null` instead of `HexKey | null`. The value is always produced by `hexKey()` but the type does not enforce the brand.
-
-**Logistics pair key**: `logistics-ui.ts` uses `"sourceId->targetId"` format -- same string-key principle, different serialization.
-
-### Record-Based Type Mapping
-
-**Data structure selection**:
-
-| Structure | Use | Examples |
-|-----------|-----|---------|
-| `Map<K,V>` | Mutable runtime state | Planning maps, logistics amounts, trails, hex map |
-| `Record<K,V>` | Static config, serialized data | Phase transitions, gravity choices, ship stats |
-| `Set<K>` | Membership testing | Landing ships, acknowledged ships, gravity bodies |
-| `Array<T>` | Ordered collections, small lists | Ships, ordnance, bases |
-
-**Minor inefficiencies** (acceptable at current scale):
-- `GameState.ships` uses `find()` for ID lookup -- under 20 ships per game.
-- `destroyedAsteroids: HexKey[]` uses `includes()` instead of Set -- small arrays.
-- `combatTargetedThisPhase?: string[]` used for membership checks -- typically very short.
+- Diamond dependencies outside a `batch()` can fire effects more than once. Tests explicitly allow this and assert only on final-state correctness.
+- No error boundaries — thrown errors in effects propagate uncaught.
+- `computed` is eager (evaluates at creation); simpler than lazy memo but does more work if the value is rarely read.
+- `withScope` context is module-level global state. Single-threaded in practice but would be brittle under concurrent async interleaving.
 
 ---
 
-## Architecture Stance
+## Session Model as Aggregate Root
 
-### Minimal Framework / Zero-Dependency Reactive
+**Pattern.** One `ClientSession` object owns every piece of durable client state. Reactive fields are defined through `defineReactiveSessionProperty` so `session.state = 'menu'` transparently updates both the plain field and its companion signal.
 
-The entire client has zero runtime UI framework dependencies. The 213-line `reactive.ts` is the sole reactivity primitive. No React, MobX, RxJS, or any other reactivity system.
+**Minimal example.**
 
-**What replaces frameworks**: Custom signals for reactivity, `el()` for DOM creation, factory functions for composition, esbuild for bundling, Vitest with raw DOM assertions for testing.
+```ts
+// Every reactive field has a field and a ReadonlySignal:
+session.state = 'menu';          // plain assignment
+stateSignal.subscribe(...)        // reactive subscription
 
-**Scaling considerations**:
-- As UI grows (settings, lobby, chat), `el()` plus manual effects can become verbose compared to JSX. The `setTrustedHTML` boundary is the acknowledged improvement point.
-- No component lifecycle -- disposal scopes serve this purpose but require manual wiring.
-- No first-class `aria-*` support in `el()` -- accessibility attributes must be added manually.
-- Only production `class` is `GameDO` (Cloudflare Durable Object requirement).
+// Sub-stores are owned, not shared:
+session.planningState: PlanningStore;
+session.logisticsState: LogisticsStore | null;
+```
+
+**Where it lives.** `src/client/game/session-model.ts` defines the aggregate. `session-signals.ts` exposes the signal companions. Narrow `Pick` types (`ClientSessionMessageContext`, `ClientSessionStateTransitionContext`, …) limit what each collaborator can reach.
+
+**Why this shape.**
+
+- One root means one place to inspect in tests and one place for teardown.
+- Reactive properties via `Object.defineProperty` give imperative call-site syntax with reactive semantics — no `.set()` boilerplate.
+- `Pick`-narrowed context types are compile-time access control. Modules only see the fields they genuinely need.
 
 ---
 
-## Builder Pattern
-Key files: `renderer/vectors.ts`, `renderer/map.ts`, `renderer/entities.ts`, `renderer/combat-fx.ts`, `renderer/minimap.ts`, `ui/hud.ts`, `ui/screens.ts`, `ui/ship-list.ts`, `game/astrogation-orders.ts`
+## Planning Store (Ephemeral Turn State)
 
-30+ functions follow `build*` naming. All are pure -- take inputs, return new objects. The renderer uses "build then draw": `buildBodyView` computes positions/styles, then `renderBodies` draws them. Makes view computation testable without a Canvas.
+**Pattern.** All uncommitted UI planning — burns, overloads, queued attacks, selections, hover — lives in one store with a single `revisionSignal` that bumps on every mutation. Phase transitions reset the relevant sub-state.
 
-**Naming boundary with `derive*`**: `derive*` computes decisions/transitions, `build*` constructs data structures. Some functions straddle the line (e.g., `deriveHudViewModel` both derives state and builds a view model). The `create*` prefix is reserved for stateful object construction, distinct from `build*` which produces immutable data.
+**Minimal example.**
+
+```ts
+// Set a burn:
+planningStore.setBurn(shipId, direction);
+// → bumps planningStore.revisionSignal
+
+// HUD re-derives:
+const hud = computed(() => deriveHudViewModel({
+  planning: planningStore,
+  state: session.gameState,
+  revision: planningStore.revisionSignal(),   // triggers recompute
+}));
+```
+
+**Where it lives.** `src/client/game/planning.ts`. `PlanningStore` exposes mutation methods; narrow `PlanningState` read type is passed by reference to the renderer. Input layer receives `PlanningState` (read-only) in `interpretInput`.
+
+**Why this shape.**
+
+- Coarse-grained `revisionSignal` is enough — planning changes cluster in time and the HUD re-derivation is cheap.
+- Renderer holds `PlanningState` by reference, so previews (dashed course, ghost ship, fuel cost label) are always up to date without a setter API.
+- The read-type vs mutation-type split means the input pipeline can't accidentally mutate — TypeScript enforces it.
+
+---
+
+## Canvas Renderer Factory
+
+**Pattern.** `createRenderer(canvas, planningState)` composes ~17 drawing modules and runs a `requestAnimationFrame` loop. A static scene layer (stars, grid, gravity, asteroids, bodies) caches to an offscreen canvas keyed by camera + viewport, avoiding per-frame hex redraws.
+
+**Where it lives.** `src/client/renderer/renderer.ts` is the shell. Layer modules: `scene.ts`, `ships.ts`, `entities.ts`, `vectors.ts`, `effects.ts`, `overlay.ts`, `minimap.ts`, `static-scene.ts`, `static-layer.ts`, `animation.ts`, plus `camera.ts`. Public type is `ReturnType<typeof createRenderer>` (exported as `Renderer`).
+
+**Why this shape.**
+
+- **Factory over class** — the renderer owns mutable long-lived state (animation managers, cache), but without `extends` or `instanceof` machinery. `ReturnType<typeof create…>` keeps the public type in sync with the implementation automatically.
+- **Static scene caching** — redrawing thousands of hex tiles every frame is wasteful when the camera is idle. Cache key includes camera pos/zoom, canvas dims, body animation bucket (250 ms), and destroyed asteroids.
+- **Build-then-draw** (`buildBodyView` → `renderBodies`) separates view computation from Canvas drawing, making view logic testable without a Canvas context.
+
+**Rough edges.**
+
+- `document.addEventListener('visibilitychange')` and `window.addEventListener('resize')` on the renderer are never removed. Acceptable for app-lifetime, but worth remembering.
+- `HEX_SIZE` (28) is defined in `renderer.ts` and imported centrally — if a second game wanted a different hex size, this would need to become configuration.
+
+---
+
+## Animation Manager with Completion Guarantees
+
+**Pattern.** Ship and ordnance movement animations have explicit completion paths: a normal finish, a fallback timer (`duration + 500 ms`), and an immediate skip when the tab is hidden. State is cleared *before* `onComplete` fires so the callback can't observe mid-animation state.
+
+**Where it lives.** `src/client/renderer/animation.ts::createMovementAnimationManager`. Accepts optional `now`, `setTimeout`, `clearTimeout`, `isDocumentHidden`, `durationMs` for deterministic tests.
+
+**Why this shape.**
+
+- **Game state is post-movement before the animation starts.** The animation is purely cosmetic interpolation; it can't block the engine.
+- **Triple completion path** — a network hiccup or hidden tab won't leave the UI frozen "animating."
+- **Injected clock** — tests advance time without real timers.
+
+---
+
+## Trusted HTML Boundary
+
+**Pattern.** All `innerHTML` writes go through `setTrustedHTML()` or `clearHTML()` in `src/client/dom.ts`. Nothing else may call `innerHTML =` directly. Enforced by a pre-commit grep check.
+
+**Where it lives.** `src/client/dom.ts` (lines ~100). Callers: HUD, ship list, fleet building, game log. All callers today pass internally-generated markup (game state, static strings, computed display values) — nothing user-controlled.
+
+**Why this shape.**
+
+- If user-controlled content ever renders as HTML (chat, player names, modded scenarios), one boundary can add a sanitizer. Scattered `innerHTML` writes would make that audit impossible.
+- Grep-enforced keeps the boundary from re-opening during refactors.
+
+**Rough edges.**
+
+- `hud-chrome-view.ts` sets `soundBtn.innerHTML` directly with a static SVG string rather than going through `setTrustedHTML`. Hardcoded so not a security risk, but it breaks grep auditability and should route through the boundary.
+
+---
+
+## Disposal Scopes
+
+**Pattern.** Anything with a lifetime (effects, computeds, DOM listeners, timers) registers with a `DisposalScope`. Scopes dispose LIFO; a second scope can be nested; `withScope(scope, fn)` implicitly registers anything created inside.
+
+**Minimal example.**
+
+```ts
+const scope = createDisposalScope();
+withScope(scope, () => {
+  effect(() => renderHud());           // registers with scope
+  listen(window, 'resize', onResize);  // registers with scope
+});
+// Later:
+scope.dispose();   // tears everything down LIFO
+```
+
+**Where it lives.** `src/client/reactive.ts` (`createDisposalScope`, `withScope`, `registerDisposer`). Every view and manager that creates `computed()` or `effect()` graphs owns a scope and exposes `dispose()`.
+
+**Why this shape.**
+
+- Central scope registration means every module has one teardown path. No "oh I forgot to remove that listener."
+- On effect re-runs, previously registered nested disposers run first — no stacking subscriptions.
+- LIFO disposal handles "child view → parent view" teardown order correctly.
+
+---
+
+## Transport Adapter (WebSocket vs Local AI)
+
+**Pattern.** `GameTransport` hides whether the current game is multiplayer or local AI. Action handlers call `transport.submitAstrogation(orders)` — they never branch on `isLocalGame` inside submission logic.
+
+**Where it lives.** `src/client/game/transport.ts`. Two factories: `createWebSocketTransport(send)` wraps a WebSocket, `createLocalTransport(deps)` runs the engine directly.
+
+**Why this shape.**
+
+- Action code is identical for multiplayer and single-player — the engine is the same.
+- Adding a new mode (bridge, MCP-driven local session) only needs a new transport factory.
+
+**Rough edges.**
+
+- `submitSurrender` and `sendChat` on the local transport are no-ops. A future `LocalTransport` user shouldn't assume all methods have effect — either implement them or assert on the unused ones.
+- `submitEmplacement` on the local transport calls `processEmplacement` directly instead of going through the `dispatchLocalResolution` pattern used by every other action — error handling therefore differs from other actions.
+
+---
+
+## Cross-Cutting Theme: Pure Core, Imperative Shell
+
+Several of the patterns on this page (derive/plan, input pipeline, state-machine derivation, planning-store read types, build-then-draw) share a shape: a pure function computes "what should happen" as data; a thin imperative layer performs the side effect. This is the functional-core / imperative-shell pattern ([Gary Bernhardt, "Boundaries", SCNA 2012](https://www.destroyallsoftware.com/talks/boundaries)), applied consistently across the client.
+
+The main advantage is testability — a `derivePhaseTransition` test doesn't need a DOM, and a `buildScreenVisibility` test doesn't need a browser. The main discipline is keeping planners pure: the moment a planner reaches for `document` or `setTimeout`, the imperative shell has leaked inward.
