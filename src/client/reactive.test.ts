@@ -9,6 +9,7 @@ import {
   createDisposalScope,
   effect,
   getCurrentScope,
+  setReactiveErrorReporter,
   signal,
   withScope,
 } from './reactive';
@@ -641,5 +642,41 @@ describe('property-based', () => {
         },
       ),
     );
+  });
+});
+
+describe('effect error containment', () => {
+  it('routes thrown effect errors through the reporter and keeps peers alive', () => {
+    const reporter = vi.fn();
+    setReactiveErrorReporter(reporter);
+    try {
+      const s = signal(0);
+      const witnessed: number[] = [];
+
+      const disposeBad = effect(() => {
+        if (s.value > 0) {
+          throw new Error('boom');
+        }
+      });
+      effect(() => {
+        witnessed.push(s.value);
+      });
+
+      // Initial run: both effects observe 0. The bad effect does not throw
+      // yet, so the reporter has not fired.
+      expect(witnessed).toEqual([0]);
+      expect(reporter).not.toHaveBeenCalled();
+
+      // Trigger the bad effect. The peer effect must still re-run.
+      s.value = 1;
+      expect(witnessed).toEqual([0, 1]);
+      expect(reporter).toHaveBeenCalledTimes(1);
+
+      disposeBad();
+      s.value = 2;
+      expect(witnessed).toEqual([0, 1, 2]);
+    } finally {
+      setReactiveErrorReporter(null);
+    }
   });
 });

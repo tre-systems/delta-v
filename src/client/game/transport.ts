@@ -1,9 +1,7 @@
 import type { AIDifficulty } from '../../shared/ai';
-import { processEmplacement } from '../../shared/engine/game-engine';
 import type {
   AstrogationOrder,
   CombatAttack,
-  EngineError,
   FleetPurchase,
   GameState,
   OrbitalBaseEmplacement,
@@ -19,6 +17,7 @@ import {
   resolveAstrogationStep,
   resolveBeginCombatStep,
   resolveCombatStep,
+  resolveEmplaceBaseStep,
   resolveEndCombatStep,
   resolveLogisticsStep,
   resolveOrdnanceStep,
@@ -61,24 +60,11 @@ export interface LocalTransportDeps {
   ) => void;
   onAnimationComplete: () => void;
   onTransitionToPhase: () => void;
-  onEmplacementResult: (result: LocalEmplacementResult) => void;
+  onEmplacementSuccess: () => void;
   onAdvanceToNextAttacker: () => void;
   onFleetReady: (purchases: FleetPurchase[]) => void;
   onRematch: () => void;
 }
-
-type LocalEmplacementSuccess = {
-  state: GameState;
-  engineEvents: import('../../shared/engine/engine-events').EngineEvent[];
-};
-
-type LocalEmplacementFailure = {
-  error: EngineError;
-};
-
-export type LocalEmplacementResult =
-  | LocalEmplacementSuccess
-  | LocalEmplacementFailure;
 
 const withLocalState = <T>(
   deps: Pick<LocalTransportDeps, 'getState' | 'getPlayerId' | 'getMap'>,
@@ -165,15 +151,13 @@ export const createLocalTransport = (
   },
 
   submitEmplacement(emplacements) {
-    const result = withLocalState(deps, (state, playerId, map) =>
-      processEmplacement(state, playerId, emplacements, map),
+    dispatchLocalResolution(
+      deps,
+      (state, playerId, map) =>
+        resolveEmplaceBaseStep(state, playerId, emplacements, map),
+      deps.onEmplacementSuccess,
+      'Local emplacement error:',
     );
-
-    if (!result) {
-      return;
-    }
-
-    deps.onEmplacementResult(result);
   },
 
   submitFleetReady(purchases) {
@@ -266,16 +250,11 @@ export interface LocalGameTransportDeps {
   startLocalGame: (scenario: string) => void;
 }
 
-const handleLocalEmplacementResult = (
-  deps: Pick<LocalGameTransportDeps, 'applyGameState' | 'showToast'>,
-  result: LocalEmplacementResult,
+const handleLocalEmplacementSuccess = (
+  deps: Pick<LocalGameTransportDeps, 'showToast'>,
 ): void => {
-  if ('error' in result) {
-    deps.showToast(result.error.message, 'error');
-    return;
-  }
-
-  deps.applyGameState(result.state);
+  // Emplacement state has already been applied through the shared
+  // local-resolution path; surface the user-facing confirmation only.
   deps.showToast('Orbital base emplaced!', 'success');
 };
 
@@ -344,7 +323,7 @@ export const createLocalGameTransport = (
     onAnimationComplete: deps.onAnimationComplete,
     onTransitionToPhase: deps.transitionToPhase,
     onAdvanceToNextAttacker: deps.advanceToNextAttacker,
-    onEmplacementResult: (result) => handleLocalEmplacementResult(deps, result),
+    onEmplacementSuccess: () => handleLocalEmplacementSuccess(deps),
     onFleetReady: (purchases) => handleLocalFleetReady(deps, purchases),
     onRematch: () => deps.startLocalGame(deps.getScenario()),
   });
