@@ -26,21 +26,6 @@ During active matches, stale pregame content (e.g. "Game Created", "Waiting for 
 
 **Files:** home/lobby state rendering, in-game HUD/status components, accessibility labeling, UI tests
 
-### Replace blocking help modal with non-blocking help pattern
-
-The controls/help overlay can intercept gameplay clicks and block action selection with weak affordance, especially during ordnance/combat decision flow.
-
-**Tasks:**
-- Convert help from blocking modal to docked/side panel (or clearly modal with stronger active-state treatment).
-- Ensure gameplay click targets are never silently intercepted without obvious modal state.
-- Add interaction tests covering open-help -> select action -> confirm flow across phases.
-
-**Acceptance criteria:**
-- Help does not cause hidden click interception on gameplay controls.
-- If modal behavior is retained, active modal state is obvious and escapable via close button and `Esc`.
-
-**Files:** help/controls overlay components, action panel interaction handlers, end-to-end UI tests
-
 ---
 
 ## Cost & abuse hardening

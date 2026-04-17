@@ -74,6 +74,17 @@
   min-height: 48px;
 }
 
+/* Visual cue that clicking outside the help content card will dismiss
+ * the overlay. Without this, users assume the backdrop is a passive
+ * blur and miss the click-to-close affordance. */
+#helpOverlay {
+  cursor: pointer;
+}
+
+#helpOverlay > .help-content {
+  cursor: default;
+}
+
 .help-legend {
   list-style: none;
   margin: 0;
