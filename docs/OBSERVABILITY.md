@@ -1,6 +1,16 @@
-# Observability map
+# Observability
 
 What Delta-V emits today and how to use it for incidents and tuning. Complements [SECURITY.md](./SECURITY.md) (telemetry abuse) and [ARCHITECTURE.md](./ARCHITECTURE.md) (server layout).
+
+- [Sources](#sources)
+- [D1 `events` schema and event catalog](#d1-events-schema-summary)
+- [Server-side lifecycle and side-channel events](#server-side-lifecycle-and-side-channel-events)
+- [Incident triage quickstart](#incident-triage-quickstart)
+- [Starter alert thresholds](#starter-alert-thresholds-tune-to-baseline)
+- [Operational D1 queries](#operational-d1-queries)
+- [Workers log filters](#workers-log-filters)
+- [PII / privacy stance](#pii-privacy-stance-technical)
+- [Gaps and follow-ups](#gaps-and-follow-ups)
 
 ## Sources
 
@@ -77,26 +87,6 @@ Emitted from `src/server/game-do/telemetry.ts` (`reportLifecycleEvent`, `reportS
 
 Static **`GET /version.json`** (built into `dist/` at bundle time) exposes `{ packageVersion, assetsHash }` for support — it is not written to D1.
 
-## Sample D1 queries
-
-```sql
--- Error spike (last 24h, client-reported)
-SELECT event, COUNT(*) AS n
-FROM events
-WHERE ts > (strftime('%s','now') - 86400) * 1000
-  AND event IN ('client_error', 'engine_error', 'projection_parity_mismatch')
-GROUP BY event
-ORDER BY n DESC;
-
--- Telemetry volume by event name (adjust time filter)
-SELECT event, COUNT(*) AS n
-FROM events
-WHERE ts > (strftime('%s','now') - 86400) * 1000
-GROUP BY event
-ORDER BY n DESC
-LIMIT 30;
-```
-
 ## Incident triage quickstart
 
 Use this when someone reports "game is broken" or metrics look wrong.
@@ -104,9 +94,18 @@ Use this when someone reports "game is broken" or metrics look wrong.
 1. Confirm scope quickly in Workers Logs:
    - Is it one room code or many?
    - Is it one browser/device cohort or broad?
-2. Run the error-spike query above, then split by hour:
+2. Check for an error spike, then split by hour:
 
 ```sql
+-- Error spike (last 24h)
+SELECT event, COUNT(*) AS n
+FROM events
+WHERE ts > (strftime('%s','now') - 86400) * 1000
+  AND event IN ('client_error', 'engine_error', 'projection_parity_mismatch')
+GROUP BY event
+ORDER BY n DESC;
+
+-- Same, split by hour (last 6h)
 SELECT
   event,
   strftime('%Y-%m-%d %H:00', ts / 1000, 'unixepoch') AS hour,
@@ -141,19 +140,19 @@ These are practical defaults until formal dashboards/alerts are added.
 - `matchmaker_pairing_split` / `matchmaker_paired` > 5% sustained over 1 hour: queue is hot enough to warrant coalesced allocation.
 - `disconnect_grace_expired` / (`disconnect_grace_resolved` + `disconnect_grace_expired`) > 50% over 1 hour: reconnect flow is failing for most players.
 
-## PII / privacy stance (technical)
-
-- **Client**: `anonId` is a random UUID in `localStorage` (`deltav_anon_id`); `reportError` may include `url`, `ua`, and arbitrary context — keep context **non-sensitive** at call sites.
-- **Server**: stores **hashed IP** (`ip_hash`), not raw IP, for client-originated rows.
-- **Chat text** is not written to D1 by default (in-game only).
-
-User-facing policy copy is out of scope here; align any public privacy text with this behavior.
-
 ## Operational D1 queries
 
 Paste these into the Cloudflare D1 console or run via `wrangler d1 execute`.
 
 ```sql
+-- Telemetry volume by event name (last 24h)
+SELECT event, COUNT(*) AS n
+FROM events
+WHERE ts > (strftime('%s','now') - 86400) * 1000
+GROUP BY event
+ORDER BY n DESC
+LIMIT 30;
+
 -- Match completions by scenario (last 7 days)
 SELECT scenario, COUNT(*) AS matches,
        AVG(turns) AS avg_turns,
@@ -268,6 +267,14 @@ In the Cloudflare Workers **Logs** tab, filter by:
 - `[game_started]` / `[game_ended]` — lifecycle trace for a single match
 - `[matchmaker_pairing_split]` — immediate smoke-test when the matchmaker looks unhealthy
 - `[mcp_observation_timeout]` — any hit is unexpected; inspect the handler label in `props`
+
+## PII / privacy stance (technical)
+
+- **Client:** `anonId` is a random UUID in `localStorage` (`deltav_anon_id`). `reportError` may include `url`, `ua`, and arbitrary context — keep context **non-sensitive** at call sites.
+- **Server:** stores **hashed IP** (`ip_hash`), not raw IP, for client-originated rows.
+- **Chat text** is not written to D1 by default (in-game only).
+
+User-facing policy copy is out of scope here; align any public privacy text with this behavior. See [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md).
 
 ## Gaps and follow-ups
 
