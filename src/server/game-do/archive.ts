@@ -108,6 +108,18 @@ export const getCheckpoint = async (
     (await storage.get<Checkpoint>(checkpointKey(gameId))) ?? null,
   );
 
+// Drop the DO-side checkpoint for a game. Safe to call after the
+// durable archive lands because the checkpoint is a rebuild-cache for
+// the live projection path, not the source of truth — R2 holds the
+// complete event stream plus checkpoint copy for replay via
+// /api/matches, so nothing depends on this key after gameOver.
+export const deleteCheckpoint = async (
+  storage: Storage,
+  gameId: GameId,
+): Promise<void> => {
+  await storage.delete(checkpointKey(gameId));
+};
+
 export const saveMatchCreatedAt = async (
   storage: Storage,
   gameId: GameId,

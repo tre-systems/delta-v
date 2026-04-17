@@ -3,6 +3,7 @@ import type { GameId } from '../../shared/ids';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import {
   type Checkpoint,
+  deleteCheckpoint,
   getCheckpoint,
   getEventStream,
   getMatchCreatedAt,
@@ -92,6 +93,12 @@ export const archiveCompletedMatch = async (
         )
         .run();
     }
+
+    // Prune the DO-side checkpoint: R2 now holds the canonical copy,
+    // and the checkpoint existed only to speed up live-projection
+    // rebuilds. Leaving it in DO storage would be permanent residue
+    // on every completed match (~5–10 KB per room) with no consumer.
+    await deleteCheckpoint(storage, gameId);
   } catch (err) {
     console.error('[match-archive] Failed to archive match:', gameId, err);
   }
