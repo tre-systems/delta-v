@@ -30,6 +30,10 @@ export interface WaitingScreenCopy {
   statusText: string;
   scenarioText: string | null;
   showCopyActions: boolean;
+  // Quick-match search can take a while; the waiting screen shows a
+  // cancel control so users aren't trapped in the queue state.
+  // `null` hides the control; a string shows it with that label.
+  cancelActionLabel: string | null;
 }
 
 export type WaitingScreenState =
@@ -211,6 +215,7 @@ export const buildWaitingScreenCopy = (
       statusText: state.statusText,
       scenarioText: null,
       showCopyActions: false,
+      cancelActionLabel: 'Cancel search',
     };
   }
 
@@ -222,6 +227,7 @@ export const buildWaitingScreenCopy = (
         statusText: 'Connecting...',
         scenarioText: null,
         showCopyActions: true,
+        cancelActionLabel: null,
       }
     : {
         titleText: 'Game Created',
@@ -230,6 +236,7 @@ export const buildWaitingScreenCopy = (
         statusText: 'Waiting for opponent...',
         scenarioText: null,
         showCopyActions: true,
+        cancelActionLabel: 'Cancel',
       };
 };
 

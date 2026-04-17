@@ -90,6 +90,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const helpCloseBtnEl = byId<HTMLButtonElement>('helpCloseBtn');
   const copyBtn = byId('copyBtn');
   const copySpectateBtn = byId('copySpectateBtn');
+  const cancelWaitingBtn = byId<HTMLButtonElement>('cancelWaitingBtn');
   const waitingTitleEl = byId('waitingTitle');
   const gameCodeEl = byId('gameCode');
   const waitingStatusEl = byId('waitingStatus');
@@ -496,6 +497,18 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
           waitingShareHintEl.style.display = 'none';
         }
       }
+
+      if (copy.cancelActionLabel) {
+        text(cancelWaitingBtn, copy.cancelActionLabel);
+        show(cancelWaitingBtn, 'inline-flex');
+      } else {
+        hide(cancelWaitingBtn);
+      }
+    });
+
+    listen(cancelWaitingBtn, 'click', () => {
+      deps.emit({ type: 'cancelQuickMatch' });
+      deps.showMenu();
     });
 
     text(copyBtn, copyButtonTextSignal);

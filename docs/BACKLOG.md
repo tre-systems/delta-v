@@ -26,21 +26,6 @@ During active matches, stale pregame content (e.g. "Game Created", "Waiting for 
 
 **Files:** home/lobby state rendering, in-game HUD/status components, accessibility labeling, UI tests
 
-### Add cancellable quick-match search flow
-
-Queue search state lacks a clear cancel/back control and can trap users in a dead-end waiting state during long matchmaking waits.
-
-**Tasks:**
-- Add explicit `Cancel search` action while queueing, with deterministic return to pre-queue home state.
-- Show queue elapsed time and "searching" progress copy to reduce uncertainty.
-- Ensure keyboard and screen-reader users can discover and activate cancel/back controls.
-
-**Acceptance criteria:**
-- Users can cancel search from queue state in one action and immediately regain all home controls.
-- Queue state has clear status text and does not remove all meaningful interaction paths.
-
-**Files:** quick-match queue UI/state machine, matchmaking API client flow, accessibility copy/tests
-
 ### Replace blocking help modal with non-blocking help pattern
 
 The controls/help overlay can intercept gameplay clicks and block action selection with weak affordance, especially during ordnance/combat decision flow.

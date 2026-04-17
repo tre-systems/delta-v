@@ -18,6 +18,7 @@ const installFixture = () => {
     <input id="codeInput" />
     <button id="copyBtn">Copy Link</button>
     <button id="copySpectateBtn">Copy Spectate Link</button>
+    <button id="cancelWaitingBtn">Cancel search</button>
     <div id="waitingTitle"></div>
     <div id="gameCode"></div>
     <p id="waitingScenario" hidden></p>

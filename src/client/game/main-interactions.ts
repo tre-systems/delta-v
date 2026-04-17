@@ -73,7 +73,10 @@ type MainInteractionDeps = {
   camera: MainInteractionCamera;
   hud: MainInteractionHud;
   replayController: MainInteractionReplay;
-  sessionApi: Pick<SessionApi, 'createGame' | 'startQuickMatch'>;
+  sessionApi: Pick<
+    SessionApi,
+    'createGame' | 'startQuickMatch' | 'cancelQuickMatch'
+  >;
   mainNetworkDeps: MainNetworkDeps;
   setAIDifficulty: (difficulty: AIDifficulty) => void;
   exitToMenu: () => void;
@@ -233,6 +236,9 @@ export const createMainInteractionController = (
     switch (plan.kind) {
       case 'quickMatch':
         void deps.sessionApi.startQuickMatch();
+        return;
+      case 'cancelQuickMatch':
+        deps.sessionApi.cancelQuickMatch();
         return;
       case 'createGame':
         deps.sessionApi.createGame(plan.scenario);

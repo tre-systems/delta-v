@@ -6,6 +6,7 @@ export type { AIDifficulty } from '../../shared/ai/types';
 export type UIEvent =
   // Menu / lobby
   | { type: 'quickMatch' }
+  | { type: 'cancelQuickMatch' }
   | { type: 'selectScenario'; scenario: string }
   | { type: 'startSinglePlayer'; scenario: string; difficulty: AIDifficulty }
   | { type: 'join'; code: string; playerToken?: string | null }
