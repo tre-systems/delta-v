@@ -118,12 +118,6 @@ Validate scenario definitions and map data at load/game-creation time: conflicti
 
 **Files:** `src/shared/map-data.ts`, `src/shared/map-layout.ts`, `src/shared/engine/game-creation.ts`, `src/shared/types/domain.ts`
 
-### Finish moving AI difficulty behavior into config
-
-Remove the remaining `difficulty === 'hard'` / `'easy'` AI behavior branches that still live in code, and collapse presets around shared baselines so the real per-tier differences stay obvious.
-
-**Files:** `src/shared/ai/config.ts`, `src/shared/ai/fleet.ts`, `src/shared/ai/ordnance.ts`, `src/shared/ai/logistics.ts`
-
 ### Standardized error surfaces and client recovery messaging
 
 Prefer `engineFailure()` everywhere, then surface typed rate-limit / validation handling in the client so user-facing error behavior can branch on error code instead of generic text alone.

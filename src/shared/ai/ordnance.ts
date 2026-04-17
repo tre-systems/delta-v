@@ -173,7 +173,7 @@ export const aiOrdnance = (
       ownOperationalShips > 1 || bestEnemyCurrentDist <= 1;
 
     if (
-      difficulty === 'hard' &&
+      cfg.willCommitNukes &&
       earlyTurnNukeAllowed &&
       parityDeficitNukeAllowed &&
       Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange &&
