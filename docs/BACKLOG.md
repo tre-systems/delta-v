@@ -56,21 +56,6 @@ The controls/help overlay can intercept gameplay clicks and block action selecti
 
 **Files:** help/controls overlay components, action panel interaction handlers, end-to-end UI tests
 
-### Improve MCP chat/API ergonomics and examples
-
-MCP chat send requires `text`; common client intuition (`message`) fails with validation error, causing avoidable integration friction.
-
-**Tasks:**
-- Standardize tool argument naming conventions across MCP tools where practical.
-- If renaming is not feasible, add explicit alias handling (`message` -> `text`) with deprecation warning.
-- Update MCP docs/examples to show canonical payload and common failure modes.
-
-**Acceptance criteria:**
-- Chat-send integration is unambiguous from docs/examples and resilient to common payload naming mistakes.
-- MCP validation errors clearly guide caller to corrected field name.
-
-**Files:** `scripts/delta-v-mcp-server.ts`, MCP tool schema descriptors, agent docs (`docs/DELTA_V_MCP.md`, skills/examples)
-
 ---
 
 ## Cost & abuse hardening
