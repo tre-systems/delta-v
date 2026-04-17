@@ -2,12 +2,37 @@
 
 Tracks observed issues, behavior notes, and improvement ideas from live autonomous matches.
 
+## Session 2026-04-17 — Duel pacing shipped via scenario-scoped AI override
+
+### Problem
+Duel avg-turn baseline was 6.0 (target ≥ 8). The 2026-04-16 pass proved no single-lever tweak (ordnance type, starting velocity, fleet comp, ship type) could reach the target without regressing other scenarios.
+
+### Fix
+Introduced `aiConfigOverrides` on `ScenarioRules` plus a `resolveAIConfig(difficulty, overrides?)` helper. All four AI call sites (`aiAstrogation`, `aiOrdnance`, `aiCombat`, the passenger-escort lookahead) now read `state.scenarioRules?.aiConfigOverrides` and merge it over the base difficulty config. Fall-through for every un-listed knob means other scenarios behave exactly as before.
+
+Duel scenario sets `{ combatClosingWeight: 1, combatCloseBonus: 10 }` (down from 3 and 40). The AI now holds range and plays positional fights instead of rushing turn 1.
+
+### Measurement (`npm run simulate:duel-sweep -- --iterations 30`, 480 games)
+
+| Metric | Before | After |
+|---|---|---|
+| Duel avg turns | 6.0 | 8.0 |
+| Duel P0/decided | 42.9% | 45.0% |
+| Full 9-scenario CI sweep | green | green |
+
+The 9-scenario CI sweep passed with no balance warnings after the change. Other scenarios' duel-less deltas were within seed-to-seed noise.
+
+### Files
+`src/shared/ai/config.ts` (`resolveAIConfig`), `src/shared/types/domain.ts` (`aiConfigOverrides` on `ScenarioRules`), `src/shared/engine/game-creation.ts` (threading through), `src/shared/ai/astrogation.ts` + `ordnance.ts` + `combat.ts` (use helper), `src/shared/scenario-definitions.ts` (duel override), `src/shared/ai/config.test.ts` (new).
+
+---
+
 ## Current outstanding issues
 
 Each bullet below links the still-open observation to the canonical backlog entry in [`BACKLOG.md`](./BACKLOG.md). Resolved items are left in the session history for archaeological context but should not be re-opened from this log without referencing an active backlog item.
 
 - **Turn-1 `stalePhase` race** on astrogation → ordnance transition — tracked as `BACKLOG.md` P1 item 3; `scripts/llm-player.ts` has a client-side phase-settle delay workaround.
-- **Short duel matches (2–3 turns)** dominated by opening heuristics — tracked as `BACKLOG.md` P1 item 1 (duel pacing via `simulate:duel-sweep`).
+- ~~**Short duel matches (2–3 turns)** dominated by opening heuristics~~ — **Resolved** 2026-04-17 via the scenario-scoped AI override: duel avg turns now 8.0 with seat balance intact. See session note below.
 - **Default recommended policy still nuke-forward** on duel quick-match openings — partially addressed by the in-engine early-turn nuke guard ported from coach policy (see `src/shared/ai/ordnance.ts`); external `scripts/llm-agent-recommended.ts` still needs the same treatment.
 - **Scrimmage pairing splits** recovered by retry loop in `scripts/quick-match-scrimmage.ts` but still occur in production; lack of server-side visibility tracked as `BACKLOG.md` P2 item 15.
 - **Chat echo loops** (`Copy`/`Copy. Plotting next burn.`) reduce live-log signal; anti-echo suppression shipped in `scripts/llm-player.ts`, human-UX echo guard is out of scope for the backlog.

@@ -10,32 +10,17 @@ The list below is the output of a full project review aimed at "solid architectu
 
 **Also shipped in this pass:** operator-facing documentation of every structured server event in [`OBSERVABILITY.md`](./OBSERVABILITY.md) with copy-pastable D1 queries (lifecycle cadence, disconnect-grace outcomes, matchmaker split rate, MCP timeout, LIVE_REGISTRY failures, turn-timeout by phase) and new alert-threshold guidance; an empirical bias sweep harness (`scripts/ai-bias-sweep.ts`) that measured the passenger-escort lookahead bias across 7 triples × 480 games — result: **bias knob is effectively inert on tested scenarios** (the lookahead code path is too narrow geometrically to dominate AI-vs-AI outcomes), so the priors stay put; a measured duel pacing attempt that found no single-lever tweak (ordnance type restriction, zero starting velocity, away velocity) cleanly reaches the 8-turn target without trading away seat balance — documented as needing a multi-lever design pass; extended a11y axe coverage to fleet-building and the desktop log panel; and a two-browser quick-match pairing e2e that proves the full UI → matchmaker → GameDO → WebSocket path end-to-end.
 
----
-
-## P1 — Gameplay feel (the parts that don't work well yet)
-
-### 1. Duel / quick-match pacing — multi-lever design pass
-
-Current baseline (tip of main, 30 × 16 seeds, hard vs hard): mean avg turns 6.0 (range 4.9–7.2), seat 42.9% P0. Target ≥ 8 turns with stable seat balance.
-
-**Measured this pass (not shipped — data for the next attempt):**
-
-| Change | avgTurns | P0/decided |
-|---|---|---|
-| Baseline (current) | 6.0 | 42.9% |
-| `allowedOrdnanceTypes: ['mine','torpedo']` (no nukes) | 6.2 | 41.5% |
-| `allowedOrdnanceTypes: ['mine']` only | 6.1 | 39.8% |
-| Zero starting velocity | 4.6 | 34.4% (both regressed) |
-| Outbound velocity (ships drift apart) | 6.7 | 54.0% (balance regressed) |
-| No nukes + outbound velocity | 6.6 | 54.9% |
-
-Conclusion: no safe single-lever edit reaches 8 turns. The next pass needs coordinated changes (likely a combination of scoring-weight tuning in `AI_CONFIG` to reward braking + defensive play, plus a scenario rule) rather than tweaking geometry alone. Start from the per-ship scoring weights (`combatClosingWeight`, `combatSpeedDiffPenalty`, `combatVelocityPenalty`) rather than map/fleet data.
-
-**Files:** `src/shared/scenario-definitions.ts`, `src/shared/ai/config.ts`, `scripts/duel-seed-sweep.ts`
+**Shipped 2026-04-17:** duel pacing target reached via a per-scenario AI override. New `aiConfigOverrides` field on `ScenarioRules`, a `resolveAIConfig(difficulty, overrides?)` helper in `src/shared/ai/config.ts`, and all four AI call sites now thread the override through `state.scenarioRules`. Duel sets `{ combatClosingWeight: 1, combatCloseBonus: 10 }` to replace the default `(3, 40)`; measured in 480-game seeded sweep: **avg turns 6.0 → 8.0, seat 42.9% → 45.0% P0**. Other scenarios unaffected (they don't set overrides). Full 9-scenario CI sweep still green. `src/shared/ai/config.test.ts` locks the helper's merge semantics in.
 
 ---
 
-## P2 — Architecture solidity (unblocks P1 iteration)
+## P1 — Gameplay feel
+
+_All shipped. Duel pacing target (≥ 8 avg turns with stable seat balance) reached on 2026-04-17 — see "Shipped 2026-04-17" above. Prior pacing attempts (fleet comp, ship-type swap, velocity tweaks, ordnance restriction) all regressed something or stayed flat; the scenario-scoped AI override was the principled fix._
+
+---
+
+## P2 — Architecture solidity
 
 _All P2 items from the prior passes shipped, including the lifecycle-event documentation and D1 query examples._
 
