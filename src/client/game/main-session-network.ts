@@ -145,6 +145,8 @@ const createMainJoinSessionDeps = (
   showToast: (message, type) => deps.ui.overlay.showToast(message, type),
   exitToMenu: () => exitToMenuFromMain(deps),
   selectCodeInput: () => deps.ui.selectCodeInput(),
+  fallbackToSpectator: (gameCode) =>
+    beginSpectateGameSession(createMainRemoteSessionBridge(deps), gameCode),
 });
 
 const createMainExitSessionDeps = (

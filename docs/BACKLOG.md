@@ -8,18 +8,6 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 ## Active work
 
-### Unblock true live spectating for full rooms
-
-Recent live validation shows `/?code=<ROOM>` does not enter a spectator HUD when two seats are already occupied. The client currently falls back to menu and `/join/<ROOM>` returns `409`, even though the replay stream for that room is actively advancing. Add an explicit spectator path for non-player viewers so active matches can be watched in real time without a `playerToken`.
-
-**Acceptance criteria:**
-- Visiting `/?code=<active-room>` as a third viewer enters a spectator experience (not menu fallback) while the match is in progress.
-- Spectator transport never consumes or blocks player seats.
-- UI clearly indicates watch-only mode and disables player-only controls.
-- Add e2e coverage that starts a live match and verifies spectator state progression.
-
-**Files:** `src/server/room-routes.ts`, `src/server/index.ts`, `src/server/game-do/http-handlers.ts`, `src/client/game/session-api.ts`, `src/client/game/connection.ts`, `src/client/game/replay-controller.ts`, new/updated `e2e/*spectator*.spec.ts`
-
 ### Remove noisy `/api/leaderboard/me` failures in spectator/replay contexts
 
 Replay/spectator loads can emit non-blocking `404` errors for `/api/leaderboard/me?playerKey=...` when the viewer has an anonymous or unclaimed key. This pollutes console/network diagnostics and masks real failures during manual QA. Gate or degrade this request path so unauthenticated watchers do not surface avoidable errors.

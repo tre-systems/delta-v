@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createGameOrThrow } from '../../shared/engine/game-engine';
 import { asGameId } from '../../shared/ids';
@@ -9,7 +9,7 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import type { ReplayTimeline } from '../../shared/replay';
-import type { GameState } from '../../shared/types/domain';
+import { ErrorCode, type GameState } from '../../shared/types/domain';
 import {
   type ArchivedReplaySessionDeps,
   beginArchivedReplaySession,
@@ -406,7 +406,7 @@ describe('session-controller', () => {
     const deps = createJoinGameDeps();
     deps.validateJoin = async () => ({
       ok: false,
-      error: 'That game is already full',
+      error: { message: 'That game is already full' },
     });
 
     await beginJoinGameSession(deps, 'FGHIJ', 'token-2');
@@ -421,6 +421,43 @@ describe('session-controller', () => {
     expect(deps.calls.replaceRoute).toBeUndefined();
     expect(deps.calls.setState).toBeUndefined();
     expect(deps.calls.connect).toBeUndefined();
+  });
+
+  it('falls back to spectator when the room is full and a fallback is wired', async () => {
+    const deps = createJoinGameDeps();
+    const fallbackSpy = vi.fn();
+    deps.fallbackToSpectator = fallbackSpy;
+    deps.validateJoin = async () => ({
+      ok: false,
+      error: {
+        message: 'That game is already full',
+        code: ErrorCode.ROOM_FULL,
+      },
+    });
+
+    await beginJoinGameSession(deps, 'FGHIJ');
+
+    expect(fallbackSpy).toHaveBeenCalledWith('FGHIJ');
+    expect(deps.calls.showToast).toBeUndefined();
+    expect(deps.calls.exitToMenu).toBeUndefined();
+  });
+
+  it('exits to menu on ROOM_FULL when no spectator fallback is configured', async () => {
+    const deps = createJoinGameDeps();
+    deps.validateJoin = async () => ({
+      ok: false,
+      error: {
+        message: 'That game is already full',
+        code: ErrorCode.ROOM_FULL,
+      },
+    });
+
+    await beginJoinGameSession(deps, 'FGHIJ');
+
+    expect(deps.calls.showToast).toEqual([
+      ['That game is already full', 'error'],
+    ]);
+    expect(deps.calls.exitToMenu).toHaveLength(1);
   });
 
   it('clears spectator mode after a normal join succeeds', async () => {

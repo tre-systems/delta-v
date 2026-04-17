@@ -135,7 +135,9 @@ describe('session-api telemetry', () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: 'That game is already full',
+        error: expect.objectContaining({
+          message: 'That game is already full',
+        }),
       }),
     );
     expect(track).toHaveBeenNthCalledWith(1, 'join_game_attempted', {
@@ -197,7 +199,7 @@ describe('session-api telemetry', () => {
 
     expect(result).toEqual({
       ok: false,
-      error: 'Join check timed out. Try again.',
+      error: { message: 'Join check timed out. Try again.', code: undefined },
     });
     expect(track).toHaveBeenNthCalledWith(1, 'join_game_attempted', {
       hasPlayerToken: false,

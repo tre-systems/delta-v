@@ -77,6 +77,11 @@ const fetchWithTimeout = async (
   }
 };
 
+export interface ValidateJoinError {
+  message: string;
+  code?: ErrorCode;
+}
+
 export interface SessionApiDeps {
   ctx: CreatedGameSessionDeps['ctx'];
   playerProfile: Pick<PlayerProfileService, 'getProfile'>;
@@ -385,12 +390,17 @@ export const createSessionApi = (deps: SessionApiDeps) => {
   const validateJoin = async (
     code: string,
     playerToken: string | null,
-  ): Promise<Result<string | null>> => {
+  ): Promise<Result<string | null, ValidateJoinError>> => {
     const attemptJoin = async (
       token: string | null,
     ): Promise<
       | { ok: true; playerToken: string | null }
-      | { ok: false; message: string; status?: number }
+      | {
+          ok: false;
+          message: string;
+          status?: number;
+          code?: ErrorCode;
+        }
     > => {
       try {
         const response = await fetchWithTimeout(
@@ -401,8 +411,9 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           return { ok: true, playerToken: token };
         }
 
-        const { message } = await parseJoinErrorResponse(response);
-        return { ok: false, message, status: response.status };
+        const { message, code: errorCode } =
+          await parseJoinErrorResponse(response);
+        return { ok: false, message, status: response.status, code: errorCode };
       } catch (err) {
         const failureKind = classifySessionRequestFailure(err);
 
@@ -450,7 +461,10 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         status: 'status' in retryAttempt ? retryAttempt.status : undefined,
         hasPlayerToken: false,
       });
-      return { ok: false, error: retryAttempt.message };
+      return {
+        ok: false,
+        error: { message: retryAttempt.message, code: retryAttempt.code },
+      };
     }
 
     deps.track('join_game_failed', {
@@ -458,7 +472,10 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       status: initialAttempt.status,
       hasPlayerToken: playerToken !== null,
     });
-    return { ok: false, error: initialAttempt.message };
+    return {
+      ok: false,
+      error: { message: initialAttempt.message, code: initialAttempt.code },
+    };
   };
 
   const fetchReplay = async (
