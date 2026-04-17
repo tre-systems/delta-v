@@ -10,22 +10,6 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 Findings from exploratory live-session testing on 2026-04-17 using paired quick-match queues, MCP sessions, and browser-driven player flows. Ordered by user impact and regression risk.
 
-### Unify in-game state messaging with actual phase/turn state
-
-During active matches, stale pregame content (e.g. "Game Created", "Waiting for opponent...") can remain in the semantic tree while in-turn controls are already active. This causes user confusion and weakens accessibility semantics.
-
-**Tasks:**
-- Make one authoritative game-state presenter drive both visible labels and accessibility text.
-- Hide or unmount pregame headings/content once `gameStart` is received and gameplay controls are active.
-- Add UI-state tests that assert phase-specific headings/status do not coexist with stale pregame messaging.
-- Add a compact always-visible phase/status banner (`phase`, `active player`, `pending/confirmed`) for clarity.
-
-**Acceptance criteria:**
-- In active gameplay phases, no stale pregame status strings appear in the visible UI or accessibility snapshot.
-- Phase/turn ownership is discoverable from one consistent status region on desktop and mobile layouts.
-
-**Files:** home/lobby state rendering, in-game HUD/status components, accessibility labeling, UI tests
-
 ---
 
 ## Cost & abuse hardening

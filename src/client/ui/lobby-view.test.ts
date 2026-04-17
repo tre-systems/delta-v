@@ -250,8 +250,8 @@ describe('LobbyView', () => {
     expect(document.getElementById('copyBtn')?.textContent).toBe('Copy Link');
   });
 
-  it('shows spectator link controls when feature is enabled', () => {
-    createLobbyView({
+  it('shows spectator link controls when feature is enabled and a private room is waiting', () => {
+    const view = createLobbyView({
       emit: vi.fn(),
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
@@ -272,7 +272,12 @@ describe('LobbyView', () => {
       }),
     });
 
-    // spectatorMode defaults to true — the copy-spectate button is visible.
+    // Activate the private-room waiting state so copy actions render;
+    // initial boot starts with a blank waiting card so pregame copy
+    // never leaks into the accessibility tree on menu load.
+    view.setWaitingState({ kind: 'private', code: 'ABCDE', connecting: false });
+
+    // spectatorMode defaults to true — the copy-spectate button is now visible.
     expect(
       (document.getElementById('copySpectateBtn') as HTMLElement).hasAttribute(
         'hidden',
