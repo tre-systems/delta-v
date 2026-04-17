@@ -15,8 +15,8 @@ test.describe('accessibility smoke checks', () => {
     page,
   }) => {
     await openHomePage(page);
-    await waitForDisplay(page, '#menu', 'flex');
-    await runA11yCheck(page, ['#menu']);
+    await waitForDisplay(page, '[data-testid="menu"]', 'flex');
+    await runA11yCheck(page, ['[data-testid="menu"]']);
   });
 
   test('waiting lobby has no serious/critical DOM accessibility violations', async ({
@@ -24,7 +24,7 @@ test.describe('accessibility smoke checks', () => {
   }) => {
     await openHomePage(page);
     await createRoom(page);
-    await runA11yCheck(page, ['#waiting']);
+    await runA11yCheck(page, ['[data-testid="waiting"]']);
   });
 
   test('in-game HUD and help overlay have no serious/critical DOM accessibility violations', async ({
@@ -32,14 +32,17 @@ test.describe('accessibility smoke checks', () => {
   }) => {
     await launchSinglePlayerScenario(page, 'biplanetary');
     await openHelpOverlay(page);
-    await runA11yCheck(page, ['#hud', '#helpOverlay']);
+    await runA11yCheck(page, [
+      '[data-testid="hud"]',
+      '[data-testid="helpOverlay"]',
+    ]);
   });
 
   test('menu controls are keyboard-focusable and Enter activates primary navigation', async ({
     page,
   }) => {
     await openHomePage(page);
-    await waitForDisplay(page, '#menu', 'flex');
+    await waitForDisplay(page, '[data-testid="menu"]', 'flex');
 
     await page.keyboard.press('Tab');
     await expect
@@ -58,7 +61,7 @@ test.describe('accessibility smoke checks', () => {
       .toBe('singlePlayerBtn');
 
     await page.keyboard.press('Enter');
-    await waitForDisplay(page, '#scenarioSelect', 'flex');
+    await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
   });
 
   test('help overlay moves focus to close and restores focus on close', async ({
@@ -68,8 +71,8 @@ test.describe('accessibility smoke checks', () => {
     await openHelpOverlay(page);
     await expect.poll(async () => activeElementId(page)).toBe('helpCloseBtn');
 
-    await page.click('#helpCloseBtn');
-    await waitForDisplay(page, '#helpOverlay', 'none');
+    await page.click('[data-testid="helpCloseBtn"]');
+    await waitForDisplay(page, '[data-testid="helpOverlay"]', 'none');
     await expect.poll(async () => activeElementId(page)).toBe('helpBtn');
   });
 
@@ -84,12 +87,12 @@ test.describe('accessibility smoke checks', () => {
     // launchFleetActionScenario lands on the HUD after picking a ship;
     // reset back to fleet-building by re-launching for the axe check.
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await waitForDisplay(page, '#menu', 'flex');
-    await page.click('#singlePlayerBtn');
-    await waitForDisplay(page, '#scenarioSelect', 'flex');
+    await waitForDisplay(page, '[data-testid="menu"]', 'flex');
+    await page.click('[data-testid="singlePlayerBtn"]');
+    await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
     await page.click('[data-scenario="fleetAction"]');
-    await waitForDisplay(page, '#fleetBuilding', 'flex');
-    await runA11yCheck(page, ['#fleetBuilding']);
+    await waitForDisplay(page, '[data-testid="fleetBuilding"]', 'flex');
+    await runA11yCheck(page, ['[data-testid="fleetBuilding"]']);
   });
 
   test('desktop log panel has no serious/critical DOM accessibility violations', async ({
@@ -103,6 +106,6 @@ test.describe('accessibility smoke checks', () => {
       skipTutorial: true,
     });
     await expandDesktopLog(page);
-    await runA11yCheck(page, ['#gameLog']);
+    await runA11yCheck(page, ['[data-testid="gameLog"]']);
   });
 });

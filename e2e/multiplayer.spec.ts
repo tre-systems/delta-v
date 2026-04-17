@@ -15,10 +15,12 @@ test.describe('multiplayer smoke tests', () => {
     const session = await createMultiplayerSession(browser);
 
     try {
-      await expect(session.host.locator('#objective')).toContainText('Land on');
-      await expect(session.guest.locator('#objective')).toContainText(
-        'Land on',
-      );
+      await expect(
+        session.host.locator('[data-testid="objective"]'),
+      ).toContainText('Land on');
+      await expect(
+        session.guest.locator('[data-testid="objective"]'),
+      ).toContainText('Land on');
     } finally {
       await session.close();
     }
@@ -33,12 +35,14 @@ test.describe('multiplayer smoke tests', () => {
       await expandDesktopLog(session.host);
       await expandDesktopLog(session.guest);
 
-      await session.host.locator('#chatInput').fill('hello from host');
-      await session.host.locator('#chatInput').press('Enter');
+      await session.host
+        .locator('[data-testid="chatInput"]')
+        .fill('hello from host');
+      await session.host.locator('[data-testid="chatInput"]').press('Enter');
 
-      await expect(session.guest.locator('#logEntries')).toContainText(
-        'Opponent: hello from host',
-      );
+      await expect(
+        session.guest.locator('[data-testid="logEntries"]'),
+      ).toContainText('Opponent: hello from host');
     } finally {
       await session.close();
     }
@@ -51,11 +55,13 @@ test.describe('multiplayer smoke tests', () => {
 
     try {
       await session.guest.reload({ waitUntil: 'domcontentloaded' });
-      await waitForDisplay(session.guest, '#hud', 'block');
-      await expect(session.guest.locator('#objective')).toContainText(
-        'Land on',
-      );
-      await expect(session.guest.locator('#reconnectOverlay')).toBeHidden();
+      await waitForDisplay(session.guest, '[data-testid="hud"]', 'block');
+      await expect(
+        session.guest.locator('[data-testid="objective"]'),
+      ).toContainText('Land on');
+      await expect(
+        session.guest.locator('[data-testid="reconnectOverlay"]'),
+      ).toBeHidden();
     } finally {
       await session.close();
     }
@@ -70,10 +76,10 @@ test.describe('multiplayer smoke tests', () => {
     try {
       await openHomePage(intruder, { tutorialDone: true });
       await submitRoomJoin(intruder, session.roomCode);
-      await expect(intruder.locator('#toastContainer')).toContainText(
-        'That game is already full',
-      );
-      await waitForDisplay(intruder, '#menu', 'flex');
+      await expect(
+        intruder.locator('[data-testid="toastContainer"]'),
+      ).toContainText('That game is already full');
+      await waitForDisplay(intruder, '[data-testid="menu"]', 'flex');
     } finally {
       await closePages(intruder);
       await session.close();
@@ -132,17 +138,17 @@ test.describe('multiplayer smoke tests', () => {
 
       await pageA.goto('/', { waitUntil: 'domcontentloaded' });
       await pageB.goto('/', { waitUntil: 'domcontentloaded' });
-      await waitForDisplay(pageA, '#menu', 'flex');
-      await waitForDisplay(pageB, '#menu', 'flex');
+      await waitForDisplay(pageA, '[data-testid="menu"]', 'flex');
+      await waitForDisplay(pageB, '[data-testid="menu"]', 'flex');
 
-      await pageA.click('#quickMatchBtn');
-      await pageB.click('#quickMatchBtn');
+      await pageA.click('[data-testid="quickMatchBtn"]');
+      await pageB.click('[data-testid="quickMatchBtn"]');
 
       // Both players must reach the HUD (matchmaker allocated a room,
       // GameDO accepted the joins, WebSockets connected, state arrived).
       await Promise.all([
-        waitForDisplay(pageA, '#hud', 'block', 30_000),
-        waitForDisplay(pageB, '#hud', 'block', 30_000),
+        waitForDisplay(pageA, '[data-testid="hud"]', 'block', 30_000),
+        waitForDisplay(pageB, '[data-testid="hud"]', 'block', 30_000),
       ]);
 
       // Room codes match → they are in the same game. Split pairings
