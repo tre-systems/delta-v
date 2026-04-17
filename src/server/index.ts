@@ -3,6 +3,7 @@ import { handleAgentTokenIssue } from './auth/issue-route';
 import type { Env } from './env';
 import { GameDO } from './game-do/game-do';
 import { handleClaimName } from './leaderboard/claim-route';
+import { handlePlayerRank } from './leaderboard/player-rank';
 import { handleLeaderboardQuery } from './leaderboard/query-route';
 import { handleLiveMatchesList } from './live-matches-list';
 import { LiveRegistryDO } from './live-registry-do';
@@ -279,6 +280,19 @@ export default {
         }
       }
       return handleLeaderboardQuery(request, env);
+    }
+
+    // GET /api/leaderboard/me?playerKey=... — per-player rank lookup
+    // for the home-screen hint. Shares the join-probe rate limiter.
+    if (url.pathname === '/api/leaderboard/me' && request.method === 'GET') {
+      if (!isLoopbackRequest(request)) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const ipHash = await hashIp(ip);
+        if (isJoinProbeRateLimited(ipHash)) {
+          return tooManyRequests();
+        }
+      }
+      return handlePlayerRank(request, env);
     }
 
     // Hosted streamable-HTTP MCP endpoint — POST JSON-RPC, JSON response.

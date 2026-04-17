@@ -2,7 +2,7 @@ import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
 import { byId, cls, hide, listen, setTrustedHTML, show, text } from '../dom';
 import { isClientFeatureEnabled } from '../feature-flags';
-import { postClaimName } from '../leaderboard/api';
+import { fetchPlayerRank, postClaimName } from '../leaderboard/api';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
@@ -20,6 +20,7 @@ export interface LobbyViewDeps {
   // Optional network boundary — tests pass a stub so the lobby doesn't
   // hit the real /api/claim-name route.
   postClaimName?: typeof postClaimName;
+  fetchPlayerRank?: typeof fetchPlayerRank;
 }
 
 export interface LobbyView {
@@ -283,6 +284,27 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       callsignStatusEl.className = `menu-profile-status status-${tone}`;
     };
 
+    const fetchRank = deps.fetchPlayerRank ?? fetchPlayerRank;
+
+    const formatRankText = (r: {
+      rating: number;
+      provisional: boolean;
+      rank: number | null;
+    }): string => {
+      if (r.provisional) return `Rating ${r.rating} · provisional`;
+      return r.rank === null
+        ? `Rating ${r.rating}`
+        : `Rating ${r.rating} · rank #${r.rank}`;
+    };
+
+    const refreshRank = () => {
+      const playerKey = deps.getPlayerKey();
+      void fetchRank({ playerKey }).then((result) => {
+        if (!result.ok) return;
+        setCallsignStatus(formatRankText(result.player), 'info');
+      });
+    };
+
     const runClaim = (postClaim: typeof postClaimName) => {
       const username = deps.getPlayerName();
       const playerKey = deps.getPlayerKey();
@@ -290,6 +312,10 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       void postClaim({ playerKey, username }).then((result) => {
         if (result.ok) {
           setCallsignStatus(`Claimed as ${result.player.username}`, 'success');
+          // Follow up with the player's rank once the claim lands so
+          // the status switches from "Claimed as X" to
+          // "Rating N · rank #K" (or · provisional).
+          refreshRank();
           return;
         }
         if (result.error === 'name_taken') {
@@ -315,6 +341,11 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         setCallsignStatus('', 'info');
       });
     };
+
+    // On initial show, fire a best-effort rank fetch so returning
+    // visitors see their "Rating · rank" hint without having to
+    // re-claim first. Failure is silent (e.g. never claimed a name).
+    refreshRank();
 
     const commitPlayerName = () => {
       const prior = deps.getPlayerName();

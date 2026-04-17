@@ -2,12 +2,17 @@
 // pagination over the `match_archive` D1 table. Shown in the public
 // `/matches` page.
 //
-// The data surfaced here is intentionally non-identifying: scenario,
-// winner, win reason, turn count, timestamps, coached flag. Room codes
-// and game ids are included only so the page can construct replay links
-// (the existing `/replay/{code}?viewer=spectator` route is already
-// publicly accessible with a known code, so exposing codes here does not
-// widen any security boundary beyond "replays are discoverable").
+// The data surfaced here is intentionally non-identifying by default:
+// scenario, winner, win reason, turn count, timestamps, coached flag.
+// When both players of a matchmaker-paired game have claimed public
+// usernames, those names are joined in via match_rating (both players
+// opted into a public ranking by claiming). Private-room matches and
+// unclaimed players leave the username fields null.
+//
+// Room codes and game ids are included only so the page can construct
+// replay links (the existing `/replay/{code}?viewer=spectator` route is
+// already publicly accessible with a known code, so exposing codes here
+// does not widen any security boundary beyond "replays are discoverable").
 
 import type { Env } from './env';
 
@@ -15,7 +20,9 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 // Shape a single row. Keys are camelCase for the HTTP client; the D1
-// columns are snake_case.
+// columns are snake_case. Username fields are null unless both players
+// claimed public usernames AND the match was matchmaker-paired (a
+// match_rating row exists).
 export interface MatchListingRow {
   gameId: string;
   roomCode: string;
@@ -26,6 +33,8 @@ export interface MatchListingRow {
   createdAt: number;
   completedAt: number;
   coached: boolean;
+  winnerUsername: string | null;
+  loserUsername: string | null;
 }
 
 export interface MatchListingResponse {
@@ -51,7 +60,8 @@ const parseBefore = (raw: string | null): number | null => {
 };
 
 // D1 row shape — reflects the CREATE TABLE in 0002_match_archive.sql
-// plus the match_coached column added in 0003_match_archive_listing.sql.
+// plus the match_coached column added in 0003_match_archive_listing.sql,
+// plus the LEFT JOIN on match_rating + player added for username fields.
 interface MatchArchiveRow {
   game_id: string;
   room_code: string;
@@ -62,6 +72,8 @@ interface MatchArchiveRow {
   created_at: number;
   completed_at: number;
   match_coached: number | null;
+  winner_username: string | null;
+  loser_username: string | null;
 }
 
 const toListingRow = (row: MatchArchiveRow): MatchListingRow => ({
@@ -74,6 +86,8 @@ const toListingRow = (row: MatchArchiveRow): MatchListingRow => ({
   createdAt: row.created_at,
   completedAt: row.completed_at,
   coached: Boolean(row.match_coached),
+  winnerUsername: row.winner_username ?? null,
+  loserUsername: row.loser_username ?? null,
 });
 
 export const handleMatchesList = async (
@@ -99,20 +113,40 @@ export const handleMatchesList = async (
   // without a separate COUNT query.
   const fetchSize = limit + 1;
 
+  // LEFT JOIN match_rating + player twice so private rooms and
+  // unclaimed players surface as NULL usernames. The CASE expressions
+  // map the match's winner_key onto the canonically-ordered
+  // player_a/player_b pair so the client sees "winner vs loser"
+  // directly without another lookup.
+  const SELECT_COLUMNS =
+    'ma.game_id, ma.room_code, ma.scenario, ma.winner, ma.win_reason, ' +
+    'ma.turns, ma.created_at, ma.completed_at, ma.match_coached, ' +
+    'CASE ' +
+    '  WHEN mr.winner_key IS NULL THEN NULL ' +
+    '  WHEN mr.winner_key = mr.player_a_key THEN pa.username ' +
+    '  ELSE pb.username ' +
+    'END AS winner_username, ' +
+    'CASE ' +
+    '  WHEN mr.winner_key IS NULL THEN NULL ' +
+    '  WHEN mr.winner_key = mr.player_a_key THEN pb.username ' +
+    '  ELSE pa.username ' +
+    'END AS loser_username';
+  const JOINS =
+    'FROM match_archive ma ' +
+    'LEFT JOIN match_rating mr ON mr.game_id = ma.game_id ' +
+    'LEFT JOIN player pa ON pa.player_key = mr.player_a_key ' +
+    'LEFT JOIN player pb ON pb.player_key = mr.player_b_key';
+
   const stmt = before
     ? env.DB.prepare(
-        'SELECT game_id, room_code, scenario, winner, win_reason, ' +
-          'turns, created_at, completed_at, match_coached ' +
-          'FROM match_archive ' +
-          'WHERE completed_at < ? ' +
-          'ORDER BY completed_at DESC ' +
+        `SELECT ${SELECT_COLUMNS} ${JOINS} ` +
+          'WHERE ma.completed_at < ? ' +
+          'ORDER BY ma.completed_at DESC ' +
           'LIMIT ?',
       ).bind(before, fetchSize)
     : env.DB.prepare(
-        'SELECT game_id, room_code, scenario, winner, win_reason, ' +
-          'turns, created_at, completed_at, match_coached ' +
-          'FROM match_archive ' +
-          'ORDER BY completed_at DESC ' +
+        `SELECT ${SELECT_COLUMNS} ${JOINS} ` +
+          'ORDER BY ma.completed_at DESC ' +
           'LIMIT ?',
       ).bind(fetchSize);
 

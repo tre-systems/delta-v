@@ -22,6 +22,7 @@
 import type { GameId } from '../../shared/ids';
 import { type Rating, updateRating } from '../../shared/rating/glicko2';
 import type { GameState } from '../../shared/types/domain';
+import { reportLifecycleEvent } from '../game-do/telemetry';
 import type { RoomConfig } from '../protocol';
 import { type PlayerRecord, selectPlayerByKey } from './player-store';
 
@@ -102,8 +103,28 @@ export interface WriteMatchRatingOpts {
   now: number;
 }
 
+export interface AppliedRatingSummary {
+  aKey: string;
+  bKey: string;
+  winnerKey: string | null;
+  ratingBeforeA: number;
+  ratingAfterA: number;
+  ratingBeforeB: number;
+  ratingAfterB: number;
+  rdBeforeA: number;
+  rdAfterA: number;
+  rdBeforeB: number;
+  rdAfterB: number;
+  newOpponent: boolean;
+}
+
 export type WriteMatchRatingResult =
-  | { ok: true; wrote: boolean; reason?: string }
+  | {
+      ok: true;
+      wrote: boolean;
+      reason?: string;
+      applied?: AppliedRatingSummary;
+    }
   | { ok: false; error: string };
 
 export const writeMatchRatingIfEligible = async (
@@ -202,12 +223,31 @@ export const writeMatchRatingIfEligible = async (
       error: err instanceof Error ? err.message : 'batch_failed',
     };
   }
-  return { ok: true, wrote: true };
+  return {
+    ok: true,
+    wrote: true,
+    applied: {
+      aKey: pair.aKey,
+      bKey: pair.bKey,
+      winnerKey: pair.winnerKey,
+      ratingBeforeA: pair.aPlayer.rating,
+      ratingAfterA: newA.a.rating,
+      ratingBeforeB: pair.bPlayer.rating,
+      ratingAfterB: newA.b.rating,
+      rdBeforeA: pair.aPlayer.rd,
+      rdAfterA: newA.a.rd,
+      rdBeforeB: pair.bPlayer.rd,
+      rdAfterB: newA.b.rd,
+      newOpponent,
+    },
+  };
 };
 
 // Scheduler helper that mirrors scheduleArchiveCompletedMatch — used
 // inside the DO publication pipeline. Fire-and-forget via waitUntil;
-// errors log but never block game flow.
+// errors log to the D1 `events` table via reportLifecycleEvent so
+// operators can see the conversion rate (applied / skipped / failed)
+// in production without tailing logs.
 export const scheduleMatchRatingUpdate = (
   deps: {
     db: D1Database | undefined;
@@ -232,13 +272,37 @@ export const scheduleMatchRatingUpdate = (
         outcomeWinner: winner === 0 || winner === 1 ? winner : null,
         now: Date.now(),
       });
+      const eventDeps = { db, waitUntil: deps.waitUntil };
       if (!result.ok) {
-        console.error(
-          '[rating-writer] batch failed',
-          state.gameId,
-          result.error,
-        );
+        reportLifecycleEvent(eventDeps, 'rating_failed', {
+          gameId: state.gameId,
+          error: result.error,
+        });
+        return;
       }
+      if (!result.wrote) {
+        reportLifecycleEvent(eventDeps, 'rating_skipped', {
+          gameId: state.gameId,
+          reason: result.reason ?? 'unknown',
+        });
+        return;
+      }
+      const a = result.applied;
+      if (!a) return;
+      reportLifecycleEvent(eventDeps, 'rating_applied', {
+        gameId: state.gameId,
+        scenario: state.scenario,
+        aKey: a.aKey,
+        bKey: a.bKey,
+        winnerKey: a.winnerKey,
+        ratingDeltaA:
+          Math.round((a.ratingAfterA - a.ratingBeforeA) * 100) / 100,
+        ratingDeltaB:
+          Math.round((a.ratingAfterB - a.ratingBeforeB) * 100) / 100,
+        rdAfterA: Math.round(a.rdAfterA),
+        rdAfterB: Math.round(a.rdAfterB),
+        newOpponent: a.newOpponent,
+      });
     })(),
   );
 };
