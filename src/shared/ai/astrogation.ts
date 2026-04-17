@@ -30,7 +30,7 @@ import {
   projectShipAfterCourse,
   scoreObjectiveHomeDefenseCourse,
 } from './common';
-import { AI_CONFIG } from './config';
+import { resolveAIConfig } from './config';
 import {
   aiLogistics,
   getPassengerTransferFormationOrders,
@@ -304,7 +304,12 @@ const getPassengerEmergencyEscortOrders = (
     );
   };
 
-  const cfg = AI_CONFIG[difficulty];
+  const cfg = resolveAIConfig(
+    difficulty,
+    state.scenarioRules?.aiConfigOverrides as
+      | Parameters<typeof resolveAIConfig>[1]
+      | undefined,
+  );
   const carrierBurns = [0, 1, 2, 3, 4, 5] as const;
   const escortBurns = [null, 0, 1, 2, 3, 4, 5] as const;
   let bestScore = -Infinity;
@@ -447,7 +452,12 @@ export const aiAstrogation = (
   // on `Math.random` would silently desync from the authoritative engine.
   rng: () => number,
 ): AstrogationOrder[] => {
-  const cfg = AI_CONFIG[difficulty];
+  const cfg = resolveAIConfig(
+    difficulty,
+    state.scenarioRules?.aiConfigOverrides as
+      | Parameters<typeof resolveAIConfig>[1]
+      | undefined,
+  );
   const orders: AstrogationOrder[] = [];
   const { targetBody, escapeWins } = state.players[playerId];
   const player = state.players[playerId];

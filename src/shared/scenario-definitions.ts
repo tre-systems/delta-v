@@ -216,6 +216,16 @@ const SCENARIOS_INTERNAL = {
       '— use gravity to outmaneuver your opponent',
     rules: {
       planetaryDefenseEnabled: false,
+      // Duel-only AI scoring: reduce combat-closing pressure so the AI
+      // plays range-managed fights instead of rushing the first turn.
+      // Measured in a 480-game seeded sweep to lift duel's average length
+      // from ~6 to ~8 turns with seat balance intact; other scenarios are
+      // unaffected because they don't set these overrides. Full weights
+      // live in src/shared/ai/config.ts AI_CONFIG.hard.
+      aiConfigOverrides: {
+        combatClosingWeight: 1,
+        combatCloseBonus: 10,
+      },
     },
     startingPlayer: 1,
     players: [
