@@ -90,6 +90,14 @@
   max-width: 170px;
 }
 
+.ship-list-empty {
+  padding: 0.5rem 0.55rem;
+  font-size: 0.68rem;
+  color: var(--muted, #90a0ba);
+  font-family: var(--font-mono);
+  line-height: 1.35;
+}
+
 .ship-entry {
   min-width: 120px;
   padding: 0.35rem 0.5rem;

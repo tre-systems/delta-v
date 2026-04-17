@@ -87,7 +87,7 @@ export const createTurnTimerManager = (
       if (timer.shouldWarn && !timerWarningPlayed) {
         timerWarningPlayed = true;
         deps.playWarning();
-        deps.showToast('30 seconds remaining!', 'error');
+        deps.showToast('30 seconds remaining!', 'info');
       }
     }, 1000);
   };

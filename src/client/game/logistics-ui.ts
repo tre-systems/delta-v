@@ -36,7 +36,7 @@ export const renderTransferPanel = (
     container.appendChild(
       el('div', {
         class: 'transfer-empty',
-        text: 'No transfer-eligible ships',
+        text: 'No ships can transfer fuel or cargo at this location this turn.',
       }),
     );
     panelViews.set(container, {

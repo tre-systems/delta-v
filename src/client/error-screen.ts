@@ -2,6 +2,12 @@ import { reportError } from './telemetry';
 
 let shown = false;
 
+const focusableSelector =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+const listFocusable = (root: HTMLElement): HTMLElement[] =>
+  Array.from(root.querySelectorAll<HTMLElement>(focusableSelector));
+
 export const showErrorScreen = (error: unknown): void => {
   if (shown) return;
   shown = true;
@@ -10,6 +16,11 @@ export const showErrorScreen = (error: unknown): void => {
   reportError(message, { type: 'fatal' });
 
   const overlay = document.createElement('div');
+  overlay.setAttribute('role', 'alertdialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'error-screen-title');
+  overlay.setAttribute('aria-describedby', 'error-screen-desc');
+  overlay.tabIndex = -1;
   overlay.style.cssText = [
     'position:fixed',
     'inset:0',
@@ -27,6 +38,7 @@ export const showErrorScreen = (error: unknown): void => {
   ].join(';');
 
   const heading = document.createElement('h1');
+  heading.id = 'error-screen-title';
   heading.style.cssText = [
     'font-size:1.5rem',
     'font-weight:600',
@@ -36,6 +48,7 @@ export const showErrorScreen = (error: unknown): void => {
   heading.textContent = 'Something went wrong';
 
   const body = document.createElement('p');
+  body.id = 'error-screen-desc';
   body.style.cssText = [
     'margin:0',
     'color:var(--muted,#90a0ba)',
@@ -45,6 +58,7 @@ export const showErrorScreen = (error: unknown): void => {
   body.textContent = 'An unexpected error occurred. Reload to try again.';
 
   const button = document.createElement('button');
+  button.type = 'button';
   button.style.cssText = [
     'margin-top:8px',
     'padding:10px 24px',
@@ -65,4 +79,32 @@ export const showErrorScreen = (error: unknown): void => {
   overlay.appendChild(body);
   overlay.appendChild(button);
   document.body.appendChild(overlay);
+
+  const trapFocus = (ev: KeyboardEvent): void => {
+    if (ev.key !== 'Tab') return;
+    const nodes = listFocusable(overlay);
+    if (nodes.length === 0) return;
+    if (nodes.length === 1) {
+      ev.preventDefault();
+      nodes[0].focus();
+      return;
+    }
+    const first = nodes[0];
+    const last = nodes[nodes.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+    if (ev.shiftKey) {
+      if (active === first || !overlay.contains(active)) {
+        ev.preventDefault();
+        last.focus();
+      }
+    } else if (active === last || !overlay.contains(active)) {
+      ev.preventDefault();
+      first.focus();
+    }
+  };
+
+  overlay.addEventListener('keydown', trapFocus);
+  requestAnimationFrame(() => {
+    button.focus();
+  });
 };
