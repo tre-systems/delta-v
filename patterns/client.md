@@ -10,11 +10,38 @@ Each section follows the same structure: the pattern, a minimal example, where i
 
 **Pattern.** DOM events never reach game logic. They pass through three layers: raw capture → game interpretation → command dispatch.
 
+```mermaid
+flowchart LR
+  D[DOM event<br/>click / key / touch] --> L1
+
+  subgraph L1[Layer 1: input.ts]
+    direction LR
+    IE[InputEvent<br/>clickHex / hoverHex]
+  end
+
+  K[Key press] --> L3
+  B[Button click] --> L3
+
+  L1 --> L2
+
+  subgraph L2[Layer 2: input-events.ts]
+    direction LR
+    I[interpretInput<br/>pure function]
+    GC[GameCommand]
+    I --> GC
+  end
+
+  L2 --> L3
+
+  subgraph L3[Layer 3: command-router.ts]
+    direction LR
+    DISP[dispatchGameCommand<br/>exhaustive switch]
+  end
+
+  L3 --> H[domain handler<br/>astrogation / combat / ordnance / UI]
 ```
-DOM event   →   Layer 1: input.ts        →  InputEvent { clickHex, hoverHex, … }
-                Layer 2: input-events.ts →  GameCommand[] (pure function)
-                Layer 3: command-router  →  domain handler
-```
+
+Layer 1 knows camera transforms but nothing about game rules. Layer 2 is pure — it takes snapshots and returns commands. Layer 3 routes to domain handlers. Keyboard shortcuts and button clicks enter directly at Layer 3, sharing the same dispatch sink.
 
 **Minimal example.**
 

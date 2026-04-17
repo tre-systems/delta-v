@@ -10,6 +10,27 @@ Each section has four parts: **the pattern**, a **minimal example**, **where it 
 
 **Pattern.** Every mutation to an in-progress match is a versioned event appended to a per-match stream. Live state, replays, and reconnection are all *projections* of that stream plus periodic checkpoints — never a separate "current state" slot maintained by hand.
 
+```mermaid
+flowchart LR
+  A[C2S action] --> B[Engine call<br/>pure, returns events + state]
+  B --> C[runPublicationPipeline]
+  C --> D[Append events<br/>to chunked stream]
+  C --> E{Turn<br/>boundary?}
+  E -->|yes| F[Save checkpoint]
+  C --> G[Parity check<br/>live vs projected]
+  C --> H[Broadcast<br/>filtered S2C]
+
+  subgraph Recovery
+    I[Load latest checkpoint]
+    J[Load event tail]
+    I --> K[Project to current state]
+    J --> K
+  end
+
+  D -.-> J
+  F -.-> I
+```
+
 **Minimal example.**
 
 ```ts

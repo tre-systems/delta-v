@@ -173,26 +173,15 @@ Diagram maintenance rule: when command flow, phase transitions, or persistence/p
 - **Backend**: Cloudflare Workers for HTTP routing and Cloudflare Durable Objects for authoritative game state and WebSocket management.
 - **Build & Tools**: `esbuild` for lightning-fast client bundling, `wrangler` for local testing/deployment, and `Vitest` for unit testing.
 
-### Key Architectural Strengths
+### Architectural Stance
 
-- **Side-effect-free engine.** The shared engine has no I/O: no DOM, no network, no storage. The DO wraps it with persistence and WebSocket plumbing. This makes everything testable and portable. Turn-resolution engine entry points clone the input state on entry (`structuredClone`) — callers' state is never mutated. See [Engine Mutation Model](#engine-mutation-model) for details.
-- **Transport abstraction.** `GameTransport` decouples the client from WebSocket vs local (AI) play. The client doesn't know or care where state comes from.
-- **Functional style throughout.** Pure derivation functions (`deriveHudViewModel`, `deriveKeyboardAction`, `deriveBurnChangePlan`), mandatory injectable RNG, `cond()` for branching.
-- **Narrow class usage.** Pure rules and coordinators stay function/factory-based. The only production `class` is `GameDO` (`extends DurableObject`). Client composition stays in `createGameClient()` (`game/client-kernel.ts`) with factory-style collaborators (`createInputHandler()`, `createUIManager()`, `createRenderer()`, `createCamera()`, `createBotClient()`).
-- **Pure planner + narrow applier flows.** Client screen changes, phase entry, message handling, and game-state application route through pure planners plus a small number of side-effect owners instead of scattering equivalent writes across many call sites.
-- **Scenario-driven.** `ScenarioRules` controls behavior: ordnance types, base sharing, combat enabled, logistics, checkpoints, escape edges, reinforcements, and fleet conversion. New scenarios can vary gameplay without engine changes.
-- **Shared rule reuse across layers.** Client ordnance entry, HUD button visibility, and engine validation now all derive from the same shared ordnance-rule helpers, so restricted scenarios do not drift between UI and server authority.
-- **Hidden state filtering.** `filterStateForPlayer` hides fugitive identities in escape scenarios — the server never leaks information the client shouldn't have.
-- **Stable event-sourced boundaries.** Mandatory RNG injection, stable per-match IDs, side-effect-free engine entry points, and narrow server/client contracts make the authoritative event stream practical without throwing away the whole engine.
+- **Side-effect-free engine.** `src/shared/` has no I/O; the DO wraps it with persistence and WebSocket plumbing.
+- **Event-sourced authoritative state.** Match state is a projection of an event stream plus checkpoints — live play, replay, and reconnect share one code path.
+- **Scenario-driven.** `ScenarioRules` (a flat flag bag) and `aiConfigOverrides` (a partial AI config) let scenarios vary gameplay without branching engine code.
+- **Narrow class usage.** The only production `class` is `GameDO extends DurableObject`. Everything else uses `createXxx()` factories.
+- **Zero runtime UI framework.** Canvas 2D rendering plus a 213-line local signals library; no React / Vue / Immer / etc.
 
-### Next Improvements
-
-These are the main architectural follow-ups still open:
-
-- **Single trusted-HTML boundary.** Some complex client markup is still imperative. If freeform/external content grows, route HTML injection through one reviewed boundary instead of ad hoc `innerHTML` writes.
-- **Docs as source of truth.** Keep protocol, auth, and product-shape decisions aligned across this file, [SECURITY.md](./SECURITY.md), [CODING_STANDARDS.md](./CODING_STANDARDS.md), and [BACKLOG.md](./BACKLOG.md).
-- **Profile before renderer optimization.** Use Chrome Performance (or equivalent) and per-frame timing before investing in layer caching or other micro-optimizations.
-- **Keep composition roots thin.** `createGameClient()` should keep composing modules, not absorb feature logic. Apply the same rule to `createRenderer()` and `createInputHandler()` as those files grow.
+Each of these stances is walked through in [`patterns/`](../patterns/README.md) with examples and tradeoffs.
 
 ---
 
@@ -243,38 +232,11 @@ The AI uses a **config-weighted composable scoring** architecture rather than a 
 - **`shared/ai/scoring.ts`** contains composable scoring functions, each handling one concern: `scoreNavigation` (distance/speed toward objective), `scoreEscape` (distance from center + velocity), `scoreRaceDanger` (gravity well proximity penalty), `scoreGravityLookAhead` (deferred-gravity next-turn value), and `scoreCombatPositioning` (engagement/interception posture). Each takes a course candidate and a config, returns a number.
 - **`shared/ai/index.ts`** orchestrates: for each AI ship, enumerate all 7 burn options (6 hex directions + null), compute each course via `computeCourse()`, sum scores across all strategies, pick the highest. Combat and ordnance decisions follow the same evaluate-all-options-then-pick pattern.
 
-This separation means:
+Difficulty tuning is pure data, new scoring dimensions are pure additions, and all AI functions accept `rng` for deterministic testing. The pattern walk-through is in [patterns/scenarios-and-config.md#ai-config-as-weights-not-code](../patterns/scenarios-and-config.md#ai-config-as-weights-not-code).
 
-- New scoring dimensions are added by writing a new function and a new config weight — no existing functions change.
-- Difficulty tuning is pure data: adjust weights in `AI_CONFIG` without touching scoring logic.
-- All AI functions accept `rng` for deterministic testing of decision quality.
-- `src/shared/ai.ts` remains a thin re-export barrel for stable import paths.
+#### Engine Mutation Model and RNG Injection
 
-#### Engine Mutation Model
-
-The shared engine is **side-effect-free** (no I/O) and **externally immutable**. All 11 engine entry points (`processAstrogation`, `processOrdnance`, `skipOrdnance`, `processFleetReady`, `beginCombatPhase`, `processCombat`, `skipCombat`, `processLogistics`, `skipLogistics`, `processSurrender`, `processEmplacement`) call `structuredClone(inputState)` on entry. Internally, the clone is mutated in place for efficiency, but the caller's state is never touched. Callers must use the returned `result.state`.
-
-This design provides:
-
-- **Rollback safety**: if the engine throws mid-mutation, the server's state is untouched.
-- **Snapshot diffing**: before/after state snapshots are naturally available without manual cloning.
-- **Speculative branching**: AI search and projection verification can call engine functions without defensive cloning.
-
-Internal mutation patterns (e.g. `applyDamage()`, `ship.lifecycle = 'destroyed'`, phase transitions) remain unchanged — they operate on the cloned state.
-
-`client/game/local.ts` now reuses the caller's current `state` as the combat presentation `previousState`. That is safe because the engine clones on entry before mutating, so the caller-owned snapshot remains unchanged for diffing and effects.
-
-#### RNG Injection
-
-Turn-resolution entry points (`processAstrogation`, `processCombat`, `skipCombat`, `beginCombatPhase`, `processOrdnance`, `skipOrdnance`, and other `process*` / `skip*` handlers) require `rng: () => number`. Internal functions (`rollD6`, `resolveCombat`, `resolveBaseDefense`, `shuffle`, `randomChoice`, `checkRamming`, `moveOrdnance`, `resolvePendingAsteroidHazards`) also require `rng`. There are no `Math.random` fallbacks in the turn-resolution path.
-
-`createGame` and AI functions (`aiAstrogation`, `aiOrdnance`) accept optional `rng` with `Math.random` default, since they are setup/heuristic functions rather than turn-resolution functions.
-
-The server generates a random 32-bit seed per match (via `crypto.getRandomValues` in `allocateMatchIdentity`) and persists it in DO storage. Before each engine call, `getActionRng()` derives a deterministic PRNG from the match seed and current event sequence (`deriveActionRng(matchSeed, eventSeq)` in `shared/prng.ts`). This gives reproducible per-action randomness without persisting a mutable RNG counter. The seed is also recorded in the `gameCreated` event so the event stream alone is sufficient for offline replay validation.
-
-Client callers (local AI play) still pass `Math.random`. Tests can pass deterministic RNGs for reproducible results. Pre-seed matches fall back to `Math.random` for backward compatibility.
-
-Turn-timeout auto-advance now uses the same injected match-scoped RNG path as normal server actions (`runGameDoTurnTimeout()` -> `resolveTurnTimeoutOutcome()`), so timeout resolution no longer depends on `Math.random`.
+The shared engine is side-effect-free and externally immutable. Turn-resolution entry points `structuredClone` their input state, mutate the clone internally, and return it. RNG is a mandatory parameter on all turn-resolution entry points; the server derives a per-match, per-action PRNG from a seed persisted in storage. Full detail in [patterns/engine-and-architecture.md](../patterns/engine-and-architecture.md) (sections "Side-Effect-Free Shared Engine" and "Deterministic RNG via Per-Match Seed").
 
 ### B. The Server (`server/`)
 
@@ -309,31 +271,26 @@ The backend leverages Cloudflare's edge network.
 | `game-do/session.ts`         | Disconnect grace period, alarm scheduling                                                                        | **Fully generic**                                         |
 | `game-do/turns.ts`           | Turn timeout auto-advance                                                                                        | Mostly generic                                            |
 
-#### Key Design Patterns
+#### Key Patterns (pointers)
 
-- **[WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)**: The DO uses Cloudflare's hibernatable WebSocket API (`acceptWebSocket`, `webSocketMessage`, `webSocketClose`) instead of the standard `addEventListener` pattern. This allows the DO to hibernate between messages, reducing costs. Sockets are tagged with `player:${playerId}` on accept, enabling player lookup via `getWebSockets(['player:0'])` without maintaining an in-memory map.
+- **Event-sourced matches**: chunked event stream + checkpoints; state is projected from the stream. See [patterns/protocol-and-persistence.md](../patterns/protocol-and-persistence.md) sections "Chunked Event Storage", "Checkpoints at Turn Boundaries", "Publication Pipeline", and "Parity Check" (the last in the engine chapter).
+- **Hibernatable WebSocket + single-alarm scheduling**: sockets tagged with `player:N`; one alarm multiplexes disconnect grace, turn timeout, and inactivity. See [patterns/protocol-and-persistence.md](../patterns/protocol-and-persistence.md) sections "Hibernatable WebSocket" and "Single-Alarm Multi-Deadline Scheduling".
+- **Single state-bearing outbound message per action**: one S2C frame carries the full updated `GameState`; `gameOver` follows as a separate frame. See [patterns/protocol-and-persistence.md#single-state-bearing-message-per-action](../patterns/protocol-and-persistence.md#single-state-bearing-message-per-action).
+- **Viewer-aware filtering**: `filterStateForPlayer` strips hidden state before send; used for live play, reconnect, replay, and spectators. See [patterns/protocol-and-persistence.md#viewer-aware-filtering](../patterns/protocol-and-persistence.md#viewer-aware-filtering).
+- **Single choke points**: `publishStateChange`, `runGameStateAction`, `applyClientStateTransition`, `applyClientGameState`. See [patterns/engine-and-architecture.md#single-choke-points-for-side-effects](../patterns/engine-and-architecture.md#single-choke-points-for-side-effects).
+- **Shared runtime protocol validation** lives in `src/shared/protocol.ts` beside the protocol types — the DO consumes `validateClientMessage()` rather than owning message shape.
+- **Rate limiting**: canonical table in [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture).
+- **Match archive binding**: production `wrangler.toml` binds `MATCH_ARCHIVE` to R2 so completed rooms can persist replay data after the DO goes inactive.
 
-- **`runGameStateAction(ws, action, onSuccess)`** (`game-do/actions.ts`, wired from `GameDO`): Shared action wrapper that removes boilerplate across 12+ handlers. Flow: load current state, run engine action in try/catch, send validation errors to the socket, report runtime failures with game/phase/turn context, and invoke `onSuccess` (usually persist + broadcast). `handleTurnTimeout` applies equivalent protection for alarm-driven execution.
+#### Seat Assignment and Disconnect Grace
 
-- **Shared protocol validation**: Runtime C2S validation now lives in `shared/protocol.ts` instead of the server shell. The Durable Object still consumes `validateClientMessage()`, but the message-shape ownership sits beside the shared protocol types rather than inside server-only plumbing.
+`resolveSeatAssignment()` in `src/server/protocol.ts` uses a three-step fallback:
 
-- **Single state-bearing outbound message per action**: `publishStateChange()` appends domain events, then emits exactly one state-bearing message (`movementResult`, `combatResult`, or `stateUpdate`). If the resulting state is terminal, the DO appends a separate `gameOver` notification after that state-bearing message. This one-action / one-update client contract remains intact even though server recovery no longer depends on a separate persisted live snapshot.
+1. Player-token match → returning player gets their seat, even if the previous socket is still open.
+2. Tokenless join → allowed when an open seat has no player token (default guest flow).
+3. No seats available → reject.
 
-- **Single choke points for coordination**: High-risk side effects are intentionally concentrated. On the server, `publishStateChange()` owns persist/archive/broadcast/timer restart for state transitions. On the client, `dispatchGameCommand()`, `applyClientGameState()`, and `applyClientStateTransition()` own command routing, authoritative-state application, and state-entry effects.
-
-- **Event-sourced authoritative matches**: `initGame()` allocates a stable match identity (`gameId` like `ROOM1-m2`). `publishStateChange()` appends versioned envelopes to a chunked per-match stream, checkpoints are saved at turn boundaries/match end, and parity checks validate projected state against the live result before transport. Reconnect, alarm-path recovery, and replay are all derived from checkpoint + event tail, so there is no parallel state-bearing replay cache to keep in sync.
-
-- **Viewer-aware filtered broadcasting**: `broadcastFiltered()` applies per-viewer filtering when scenarios contain hidden information (for example, fugitive identities in escape scenarios). Players keep full own-state visibility, unrevealed enemy ships are masked as `type: 'unknown'`, and spectators receive spectator-safe state. The same filter is used for reconnect, replay, spectator-tagged broadcasts, and **live spectator WebSockets** (`/ws/:code?viewer=spectator`, `spectatorWelcome`, filtered `gameStart` and updates).
-
-- **Single-alarm scheduling**: One alarm per DO, rescheduled after each state change. Three independent deadlines are tracked: `disconnectAt` (30s grace), `turnTimeoutAt` (2 min), `inactivityAt` (5 min). `getNextAlarmAt()` computes the nearest deadline. When the alarm fires, `resolveAlarmAction()` returns a discriminated action (`disconnectExpired`, `turnTimeout`, `inactivityTimeout`) and the handler dispatches accordingly. `inactivityAt` is cached in memory and flushed to storage at most once per 60s to avoid write amplification from frequent pings. Chat rate limiting is also in-memory (not storage-backed).
-
-- **Rate limiting**: Worker-layer per-IP limits on `/create`, `/ws/:code`, `/join/:code`, `/replay/:code`, `/api/matches`, `/telemetry`, and `/error`; DO-layer per-socket limits on message flood and chat. Canonical table in [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture).
-
-- **Match archive binding**: Production config also binds `MATCH_ARCHIVE` to R2 so completed rooms can persist replay/support data after the Durable Object goes inactive. That keeps replay/debug history available in production without forcing lower environments to use remote storage during local development.
-
-- **Seat assignment**: `resolveSeatAssignment()` in `protocol.ts` implements a multi-step fallback: (1) player token match → returning player gets their original seat, even if the previous socket is still open; (2) tokenless join → allowed when an open seat has no player token (the default guest-join path); (3) no seats available → reject. Duplicate sockets are replaced only after reclaim is accepted, and match start uses unique connected seats rather than raw socket count.
-
-- **Disconnect grace period**: When a player disconnects, the DO stores a disconnect marker (player ID + 30s deadline) and schedules an alarm. If the player reconnects within 30s with a valid player token, the marker is cleared and the game continues. If the alarm fires with an unexpired marker, the game ends by forfeit. The marker is validated on reconnect, and reclaim succeeds during the grace window even if the stale socket has not yet fully torn down.
+On disconnect, the DO stores a marker (player ID + 30 s deadline) and schedules an alarm. Reconnect within 30 s with a valid token clears the marker; alarm-fire with the marker intact ends the game by forfeit.
 
 ### C. The Client (`client/`)
 
