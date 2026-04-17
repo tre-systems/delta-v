@@ -10,6 +10,7 @@ import {
   normalizeUsername,
   type PublicPlayerProfile,
 } from '../shared/player';
+import { claimPlayerName } from './leaderboard/player-store';
 import { generatePlayerToken, generateRoomCode } from './protocol';
 
 type QueueStatus = 'queued' | 'matched';
@@ -31,6 +32,9 @@ interface Env {
   // skipped silently when it isn't available.
   DB?: D1Database;
 }
+
+const participantKindForKey = (playerKey: string): 'human' | 'agent' =>
+  playerKey.startsWith('agent_') ? 'agent' : 'human';
 
 // Tiny structured logger for matchmaker events. Mirrors the pattern used by
 // GameDO's `reportLifecycleEvent` / `reportSideChannelFailure` but inlined
@@ -163,13 +167,11 @@ export class MatchmakerDO extends DurableObject<Env> {
             players: [
               {
                 ...players[0],
-                kind: 'human',
+                kind: participantKindForKey(players[0].playerKey),
               },
               {
                 ...players[1],
-                kind: players[1].playerKey.startsWith('agent_')
-                  ? 'agent'
-                  : 'human',
+                kind: participantKindForKey(players[1].playerKey),
               },
             ],
           }),
@@ -233,6 +235,47 @@ export class MatchmakerDO extends DurableObject<Env> {
     };
   }
 
+  private async ensureLeaderboardProfile(
+    player: PublicPlayerProfile,
+  ): Promise<void> {
+    const db = this.env.DB;
+    if (!db) return;
+
+    const usernameCandidates = Array.from(
+      new Set([
+        normalizeUsername(player.username) ??
+          buildDefaultUsername(player.playerKey),
+        buildDefaultUsername(player.playerKey),
+      ]),
+    );
+    for (const username of usernameCandidates) {
+      try {
+        const outcome = await claimPlayerName({
+          db,
+          playerKey: player.playerKey,
+          username,
+          isAgent: participantKindForKey(player.playerKey) === 'agent',
+          now: Date.now(),
+        });
+        if (outcome.ok) {
+          return;
+        }
+      } catch (error) {
+        console.error('[matchmaker_claim_failed]', {
+          playerKey: player.playerKey,
+          username,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return;
+      }
+    }
+
+    console.warn('[matchmaker_claim_skipped_name_taken]', {
+      playerKey: player.playerKey,
+      username: player.username,
+    });
+  }
+
   private async matchEntries(
     entries: QueueEntry[],
     leftIndex: number,
@@ -284,6 +327,13 @@ export class MatchmakerDO extends DurableObject<Env> {
       waitMsLeft: now - left.queuedAt,
       waitMsRight: now - right.queuedAt,
     });
+
+    this.ctx.waitUntil(
+      Promise.all([
+        this.ensureLeaderboardProfile(left.player),
+        this.ensureLeaderboardProfile(right.player),
+      ]),
+    );
 
     return entries;
   }
