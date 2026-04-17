@@ -191,7 +191,13 @@ export const createLocalTransport = (
   },
 
   submitSurrender(_shipIds) {
-    // Surrender in local games is handled directly via engine — not typically used vs AI
+    // Local single-player flow does not expose surrender — it would
+    // terminate the match before the AI has a chance to respond. Log
+    // the unexpected call so a UI regression that routes surrender
+    // here surfaces in dev instead of silently dropping.
+    console.warn(
+      '[local-transport] submitSurrender is not supported in local mode; ignored',
+    );
   },
 
   skipOrdnance() {
@@ -234,7 +240,12 @@ export const createLocalTransport = (
     deps.onRematch();
   },
   sendChat() {
-    // No chat in local/AI games
+    // Chat is multiplayer-only. Log an unsupported-call diagnostic so a
+    // future regression that routes chat here (e.g. a refactor that
+    // stops hiding the chat input in single-player) fails loudly.
+    console.warn(
+      '[local-transport] sendChat is not supported in local mode; ignored',
+    );
   },
 });
 
