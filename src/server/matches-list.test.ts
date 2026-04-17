@@ -38,6 +38,10 @@ const makeRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
   created_at: overrides.created_at ?? 1_000,
   completed_at: overrides.completed_at ?? 2_000,
   match_coached: overrides.match_coached ?? 0,
+  winner_username:
+    'winner_username' in overrides ? overrides.winner_username : null,
+  loser_username:
+    'loser_username' in overrides ? overrides.loser_username : null,
 });
 
 describe('handleMatchesList', () => {
@@ -155,7 +159,36 @@ describe('handleMatchesList', () => {
       createdAt: 111,
       completedAt: 222,
       coached: true,
+      winnerUsername: null,
+      loserUsername: null,
     });
+  });
+
+  it('surfaces winner/loser usernames from the JOIN', async () => {
+    const { db } = mockDb([
+      makeRow({
+        winner_username: 'Zephyr',
+        loser_username: 'Pilot_42',
+      }),
+    ]);
+    const response = await handleMatchesList(
+      new Request('https://example/api/matches'),
+      buildEnv(db),
+    );
+    const body = (await response.json()) as MatchListingResponse;
+    expect(body.matches[0].winnerUsername).toBe('Zephyr');
+    expect(body.matches[0].loserUsername).toBe('Pilot_42');
+  });
+
+  it('leaves usernames null when unclaimed / private-room matches', async () => {
+    const { db } = mockDb([makeRow()]);
+    const response = await handleMatchesList(
+      new Request('https://example/api/matches'),
+      buildEnv(db),
+    );
+    const body = (await response.json()) as MatchListingResponse;
+    expect(body.matches[0].winnerUsername).toBeNull();
+    expect(body.matches[0].loserUsername).toBeNull();
   });
 
   it('normalises invalid winner values to null (draw)', async () => {

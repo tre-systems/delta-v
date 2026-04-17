@@ -98,7 +98,10 @@ export const reportLifecycleEvent = (
     | 'disconnect_grace_expired'
     | 'disconnect_grace_resolved'
     | 'turn_timeout_fired'
-    | 'matchmaker_paired',
+    | 'matchmaker_paired'
+    | 'rating_applied'
+    | 'rating_skipped'
+    | 'rating_failed',
   props: Record<string, unknown>,
 ): void => {
   console.log(`[${event}]`, props);

@@ -87,3 +87,46 @@ export const postClaimName = async (
   }
   return { ok: false, error: 'unknown' };
 };
+
+export interface PlayerRank {
+  username: string;
+  rating: number;
+  rd: number;
+  gamesPlayed: number;
+  provisional: boolean;
+  // Non-null only for non-provisional players.
+  rank: number | null;
+}
+
+export type FetchPlayerRankResult =
+  | { ok: true; player: PlayerRank }
+  | { ok: false; error: 'not_found' | 'network' | 'unavailable' | 'unknown' };
+
+export const fetchPlayerRank = async (opts: {
+  playerKey: string;
+  fetchImpl?: typeof fetch;
+}): Promise<FetchPlayerRankResult> => {
+  const fetcher = opts.fetchImpl ?? fetch;
+  let res: Response;
+  try {
+    res = await fetcher(
+      `/api/leaderboard/me?playerKey=${encodeURIComponent(opts.playerKey)}`,
+    );
+  } catch {
+    return { ok: false, error: 'network' };
+  }
+  if (res.status === 200) {
+    const body = (await res.json().catch(() => null)) as PlayerRank | null;
+    if (body && typeof body.username === 'string') {
+      return { ok: true, player: body };
+    }
+    return { ok: false, error: 'unknown' };
+  }
+  if (res.status === 404) {
+    return { ok: false, error: 'not_found' };
+  }
+  if (res.status === 503) {
+    return { ok: false, error: 'unavailable' };
+  }
+  return { ok: false, error: 'unknown' };
+};
