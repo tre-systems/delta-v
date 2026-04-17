@@ -1,184 +1,200 @@
 # Engine & Architecture Patterns
 
-This document complements [ARCHITECTURE.md](../docs/ARCHITECTURE.md) by consolidating gap analyses, consistency findings, known weaknesses, and implementation details that the main architecture doc does not cover. It draws from the individual pattern analyses in this directory. For the canonical system description, layer diagrams, module inventories, and data flow, see ARCHITECTURE.md.
+How the authoritative server stays consistent and why the shared engine has the shape it does. Read [ARCHITECTURE.md](../docs/ARCHITECTURE.md) first for the high-level layer diagrams and module inventory; this chapter zooms into the recurring patterns behind those layers.
+
+Each section has four parts: **the pattern**, a **minimal example**, **where it lives**, and **why this shape**. A short "rough edges" list at the end of each section flags places where the pattern isn't fully realized yet.
 
 ---
 
-## Event Sourcing & Projection Gaps
+## Event-Sourced Match State
 
-### Event Model Completeness
-Key files: `src/shared/engine/engine-events.ts`, `src/server/game-do/publication.ts`, `src/shared/engine/event-projector/`
+**Pattern.** Every mutation to an in-progress match is a versioned event appended to a per-match stream. Live state, replays, and reconnection are all *projections* of that stream plus periodic checkpoints — never a separate "current state" slot maintained by hand.
 
-Known gaps in the event model:
+**Minimal example.**
 
-- **Game creation is a special case.** The server emits `gameCreated` and `fugitiveDesignated` events outside the normal engine-action return path. Initial game creation in `match.ts` still uses its own direct publication path rather than `runPublicationPipeline`.
-- **`turnAdvanced` under-specifies mutations.** `advanceTurn()` applies reinforcements and fleet conversion in memory, but the projector's `turnAdvanced` handler replays only player rotation and damage recovery. The next improvement is to make turn-advance side effects explicit in the event model or share the mutation logic between engine and projector.
-- **Setup randomness is not fully reproducible from events.** The event model carries `matchSeed` on `gameCreated`, but the current setup path does not use that seed to rebuild initial randomized state. The projector reconstructs setup with `createGame(..., () => 0)` and relies on follow-up events like `fugitiveDesignated` to correct hidden-identity state.
+```ts
+// Engine produces events alongside state (pure):
+const result = processAstrogation(state, playerId, orders, map, rng);
+//    { state, movements, engineEvents: EngineEvent[] }
 
-### Parity and Projection
-Key files: `src/server/game-do/projection.ts`, `src/server/game-do/archive.ts`
-
-- The server's `getCurrentGameState` reconstructs state from events on every read via `getProjectedCurrentStateRaw`. There is no in-memory read model cache, so high-frequency reads (e.g., during WebSocket close handling) re-project from storage each time. Checkpoints help, but a cached projection would be more efficient.
-- `projection.ts` calls `buildSolarSystemMap()` at module scope, creating a module-level singleton. Not an engine purity violation, but it is static state.
-
----
-
-## CQRS Boundary Analysis
-
-### Local Transport Blurs the Boundary
-Key files: `src/client/game/transport.ts`
-
-The local transport (`createLocalTransport`) runs the engine directly on the client and applies state via `applyGameState`. There is no event persistence or projection for local games -- the command result is immediately applied as the query model. Local games therefore lack replay and event-sourced recovery. This is intentional for single-player.
-
-### Missing Client-Side Command Validation
-All commands are validated by the engine before state mutation, but there is no client-side command validation or optimistic locking. Invalid commands result in server error responses rather than being prevented locally.
-
-### Auxiliary Message Channel
-Chat and ping messages (`AuxMessage`) bypass the command pipeline but can trigger state-adjacent effects (opponent status, latency tracking). Not strictly a CQRS violation but a parallel communication channel worth noting.
-
----
-
-## Layer Boundary Enforcement
-
-### Automated vs Convention-Based Boundaries
-Key files: `src/server/import-boundary.test.ts`
-
-Current enforcement status:
-
-| Boundary | Enforcement |
-|---|---|
-| server never imports client | Automated test in CI |
-| client never imports server | Convention only (grep-verified, no test) |
-| shared never imports client/server | Convention only (grep-verified, no test) |
-| shared/engine imports only shared utilities | No enforcement |
-
-Recommendations:
-- Add bidirectional boundary tests for client-to-server and shared-to-platform directions.
-- ESLint `no-restricted-imports` rules would catch violations at the IDE level before tests run.
-- A granular boundary test for `shared/engine/` would verify it only imports from shared utility and type modules, not from potentially impure shared modules.
-
----
-
-## Composition Root Weaknesses
-
-### Client Temporal Coupling
-Key files: `src/client/game/client-kernel.ts`
-
-`createGameClient` uses mutable closure variables (`let applyGameState`, `let setState`, `let transitionToPhase`, `let replayController`) to resolve circular dependencies between the session shell and client kernel. These variables are assigned after construction, creating temporal coupling that obscures the dependency graph.
-
-### Hard Platform Dependencies
-Key files: `src/client/game/connection.ts`, `src/client/game/session-api.ts`
-
-Two modules bypass dependency injection for platform seams:
-- `connection.ts` creates `new WebSocket(...)` directly inside `connect()` rather than receiving a WebSocket factory through deps.
-- `session-api.ts` calls `fetch()` directly rather than through an injected HTTP client.
-
-Both could be injected for full unit testing without browser globals.
-
-### Server Deps Boilerplate
-The `GameDO` class has 13+ `create*Deps` methods, each manually mapping `this.method` to deps fields. While explicit and testable, the repetition suggests the class might benefit from a shared deps-building utility.
-
----
-
-## Hexagonal Architecture Gaps
-
-### Transport Adapter Inconsistencies
-Key files: `src/client/game/transport.ts`
-
-- `submitSurrender` on the local transport is a no-op. `sendChat` is also empty. These violate Liskov Substitution -- callers cannot rely on all commands having effect regardless of adapter.
-- `submitEmplacement` on the local transport calls `processEmplacement` directly rather than going through the `dispatchLocalResolution` pattern used by all other commands. Emplacement error handling therefore differs from other actions.
-
-### Missing Symmetric Ports
-- No server-side equivalent of `GameTransport`. The server receives commands as raw WebSocket messages routed through `actions.ts`. A `GameCommandPort` interface would formalize the contract and enable non-WebSocket command sources (HTTP admin tools, test harnesses).
-- No `GameNotificationPort` on the client. State updates arrive through raw WebSocket messages processed by the session shell.
-- The archive module takes `DurableObjectStorage` directly. Extracting a minimal `EventStore` interface would make event-sourcing testable without DO mocks.
-
----
-
-## Pure Engine Invariants & Risks
-
-### Internal Mutators Are Exported
-Key files: `src/shared/engine/turn-advance.ts`, `src/shared/engine/victory.ts`
-
-- `advanceTurn` does NOT clone its input -- it mutates state directly. Safe because it is always called on an already-cloned state within a parent engine function, but it breaks the self-contained purity rule if called directly on uncloned state. The clone-on-entry test does not cover `advanceTurn` as a standalone entry point.
-- `checkGameEnd` and `applyCheckpoints` in `victory.ts` also mutate in place. They are exported and could theoretically be called unsafely by external code.
-- Consider making these module-private or extracting them into an `internal` sub-module with restricted exports.
-
-### Compile-Time Enforcement
-The mutable-clone pattern is convention, not a type-system guarantee. A new engine function could forget the `structuredClone` call. TypeScript `Readonly<GameState>` (deeply applied) would make the immutability contract compile-time enforced but would require pervasive type changes.
-
-### Double Cloning
-Some call chains clone more than once: `saveCheckpoint` clones the state, and the publication pipeline calls it after the engine entry point already produced a cloned result. Each clone is individually necessary (engine protects input, checkpoint protects live state from storage reference sharing), but the cost is worth noting if state grows.
-
----
-
-## Deterministic RNG Gaps
-
-### Setup Path Not Fully Seeded
-Key files: `src/shared/engine/game-creation.ts`, `src/server/game-do/match.ts`
-
-- `createGame` still has `rng: () => number = Math.random` as default. The production match-initialization path (`initGameSession`) currently calls it without threading the allocated `matchSeed`.
-- `getActionRng` falls back to `Math.random` when no `gameId` or `matchSeed` is available. If legacy unseeded matches no longer matter, this fallback should become an error instead of a silent determinism downgrade.
-
-### Projector Workaround
-The `gameCreated` projector path reconstructs setup with `createGame(..., () => 0)` and relies on corrective follow-up events. Until `matchSeed` is threaded through initial game creation, action replay is deterministic but initial setup reproducibility is only partially enforced.
-
----
-
-## Derive/Plan Pattern Notes
-
-### Engine vs Client Convention Split
-Key files: `src/client/game/phase.ts`, `src/shared/engine/victory.ts`, `src/shared/combat.ts`
-
-Engine-side `apply*` functions (`applyDamage`, `applyResupply`, `applyCheckpoints`) mutate their `GameState` argument in place for performance. Client-side `apply*` functions use dependency injection and do not mutate inputs. This dual convention is undocumented and could confuse contributors.
-
-### Nested Derive Inside Apply
-`applyClientStateTransition` calls `deriveClientStateEntryPlan` internally, so the derive is nested inside the apply rather than being done by the caller. The caller does not see the entry plan. A minor deviation from the pattern's intent.
-
----
-
-## Pipeline Pattern Notes
-
-### Publication Pipeline Bypass
-Key files: `src/server/game-do/match.ts`, `src/server/game-do/publication.ts`
-
-Initial game creation in `match.ts` still uses its own direct publication path. This is the most frequently cited gap across multiple pattern analyses. Routing initial creation through `runPublicationPipeline` (or extracting a first-publication variant) would close the bypass.
-
-### Input Pipeline Bypass
-Drag panning intentionally bypasses command dispatch and calls `camera.pan()` directly. This is correct -- continuous high-frequency interactions should not go through the command pipeline.
-
----
-
-## Engine Error Return Consistency
-
-### Mixed Construction Styles
-Key files: `src/shared/engine/combat.ts`, `src/shared/engine/util.ts`
-
-`processCombat` mixes `engineFailure()` helper calls with inline `{ error: { code, message } }` construction. About 10 occurrences in combat use the inline form. The helper should be preferred everywhere.
-
-### Repeated Validation Boilerplate
-Every engine entry point repeats:
-```typescript
-const phaseError = validatePhaseAction(state, playerId, 'combat');
-if (phaseError) return { error: phaseError };
+// Durable Object appends, checkpoints, then broadcasts:
+runPublicationPipeline(deps, {
+  result,
+  envelopeOf: (e) => ({ gameId, seq: nextSeq(), ts: now(), actor, event: e }),
+});
 ```
 
-A combined `validatePhaseOrFail` returning `{ error } | null` would eliminate the wrapping.
+**Where it lives.** `src/shared/engine/engine-events.ts` defines the 32-member `EngineEvent` union. `src/server/game-do/archive.ts` + `archive-storage.ts` handle the append-only stream in 64-event chunks (`EVENT_CHUNK_SIZE`). `src/shared/engine/event-projector/` projects a stream back to state. `src/server/game-do/publication.ts` is the single writer.
 
-### Implicit Type Narrowing Invariant
-The `'error' in result` check works because no success result type has an `error` field. This is an implicit invariant -- adding an `error` field to any success type would break narrowing. Consider a more explicit discriminant if the types grow.
+**Why this shape.**
+
+- **Recovery is free** — any observer who can read the stream can reconstruct the game. No drift between live state and "what we saved."
+- **Replays are the same code path** as live play, filtered for the viewer. No second implementation.
+- **Chunked storage** (64 events per key) keeps individual DO storage values well under the 128 KB limit while surviving the ~100–300 events a typical match produces in a handful of writes.
+- **Checkpoints at turn boundaries** amortize projection cost — reconnecting mid-match reads the latest checkpoint plus a short tail, not the whole history.
+
+**Rough edges.**
+
+- Initial game creation (`match.ts::initGameSession`) still publishes directly instead of going through `runPublicationPipeline`. Five different patterns converge on this — fixing it would tighten all of them at once.
+- `getCurrentGameState` re-projects on every read; there is no in-memory cached read model. Checkpoints mitigate but don't eliminate the cost.
+- The event model under-specifies `turnAdvanced`: `advanceTurn()` performs reinforcement and fleet-conversion in memory, but the projector only replays player rotation and damage recovery. Turn-advance mutations should be event-explicit or the projector should share the mutation code.
 
 ---
 
-## Cross-Cutting Findings
+## Parity Check Between Live and Projected State
 
-### Recurring Theme: Initial Game Creation
-The most frequently cited architectural gap across event sourcing, SRP choke points, pipeline, deterministic RNG, and pure engine patterns is that initial game creation follows a separate code path from incremental game actions. Consolidating this would address gaps in five patterns simultaneously.
+**Pattern.** After every incremental publication, the server reconstructs state from checkpoint + event tail (same code path as reconnection) and compares it to the live in-memory result. Any mismatch is logged to D1 telemetry but does **not** halt the match.
 
-### Server Write Choke Point Is Conventional
-`broadcastStateChange` remains available as a lower-level callback inside DO wiring, so the publication choke point is conventional rather than structurally impossible to bypass. Keeping lower-level publication helpers private to the owning module would prevent new code from skipping the choke point accidentally.
+**Where it lives.** `src/server/game-do/publication.ts` (`verifyProjectionParity`), `src/server/game-do/telemetry.ts` (`projection_parity_mismatch` event), `src/server/game-do/projection.ts`.
 
-### SRP Choke Point Coverage
-- Server incremental writes: converge on `runPublicationPipeline` (one exception: `initGameSession`).
-- Server command execution: all websocket game-state commands share `runGameStateAction`.
-- Client authoritative writes: `applyClientGameState` owns all authoritative state updates. `clearClientGameState` is a second, intentionally minimal entry point for session teardown.
+**Why this shape.**
+
+- Replay correctness is the core invariant of the whole event-sourcing design. If live ≠ projected, the stream is lying about the match.
+- Observability-only (not fatal) — a parity bug shouldn't take matches offline. The log-and-move-on stance accepts correctness-risk for availability while alerts fire.
+
+**Rough edges.**
+
+- `JSON.stringify` equality is coarse. A structured diff would make mismatch triage much faster.
+- Normalization is split across production and tests: production strips `player.connected`, tests additionally strip `ready` / `detected`. The two should converge.
+
+---
+
+## Side-Effect-Free Shared Engine
+
+**Pattern.** Everything under `src/shared/` has zero I/O: no DOM, no network, no storage, no `Math.random`, no `console.log`. Turn-resolution entry points (`processAstrogation`, `processCombat`, `processOrdnance`, …) `structuredClone()` their input state on entry, then mutate the clone internally for speed. The caller's state is never touched.
+
+**Minimal example.**
+
+```ts
+// Inside processCombat:
+const working = structuredClone(state);   // caller's `state` is never mutated
+applyDamage(working.ships[i], roll);      // mutate clone for efficiency
+return { state: working, engineEvents, results };
+// Caller must use result.state — their original reference is unchanged.
+```
+
+**Where it lives.** `src/shared/engine/` (all files), enforced by `src/shared/engine/clone-on-entry.test.ts` and the pre-commit grep checks on `Math.random` / `innerHTML` / `console.*`.
+
+**Why this shape.**
+
+- **Rollback safety** — if the engine throws mid-turn, the server's real state is untouched.
+- **Speculative branching** — AI search and projection verification can invoke engine functions freely without defensive cloning.
+- **Testability** — every engine call is a pure function (given RNG). Property-based fuzzing is cheap.
+
+**Rough edges.**
+
+- `advanceTurn` and `checkGameEnd` / `applyCheckpoints` in `victory.ts` are internal mutators that *don't* clone. They are safe because they only run inside an already-cloned parent call, but they're exported — someone could call them directly on uncloned state. Moving them to a restricted sub-module would close the hole.
+- The clone-on-entry contract is convention, not a type-system guarantee. A deeply-applied `Readonly<GameState>` would enforce it at compile time at the cost of pervasive type churn.
+
+---
+
+## Deterministic RNG via Per-Match Seed
+
+**Pattern.** The server generates a 32-bit seed per match (`crypto.getRandomValues`), persists it, and emits it in the `gameCreated` event. Before each engine call, `deriveActionRng(matchSeed, eventSeq)` derives a deterministic PRNG — replaying events N…M reproduces the same randomness without replaying 1…N-1. RNG is mandatory on turn-resolution entry points.
+
+**Minimal example.**
+
+```ts
+// Server side, each action:
+const rng = deriveActionRng(matchSeed, state.eventSeq);
+const result = processCombat(state, playerId, attacks, map, rng);
+//  ^ same state + seq + matchSeed → identical result, every time.
+```
+
+**Where it lives.** `src/shared/prng.ts` (`mulberry32`, `deriveActionRng`). `src/server/game-do/actions.ts` (`getActionRng`). Engine entry points take `rng: () => number` as a required parameter.
+
+**Why this shape.**
+
+- **Replay determinism** — the event stream alone is enough to verify history offline.
+- **Jumpable RNG** — Knuth multiplicative hashing (`0x9e3779b9`) means we don't need to replay 1..N-1 to derive the Nth action's RNG.
+- **Injectable in tests** — `() => 0.5` or a seeded sequence pins outcomes.
+
+**Rough edges.**
+
+- `createGame` still defaults `rng` to `Math.random` because production `initGameSession` doesn't thread the allocated `matchSeed` through initial setup. The projector works around this with a zero-RNG reconstruction plus corrective `fugitiveDesignated` events. Threading the seed through initial creation would remove the workaround.
+- `getActionRng` falls back to `Math.random` when `gameId` or `matchSeed` is missing. That fallback is probably unreachable for new matches; it could become an explicit error instead of a silent determinism downgrade.
+
+---
+
+## Single Choke Points for Side Effects
+
+**Pattern.** Where a side-effecting domain has an obvious owner, one function owns it. Instead of N call sites each doing a small piece of "persist + broadcast + schedule," one applier function is the only path.
+
+**Where it lives.**
+
+| Domain | Choke point |
+|--------|-------------|
+| Server action execution | `runGameStateAction` (`game-do/actions.ts`) |
+| Server state publication | `runPublicationPipeline` (`game-do/publication.ts`) — appends events, checkpoints, parity-checks, archives, restarts timer, broadcasts |
+| Client command dispatch | `dispatchGameCommand` (`game/command-router.ts`) |
+| Client authoritative apply | `applyClientGameState` (`game/game-state-store.ts`) |
+| Client state-entry effects | `applyClientStateTransition` (`game/state-transition.ts`) |
+| Client UI visibility | `applyUIVisibility` inside `createUIManager` |
+
+**Why this shape.**
+
+- Drift between similar flows is the main cost of duplication. If five call sites each "save state and broadcast," one of them will forget to restart the turn timer.
+- Tests get a narrow seam — you can assert the whole publication pipeline fired by stubbing one collaborator.
+
+**Rough edges.**
+
+- `broadcastStateChange` is still reachable as a lower-level helper inside the DO wiring, so the choke is conventional rather than structurally enforced. Making it module-private would prevent new code from sneaking around it.
+- `initGameSession` bypasses `runPublicationPipeline`. See the event-sourcing section above.
+
+---
+
+## Composition Root for Client Construction
+
+**Pattern.** One function wires every collaborator and returns an object with narrow exports (`dispose`, `renderer`, `showToast`). No module constructs its own dependencies; they come in through `deps` objects typed as callable getters.
+
+**Minimal example.**
+
+```ts
+const deps: CombatActionDeps = {
+  getGameState: () => ctx.gameState,       // getter — reads fresh state each call
+  getPlayerId: () => ctx.playerId,
+  ui,                                       // stable reference — not a getter
+  showToast,
+};
+const actions = createCombatActions(deps);
+```
+
+**Where it lives.** `src/client/game/client-kernel.ts::createGameClient` is the root. `createInputHandler`, `createUIManager`, `createRenderer`, `createCamera`, `createBotClient`, and the `*Actions` factories all accept their deps at construction time.
+
+**Why this shape.**
+
+- Factories over classes make testing trivial — pass mock deps, inspect the returned methods.
+- **Callable getters** (`getGameState()` vs direct reference) ensure collaborators always read the *current* state and let us break circular init-order dependencies without `Proxy`.
+- The kernel is the only place where "which module talks to which" is visible. Collaborators don't reach for globals.
+
+**Rough edges.**
+
+- `createGameClient` uses mutable closure variables (`let applyGameState`, `let setState`, …) to resolve circular deps between the session shell and kernel. These are assigned after construction, which obscures the dependency graph.
+- `connection.ts` calls `new WebSocket(...)` directly and `session-api.ts` calls `fetch()` directly rather than receiving injected factories — the last two platform seams that bypass DI.
+
+---
+
+## Layer Boundaries (shared / server / client)
+
+**Pattern.** Three top-level source directories with strict import rules:
+
+- `shared/` imports only from `shared/`.
+- `server/` imports from `shared/` and `server/`, never from `client/`.
+- `client/` imports from `shared/` and `client/`, never from `server/`.
+
+**Where it lives.** `src/server/import-boundary.test.ts` and `src/shared/import-boundary.test.ts` enforce directional rules at test time. The pre-commit grep checks enforce the "no I/O in shared" sub-rule.
+
+**Why this shape.**
+
+- The shared engine is the contract between client and server. If one side pulls the other's code, the boundary blurs and replay/parity breaks silently.
+- Running the engine in Node for simulation or in the browser for local AI games uses the exact same code.
+
+**Rough edges.**
+
+- Only `server → client` and `shared → both` are test-enforced today. `client → server` and `shared/engine → rest-of-shared` are convention-only. Tightening `shared/engine/` specifically (no imports from `shared/client-only-helpers` even if such a thing appears) would harden the single most-replayed module.
+
+---
+
+## Cross-Cutting Theme: Initial Game Creation Is the Outlier
+
+Five of the patterns on this page note that initial match setup goes through a separate code path from incremental actions: it doesn't use `runPublicationPipeline`, it doesn't thread `matchSeed` into `createGame`, it emits `gameCreated` + `fugitiveDesignated` events outside the normal return path, and its reproducibility is only partial. Consolidating initial creation into the same pipeline as every other action would close all five gaps at once — this is the single highest-leverage architecture refactor available in the codebase today.

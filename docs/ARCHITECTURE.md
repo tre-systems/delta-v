@@ -4,7 +4,7 @@ Delta-V is an online multiplayer space combat and racing game. This document des
 
 The authoritative server model is event-sourced: the Durable Object persists a match-scoped event stream plus checkpoints, and recovers authoritative state from checkpoint + event tail (not from a separate persisted `gameState` snapshot slot).
 
-Document boundary: gameplay rules and protocol examples live in [SPEC.md](./SPEC.md), coding conventions live in [CODING_STANDARDS.md](./CODING_STANDARDS.md), contributor workflow lives in [CONTRIBUTING.md](./CONTRIBUTING.md), and open work lives in [BACKLOG.md](./BACKLOG.md).
+Document boundary: gameplay rules and protocol examples live in [SPEC.md](./SPEC.md), coding conventions live in [CODING_STANDARDS.md](./CODING_STANDARDS.md), contributor workflow lives in [CONTRIBUTING.md](./CONTRIBUTING.md), open work lives in [BACKLOG.md](./BACKLOG.md), and the deeper walk-through of *why* patterns look the way they do lives in [patterns/](../patterns/README.md).
 
 ## Quick Navigation
 
@@ -12,30 +12,22 @@ Document boundary: gameplay rules and protocol examples live in [SPEC.md](./SPEC
 - [2. Core Systems Design](#2-core-systems-design)
 - [3. Data Flow](#3-data-flow)
 - [4. Dependency Map](#4-dependency-map)
-- [5. Reusability Analysis: Generic Hex Game Engine](#5-reusability-analysis-generic-hex-game-engine)
-- [6. Current Decisions and Planned Shifts](#6-current-decisions-and-planned-shifts)
-- [7. Client bundle and release hygiene](#7-client-bundle-and-release-hygiene)
+- [5. Current Decisions and Planned Shifts](#5-current-decisions-and-planned-shifts)
+- [6. Client bundle and release hygiene](#6-client-bundle-and-release-hygiene)
 
-**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered “old client / new server” is **not** a supported requirement today. Breaking protocol changes need a **coordinated deploy** and, if needed, force reload / cache-bust the SPA; prefer **additive** JSON fields. There is no feature-flag protocol negotiation in the client today. When bumping **`GameState.schemaVersion`**, extend projector / replay / recovery coverage and follow [COORDINATED_RELEASE_CHECKLIST.md](./COORDINATED_RELEASE_CHECKLIST.md).
+**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered "old client / new server" is not supported. Breaking protocol changes need a coordinated deploy; prefer additive JSON fields. When bumping `GameState.schemaVersion`, follow [COORDINATED_RELEASE_CHECKLIST.md](./COORDINATED_RELEASE_CHECKLIST.md).
 
 Platform references:
 
-- [Cloudflare Workers](https://developers.cloudflare.com/workers/)
-- [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/)
-- [Cloudflare Durable Objects WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)
-- [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
-- [MDN Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/) · [Durable Objects](https://developers.cloudflare.com/durable-objects/) · [WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)
+- [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) · [MDN Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
 
 Pattern references:
 
-- [MDN `structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone)
 - [Gary Bernhardt, "Boundaries"](https://www.destroyallsoftware.com/talks/boundaries)
-- [Martin Fowler, Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html)
-- [Martin Fowler, CQRS](https://martinfowler.com/bliki/CQRS.html)
-- [Martin Fowler, Dependency Injection](https://martinfowler.com/articles/injection.html)
+- [Martin Fowler, Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html) · [CQRS](https://martinfowler.com/bliki/CQRS.html) · [Dependency Injection](https://martinfowler.com/articles/injection.html)
 - [Mark Seemann, Composition Root](https://blog.ploeh.dk/2011/07/28/CompositionRoot/)
-- [Solid Docs, Fine-grained reactivity](https://docs.solidjs.com/advanced-concepts/fine-grained-reactivity)
-- [Preact Signals guide](https://preactjs.com/guide/v10/signals/)
+- [Solid Docs, Fine-grained reactivity](https://docs.solidjs.com/advanced-concepts/fine-grained-reactivity) · [Preact Signals guide](https://preactjs.com/guide/v10/signals/)
 
 ## 1. High-Level Architecture
 
@@ -43,9 +35,21 @@ Delta-V uses a full-stack TypeScript architecture built around a **shared side-e
 
 ```
 src/shared/      → Game logic (no I/O, fully testable, side-effect-free)
-src/server/      → Thin Durable Object multiplayer shell
+src/server/      → Cloudflare Workers entry + three Durable Object classes
 src/client/      → State machine + Canvas renderer + DOM UI
 ```
+
+### Cloudflare Durable Objects
+
+Three DO classes back the server, bound in [`wrangler.toml`](../wrangler.toml):
+
+| Binding | Class | Purpose |
+| --- | --- | --- |
+| `GAME` | `GameDO` | One room per active match — event stream, checkpoints, WebSocket, alarms |
+| `MATCHMAKER` | `MatchmakerDO` | Singleton `global` instance — quick-match ticket queue and seat pairing |
+| `LIVE_REGISTRY` | `LiveRegistryDO` | Singleton — "Live now" registry powering `GET /api/matches?status=live` |
+
+`GameDO` carries nearly all game state and is the focus of this document. The other two are small support DOs with their own modules (`src/server/matchmaker-do.ts`, `src/server/live-registry-do.ts`).
 
 ### Diagrams (Mermaid)
 
@@ -235,7 +239,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 
 The AI uses a **config-weighted composable scoring** architecture rather than a monolithic decision tree:
 
-- **`shared/ai/config.ts`** defines `AIDifficultyConfig` — a flat record of numeric weights and boolean flags (currently **55** fields). Three presets (`easy`, `normal`, `hard`) tune aggression, accuracy, and capability without changing any logic. This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data rather than class hierarchies.
+- **`shared/ai/config.ts`** defines `AIDifficultyConfig` — a flat record of ~60 numeric weights and boolean flags. Three presets (`easy`, `normal`, `hard`) tune aggression, accuracy, and capability without changing any logic, and `ScenarioRules.aiConfigOverrides` can selectively override individual knobs per scenario (used by Duel to lengthen engagements). This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data rather than class hierarchies.
 - **`shared/ai/scoring.ts`** contains composable scoring functions, each handling one concern: `scoreNavigation` (distance/speed toward objective), `scoreEscape` (distance from center + velocity), `scoreRaceDanger` (gravity well proximity penalty), `scoreGravityLookAhead` (deferred-gravity next-turn value), and `scoreCombatPositioning` (engagement/interception posture). Each takes a course candidate and a config, returns a number.
 - **`shared/ai/index.ts`** orchestrates: for each AI ship, enumerate all 7 burn options (6 hex directions + null), compute each course via `computeCourse()`, sum scores across all strategies, pick the highest. Combat and ordnance decisions follow the same evaluate-all-options-then-pick pattern.
 
@@ -323,10 +327,7 @@ The backend leverages Cloudflare's edge network.
 
 - **Single-alarm scheduling**: One alarm per DO, rescheduled after each state change. Three independent deadlines are tracked: `disconnectAt` (30s grace), `turnTimeoutAt` (2 min), `inactivityAt` (5 min). `getNextAlarmAt()` computes the nearest deadline. When the alarm fires, `resolveAlarmAction()` returns a discriminated action (`disconnectExpired`, `turnTimeout`, `inactivityTimeout`) and the handler dispatches accordingly. `inactivityAt` is cached in memory and flushed to storage at most once per 60s to avoid write amplification from frequent pings. Chat rate limiting is also in-memory (not storage-backed).
 
-- **WebSocket throttle**: A per-socket message counter (in-memory `WeakMap`) limits clients to 10 messages per second. Connections exceeding this are closed with code 1008. This prevents garbage-message floods from spiking DO CPU or I/O.
-
-- **Room creation rate limit**: The Worker hashes the client IP and checks `POST /create` against the checked-in Cloudflare `[[ratelimits]]` binding in `wrangler.toml` (5 requests per IP per 60s window, 429 with `Retry-After`). Lower environments can still run against Wrangler's local simulation or intentionally omit the binding, in which case the Worker falls back to an in-memory per-isolate limiter.
-- **Reporting endpoints (`/error`, `/telemetry`)**: JSON bodies only, max **4KB**, **204** responses; rows go to D1 asynchronously. Per-isolate per-IP windows (**120** telemetry / **40** error per 60s, hashed IP) — see [SECURITY.md](./SECURITY.md). Optional cross-edge WAF / `[[ratelimits]]` remains follow-up work only if the shipped limits prove insufficient.
+- **Rate limiting**: Worker-layer per-IP limits on `/create`, `/ws/:code`, `/join/:code`, `/replay/:code`, `/api/matches`, `/telemetry`, and `/error`; DO-layer per-socket limits on message flood and chat. Canonical table in [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture).
 
 - **Match archive binding**: Production config also binds `MATCH_ARCHIVE` to R2 so completed rooms can persist replay/support data after the Durable Object goes inactive. That keeps replay/debug history available in production without forcing lower environments to use remote storage during local development.
 
@@ -611,69 +612,7 @@ game-do/game-do.ts (Durable Object)
 
 ---
 
-## 5. Reusability Analysis: Generic Hex Game Engine
-
-An analysis of what could be extracted as a reusable hex-grid multiplayer game framework for building other games on top of.
-
-### What Is Already Generic
-
-| Component                   | Reusability | Notes                                                                          |
-| --------------------------- | ----------- | ------------------------------------------------------------------------------ |
-| `shared/hex.ts`             | **100%**    | Zero game knowledge. Axial coords, line draw, pixel conversion.                |
-| `shared/util.ts`            | **100%**    | Pure FP collection helpers.                                                    |
-| `renderer/camera.ts`        | **95%**     | Pan/zoom/lerp. Only tie: `HEX_SIZE` constant.                                  |
-| `client/input.ts`           | **90%**     | Mouse/touch/pinch → clickHex/hoverHex. No game knowledge.                      |
-| Server multiplayer plumbing | **80%**     | Room codes, tokens, seat assignment, disconnect grace, alarms.                 |
-| `game/transport.ts`         | **70%**     | Command submission pattern. Interface is game-specific but pattern is generic. |
-| Renderer orchestration      | **60%**     | Render loop, effect management, animation interpolation.                       |
-| Everything else             | **0–20%**   | Deeply game-specific.                                                          |
-
-### What a Generic Framework Would Look Like
-
-```
-hex-engine/
-├── hex/           → Axial coord math, line draw, pixel conversion
-├── camera/        → Pan/zoom/lerp, world↔screen transforms
-├── input/         → Mouse/touch/pinch → { clickHex, hoverHex }
-├── multiplayer/   → DO-based room management
-│   ├── room.ts        → Room codes, tokens, seat assignment
-│   ├── session.ts     → Disconnect grace, reconnection
-│   ├── protocol.ts    → Message validation framework
-│   └── game-do.ts     → Generic DO lifecycle (fetch/alarm/websocket)
-├── renderer/      → Hex grid drawing, animation loop
-└── types.ts       → HexCoord, HexVec, PixelCoord, generic Phase/Player
-```
-
-A game implementation would provide:
-
-- Game-specific entity types extending a base `HexEntity { id, position, owner }`
-- Phase handlers conforming to a `GameEngine<State, Action>` interface
-- Entity renderers and layer renderers for game-specific visuals
-- Scenario/map definitions
-
-### Assessment
-
-The extractable core is a modest fraction of the repo — enough to avoid rewriting for a second game, but small enough that copy-paste is also viable.
-
-**Arguments for extraction:**
-
-- `hex.ts` + `camera.ts` + `input.ts` are immediately reusable with zero changes
-- The DO multiplayer plumbing (rooms, tokens, reconnection) would otherwise be rewritten verbatim
-- Forces cleaner boundaries, which would improve Delta-V itself
-- ROI is positive after game #2
-
-**Arguments against:**
-
-- Game-specific logic dominates the repo. The "generic" part is small.
-- Abstraction has a cost: type parameters and trait interfaces make code harder to read. `processAstrogation` is crystal clear because it knows exactly what a Ship is.
-- Designing a framework from N=1 games is the classic premature abstraction. The right abstractions only emerge after building game #2.
-- The game-specific parts (gravity, vector movement, combat tables) are the interesting and hard parts. The generic hex plumbing is straightforward.
-
-**Recommendation:** Don't extract a framework yet. When starting game #2, fork Delta-V and gut the game-specific parts. The pure engine, transport abstraction, and clean shared/server/client split make forking straightforward. Build the framework _from two concrete implementations_, not from one.
-
----
-
-## 6. Current Decisions and Planned Shifts
+## 5. Current Decisions and Planned Shifts
 
 See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current architectural stances and why they exist.
 
@@ -688,16 +627,16 @@ See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current arch
 
 ---
 
-## 7. Client bundle and release hygiene
+## 6. Client bundle and release hygiene
 
-**Bundle baseline** (re-measured **2026-04-02** from the current `dist/client.js`; update after large renderer or dependency changes):
+**Bundle baseline** (re-measured **2026-04-17** from the current `dist/client.js`; update after large renderer or dependency changes):
 
 | Artifact         | Raw (approx.) | Gzip (approx.) |
 | ---------------- | ------------- | -------------- |
-| `dist/client.js` | ~644 KB       | ~133 KB        |
+| `dist/client.js` | ~704 KB       | ~147 KB        |
 
 **Supply chain:** run `npm audit` before releases; use `npm run update-deps` judiciously and run `verify` after bumps.
 
 **D1 migrations:** treat as **forward-only** unless Cloudflare backup/restore is used; rollback is **redeploy previous Worker + compatible schema**, not automatic down-migration.
 
-**CI:** Node **25** is pinned in `.github/workflows/ci.yml`, and `.nvmrc` matches.
+**CI:** Node **25** is pinned in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), and [`.nvmrc`](../.nvmrc) matches.

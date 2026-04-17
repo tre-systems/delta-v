@@ -54,7 +54,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 **Steps**
 
-1. Read rate-limit constants in `socket.ts` (`WS_MSG_RATE_LIMIT`, `CHAT_RATE_LIMIT_MS`) and `src/server/reporting.ts` (`CREATE_RATE_LIMIT`, `JOIN_REPLAY_PROBE_LIMIT`, `WS_CONNECT_LIMIT`, `TELEMETRY_RATE_LIMIT`, `ERROR_REPORT_RATE_LIMIT`). Cross-check values against [SECURITY.md](./SECURITY.md). **Pass:** all values match. **Fail:** update the doc or the code.
+1. Read rate-limit constants in `socket.ts` (`WS_MSG_RATE_LIMIT`, `CHAT_RATE_LIMIT_MS`) and `src/server/reporting.ts` (`CREATE_RATE_LIMIT`, `JOIN_PROBE_LIMIT`, `REPLAY_PROBE_LIMIT`, `WS_CONNECT_LIMIT`, `TELEMETRY_RATE_LIMIT`, `ERROR_REPORT_RATE_LIMIT`). Cross-check values against [SECURITY.md](./SECURITY.md). **Pass:** all values match. **Fail:** update the doc or the code.
 2. Read `validateClientMessage()` in `src/shared/protocol.ts`. Confirm every C2S message type has validation. **Pass:** no unvalidated message types. **Fail:** add validation or file BACKLOG item.
 3. Grep for `innerHTML` usage outside `src/client/dom.ts`. **Pass:** zero hits (pre-commit hook also checks this). **Fail:** move to `setTrustedHTML()`.
 4. Grep for `Math.random` in `src/shared/engine/`, excluding tests and injected default RNG fallbacks (`= Math.random`) to match the pre-commit boundary. **Pass:** no remaining hits. **Fail:** replace with injected RNG or narrow the exception intentionally.
@@ -97,11 +97,11 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 **Goal:** know cost of load; avoid surprise regressions.
 
-**Key files:** `esbuild.client.mjs`, `dist/client.js` (build output), [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene).
+**Key files:** `esbuild.client.mjs`, `dist/client.js` (build output), [ARCHITECTURE.md](./ARCHITECTURE.md#6-client-bundle-and-release-hygiene).
 
 **Steps**
 
-1. Run `npm run build`. Record `dist/client.js` size: `ls -la dist/client.js` and `gzip -c dist/client.js | wc -c`. **Pass:** gzip size within 20% of baseline in [ARCHITECTURE.md](./ARCHITECTURE.md#7-client-bundle-and-release-hygiene). **Fail:** investigate new dependencies or dead code; file BACKLOG item.
+1. Run `npm run build`. Record `dist/client.js` size: `ls -la dist/client.js` and `gzip -c dist/client.js | wc -c`. **Pass:** gzip size within 20% of baseline in [ARCHITECTURE.md](./ARCHITECTURE.md#6-client-bundle-and-release-hygiene). **Fail:** investigate new dependencies or dead code; file BACKLOG item.
 2. Check for obvious runtime package imports: `rg -n "^import .* from '[^./]" src/client --glob '!**/*.test.ts'` and compare any bare-package hits against `package.json` / lockfile changes since the last review. **Pass:** no unexpected new runtime dependencies in the client bundle path. **Fail:** evaluate if the dependency is justified.
 
 **`[Human]`** Chrome DevTools heap snapshot after 20+ turns — check for unbounded growth. This requires a running game in a browser.
@@ -135,8 +135,8 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 | 7   | Supply chain / release      | 2026-04-04 | pass               | `npm audit` 0 vulnerabilities; `npm outdated` no packages 2+ major versions behind; Node 25 consistent across `.nvmrc` and CI |
 
 **Decisions already recorded elsewhere (no recurring review needed):**
-- **i18n:** English-only — [ARCHITECTURE.md](./ARCHITECTURE.md#6-current-decisions-and-planned-shifts).
-- **Protocol compatibility:** same-version deploy — [ARCHITECTURE.md](./ARCHITECTURE.md) sections 1 + 6.
+- **i18n:** English-only — [ARCHITECTURE.md](./ARCHITECTURE.md#5-current-decisions-and-planned-shifts).
+- **Protocol compatibility:** same-version deploy — [ARCHITECTURE.md](./ARCHITECTURE.md) sections 1 + 5.
 - **Replay/parity:** covered by coding standard — [CODING_STANDARDS.md](./CODING_STANDARDS.md).
 - **Accessibility:** `[Human]` — manual keyboard/screen-reader audit per [A11Y.md](./A11Y.md); automated checks via `npm run test:e2e:a11y`.
 

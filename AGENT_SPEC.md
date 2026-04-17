@@ -121,21 +121,7 @@ The agent adapter and human UI consume the **same** authoritative state projecti
 
 ### 4.1 Tools — current
 
-Exposed by `scripts/delta-v-mcp-server.ts` (stdio):
-
-```
-delta_v_quick_match_connect(scenario, username, playerKey?) → { sessionId, code, ... }
-delta_v_list_sessions()                                      → { sessions[] }
-delta_v_get_state(sessionId)                                 → { state, latestEventId }
-delta_v_get_observation(sessionId, …opts)                    → AgentTurnInput
-delta_v_wait_for_turn(sessionId, timeoutMs?, …opts)          → AgentTurnInput
-delta_v_get_events(sessionId, afterEventId?, limit?, clear?) → { events[], bufferedRemaining }
-delta_v_send_action(sessionId, action)                       → { actionType }
-delta_v_send_chat(sessionId, text)                           → { text }
-delta_v_close_session(sessionId)                             → { closed }
-```
-
-Recommended loop: `quick_match_connect` → `wait_for_turn` (blocks) → pick candidate → `send_action` → loop. `get_state` and `get_events` remain for debugging and event-log inspection.
+The MCP tool catalog (local stdio and remote HTTP) lives in [docs/DELTA_V_MCP.md](./docs/DELTA_V_MCP.md). Canonical loop: `quick_match_connect` → `wait_for_turn` (blocks) → pick candidate → `send_action` → loop.
 
 ### 4.2 Tools — planned
 
@@ -307,7 +293,7 @@ The observation uses a **hybrid** approach: structured JSON for machine-readable
 
 ### 6.1 Phase-action map
 
-Scenario keys in code are camelCase. The server also accepts the snake_case aliases from historical docs for `interplanetaryWar` / `fleetAction` / `grandTour` — agents should prefer the camelCase values returned from discovery endpoints.
+Scenario keys in code are camelCase. Unknown keys fall back to `biplanetary` in `normalizeScenarioKey()` (see `src/server/protocol.ts`) — always use the values returned from the discovery endpoints (`/.well-known/agent.json`, `/agent-playbook.json`).
 
 | Phase | Legal C2S types | Simultaneous? |
 |-------|-----------------|---------------|
@@ -517,7 +503,7 @@ Coached matches are flagged on the leaderboard and do not affect uncoached Elo, 
 
 ### 10.1 Public leaderboard (future)
 
-Depends on account persistence, which is itself out of scope for beta (see `BETA_READINESS_REVIEW.md`). Metrics when built:
+An active arc — see [docs/BACKLOG.md](./docs/BACKLOG.md) for the no-login Glicko-2 design. Metrics when built:
 
 | Metric | Description |
 |--------|-------------|
@@ -611,16 +597,15 @@ Add to the repo: `ai-agents`, `mcp`, `llm`, `game-ai`, `gymnasium`, `agent-bench
 
 ### 12.2 Token lifecycle
 
-| Token | Scope | Lifetime | Issued by | Sent as |
-|-------|-------|----------|-----------|---------|
-| `agentToken` | Agent identity across matches | 24 h, renewable | `POST /api/agent-token` (body: `{playerKey}`) | `Authorization: Bearer …` header on `/mcp` |
-| `matchToken` | Single match credential, opaque | 4 h (covers any reasonable game) | `delta_v_quick_match` when called with agentToken auth | Tool args field `matchToken` |
-| `playerToken` | Single match session (legacy + browser) | Match duration + 5 min grace | `/create` or `/quick-match` | `?playerToken=…` query string |
-| `spectatorToken` | Read-only match access | Match duration | Not required (public spectating) | — |
+Full design (HMAC signing, `agentTokenHash` binding, revocation stance) in [docs/SECURITY.md#remote-mcp-token-model](./docs/SECURITY.md#remote-mcp-token-model). Summary:
 
-`agentToken` is HMAC-signed (HMAC-SHA-256 with `AGENT_TOKEN_SECRET`) and embeds `{kind, playerKey, iat, exp}`. `matchToken` is HMAC-signed and embeds `{kind, code, playerToken, agentTokenHash, iat, exp}` — the `agentTokenHash` binds it to the issuing identity so a stolen matchToken alone (without the matching agentToken in `Authorization`) cannot be replayed by a different agent.
+| Token | Scope | Lifetime | Carrier |
+|-------|-------|----------|---------|
+| `agentToken` | Agent identity across matches | 24 h, renewable | `Authorization: Bearer …` on `/mcp` |
+| `matchToken` | Single match, binds to issuing agentToken | 4 h | Tool args field `matchToken` |
+| `playerToken` | Single match (legacy + browser) | Match duration + 5 min grace | `?playerToken=…` query string |
 
-Result: agents that use the remote MCP endpoint with both tokens **never see the raw `playerToken`** in their LLM context — `agentToken` lives in an env var (Authorization header), `matchToken` is opaque (just a signed blob). The legacy `{code, playerToken}` tool-arg path is preserved for `/create` users and bridge agents.
+Agents using the layered-token flow never see the raw `playerToken` in their LLM context.
 
 ### 12.3 Threat model
 
@@ -648,44 +633,20 @@ For agents with broad system access (Claude Code, Codex, OpenClaw):
 
 ### 13.1 MCP (recommended)
 
-Local: `npm run mcp:delta-v` — requires a repo clone, stdio transport, full session/event buffering.
-Remote: `https://delta-v.tre.systems/mcp` — streamable HTTP (stateless JSON), no install.
+Local: `npm run mcp:delta-v` — stdio transport, owns per-session WebSockets and an event buffer (exposes `delta_v_list_sessions`, `delta_v_get_events`, `delta_v_close_session` on top of the common toolset).
 
-**Recommended remote flow** (no playerToken ever leaves the server):
-1. `POST /api/agent-token` with `{playerKey: "agent_…"}` once at agent setup → store the returned `token` as an env var (`DELTA_V_AGENT_TOKEN`).
-2. Configure your MCP client to send `Authorization: Bearer $DELTA_V_AGENT_TOKEN` on every `/mcp` call.
-3. Call `delta_v_quick_match` (no args needed — `playerKey` is taken from the agentToken). It returns `{matchToken, scenario}`.
-4. Pass `matchToken` to every other tool. The server unwraps it internally; the agent's LLM never sees the raw match credentials.
+Remote: `https://delta-v.tre.systems/mcp` — streamable HTTP, stateless, no install.
 
-**Legacy flow** (still supported, used by browser-side `/create` and existing scripts): pass `{code, playerToken}` directly in tool args, no Authorization header required.
+Remote flow with layered tokens (no raw `playerToken` reaches the LLM):
 
-```json
-{
-  "mcpServers": {
-    "delta-v-local": {
-      "command": "npx",
-      "args": ["tsx", "scripts/delta-v-mcp-server.ts"],
-      "cwd": "/absolute/path/to/delta-v"
-    },
-    "delta-v-remote": {
-      "url": "https://delta-v.tre.systems/mcp"
-    }
-  }
-}
-```
+1. `POST /api/agent-token` with `{playerKey: "agent_…"}` once at setup → store the returned `token` as `DELTA_V_AGENT_TOKEN`.
+2. Send `Authorization: Bearer $DELTA_V_AGENT_TOKEN` on every `/mcp` call.
+3. `delta_v_quick_match` returns `{matchToken, scenario}`.
+4. Pass `matchToken` to every other tool. The server unwraps it internally.
 
-Tools served by the remote endpoint:
+Legacy `{code, playerToken}` tool args still work for `/create`-based flows and bridge agents.
 
-| Tool | Args | Notes |
-|---|---|---|
-| `delta_v_quick_match` | `{scenario?, username?, playerKey?, pollMs?, timeoutMs?}` | With agentToken auth: returns `{matchToken, scenario}`. Without auth: returns `{code, playerToken, scenario}`. `username`/`playerKey` are inferred from the agentToken when present. |
-| `delta_v_get_state` | `{matchToken}` *or* `{code, playerToken}` | Latest GameState filtered for the seat |
-| `delta_v_get_observation` | `{matchToken | code+playerToken, includeSummary?, includeLegalActionInfo?, includeTactical?, includeSpatialGrid?, includeCandidateLabels?}` | Same shape as bridge AgentTurnInput |
-| `delta_v_wait_for_turn` | `{matchToken | code+playerToken, timeoutMs?, include*?}` | Long-polls server-side (≤25 s) |
-| `delta_v_send_action` | `{matchToken | code+playerToken, action, autoGuards?, waitForResult?, waitTimeoutMs?, includeNextObservation?, include*?}` | ActionGuards auto-filled; returns ActionResult on `waitForResult: true` |
-| `delta_v_send_chat` | `{matchToken | code+playerToken, text}` | ≤200 chars |
-
-The local MCP additionally exposes `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` because it owns a per-session WebSocket and circular event buffer. The remote endpoint is stateless — agents that need event history can reconstruct it from `delta_v_send_action` responses (which include `effects[]` per call) plus state diffs from successive observations.
+Full tool catalog, args, and host configuration: [docs/DELTA_V_MCP.md](./docs/DELTA_V_MCP.md).
 
 ### 13.2 Bridge (stdin/stdout or HTTP)
 
@@ -790,7 +751,7 @@ Eliminate the stale-state error class that dominates agent mistakes today.
 
 ### 14.6 Future (blocked on scope expansion)
 
-- Public agent leaderboard with Elo (requires account/persistence system — currently out of scope per `BETA_READINESS_REVIEW.md`).
+- Public agent leaderboard — active design now folded into the shared leaderboard arc in [docs/BACKLOG.md](./docs/BACKLOG.md).
 - Multi-agent orchestration / tournament mode.
 
 ---

@@ -1,40 +1,70 @@
 # Delta-V Backlog
 
-Active work items are listed below in one global priority order.
+Unfinished actionable work, in one global priority order. Shipped history lives in git; recurring review procedures live in [REVIEW_PLAN.md](./REVIEW_PLAN.md); architecture rationale lives in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-Use this file for unfinished actionable work only. Do not duplicate shipped history, recurring review procedures, or long-form architecture rationale here; keep those in git history, [REVIEW_PLAN.md](./REVIEW_PLAN.md), and [ARCHITECTURE.md](./ARCHITECTURE.md) respectively.
-
-The list below is the output of a full project review aimed at "solid architecture first, then iterate on fun". Items are grouped by theme but ordered within each group by priority. Gameplay-feel items (P1) are the most likely to translate directly into a better experience; architecture-solidity items (P2) unblock confident iteration on P1.
-
-**Recently shipped from the review pass:** early-turn nuke + parity-deficit guards in the shared AI (duel avg length 2.3 → 6.0 turns across seeded sweeps), structured reporting for LIVE_REGISTRY register/deregister and MCP observation timeouts, a `reportLifecycleEvent` helper wired to `game_started` / `game_ended` / `disconnect_grace_started` / `disconnect_grace_resolved` / `disconnect_grace_expired` / `turn_timeout_fired`, matchmaker `matchmaker_paired` + `matchmaker_pairing_split` events with a regression test covering the 409-collision log line, a 10 s MCP observation timeout (`Promise.race`) with structured reporting, error-code preservation in the WebSocket dispatch fallback, bounded-insertion-order idempotency key cache, seeded RNG made **required** on `aiAstrogation` / `aiOrdnance` (test sites use a local wrapper with a deterministic default), difficulty-aware lookahead RNG bias (easy 0.4 / normal 0.5 / hard 0.6), turn-1 `stalePhase` race fixed server-side (guard forgives stale expectedPhase when the action type is valid for the real phase) with a regression test, game-over modal Escape routing to Exit with keyboard regression test, `data-testid` attributes on `ship-entry` and `fleet-shop-item` with Playwright selectors swapped, Vitest client coverage thresholds (statements 60 / branches 55 / functions 65 / lines 60), load-harness error binning (`{http4xx, http5xx, rateLimited, actionRejected, timeout, invalidInput, authError, stateConflict, other}`), pre-commit and CI simulation iteration counts unified at 60, protocol fixtures expanded to cover all 15 C2S action types plus 7 negative fixtures, client bootstrap that keeps the JS-required fallback visible until boot succeeds, `warnOnce` on silent storage/telemetry failures, shared `MOBILE_BREAKPOINT_PX` used by tutorial / course renderer / UI media query, inline documentation for every AI difficulty knob, weak-gravity "definite-only" design made explicit at the movement call site, doc link hygiene for `AGENT_SPEC.md` / `AGENTS.md`, and a running "outstanding issues" header in `AGENT_IMPROVEMENTS_LOG.md`. Several backlog items turned out to be already correct on re-inspection (D0 capture rule, `replacedSockets` GC, intentional `idempotencyCache.clear` on state advance, single-threaded DO event-seq race, disconnect-grace enforcement at the HTTP join).
-
-**Also shipped in this pass:** operator-facing documentation of every structured server event in [`OBSERVABILITY.md`](./OBSERVABILITY.md) with copy-pastable D1 queries (lifecycle cadence, disconnect-grace outcomes, matchmaker split rate, MCP timeout, LIVE_REGISTRY failures, turn-timeout by phase) and new alert-threshold guidance; an empirical bias sweep harness (`scripts/ai-bias-sweep.ts`) that measured the passenger-escort lookahead bias across 7 triples × 480 games — result: **bias knob is effectively inert on tested scenarios** (the lookahead code path is too narrow geometrically to dominate AI-vs-AI outcomes), so the priors stay put; a measured duel pacing attempt that found no single-lever tweak (ordnance type restriction, zero starting velocity, away velocity) cleanly reaches the 8-turn target without trading away seat balance — documented as needing a multi-lever design pass; extended a11y axe coverage to fleet-building and the desktop log panel; and a two-browser quick-match pairing e2e that proves the full UI → matchmaker → GameDO → WebSocket path end-to-end.
-
-**Shipped 2026-04-17:** duel pacing target reached via a per-scenario AI override. New `aiConfigOverrides` field on `ScenarioRules`, a `resolveAIConfig(difficulty, overrides?)` helper in `src/shared/ai/config.ts`, and all four AI call sites now thread the override through `state.scenarioRules`. Duel sets `{ combatClosingWeight: 1, combatCloseBonus: 10 }` to replace the default `(3, 40)`; measured in 480-game seeded sweep: **avg turns 6.0 → 8.0, seat 42.9% → 45.0% P0**. Other scenarios unaffected (they don't set overrides). Full 9-scenario CI sweep still green. `src/shared/ai/config.test.ts` locks the helper's merge semantics in.
+The sections below are grouped by theme but ordered within each group by priority. Gameplay-feel items (P1) translate most directly into a better player experience; architecture-solidity items (P2) unblock confident iteration on P1.
 
 ---
 
-## P1 — Gameplay feel
+## Public leaderboard with Elo
 
-_All shipped. Duel pacing target (≥ 8 avg turns with stable seat balance) reached on 2026-04-17 — see "Shipped 2026-04-17" above. Prior pacing attempts (fleet comp, ship-type swap, velocity tweaks, ordnance restriction) all regressed something or stayed flat; the scenario-scoped AI override was the principled fix._
+Active feature arc. Goal: a public shared leaderboard ranking humans and agents together with a visible "agent" badge, **no login required**. Design agreed 2026-04-17:
 
----
+- `playerKey` already acts as a client-held pseudonym — bind `playerKey` → `displayName` in D1 and gate only the one-time claim.
+- Only matchmaker-paired games feed the ladder, so private rooms can't be rigged against yourself.
+- Glicko-2 rating deviation naturally hides brand-new accounts behind a "provisional" flag until they have played enough distinct opponents.
+- Agents piggyback the existing signed-token flow and inherit its 5/min/IP rate limit. Human claims are rate-limited by IP alone for this arc.
+- Cloudflare Turnstile (free, no tier cap) on the human claim endpoint is deferred to Future features; the endpoint is structured to bolt it on later. Ship without it first.
+- Proof-of-work on the agent claim is also deferred to Future features; add only if logs show farming.
+- **Unified identity:** the public leaderboard username is the same string as the local Callsign field — no separate "display name" concept. The Callsign input on the home screen POSTs to `/api/claim-name` on blur; conflicts surface inline as "Callsign is taken — try another." A playerKey can rename freely; a name owned by a different key returns 409.
 
-## P2 — Architecture solidity
+Accepted tradeoff: without accounts, smurfing is never zero — only unprofitable for casual griefers. No prize money, so this is fine.
 
-_All P2 items from the prior passes shipped, including the lifecycle-event documentation and D1 query examples._
+Work items in priority / dependency order:
 
----
+### 1. D1 schema: `player` and `match_rating`
 
-## P3 — Engine / AI refinements
+New migration adds two tables. `player` (`player_key` PK, `display_name` UNIQUE, `is_agent` INTEGER, `rating` INTEGER, `rd` INTEGER, `volatility` REAL, `games_played` INTEGER, `distinct_opponents` INTEGER, `last_match_at` INTEGER, `created_at` INTEGER). `match_rating` (`game_id` PK, `archived_match_id`, `player_a_key`, `player_b_key`, `winner_key` NULLABLE, `pre_rating_a`, `post_rating_a`, `pre_rating_b`, `post_rating_b`, `created_at`). Indexes: `player(rating DESC)` for ranking, `match_rating(player_a_key)` / `(player_b_key)` for per-player history. `game_id` as PK gives idempotent re-processing of the same match.
 
-_All P3 items from the prior pass shipped. The difficulty-aware lookahead bias sweep (via `scripts/ai-bias-sweep.ts`) showed the knob is effectively inert — the passenger-escort lookahead path is too narrow geometrically to influence AI-vs-AI outcomes on the scenarios tested. The priors (easy 0.4 / normal 0.5 / hard 0.6) are kept as sensible defaults; future work can revisit if the lookahead's trigger conditions widen._
+**Files:** `migrations/0004_leaderboard.sql` (new)
 
----
+### 2. Glicko-2 rating helper (pure)
 
-## P4 — Tooling, tests, docs
+Pure module `updateRating(playerA, playerB, outcome) → { newA, newB }` using Glicko-2 defaults (tau 0.5, initial rating 1500, initial RD 350, initial volatility 0.06). Unit tests: symmetry of outcomes, RD decreases with play, upset gives bigger rating change than expected win, untouched RD grows over time per the inactivity rule. No DB knowledge, no side effects.
 
-_All P4 items shipped. The `data-testid` sweep completed on 2026-04-17: every ID-based Playwright selector in `e2e/` now reads from `data-testid` attributes, and each referenced element in `static/index.html` carries a matching `data-testid` alongside its `id` (30 elements, 104 selector-site swaps across 6 e2e specs). IDs are retained for CSS / JS selection; test selectors are now decoupled from DOM structure._
+**Files:** `src/shared/rating/glicko2.ts` (new), `src/shared/rating/glicko2.test.ts` (new)
+
+### 3. Username claim — agents
+
+Extend `POST /api/agent-token` request body to accept optional `claim: { username }`. On successful token issue for a `playerKey`, upsert a `player` row with `is_agent=1` and the claimed username; a username already owned by a *different* key returns 409. Same key may rename freely. Re-uses the existing 5/min/IP rate limit so no new attack surface.
+
+**Files:** `src/server/auth/issue-route.ts`, `src/server/leaderboard/player-store.ts`, `src/server/leaderboard/username.ts`, tests
+
+### 4. Username claim — humans (reuses the Callsign field)
+
+New endpoint `POST /api/claim-name` accepting `{ playerKey, username }`. Server upserts a `player` row with `is_agent=0`; rejects if the username is taken by a different `playerKey`. Rate-limited per IP (reuse the existing 5/min limiter used by `/create` and `/api/agent-token`). The existing home-screen Callsign input POSTs on blur; success shows "Claimed as X" inline, conflict shows "Callsign is taken — try another." Uses the existing `normalizeUsername` format (2–20 chars, alphanumeric + space / `_-`) plus a server-side slur blocklist.
+
+Structure the handler so a future Turnstile verification step slots in at the top of the request pipeline with no change to the success path — see the matching Future features entry.
+
+**Files:** `src/server/index.ts` (route), `src/server/leaderboard/claim-route.ts` (new), `src/server/leaderboard/username.ts` (new), `src/client/ui/lobby-view.ts`, `src/client/leaderboard/api.ts` (new), `static/index.html`, `static/styles/components.css`
+
+### 5. Wire matchmaker-paired results into ratings
+
+At `game_ended` in a GameDO that originated from the matchmaker (not `/create`), if both players have `player` rows, compute the Glicko-2 update and write a `match_rating` row. Idempotent on `game_id`. Private-room matches skip silently. One-sided matches (only one player claimed a name) also skip silently and do not degrade the other player's RD. Rating write runs after the match archive write so a failure there does not block leaderboard data.
+
+**Files:** `src/server/game-do/game-do.ts`, `src/server/game-do/match-archive.ts`, `src/server/matchmaker-do.ts` (origin tag), tests
+
+### 6. Leaderboard API + public page
+
+`GET /api/leaderboard?limit=100` returns `{ entries: [{ username, isAgent, rating, rd, gamesPlayed, provisional, lastPlayedAt }] }`, sorted rating DESC, excluding provisional entries unless `?includeProvisional=true`. Response cached at the edge for 60 s so D1 reads stay trivial. New `/leaderboard` static page with a simple table, agent badge, "provisional" column toggle, link from home screen.
+
+**Files:** `src/server/index.ts` (route), `src/server/leaderboard/query.ts` (new), `static/leaderboard.html` + `src/client/leaderboard/`, tests
+
+### 7. Provisional gating
+
+A `player` is *provisional* (hidden from default leaderboard) until all of (a) `games_played ≥ 10`, (b) `distinct_opponents ≥ 5`, (c) Glicko-2 `rd ≤ 100`. Thresholds live as named constants. `distinct_opponents` maintained as an incremental counter at rating-write time (kept in a small per-player opponents-seen set — approximate with a hash-bucket if memory becomes an issue; at beta scale a straight JSON array in the row is fine).
+
+**Files:** `src/shared/rating/provisional.ts` (new), consumed by the query in item 6, tests
 
 ---
 
@@ -66,13 +96,21 @@ Baseline per-isolate rate limiting is already shipped (100 join-style GETs inclu
 
 **Files:** `wrangler.toml`, Cloudflare dashboard, `src/server/index.ts`
 
-### Public agent leaderboard with Elo
+### Cloudflare Turnstile on human name claim
 
-**Trigger:** account / persistent-identity system exists.
+**Trigger:** logs show bulk human name-claim POSTs, or the beta opens to a larger audience.
 
-Depends on accounts (out of scope for beta per `BETA_READINESS_REVIEW.md`). When unblocked, expose Elo, win/loss by reason, action-validity and latency metrics per agent `playerKey`. Flag coached matches separately.
+Add Turnstile verification to `POST /api/claim-name`: include a site-key widget on the claim form, pass `turnstileToken` in the request, verify server-side via a `TURNSTILE_SECRET_KEY` binding before the name validation / upsert. Free, no tier cap. Endpoint is already structured to accept the extra field with no change to the success path.
 
-**Files:** `src/server/leaderboard/` (new), new `/leaderboard` route, D1 schema additions
+**Files:** `src/server/auth/claim-name.ts`, `src/server/auth/turnstile.ts` (new), `static/index.html` + `src/client/` home screen, `wrangler.toml` (`TURNSTILE_SITE_KEY` public var, `TURNSTILE_SECRET_KEY` secret)
+
+### Proof-of-work on first agent name claim
+
+**Trigger:** logs show bulk agent-token issuance being used to farm leaderboard pseudonyms.
+
+Symmetric in spirit to the Turnstile gate on human claims. Server issues a challenge; client submits a nonce whose hash beats a threshold. A few seconds of CPU for a legit agent, painful at bulk. No new infra or billing. Keep the per-IP rate limit in place alongside.
+
+**Files:** `src/server/auth/agent-token.ts`, `src/shared/pow.ts` (new)
 
 ### OpenClaw SKILL.md on ClawHub
 

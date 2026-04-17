@@ -2,6 +2,8 @@
 
 This document captures the coding conventions that fit this codebase as it exists today. It is a pragmatic reference guide: standards that are enforced, conventions that are strongly recommended, and pattern examples that explain the architecture.
 
+For the *why* behind these conventions — narrative walk-throughs of how input, state, rendering, events, and validation compose — see the [Pattern Catalogue](../patterns/README.md).
+
 ## How To Read This
 
 - **Required**: expected for new code and refactors unless there is a documented exception.
@@ -797,10 +799,10 @@ project code. The exceptions are explicitly configured in `biome.json` (for
 example the server override for Cloudflare globals) and should be documented
 there rather than assumed in prose.
 
-**CI and hooks:** `.github/workflows/ci.yml` runs `npm run lint` and
-`npm run typecheck:all`. The Husky pre-commit hook runs the same lint and
-typecheck commands (plus tests and simulation). `npm run verify` includes lint,
-`typecheck:all`, coverage, build, e2e, and simulation.
+**CI and hooks:** [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs
+`npm run lint` and `npm run typecheck:all`. The Husky pre-commit hook runs the
+same lint and typecheck commands (plus tests and simulation). `npm run verify`
+runs the same pipeline locally — see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 Type checking is split intentionally:
 
