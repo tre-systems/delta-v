@@ -6,7 +6,11 @@ import { fetchPlayerRank, postClaimName } from '../leaderboard/api';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
-import { buildWaitingScreenCopy, type WaitingScreenState } from './screens';
+import {
+  buildWaitingScreenCopy,
+  type WaitingScreenCopy,
+  type WaitingScreenState,
+} from './screens';
 
 export interface LobbyViewDeps {
   emit: (event: UIEvent) => void;
@@ -64,13 +68,19 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const aiDifficultySignal = signal<AIDifficulty>(storedDifficulty);
   const pendingAIGameSignal = signal(false);
   const loadingSignal = signal<'create' | 'quickMatch' | null>(null);
-  const waitingCopySignal = signal(
-    buildWaitingScreenCopy({
-      kind: 'private',
-      code: '',
-      connecting: false,
-    }),
-  );
+  // Start with a blank waiting card — the "Game Created" / "Waiting for
+  // opponent..." copy only appears after setWaitingState explicitly
+  // activates a private-room or quick-match flow. Keeps the
+  // accessibility tree free of pregame text during initial menu boot.
+  const waitingCopySignal = signal<WaitingScreenCopy>({
+    titleText: '',
+    codeText: '',
+    codeVariant: 'roomCode',
+    statusText: '',
+    scenarioText: null,
+    showCopyActions: false,
+    cancelActionLabel: null,
+  });
   const copyButtonTextSignal = signal('Copy Link');
   const copySpectateTextSignal = signal('Copy Observer Link (view-only)');
 
@@ -193,14 +203,24 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     loadingSignal.value = loading ? kind : null;
   };
 
+  // When the waiting screen clears (match starts, game ends, exit to
+  // menu), drop every label to empty strings so stale pregame copy
+  // ("Game Created", "Waiting for opponent...") never leaks into the
+  // accessibility tree while the HUD is active.
+  const blankWaitingCopy = (): WaitingScreenCopy => ({
+    titleText: '',
+    codeText: '',
+    codeVariant: 'roomCode',
+    statusText: '',
+    scenarioText: null,
+    showCopyActions: false,
+    cancelActionLabel: null,
+  });
+
   const setWaitingState = (state: WaitingScreenState | null): void => {
-    waitingCopySignal.value = buildWaitingScreenCopy(
-      state ?? {
-        kind: 'private',
-        code: '',
-        connecting: false,
-      },
-    );
+    waitingCopySignal.value = state
+      ? buildWaitingScreenCopy(state)
+      : blankWaitingCopy();
   };
 
   const dispose = (): void => {
