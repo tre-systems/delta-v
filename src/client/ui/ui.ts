@@ -110,6 +110,7 @@ export const createUIManager = (deps: UIManagerDeps) => {
     showToast: (message, type) => overlay.showToast(message, type),
     getPlayerName: () => deps.playerProfile.getProfile().username,
     setPlayerName: (name) => deps.playerProfile.setUsername(name).username,
+    getPlayerKey: () => deps.playerProfile.getProfile().playerKey,
   });
 
   const shipListView = createShipListView({

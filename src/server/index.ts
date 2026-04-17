@@ -2,6 +2,8 @@ import { asRoomCode } from '../shared/ids';
 import { handleAgentTokenIssue } from './auth/issue-route';
 import type { Env } from './env';
 import { GameDO } from './game-do/game-do';
+import { handleClaimName } from './leaderboard/claim-route';
+import { handleLeaderboardQuery } from './leaderboard/query-route';
 import { handleLiveMatchesList } from './live-matches-list';
 import { LiveRegistryDO } from './live-registry-do';
 import { handleMatchesList } from './matches-list';
@@ -251,6 +253,34 @@ export default {
       return handleAgentTokenIssue(request, env);
     }
 
+    // POST /api/claim-name — bind a human playerKey to a username
+    // for the public leaderboard. Same per-IP rate limiter as /create.
+    // Turnstile gating is deferred (see docs/BACKLOG.md Future features).
+    if (url.pathname === '/api/claim-name') {
+      if (!isLoopbackRequest(request)) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const ipHash = await hashIp(ip);
+        if (await isCreateRateLimited(env, ipHash)) {
+          return tooManyRequests();
+        }
+      }
+      return handleClaimName(request, env);
+    }
+
+    // GET /api/leaderboard — public read-only leaderboard. Edge-
+    // cached for 60s; rate-limited per IP via the shared join-probe
+    // counter to blunt scrapers.
+    if (url.pathname === '/api/leaderboard' && request.method === 'GET') {
+      if (!isLoopbackRequest(request)) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const ipHash = await hashIp(ip);
+        if (isJoinProbeRateLimited(ipHash)) {
+          return tooManyRequests();
+        }
+      }
+      return handleLeaderboardQuery(request, env);
+    }
+
     // Hosted streamable-HTTP MCP endpoint — POST JSON-RPC, JSON response.
     // No SSE; agents poll via delta_v_wait_for_turn instead.
     if (url.pathname === '/mcp') {
@@ -303,6 +333,13 @@ export default {
       const matchesUrl = new URL(request.url);
       matchesUrl.pathname = '/matches.html';
       return env.ASSETS.fetch(new Request(matchesUrl.toString(), request));
+    }
+
+    // /leaderboard → serve the public leaderboard page.
+    if (url.pathname === '/leaderboard' || url.pathname === '/leaderboard/') {
+      const leaderboardUrl = new URL(request.url);
+      leaderboardUrl.pathname = '/leaderboard.html';
+      return env.ASSETS.fetch(new Request(leaderboardUrl.toString(), request));
     }
 
     // Serve static assets

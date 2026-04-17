@@ -2,6 +2,7 @@ import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
 import { byId, cls, hide, listen, setTrustedHTML, show, text } from '../dom';
 import { isClientFeatureEnabled } from '../feature-flags';
+import { postClaimName } from '../leaderboard/api';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
@@ -14,7 +15,11 @@ export interface LobbyViewDeps {
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   getPlayerName: () => string;
   setPlayerName: (name: string) => string;
+  getPlayerKey: () => string;
   copyText?: (text: string) => Promise<void> | undefined;
+  // Optional network boundary — tests pass a stub so the lobby doesn't
+  // hit the real /api/claim-name route.
+  postClaimName?: typeof postClaimName;
 }
 
 export interface LobbyView {
@@ -268,8 +273,60 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       updateJoinButtonState();
     });
 
+    const callsignStatusEl = document.getElementById('callsignStatus');
+    const setCallsignStatus = (
+      text: string,
+      tone: 'info' | 'success' | 'error',
+    ) => {
+      if (!callsignStatusEl) return;
+      callsignStatusEl.textContent = text;
+      callsignStatusEl.className = `menu-profile-status status-${tone}`;
+    };
+
+    const runClaim = (postClaim: typeof postClaimName) => {
+      const username = deps.getPlayerName();
+      const playerKey = deps.getPlayerKey();
+      setCallsignStatus('Claiming…', 'info');
+      void postClaim({ playerKey, username }).then((result) => {
+        if (result.ok) {
+          setCallsignStatus(`Claimed as ${result.player.username}`, 'success');
+          return;
+        }
+        if (result.error === 'name_taken') {
+          setCallsignStatus('Callsign is taken — try another.', 'error');
+          return;
+        }
+        if (result.error === 'invalid_name') {
+          setCallsignStatus(
+            'Invalid callsign — use letters, numbers, spaces, _ or -.',
+            'error',
+          );
+          return;
+        }
+        if (result.error === 'rate_limited') {
+          setCallsignStatus(
+            'Too many changes — try again in a minute.',
+            'error',
+          );
+          return;
+        }
+        // network/unavailable/unknown — don't alarm the user on a
+        // best-effort claim path. Clear any prior status.
+        setCallsignStatus('', 'info');
+      });
+    };
+
     const commitPlayerName = () => {
-      playerNameInput.value = deps.setPlayerName(playerNameInput.value);
+      const prior = deps.getPlayerName();
+      const normalised = deps.setPlayerName(playerNameInput.value);
+      playerNameInput.value = normalised;
+      // Only POST when the value actually changed or the status is
+      // empty (first interaction).
+      if (normalised === prior && callsignStatusEl?.textContent) {
+        return;
+      }
+      const postClaim = deps.postClaimName ?? postClaimName;
+      runClaim(postClaim);
     };
 
     listen(playerNameInput, 'blur', () => {

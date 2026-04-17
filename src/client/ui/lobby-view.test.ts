@@ -59,6 +59,18 @@ describe('LobbyView', () => {
           showToast: vi.fn(),
           getPlayerName: () => 'Pilot 1',
           setPlayerName: (name) => name,
+          getPlayerKey: () => 'humankey12345678',
+          postClaimName: async () => ({
+            ok: true,
+            player: {
+              username: 'Pilot 1',
+              isAgent: false,
+              rating: 1500,
+              rd: 350,
+              gamesPlayed: 0,
+            },
+            renamed: false,
+          }),
         }),
       ).not.toThrow();
     } finally {
@@ -77,6 +89,18 @@ describe('LobbyView', () => {
       showToast: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 1',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
     });
 
     document.getElementById('createBtn')?.click();
@@ -114,6 +138,18 @@ describe('LobbyView', () => {
       showToast: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 1',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
     });
 
     const input = document.getElementById('codeInput') as HTMLInputElement;
@@ -143,6 +179,18 @@ describe('LobbyView', () => {
       showToast: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 1',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
       copyText,
     });
 
@@ -209,6 +257,18 @@ describe('LobbyView', () => {
       showToast: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 1',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
     });
 
     // spectatorMode defaults to true — the copy-spectate button is visible.
@@ -228,6 +288,18 @@ describe('LobbyView', () => {
       showToast,
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 1',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
     });
 
     const input = document.getElementById('codeInput') as HTMLInputElement;
@@ -280,6 +352,18 @@ describe('LobbyView', () => {
       showToast: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 1',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
     });
 
     view.dispose();

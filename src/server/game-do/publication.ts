@@ -4,6 +4,8 @@
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import type { GameId } from '../../shared/ids';
 import type { GameState, PlayerId } from '../../shared/types/domain';
+import { scheduleMatchRatingUpdate } from '../leaderboard/rating-writer';
+import type { RoomConfig } from '../protocol';
 import {
   appendEnvelopedEvents,
   getEventStreamLength,
@@ -20,6 +22,7 @@ export interface PublicationDeps {
   env: { DB: D1Database; MATCH_ARCHIVE?: R2Bucket };
   waitUntil: (promise: Promise<unknown>) => void;
   getGameCode: () => Promise<string>;
+  getRoomConfig: () => Promise<RoomConfig | null>;
   verifyProjectionParity: (state: GameState) => Promise<void>;
   broadcastStateChange: (
     state: GameState,
@@ -86,6 +89,27 @@ const archiveIfGameOver = (
   }
 };
 
+// Step 3b: Update Glicko-2 ratings for matchmaker-paired matches.
+// The rating-writer itself no-ops on non-paired rooms and when either
+// participant lacks a `player` row.
+const updateRatingsIfGameOver = (
+  deps: Pick<PublicationDeps, 'env' | 'waitUntil' | 'getRoomConfig'>,
+  state: GameState,
+  events: EngineEvent[],
+): void => {
+  const hasGameOver = events.some((e) => e.type === 'gameOver');
+  if (hasGameOver) {
+    scheduleMatchRatingUpdate(
+      {
+        db: deps.env.DB,
+        waitUntil: deps.waitUntil,
+        getRoomConfig: deps.getRoomConfig,
+      },
+      state,
+    );
+  }
+};
+
 // Pipeline runner: executes all steps in order, preserving the original
 // behavioral contract of GameDO.publishStateChange.
 export const runPublicationPipeline = async (
@@ -115,6 +139,9 @@ export const runPublicationPipeline = async (
 
   // Step 4: Archive if game over
   archiveIfGameOver(deps, state, roomCode, events);
+
+  // Step 4b: Update Glicko-2 ratings if game over (paired matches only)
+  updateRatingsIfGameOver(deps, state, events);
 
   // Step 5: Restart turn timer
   if (restartTurnTimer) {
