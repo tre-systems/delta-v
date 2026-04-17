@@ -33,6 +33,7 @@ import {
   getMatchSeed,
   getProjectedCurrentStateRaw,
 } from './archive';
+import { purgeMatchScopedStorage } from './archive-storage';
 import { BOT_THINK_TIME_MS, buildBotAction } from './bot';
 import {
   broadcastMessage,
@@ -234,6 +235,7 @@ export class GameDO extends DurableObject<Env> {
 
   private async archiveRoomState(): Promise<void> {
     const code = await this.getGameCode();
+    const latestGameId = await this.getLatestGameId();
     await Promise.all([
       this.storage.put(GAME_DO_STORAGE_KEYS.roomArchived, true),
       this.storage.delete(GAME_DO_STORAGE_KEYS.botTurnAt),
@@ -249,6 +251,18 @@ export class GameDO extends DurableObject<Env> {
       this.storage.delete(GAME_DO_STORAGE_KEYS.coachDirectiveSeat0),
       this.storage.delete(GAME_DO_STORAGE_KEYS.coachDirectiveSeat1),
     ]);
+    // Drop per-match residue (event chunks, seq cursor, matchSeed,
+    // matchCreatedAt, checkpoint). An abandoned room previously kept
+    // these forever — ~1–2 KB per DO, unbounded across rooms that never
+    // reach gameOver. Completed matches have already been mirrored to
+    // R2 + D1 by scheduleArchiveCompletedMatch, so purging DO storage
+    // here doesn't strip data from anywhere else.
+    if (latestGameId) {
+      await Promise.all([
+        purgeMatchScopedStorage(this.storage, latestGameId),
+        this.storage.delete(`checkpoint:${latestGameId}`),
+      ]);
+    }
     // Ensure the match is removed from the live-match registry. This
     // fires as a safety net on inactivity timeout; the primary deregister
     // fires earlier in publishStateChange on gameOver.

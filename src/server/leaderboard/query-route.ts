@@ -72,35 +72,44 @@ const toEntry = (row: PlayerRow): LeaderboardEntry => {
   };
 };
 
-export const handleLeaderboardQuery = async (
+// Canonical cache URL for this request: strip every query param except
+// `limit` and `includeProvisional`, and always serialise them in a
+// fixed order so `?foo=bar&limit=50` and `?limit=50` both hit the same
+// cache entry. Without this, a scraper can inflate D1 read cost by
+// appending random params (`?cb=…`) that Cloudflare treats as a new
+// cache key.
+const buildCanonicalCacheUrl = (
   request: Request,
-  env: Env,
-): Promise<Response> => {
-  if (request.method !== 'GET') {
-    return new Response('Method Not Allowed', {
-      status: 405,
-      headers: { Allow: 'GET' },
-    });
-  }
+  limit: number,
+  includeProvisional: boolean,
+): string => {
+  const url = new URL(request.url);
+  const canonical = new URL(url.origin + url.pathname);
+  canonical.searchParams.set('limit', String(limit));
+  canonical.searchParams.set(
+    'includeProvisional',
+    includeProvisional ? 'true' : 'false',
+  );
+  return canonical.toString();
+};
 
+const buildLeaderboardResponse = async (
+  env: Env,
+  limit: number,
+  includeProvisional: boolean,
+): Promise<Response> => {
   if (!env.DB) {
     return Response.json(
       {
         entries: [],
-        limit: DEFAULT_LIMIT,
-        includeProvisional: false,
+        limit,
+        includeProvisional,
       } satisfies LeaderboardResponse,
       {
         headers: { 'Cache-Control': 'public, max-age=10, s-maxage=30' },
       },
     );
   }
-
-  const url = new URL(request.url);
-  const limit = parseLimit(url.searchParams.get('limit'));
-  const includeProvisional = parseBool(
-    url.searchParams.get('includeProvisional'),
-  );
 
   // Fetch up to limit + a margin so we can filter out provisional rows
   // in-app when the caller wants ranked-only. A 3x margin is usually
@@ -135,4 +144,61 @@ export const handleLeaderboardQuery = async (
       },
     },
   );
+};
+
+export const handleLeaderboardQuery = async (
+  request: Request,
+  env: Env,
+  ctx?: ExecutionContext,
+): Promise<Response> => {
+  if (request.method !== 'GET') {
+    return new Response('Method Not Allowed', {
+      status: 405,
+      headers: { Allow: 'GET' },
+    });
+  }
+
+  const url = new URL(request.url);
+  const limit = parseLimit(url.searchParams.get('limit'));
+  const includeProvisional = parseBool(
+    url.searchParams.get('includeProvisional'),
+  );
+
+  // Workers runtime exposes `caches.default`; the Node-based vitest env
+  // does not. When the global is absent we fall back to the raw D1 path
+  // so the edge-cache canonicalisation is a production-only optimisation
+  // without dragging in a test-only shim.
+  const cachesGlobal = (
+    globalThis as {
+      caches?: { default?: Cache };
+    }
+  ).caches;
+  const cache = cachesGlobal?.default ?? null;
+
+  if (cache) {
+    const cacheUrl = buildCanonicalCacheUrl(request, limit, includeProvisional);
+    const cacheKey = new Request(cacheUrl, { method: 'GET' });
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
+
+    const response = await buildLeaderboardResponse(
+      env,
+      limit,
+      includeProvisional,
+    );
+    // Store the response against the canonical key so random-suffix
+    // scrapes (?cb=…) collapse onto the same entry. Clone because
+    // `put` drains the body.
+    if (response.status === 200) {
+      const cachePut = cache.put(cacheKey, response.clone());
+      if (ctx && typeof ctx.waitUntil === 'function') {
+        ctx.waitUntil(cachePut);
+      } else {
+        void cachePut.catch(() => {});
+      }
+    }
+    return response;
+  }
+
+  return buildLeaderboardResponse(env, limit, includeProvisional);
 };

@@ -7,7 +7,7 @@
     "build": "npm run build:client",
     "dev": "wrangler dev",
     "dev:watch": "node esbuild.watch.mjs & wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "node scripts/check-deploy-secrets.mjs && wrangler deploy",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:tools": "tsc --noEmit -p tsconfig.tools.json",
     "typecheck:all": "npm run typecheck && npm run typecheck:tools",

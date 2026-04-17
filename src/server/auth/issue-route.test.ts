@@ -93,6 +93,28 @@ const post = (body: unknown): Request =>
   });
 
 describe('handleAgentTokenIssue', () => {
+  it('returns 500 when AGENT_TOKEN_SECRET is unset in production', async () => {
+    const res = await handleAgentTokenIssue(
+      post({ playerKey: 'agent_alpha-v1' }),
+      { DB: undefined } as unknown as Env,
+    );
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { ok: boolean; error: string };
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('server_misconfigured');
+  });
+
+  it('allows the dev fallback when DEV_MODE=1 is set', async () => {
+    const res = await handleAgentTokenIssue(
+      post({ playerKey: 'agent_alpha-v1' }),
+      { DEV_MODE: '1' } as unknown as Env,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; token: string };
+    expect(body.ok).toBe(true);
+    expect(body.token.length).toBeGreaterThan(0);
+  });
+
   it('rejects non-POST methods', async () => {
     const res = await handleAgentTokenIssue(
       new Request('https://w.test/api/agent-token', { method: 'GET' }),

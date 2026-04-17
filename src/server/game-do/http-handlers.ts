@@ -236,5 +236,18 @@ export const handleReplayRequest = async (
 
   await deps.touchInactivity();
 
-  return Response.json(timeline);
+  // Completed matches are immutable — their projected event stream will
+  // never change, so cache them aggressively at the CDN (1 hour) with a
+  // short browser cache (1 minute) to avoid repeated projection cost on
+  // scraped replays. Mid-match timelines stay uncached; the client
+  // re-polls as the game advances.
+  const lastEntry = timeline.entries.at(-1);
+  const terminal = lastEntry?.message.state.phase === 'gameOver';
+  const cacheControl = terminal
+    ? 'public, max-age=60, s-maxage=3600'
+    : 'no-store';
+
+  return Response.json(timeline, {
+    headers: { 'Cache-Control': cacheControl },
+  });
 };

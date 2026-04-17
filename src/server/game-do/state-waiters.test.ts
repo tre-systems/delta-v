@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { StateWaiters } from './state-waiters';
+import {
+  MAX_CONCURRENT_WAITERS_PER_SEAT,
+  StateWaiters,
+  TooManyWaitersError,
+} from './state-waiters';
 
 describe('StateWaiters', () => {
   it('resolves to true when wakeAll fires before timeout', async () => {
@@ -54,5 +58,29 @@ describe('StateWaiters', () => {
     expect(waiters.pending(0)).toBe(2);
     waiters.wakeAll(0);
     await expect(Promise.all([a, b])).resolves.toEqual([true, true]);
+  });
+
+  it('rejects with TooManyWaitersError once the seat cap is saturated', async () => {
+    const waiters = new StateWaiters();
+    const held: Promise<boolean>[] = [];
+    for (let i = 0; i < MAX_CONCURRENT_WAITERS_PER_SEAT; i++) {
+      held.push(waiters.wait(0, 60_000));
+    }
+    expect(waiters.pending(0)).toBe(MAX_CONCURRENT_WAITERS_PER_SEAT);
+
+    await expect(waiters.wait(0, 60_000)).rejects.toBeInstanceOf(
+      TooManyWaitersError,
+    );
+
+    // Existing waiters still resolve cleanly when wakeAll fires.
+    waiters.wakeAll(0);
+    await expect(Promise.all(held)).resolves.toHaveLength(
+      MAX_CONCURRENT_WAITERS_PER_SEAT,
+    );
+
+    // Seat is free again after wake — a fresh wait now succeeds.
+    const next = waiters.wait(0, 60_000);
+    waiters.wakeAll(0);
+    await expect(next).resolves.toBe(true);
   });
 });

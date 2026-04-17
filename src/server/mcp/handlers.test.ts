@@ -64,6 +64,103 @@ const post = (body: unknown): Request =>
     body: JSON.stringify(body),
   });
 
+describe('handleMcpHttpRequest abuse protections', () => {
+  it('returns 500 when AGENT_TOKEN_SECRET is missing in production mode', async () => {
+    const res = await handleMcpHttpRequest(post(initializeBody), {
+      GAME: {},
+    } as unknown as Env);
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('server_misconfigured');
+  });
+
+  it('returns 413 when the POST body exceeds the 64KB cap', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const huge = 'x'.repeat(64 * 1024 + 10);
+    const res = await handleMcpHttpRequest(
+      new Request('https://w.test/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json,text/event-stream',
+        },
+        body: huge,
+      }),
+      env,
+    );
+    expect(res.status).toBe(413);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('payload_too_large');
+  });
+
+  it('returns 413 early when Content-Length declares an oversize body', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const res = await handleMcpHttpRequest(
+      new Request('https://w.test/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': String(64 * 1024 + 1),
+        },
+        body: 'small',
+      }),
+      env,
+    );
+    expect(res.status).toBe(413);
+  });
+
+  it('returns 429 when the MCP_RATE_LIMITER binding denies the call', async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    const env = {
+      GAME: {},
+      MATCHMAKER: {},
+      AGENT_TOKEN_SECRET: TEST_SECRET,
+      MCP_RATE_LIMITER: { limit },
+    } as unknown as Env;
+    const res = await handleMcpHttpRequest(
+      new Request('https://w.test/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json,text/event-stream',
+          'cf-connecting-ip': '1.1.1.1',
+        },
+        body: JSON.stringify(initializeBody),
+      }),
+      env,
+    );
+    expect(res.status).toBe(429);
+    expect(limit).toHaveBeenCalled();
+    const callArg = (
+      limit.mock.calls as unknown as Array<[{ key: string }]>
+    )[0]?.[0];
+    expect(callArg?.key.startsWith('ip:')).toBe(true);
+  });
+
+  it('derives the MCP rate-limit key from the agentToken hash when present', async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    const env = {
+      GAME: {},
+      MATCHMAKER: {},
+      AGENT_TOKEN_SECRET: TEST_SECRET,
+      MCP_RATE_LIMITER: { limit },
+    } as unknown as Env;
+    const { token } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test123_ok',
+    });
+    const res = await handleMcpHttpRequest(
+      postAuthorized(initializeBody, token),
+      env,
+    );
+    expect(res.status).toBe(429);
+    const callArg = (
+      limit.mock.calls as unknown as Array<[{ key: string }]>
+    )[0]?.[0];
+    expect(callArg?.key.startsWith('agent:')).toBe(true);
+  });
+});
+
 describe('handleMcpHttpRequest', () => {
   it('rejects non-POST/DELETE with 405', async () => {
     const { env } = buildEnv(() => new Response('{}'));

@@ -35,6 +35,34 @@ name = "CREATE_RATE_LIMITER"
 namespace_id = "1001"
 simple = { limit = 5, period = 60 }
 
+[[ratelimits]]
+name = "TELEMETRY_RATE_LIMITER"
+namespace_id = "1002"
+simple = { limit = 120, period = 60 }
+
+[[ratelimits]]
+name = "ERROR_RATE_LIMITER"
+namespace_id = "1003"
+simple = { limit = 40, period = 60 }
+
+[[ratelimits]]
+name = "MCP_RATE_LIMITER"
+namespace_id = "1004"
+simple = { limit = 20, period = 60 }
+
+[triggers]
+# Daily retention purge for `events` rows older than 30 days. See
+# src/server/reporting.ts purgeOldEvents and docs/OBSERVABILITY.md.
+crons = ["0 4 * * *"]
+
+[vars]
+# DEV_MODE=1 lets resolveAgentTokenSecret fall back to a deterministic
+# placeholder when AGENT_TOKEN_SECRET is unset. `wrangler dev` (and
+# tests) pick up [vars] automatically; production deploys override with
+# `wrangler secret put AGENT_TOKEN_SECRET` and do NOT override DEV_MODE,
+# so the placeholder path never engages in prod.
+DEV_MODE = "1"
+
 [observability]
 enabled = true
 

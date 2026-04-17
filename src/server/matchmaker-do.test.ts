@@ -74,6 +74,41 @@ describe('MatchmakerDO', () => {
     vi.restoreAllMocks();
   });
 
+  it('returns 503 when the active queue is saturated', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { matchmaker } = createMatchmaker();
+
+    // Fill the queue with 200 unique queued players. All of them queue
+    // against distinct keys so none pair with each other.
+    for (let i = 0; i < 200; i++) {
+      const playerKey = `saturate_${String(i).padStart(4, '0')}_xxxx`;
+      const response = await matchmaker.fetch(
+        new Request('https://matchmaker.internal/enqueue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            player: { playerKey, username: `Pilot ${i}` },
+          }),
+        }),
+      );
+      // Every enqueue up to the cap stays queued (no pair available in
+      // isolation because of HEARTBEAT_TTL_MS semantics across entries).
+      expect(response.status).toBeLessThan(500);
+    }
+
+    const blocked = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: { playerKey: 'saturate_overflow_z', username: 'Overflow' },
+        }),
+      }),
+    );
+    expect(blocked.status).toBe(503);
+    expect(blocked.headers.get('Retry-After')).toBe('30');
+  });
+
   it('queues the first player and returns a ticket', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_000);
     const { matchmaker } = createMatchmaker();
