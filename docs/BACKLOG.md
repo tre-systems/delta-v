@@ -6,6 +6,89 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 ---
 
+## Gameplay UX & matchmaking integrity
+
+Findings from exploratory live-session testing on 2026-04-17 using paired quick-match queues, MCP sessions, and browser-driven player flows. Ordered by user impact and regression risk.
+
+### Honor requested scenario in quick match
+
+Quick-match requests are not reliably producing the requested scenario in live state. In multiple runs, matches requested as `biplanetary` and `convoy` resolved to `duel` in authoritative `state.scenario`.
+
+**Tasks:**
+- Trace scenario selection from client request through queue/ticket matching to game creation payload.
+- Add server-side invariant checks that reject/flag scenario mismatch at match creation time.
+- Add integration tests that start quick-match pairs for each scenario and assert `state.scenario` equals requested.
+- Add telemetry/structured logging for requested vs resolved scenario to catch drift in production.
+
+**Acceptance criteria:**
+- Quick-match pairs for `duel`, `biplanetary`, `convoy`, `escape`, and `evacuation` consistently create matches with matching `state.scenario`.
+- CI includes a scenario-propagation integration test that fails on mismatch.
+
+**Files:** quick-match queue/matching path, game creation path, scenario selection UI wiring, relevant integration tests
+
+### Unify in-game state messaging with actual phase/turn state
+
+During active matches, stale pregame content (e.g. "Game Created", "Waiting for opponent...") can remain in the semantic tree while in-turn controls are already active. This causes user confusion and weakens accessibility semantics.
+
+**Tasks:**
+- Make one authoritative game-state presenter drive both visible labels and accessibility text.
+- Hide or unmount pregame headings/content once `gameStart` is received and gameplay controls are active.
+- Add UI-state tests that assert phase-specific headings/status do not coexist with stale pregame messaging.
+- Add a compact always-visible phase/status banner (`phase`, `active player`, `pending/confirmed`) for clarity.
+
+**Acceptance criteria:**
+- In active gameplay phases, no stale pregame status strings appear in the visible UI or accessibility snapshot.
+- Phase/turn ownership is discoverable from one consistent status region on desktop and mobile layouts.
+
+**Files:** home/lobby state rendering, in-game HUD/status components, accessibility labeling, UI tests
+
+### Add cancellable quick-match search flow
+
+Queue search state lacks a clear cancel/back control and can trap users in a dead-end waiting state during long matchmaking waits.
+
+**Tasks:**
+- Add explicit `Cancel search` action while queueing, with deterministic return to pre-queue home state.
+- Show queue elapsed time and "searching" progress copy to reduce uncertainty.
+- Ensure keyboard and screen-reader users can discover and activate cancel/back controls.
+
+**Acceptance criteria:**
+- Users can cancel search from queue state in one action and immediately regain all home controls.
+- Queue state has clear status text and does not remove all meaningful interaction paths.
+
+**Files:** quick-match queue UI/state machine, matchmaking API client flow, accessibility copy/tests
+
+### Replace blocking help modal with non-blocking help pattern
+
+The controls/help overlay can intercept gameplay clicks and block action selection with weak affordance, especially during ordnance/combat decision flow.
+
+**Tasks:**
+- Convert help from blocking modal to docked/side panel (or clearly modal with stronger active-state treatment).
+- Ensure gameplay click targets are never silently intercepted without obvious modal state.
+- Add interaction tests covering open-help -> select action -> confirm flow across phases.
+
+**Acceptance criteria:**
+- Help does not cause hidden click interception on gameplay controls.
+- If modal behavior is retained, active modal state is obvious and escapable via close button and `Esc`.
+
+**Files:** help/controls overlay components, action panel interaction handlers, end-to-end UI tests
+
+### Improve MCP chat/API ergonomics and examples
+
+MCP chat send requires `text`; common client intuition (`message`) fails with validation error, causing avoidable integration friction.
+
+**Tasks:**
+- Standardize tool argument naming conventions across MCP tools where practical.
+- If renaming is not feasible, add explicit alias handling (`message` -> `text`) with deprecation warning.
+- Update MCP docs/examples to show canonical payload and common failure modes.
+
+**Acceptance criteria:**
+- Chat-send integration is unambiguous from docs/examples and resilient to common payload naming mistakes.
+- MCP validation errors clearly guide caller to corrected field name.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, MCP tool schema descriptors, agent docs (`docs/DELTA_V_MCP.md`, skills/examples)
+
+---
+
 ## Cost & abuse hardening
 
 Findings from a 2026-04-17 cost-surface review. Ordered by expected blast radius on billing and auth integrity. See [SECURITY.md](./SECURITY.md) for the posture these close.
