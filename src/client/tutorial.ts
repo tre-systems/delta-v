@@ -7,6 +7,7 @@
 import { byId, listen, setTrustedHTML, text, visible } from './dom';
 import { createDisposalScope, withScope } from './reactive';
 import { isMobileViewport } from './ui-breakpoints';
+import { getWebLocalStorage } from './web-local-storage';
 
 const STORAGE_KEY = 'deltav_tutorial_done';
 
@@ -82,7 +83,8 @@ export const createTutorial = (): Tutorial => {
   const textEl = byId('tutorialTipText');
   const progressEl = byId('tutorialProgress');
 
-  let completed = localStorage.getItem(STORAGE_KEY) === '1';
+  const storage = getWebLocalStorage();
+  let completed = storage?.getItem(STORAGE_KEY) === '1';
   let shownSteps = new Set<string>();
   let activeStepId: string | null = null;
   // Cache mobile-ness at tutorial construction time. Re-evaluating on every
@@ -109,7 +111,11 @@ export const createTutorial = (): Tutorial => {
 
   const complete = (): void => {
     completed = true;
-    localStorage.setItem(STORAGE_KEY, '1');
+    try {
+      storage?.setItem(STORAGE_KEY, '1');
+    } catch {
+      /* quota / private mode */
+    }
   };
 
   const showStep = (step: TutorialStep): void => {
@@ -203,7 +209,11 @@ export const createTutorial = (): Tutorial => {
     completed = false;
     shownSteps = new Set<string>();
     activeStepId = null;
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      storage?.removeItem(STORAGE_KEY);
+    } catch {
+      /* quota / private mode */
+    }
   };
 
   const dispose = (): void => {

@@ -111,6 +111,8 @@ describe('logistics-ui', () => {
     stalePlusBtn?.click();
 
     expect(firstState.fuelAmounts.get('ship-0->ship-1')).toBe(0);
-    expect(container.textContent).toContain('No transfer-eligible ships');
+    expect(container.textContent).toContain(
+      'No ships can transfer fuel or cargo at this location this turn.',
+    );
   });
 });

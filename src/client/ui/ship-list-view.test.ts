@@ -74,6 +74,16 @@ describe('ShipListView', () => {
     expect(onSelectShip).toHaveBeenCalledWith('burning');
   });
 
+  it('shows an empty state when there are no ships', () => {
+    const view = createShipListView({ onSelectShip: vi.fn() });
+
+    view.update([], null, new Map());
+
+    const empty = document.querySelector('#shipList .ship-list-empty');
+    expect(empty?.textContent).toBe('No ships to show.');
+    expect(document.querySelectorAll('#shipList .ship-entry')).toHaveLength(0);
+  });
+
   it('uses compact list chrome and fewer stats on mobile', () => {
     const onSelectShip = vi.fn<(shipId: string) => void>();
     const view = createShipListView({ onSelectShip });

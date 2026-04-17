@@ -4,6 +4,7 @@ import { byId, cls, hide, listen, setTrustedHTML, show, text } from '../dom';
 import { isClientFeatureEnabled } from '../feature-flags';
 import { fetchPlayerRank, postClaimName } from '../leaderboard/api';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
+import { getWebLocalStorage } from '../web-local-storage';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
 import {
@@ -35,34 +36,9 @@ export interface LobbyView {
   dispose: () => void;
 }
 
-/** Node 25 + jsdom (and some test globals) can expose a non-Storage `localStorage`; validate before use. */
-const webLocalStorage = (): Pick<Storage, 'getItem' | 'setItem'> | null => {
-  try {
-    const g = globalThis as typeof globalThis & {
-      localStorage?: unknown;
-      window?: { localStorage?: unknown };
-    };
-    const candidates = [g.localStorage, g.window?.localStorage];
-    for (const ls of candidates) {
-      if (
-        ls !== null &&
-        ls !== undefined &&
-        typeof ls === 'object' &&
-        typeof (ls as Storage).getItem === 'function' &&
-        typeof (ls as Storage).setItem === 'function'
-      ) {
-        return ls as Storage;
-      }
-    }
-  } catch {
-    /* private mode / no storage */
-  }
-  return null;
-};
-
 export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const scope = createDisposalScope();
-  const ls = webLocalStorage();
+  const ls = getWebLocalStorage();
   const storedDifficulty =
     (ls?.getItem('aiDifficulty') as AIDifficulty | null) ?? 'normal';
   const aiDifficultySignal = signal<AIDifficulty>(storedDifficulty);

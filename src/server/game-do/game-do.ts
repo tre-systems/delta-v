@@ -292,6 +292,10 @@ export class GameDO extends DurableObject<Env> {
     const gameId = await this.getLatestGameId();
 
     if (!gameId) {
+      // Pre-init action: no match identity has been allocated yet.
+      // Math.random is the only option, but this should not happen on
+      // any action path that runs after initGame. Log for diagnosis.
+      console.warn('[getActionRng] fallback to Math.random — no latest gameId');
       return Math.random;
     }
 
@@ -301,6 +305,13 @@ export class GameDO extends DurableObject<Env> {
     ]);
 
     if (seed === null) {
+      // allocateMatchIdentity has fired (gameId exists) but matchSeed is
+      // missing. This is the specific breach the backlog flagged — a
+      // legitimate match should always have its seed. Warn loudly so
+      // production deploys catch the regression.
+      console.warn(
+        `[getActionRng] fallback to Math.random — matchSeed missing for ${gameId}`,
+      );
       return Math.random;
     }
 

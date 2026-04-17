@@ -319,6 +319,31 @@ describe('main-session-shell', () => {
     });
   });
 
+  it('forwards menu loading kind from session API to the lobby UI', () => {
+    const args = createArgs();
+    createMainSessionShell(args);
+
+    type SessionApiCtorArg = {
+      setMenuLoading: (
+        loading: boolean,
+        kind?: 'create' | 'quickMatch',
+      ) => void;
+    };
+    const calls = mocks.createSessionApi.mock.calls as unknown as Array<
+      [SessionApiCtorArg]
+    >;
+    const sessionDeps = calls[0]?.[0];
+    if (!sessionDeps) {
+      throw new Error('Expected createSessionApi deps');
+    }
+
+    sessionDeps.setMenuLoading(true, 'quickMatch');
+    expect(args.ui.setMenuLoading).toHaveBeenCalledWith(true, 'quickMatch');
+
+    sessionDeps.setMenuLoading(false);
+    expect(args.ui.setMenuLoading).toHaveBeenLastCalledWith(false, undefined);
+  });
+
   it('applies client game state through the shared projection helper', () => {
     const args = createArgs();
     const shell = createMainSessionShell(args);

@@ -131,7 +131,7 @@ describe('FleetBuildingView', () => {
 
     expect(document.querySelectorAll('.fleet-cart-chip')).toHaveLength(0);
     expect(document.getElementById('fleetCart')?.textContent).toContain(
-      'Click ships above to add',
+      'Choose ships from the list to add them to your fleet.',
     );
     expect(document.getElementById('fleetCredits')?.textContent).toBe(
       '25 MC (MegaCredits) remaining',

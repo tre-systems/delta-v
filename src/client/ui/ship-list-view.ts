@@ -83,6 +83,15 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
 
       shipListEl.classList.toggle('ship-list--compact', compact);
 
+      if (input.ships.length === 0) {
+        clearHTML(shipListEl);
+        const empty = document.createElement('div');
+        empty.className = 'ship-list-empty';
+        empty.textContent = 'No ships to show.';
+        shipListEl.appendChild(empty);
+        return;
+      }
+
       renderList(shipListEl, input.ships, (ship, index) => {
         const entryView = view[index];
         const entry = document.createElement('div');

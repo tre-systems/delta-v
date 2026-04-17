@@ -29,6 +29,8 @@ SERVER_URL=http://127.0.0.1:8787 npm run mcp:delta-v
 
 ## MCP host config (`mcp.json`)
 
+This repo includes [`.cursor/mcp.json`](../.cursor/mcp.json) for Cursor (stdio server, `cwd` set to `${workspaceFolder}`). Open the project folder in Cursor and enable that MCP server if it is not picked up automatically.
+
 Preferred:
 
 ```json
