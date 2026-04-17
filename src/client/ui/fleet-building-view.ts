@@ -145,7 +145,7 @@ export const createFleetBuildingView = (
         cartEl.appendChild(
           el('span', {
             class: 'fleet-cart-empty',
-            text: 'Click ships above to add',
+            text: 'Choose ships from the list to add them to your fleet.',
           }),
         );
         return;

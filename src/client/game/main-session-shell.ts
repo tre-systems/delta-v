@@ -153,7 +153,7 @@ export const createMainSessionShell = (
     playerProfile: args.playerProfile,
     tokens: args.sessionTokens,
     showToast: args.showToast,
-    setMenuLoading: (loading) => args.ui.setMenuLoading(loading),
+    setMenuLoading: (loading, kind) => args.ui.setMenuLoading(loading, kind),
     setWaitingScreenState: (state) => setWaitingScreenState(args.ctx, state),
     setState: (state) => setState(state),
     setScenario: (scenario) => setScenario(args.ctx, scenario),

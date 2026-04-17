@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "delta-v-mcp": {
+      "command": "npm",
+      "args": ["run", "mcp:delta-v"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}

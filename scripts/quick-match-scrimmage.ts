@@ -147,6 +147,37 @@ const parseIntegerFlag = (
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const SCRIMMAGE_VALUE_FLAGS = new Set([
+  '--server-url',
+  '--scenario',
+  '--agent-command-base',
+  '--think-ms',
+  '--decision-timeout-ms',
+  '--report-timeout-ms',
+  '--poll-ms',
+  '--shutdown-grace-ms',
+  '--label-a',
+  '--label-b',
+  '--json-out',
+]);
+
+const SCRIMMAGE_BOOL_FLAGS = new Set(['--live', '--help']);
+
+const findUnknownScrimmageFlags = (argv: string[]): string[] => {
+  const unknown: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i] ?? '';
+    if (!token.startsWith('--')) continue;
+    if (SCRIMMAGE_BOOL_FLAGS.has(token)) continue;
+    if (SCRIMMAGE_VALUE_FLAGS.has(token)) {
+      i++;
+      continue;
+    }
+    unknown.push(token);
+  }
+  return unknown;
+};
+
 const parseArgs = (argv: string[]): Config => {
   const args = [...argv];
   const getFlag = (name: string): string | undefined => {
@@ -176,6 +207,14 @@ Flags:
   --json-out               Write structured JSON summary to file
 `);
     process.exit(0);
+  }
+
+  const unknownFlags = findUnknownScrimmageFlags(args);
+  if (unknownFlags.length > 0) {
+    console.error(
+      `Unknown flag(s): ${unknownFlags.join(', ')}\nRun with --help for supported options.`,
+    );
+    process.exit(1);
   }
 
   return {
