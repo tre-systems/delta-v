@@ -351,7 +351,16 @@
     $empty.classList.add('hidden');
     $board.classList.add('hidden');
     try {
-      const data = await fetchBoard($toggle.checked);
+      let data = await fetchBoard($toggle.checked);
+      // If ranked-only returns nothing, automatically reveal provisional
+      // rows so first-time visitors still see active players.
+      if (!$toggle.checked && data.entries.length === 0) {
+        const provisionalData = await fetchBoard(true);
+        if (provisionalData.entries.length > 0) {
+          $toggle.checked = true;
+          data = provisionalData;
+        }
+      }
       render(data.entries);
     } catch (err) {
       console.error('[leaderboard] load failed', err);
