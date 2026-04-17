@@ -94,12 +94,6 @@ Extract a shared Durable Object storage mock helper with one `put` contract, the
 
 **Files:** `src/server/game-do/archive.test.ts`, `src/server/game-do/game-do.test.ts`, `src/server/game-do/alarm.test.ts`, `src/server/game-do/match.test.ts`, `src/server/game-do/turn-timeout.test.ts`
 
-### Client consistency cleanup
-
-Make unsupported local-transport methods explicit, route local emplacement through the same resolution path as other local actions, and add error containment/reporting for reactive effects.
-
-**Files:** `src/client/game/transport.ts`, `src/client/game/local.ts`, `src/client/reactive.ts`
-
 ---
 
 ## Future features (not currently planned)
