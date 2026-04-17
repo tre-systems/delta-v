@@ -67,7 +67,7 @@ test.describe('multiplayer smoke tests', () => {
     }
   });
 
-  test('rejects a third player from joining a full room', async ({
+  test('drops a third player into spectator mode on a full room', async ({
     browser,
   }) => {
     const session = await createMultiplayerSession(browser);
@@ -76,10 +76,12 @@ test.describe('multiplayer smoke tests', () => {
     try {
       await openHomePage(intruder, { tutorialDone: true });
       await submitRoomJoin(intruder, session.roomCode);
+      // No "full room" toast — the client treats the 409 as an automatic
+      // spectator upgrade and connects through the spectator viewer path.
+      await waitForDisplay(intruder, '[data-testid="hud"]', 'block', 15_000);
       await expect(
         intruder.locator('[data-testid="toastContainer"]'),
-      ).toContainText('That game is already full');
-      await waitForDisplay(intruder, '[data-testid="menu"]', 'flex');
+      ).not.toContainText('That game is already full');
     } finally {
       await closePages(intruder);
       await session.close();
