@@ -1,9 +1,10 @@
 import type { AIDifficulty } from '../../shared/ai';
-import type {
-  EngineError,
-  GameState,
-  PlayerId,
-  Result,
+import {
+  type EngineError,
+  ErrorCode,
+  type GameState,
+  type PlayerId,
+  type Result,
 } from '../../shared/types/domain';
 import {
   resetReconnectAttempts,
@@ -129,10 +130,15 @@ export interface JoinGameSessionDeps {
   validateJoin: (
     code: string,
     playerToken: string | null,
-  ) => Promise<Result<string | null>>;
+  ) => Promise<Result<string | null, { message: string; code?: ErrorCode }>>;
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   exitToMenu: () => void;
   selectCodeInput?: () => void;
+  // When the server reports the room is full (ROOM_FULL), fall back to a
+  // watch-only spectator session instead of bouncing to the menu. Callers
+  // that don't support spectator fallback can omit this — the join will exit
+  // to menu on ROOM_FULL, preserving legacy behaviour.
+  fallbackToSpectator?: (code: string) => void;
 }
 
 export interface ExitToMenuSessionDeps {
@@ -369,7 +375,14 @@ export const beginJoinGameSession = async (
   const validation = await deps.validateJoin(code, effectiveToken);
 
   if (!validation.ok) {
-    deps.showToast(validation.error, 'error');
+    if (
+      validation.error.code === ErrorCode.ROOM_FULL &&
+      deps.fallbackToSpectator
+    ) {
+      deps.fallbackToSpectator(code);
+      return;
+    }
+    deps.showToast(validation.error.message, 'error');
     deps.selectCodeInput?.();
     deps.exitToMenu();
     return;
