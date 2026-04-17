@@ -4,6 +4,7 @@ import type { GameCommand } from './commands';
 
 export type UIEventPlan =
   | { kind: 'quickMatch' }
+  | { kind: 'cancelQuickMatch' }
   | { kind: 'createGame'; scenario: string }
   | {
       kind: 'startSinglePlayer';
@@ -23,6 +24,8 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
   switch (event.type) {
     case 'quickMatch':
       return { kind: 'quickMatch' };
+    case 'cancelQuickMatch':
+      return { kind: 'cancelQuickMatch' };
     case 'selectScenario':
       return { kind: 'createGame', scenario: event.scenario };
     case 'startSinglePlayer':

@@ -560,9 +560,23 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     }
   };
 
+  // Cancel an in-flight quick-match search. Drops the ticket, releases
+  // the cross-tab lock, and leaves telemetry breadcrumbs. The active
+  // poller exits on its next tick because quickMatchTicket no longer
+  // matches — safe to call from anywhere, including when no search is
+  // active (it becomes a no-op).
+  const cancelQuickMatch = (): void => {
+    if (quickMatchTicket === null) return;
+    const scenario = QUICK_MATCH_SCENARIO;
+    releaseQuickMatch();
+    deps.track('quick_match_cancelled', { scenario });
+    deps.setState('menu');
+  };
+
   return {
     createGame,
     startQuickMatch,
+    cancelQuickMatch,
     validateJoin,
     fetchReplay,
     fetchArchivedReplay,
