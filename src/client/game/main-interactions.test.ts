@@ -85,6 +85,8 @@ const createTransport = (): GameTransport => ({
 const createController = () => {
   let currentState:
     | 'menu'
+    | 'connecting'
+    | 'waitingForOpponent'
     | 'playing_astrogation'
     | 'playing_fleetBuilding'
     | 'playing_movementAnim' = 'playing_astrogation';
@@ -139,6 +141,7 @@ const createController = () => {
   const sessionApi = {
     createGame: vi.fn(),
     startQuickMatch: vi.fn(async () => {}),
+    cancelQuickMatch: vi.fn(),
   };
   const setAIDifficulty = vi.fn();
   const exitToMenu = vi.fn();
@@ -175,6 +178,8 @@ const createController = () => {
     setState: (
       state:
         | 'menu'
+        | 'connecting'
+        | 'waitingForOpponent'
         | 'playing_astrogation'
         | 'playing_fleetBuilding'
         | 'playing_movementAnim',
@@ -296,6 +301,34 @@ describe('main-interactions', () => {
       expect.any(Object),
       { type: 'requestRematch' },
     );
+  });
+
+  it('runs exitToMenu after cancelQuickMatch when still outside menu', () => {
+    const { controller, deps, setState } = createController();
+    mocks.resolveUIEventPlan.mockReturnValue({ kind: 'cancelQuickMatch' });
+    setState('waitingForOpponent');
+    deps.sessionApi.cancelQuickMatch.mockImplementation(() => {
+      /* no-op: e.g. private-room cancel, not an active ticket */
+    });
+
+    controller.handleUIEvent({ type: 'cancelQuickMatch' });
+
+    expect(deps.sessionApi.cancelQuickMatch).toHaveBeenCalledOnce();
+    expect(deps.exitToMenu).toHaveBeenCalledOnce();
+  });
+
+  it('skips exitToMenu when cancelQuickMatch already returns to menu', () => {
+    const { controller, deps, setState } = createController();
+    mocks.resolveUIEventPlan.mockReturnValue({ kind: 'cancelQuickMatch' });
+    setState('waitingForOpponent');
+    deps.sessionApi.cancelQuickMatch.mockImplementation(() => {
+      setState('menu');
+    });
+
+    controller.handleUIEvent({ type: 'cancelQuickMatch' });
+
+    expect(deps.sessionApi.cancelQuickMatch).toHaveBeenCalledOnce();
+    expect(deps.exitToMenu).not.toHaveBeenCalled();
   });
 
   it('delegates join, spectate, and toast helpers', () => {
