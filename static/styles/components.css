@@ -793,3 +793,90 @@
   text-transform: uppercase;
   vertical-align: middle;
 }
+
+@media (prefers-contrast: more) {
+  #menu {
+    background: linear-gradient(180deg, #0a1426, #050a14);
+  }
+
+  #menu::before,
+  #menu::after {
+    opacity: 0.35;
+  }
+
+  #menu .menu-content {
+    background: #0f1a2f;
+    border-color: var(--border);
+  }
+
+  #menu .menu-content::before {
+    opacity: 0.45;
+  }
+
+  .menu-surface {
+    --menu-surface-bg: #111d32;
+    border-color: var(--border);
+  }
+
+  .menu-surface-primary {
+    --menu-surface-bg: #121f36;
+  }
+
+  .menu-surface::before {
+    opacity: 0.4;
+  }
+
+  .menu-profile-input,
+  .code-input {
+    background: #0a1424;
+    border-color: var(--border);
+  }
+}
+
+@media (forced-colors: active) {
+  #menu {
+    background: Canvas;
+  }
+
+  #menu::before,
+  #menu::after {
+    display: none;
+  }
+
+  #menu .menu-content {
+    background: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+
+  #menu .menu-content::before {
+    display: none;
+  }
+
+  .menu-surface {
+    --menu-surface-bg: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+
+  .menu-surface-primary {
+    --menu-surface-bg: Canvas;
+  }
+
+  .menu-surface::before {
+    display: none;
+  }
+
+  .menu-profile-input,
+  .code-input {
+    background: Field;
+    color: FieldText;
+    border-color: CanvasText;
+  }
+
+  .scenario-tag {
+    background: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+}
