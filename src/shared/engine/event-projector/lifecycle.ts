@@ -5,7 +5,7 @@ import type { SolarSystemMap } from '../../types';
 import type { GameState, Result } from '../../types/domain';
 import { processFleetReady } from '../fleet-building';
 import { createGame } from '../game-creation';
-import { applyTurnAdvanceMutations } from '../turn-advance';
+import { applyTurnAdvanceTransition } from '../turn-advance';
 import type { LifecycleProjectionEvent } from './support';
 import {
   migrateGameState,
@@ -160,29 +160,10 @@ export const projectLifecycleEvent = (
       }
 
       state = baseState.value;
-      const previousActivePlayer = 1 - event.activePlayer;
-
-      for (const ship of state.ships) {
-        if (ship.owner !== previousActivePlayer) continue;
-        if (ship.lifecycle === 'destroyed') continue;
-
-        ship.resuppliedThisTurn = false;
-        ship.firedThisPhase = undefined;
-
-        if (ship.damage.disabledTurns > 0) {
-          ship.damage.disabledTurns--;
-        }
-      }
-
-      state.pendingAstrogationOrders = null;
-      state.combatTargetedThisPhase = undefined;
-      state.turnNumber = event.turn;
-      state.activePlayer = event.activePlayer;
-
-      // Apply scenario-rule mutations (reinforcements, fleet conversion)
-      // that advanceTurn() performs in-memory but are not recorded as
-      // separate events in the stream.
-      applyTurnAdvanceMutations(state);
+      applyTurnAdvanceTransition(state, {
+        turn: event.turn,
+        activePlayer: event.activePlayer,
+      });
 
       return {
         ok: true,

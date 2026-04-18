@@ -7,14 +7,19 @@ import type { GameState, Ship } from '../types';
 import type { EngineEvent } from './engine-events';
 import { transitionPhaseWithEvent } from './util';
 
-// Advance to the next player's turn after combat/resupply.
-// Handles damage recovery and turn counter.
-export const advanceTurn = (
+export interface TurnAdvanceSnapshot {
+  turn: number;
+  activePlayer: GameState['activePlayer'];
+}
+
+export const applyTurnAdvanceTransition = (
   state: GameState,
-  engineEvents?: EngineEvent[],
+  next: TurnAdvanceSnapshot,
 ): void => {
+  const previousActivePlayer = 1 - next.activePlayer;
+
   for (const ship of state.ships) {
-    if (ship.owner !== state.activePlayer) continue;
+    if (ship.owner !== previousActivePlayer) continue;
 
     if (ship.lifecycle === 'destroyed') continue;
 
@@ -26,13 +31,26 @@ export const advanceTurn = (
     }
   }
 
-  state.activePlayer = state.activePlayer === 0 ? 1 : 0;
-
-  if (state.activePlayer === 0) {
-    state.turnNumber++;
-  }
-
+  state.pendingAstrogationOrders = null;
+  state.turnNumber = next.turn;
+  state.activePlayer = next.activePlayer;
   applyTurnAdvanceMutations(state);
+};
+
+// Advance to the next player's turn after combat/resupply.
+// Handles damage recovery and turn counter.
+export const advanceTurn = (
+  state: GameState,
+  engineEvents?: EngineEvent[],
+): void => {
+  const nextActivePlayer = state.activePlayer === 0 ? 1 : 0;
+  const nextTurn =
+    nextActivePlayer === 0 ? state.turnNumber + 1 : state.turnNumber;
+
+  applyTurnAdvanceTransition(state, {
+    turn: nextTurn,
+    activePlayer: nextActivePlayer,
+  });
 
   engineEvents?.push({
     type: 'turnAdvanced',

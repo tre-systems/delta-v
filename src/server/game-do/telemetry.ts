@@ -1,6 +1,10 @@
 import type { GameId } from '../../shared/ids';
 import type { GameState } from '../../shared/types/domain';
-import { getProjectedCurrentStateRaw, hasProjectionParity } from './archive';
+import {
+  getProjectedCurrentStateRaw,
+  getProjectionParityDiffFromStorage,
+  hasProjectionParity,
+} from './archive';
 
 export const reportGameDoEngineError = (
   deps: {
@@ -165,16 +169,21 @@ export const reportGameDoProjectionParityMismatch = async (deps: {
   gameId: GameId;
   liveState: GameState;
 }): Promise<void> => {
-  const projectedState = await getProjectedCurrentStateRaw(
-    deps.storage,
-    deps.gameId,
-  );
+  const [projectedState, diffs] = await Promise.all([
+    getProjectedCurrentStateRaw(deps.storage, deps.gameId),
+    getProjectionParityDiffFromStorage(
+      deps.storage,
+      deps.gameId,
+      deps.liveState,
+    ),
+  ]);
   console.error('[projection parity mismatch]', {
     gameId: deps.gameId,
     liveTurn: deps.liveState.turnNumber,
     livePhase: deps.liveState.phase,
     projectedTurn: projectedState?.turnNumber ?? null,
     projectedPhase: projectedState?.phase ?? null,
+    diffs: diffs.slice(0, 10),
   });
 
   const { db, waitUntil } = deps;
@@ -199,6 +208,7 @@ export const reportGameDoProjectionParityMismatch = async (deps: {
           livePhase: deps.liveState.phase,
           projectedTurn: projectedState?.turnNumber ?? null,
           projectedPhase: projectedState?.phase ?? null,
+          diffs: diffs.slice(0, 10),
         }),
         'server',
         null,

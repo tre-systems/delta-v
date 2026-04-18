@@ -29,6 +29,7 @@ import {
   getProjectedCurrentState,
   getProjectedCurrentStateRaw,
   getProjectedReplayTimeline,
+  getProjectionParityDiffFromStorage,
   hasProjectionParity,
   projectReplayTimeline,
   saveCheckpoint,
@@ -64,63 +65,6 @@ const MockStorage = function MockStorage() {
 };
 
 const map = buildSolarSystemMap();
-
-const diffStates = (
-  actual: unknown,
-  expected: unknown,
-  path = '',
-): Array<{ path: string; actual: unknown; expected: unknown }> => {
-  if (typeof actual !== typeof expected) {
-    return [{ path, actual, expected }];
-  }
-
-  if (
-    actual === null ||
-    expected === null ||
-    typeof actual !== 'object' ||
-    typeof expected !== 'object'
-  ) {
-    return Object.is(actual, expected) ? [] : [{ path, actual, expected }];
-  }
-
-  if (Array.isArray(actual) || Array.isArray(expected)) {
-    if (!Array.isArray(actual) || !Array.isArray(expected)) {
-      return [{ path, actual, expected }];
-    }
-
-    const diffs: Array<{ path: string; actual: unknown; expected: unknown }> =
-      [];
-    const length = Math.max(actual.length, expected.length);
-
-    for (let index = 0; index < length; index++) {
-      diffs.push(
-        ...diffStates(actual[index], expected[index], `${path}[${index}]`),
-      );
-    }
-
-    return diffs;
-  }
-
-  const actualRecord = actual as Record<string, unknown>;
-  const expectedRecord = expected as Record<string, unknown>;
-  const keys = new Set([
-    ...Object.keys(actualRecord),
-    ...Object.keys(expectedRecord),
-  ]);
-  const diffs: Array<{ path: string; actual: unknown; expected: unknown }> = [];
-
-  for (const key of [...keys].sort()) {
-    diffs.push(
-      ...diffStates(
-        actualRecord[key],
-        expectedRecord[key],
-        path ? `${path}.${key}` : key,
-      ),
-    );
-  }
-
-  return diffs;
-};
 
 describe('match-scoped event stream', () => {
   it('migrates legacy unchunked event streams on read', async () => {
@@ -1027,17 +971,11 @@ describe('replay projection', () => {
       await appendEnvelopedEvents(storage, liveState.gameId, actor, ...events);
       liveState = outcome.state;
 
-      const projectedState = await getProjectedCurrentStateRaw(
+      await getProjectedCurrentStateRaw(storage, liveState.gameId);
+      const diffs = await getProjectionParityDiffFromStorage(
         storage,
         liveState.gameId,
-      );
-      const diffs = diffStates(liveState, projectedState).filter(
-        (diff) =>
-          !diff.path.endsWith('.connected') &&
-          !diff.path.endsWith('.ready') &&
-          !diff.path.endsWith('.detected') &&
-          !diff.path.endsWith('.firedThisPhase') &&
-          diff.path !== 'combatTargetedThisPhase',
+        liveState,
       );
 
       expect(diffs).toEqual([]);
