@@ -264,22 +264,17 @@ export const getBodyOffset = (
 export const getControlledBaseHexes = (...bodyNames: string[]): HexCoord[] =>
   bodyNames.flatMap((bodyName) => computeBodyBaseHexes(bodyName));
 
+const MAP_BOUNDS_PADDING = {
+  minQ: 7,
+  maxQ: 7,
+  minR: 7,
+  maxR: 3,
+} as const;
+
 export const buildSolarSystemMap = (): SolarSystemMap => {
   const hexes = new Map<HexKey, MapHex>();
   const bodies: CelestialBody[] = [];
   const gravityBodies = new Set<string>();
-
-  let minQ = Infinity;
-  let maxQ = -Infinity;
-  let minR = Infinity;
-  let maxR = -Infinity;
-
-  const trackBounds = (hex: HexCoord) => {
-    minQ = Math.min(minQ, hex.q);
-    maxQ = Math.max(maxQ, hex.q);
-    minR = Math.min(minR, hex.r);
-    maxR = Math.max(maxR, hex.r);
-  };
 
   const ensureHex = (coord: HexCoord): MapHex => {
     const key = hexKey(coord);
@@ -289,8 +284,6 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
       hex = { terrain: 'space' };
       hexes.set(key, hex);
     }
-
-    trackBounds(coord);
 
     return hex;
   };
@@ -386,15 +379,18 @@ export const buildSolarSystemMap = (): SolarSystemMap => {
     bodyName: 'Clandestine',
   };
 
+  const bodyQs = bodies.map((body) => body.center.q);
+  const bodyRs = bodies.map((body) => body.center.r);
+
   return {
     hexes,
     bodies,
     gravityBodies,
     bounds: {
-      minQ: -16, // 7 hexes left of Mars (q=-9)
-      maxQ: 16, // 7 hexes right of Luna (q=9)
-      minR: -25, // 7 hexes above Jupiter (r=-18)
-      maxR: 10, // 3 hexes below Venus gravity (r=9)
+      minQ: Math.min(...bodyQs) - MAP_BOUNDS_PADDING.minQ,
+      maxQ: Math.max(...bodyQs) + MAP_BOUNDS_PADDING.maxQ,
+      minR: Math.min(...bodyRs) - MAP_BOUNDS_PADDING.minR,
+      maxR: Math.max(...bodyRs) + MAP_BOUNDS_PADDING.maxR,
     },
   };
 };
