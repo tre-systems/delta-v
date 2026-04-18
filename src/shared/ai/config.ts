@@ -126,6 +126,11 @@ export interface AIDifficultyConfig {
   ordnanceSkipChance: number;
   // Hex radius used to assess nuke engagement geometry.
   nukeStrengthRange: number;
+  // Minimum modelled probability (0..1) that a nuke survives grouped
+  // anti-nuke volleys through its intercept window. When 0, the gate is
+  // disabled (easy / normal). Hard uses a conservative floor so the AI
+  // does not burn 300 MCr ordnance into obvious intercept geometry.
+  nukeMinReachProbability: number;
 
   // --- Map boundary avoidance ---
   // Hex distance from the edge at which avoidance kicks in.
@@ -242,6 +247,7 @@ export const AI_CONFIG: Readonly<
     mineRange: 4,
     ordnanceSkipChance: 0.3,
     nukeStrengthRange: 6,
+    nukeMinReachProbability: 0,
     targetDistPenalty: 2,
     targetModPenalty: 3,
     targetDisabledBonus: 5,
@@ -309,6 +315,7 @@ export const AI_CONFIG: Readonly<
     mineRange: 4,
     ordnanceSkipChance: 0,
     nukeStrengthRange: 6,
+    nukeMinReachProbability: 0,
     targetDistPenalty: 2,
     targetModPenalty: 3,
     targetDisabledBonus: 5,
@@ -387,6 +394,7 @@ export const AI_CONFIG: Readonly<
     mineRange: 6,
     ordnanceSkipChance: 0,
     nukeStrengthRange: 6,
+    nukeMinReachProbability: 0.22,
     targetDistPenalty: 2,
     targetModPenalty: 3,
     targetDisabledBonus: 5,
