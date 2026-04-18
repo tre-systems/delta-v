@@ -19,9 +19,10 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - Client-to-server WebSocket messages are runtime-validated before any engine handler executes, and malformed payloads are rejected instead of being trusted structurally.
 - After a WebSocket is accepted, **per-socket message rate limiting** (10 messages per second, then close with code 1008) caps garbage traffic to the Durable Object. Chat is also throttled in-memory (minimum 500ms between accepted chat messages per player).
 - Room codes are generated from a cryptographically strong RNG rather than `Math.random()` (see `generateRoomCode` in `src/server/protocol.ts`).
-- `GET /join/:code`, `GET /quick-match/:ticket`, and `GET /api/matches` share a **join-style** hashed-IP probe throttle in the Worker (**100** GETs / 60s, per isolate). `GET /replay/:code` uses a **separate** replay probe bucket (**250** GETs / 60s, per isolate) so replay traffic cannot exhaust the join budget.
+- `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches`, `GET /api/leaderboard`, and `GET /api/leaderboard/me` share a **join-style** hashed-IP probe throttle in the Worker (**100** GETs / 60s, per isolate). `GET /replay/:code` uses a **separate** replay probe bucket (**250** GETs / 60s, per isolate) so replay traffic cannot exhaust the join budget.
 - `GET /ws/:code` WebSocket upgrades have a hashed-IP in-memory cap (20 upgrades / 60s, per isolate), reducing repeated socket-churn abuse in lower environments.
-- `POST /telemetry` and `POST /error` are JSON-only with a 4KB cap and hashed-IP window limits, limiting abuse and D1 write amplification in the default path.
+- `POST /telemetry` and `POST /error` are JSON-only with a 4 KB cap and hashed-IP window limits, limiting abuse and D1 write amplification in the default path. A daily cron (`purgeOldEvents`) deletes `events` rows older than **30 days**.
+- `POST /mcp` uses Cloudflare's edge `MCP_RATE_LIMITER` binding (20 RPM keyed on `agentToken` hash or hashed IP) with a **16 KB body cap** checked before JSON-RPC dispatch ([`packages/mcp-adapter/src/handlers.ts`](../packages/mcp-adapter/src/handlers.ts)).
 
 These changes make private multiplayer substantially safer than before, especially for host-seat integrity, reconnect safety, and server authority.
 
@@ -86,22 +87,22 @@ This is the canonical rate-limit table for the project. Other docs should link h
 | `GET /ws/:code` (upgrade) | 20 | 60 s | per hashed IP | in-memory (per isolate) | 429 |
 | `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches` | 100 | 60 s | per hashed IP | in-memory (per isolate) | 429 |
 | `GET /replay/:code` | 250 | 60 s | per hashed IP | in-memory (per isolate, separate bucket) | 429 |
-| `POST /telemetry` | 120 | 60 s | per hashed IP | in-memory (per isolate); body capped at 4 KB | 429 |
-| `POST /error` | 40 | 60 s | per hashed IP | in-memory (per isolate); body capped at 4 KB | 429 |
+| `POST /telemetry` | 120 | 60 s | per hashed IP | Cloudflare `TELEMETRY_RATE_LIMITER` (global), in-memory fallback; body capped at 4 KB | 429 |
+| `POST /error` | 40 | 60 s | per hashed IP | Cloudflare `ERROR_RATE_LIMITER` (global), in-memory fallback; body capped at 4 KB | 429 |
+| `POST /mcp` (hosted MCP entry) | 20 | 60 s | per `agentToken` hash (Bearer) or hashed IP | Cloudflare `MCP_RATE_LIMITER`; body capped at 16 KB | 429 + `Retry-After` |
+| `POST /api/claim-name` | 5 | 60 s | per hashed IP | reuses `CREATE_RATE_LIMITER` | 429 |
+| `GET /api/leaderboard`, `GET /api/leaderboard/me` | 100 | 60 s | per hashed IP | in-memory (shares the join-probe bucket) | 429 |
 | WebSocket messages (after connect) | 10 | 1 s | per socket | in-memory (`WeakMap<WebSocket, RateWindow>`) | close 1008 |
 | Chat messages | 1 per 500 ms | — | per player ID | in-memory | silently dropped |
-| `POST /mcp` (hosted MCP entry) | **none** | — | — | — | — |
 | Room-code guessing | 32⁵ ≈ 33.6 M combinations | — | — | cryptographic RNG | collision-checked at `/create` |
 
-**Known gap:** `POST /mcp` has no request-level rate limit or body-size precheck today — tracked in [BACKLOG.md](./BACKLOG.md) under "Cost & abuse hardening". Abuse surfaces via `delta_v_quick_match` polling storms and `/mcp/wait` long-polls that hold GAME DOs warm.
-
-Constants live in [`src/server/reporting.ts`](../src/server/reporting.ts) (per-IP Worker layer) and [`src/server/game-do/socket.ts`](../src/server/game-do/socket.ts) (per-socket DO layer).
+Constants live in [`src/server/reporting.ts`](../src/server/reporting.ts) (per-IP Worker layer), [`src/server/game-do/socket.ts`](../src/server/game-do/socket.ts) (per-socket DO layer), and [`packages/mcp-adapter/src/handlers.ts`](../packages/mcp-adapter/src/handlers.ts) (`MCP_MAX_BODY_BYTES`, rate-limit key derivation).
 
 **Tier topology.**
 
-- **Edge binding** (`CREATE_RATE_LIMITER`, declared in [`wrangler.toml`](../wrangler.toml)) applies globally across Cloudflare's edge. Production has it; lower environments fall back to per-isolate in-memory limits.
-- **In-memory per-isolate** covers WebSocket upgrades, join/replay probes, and reporting endpoints by default. A distributed attacker spraying many edges could bypass this — optional WAF or additional `[[ratelimits]]` namespaces close that gap if observed.
-- **Per-socket DO layer** (the last two rows) is enforced after upgrade and does not scale with IPs.
+- **Edge binding** — `CREATE_RATE_LIMITER`, `TELEMETRY_RATE_LIMITER`, `ERROR_RATE_LIMITER`, and `MCP_RATE_LIMITER` (declared in [`wrangler.toml`](../wrangler.toml)) apply globally across Cloudflare's edge. Production has them; lower environments (e.g. `wrangler dev` without bindings) fall back to per-isolate in-memory limits.
+- **In-memory per-isolate** covers WebSocket upgrades, join/replay/match-list/leaderboard GET probes, and the reporting endpoints' fallback path. A distributed attacker spraying many edges could bypass these — optional WAF or additional `[[ratelimits]]` namespaces close that gap if observed.
+- **Per-socket DO layer** (the "WebSocket messages" and "Chat messages" rows) is enforced after the socket upgrade, inside the `GameDO`; it does not scale with IPs.
 
 **Deployment recommendation:**
 Treat the checked-in `wrangler.toml` as the production
@@ -121,17 +122,15 @@ message-throttled at the edge; abuse is further mitigated by two seats per room 
 
 ### 4. Cost-abuse surface (current gaps)
 
-Distinct from competitive integrity — these are paths where a motivated attacker can drive Cloudflare billing faster than the current controls throttle them. All are tracked in [BACKLOG.md](./BACKLOG.md) under "Cost & abuse hardening".
+Distinct from competitive integrity — these are paths where a motivated attacker can drive Cloudflare billing faster than the current controls throttle them. Tracked in [BACKLOG.md](./BACKLOG.md) under "Cost & abuse hardening".
 
-- `POST /mcp` is un-rate-limited and un-size-capped (see row above).
-- `POST /telemetry` and `POST /error` rate limits are per-isolate `Map`s, not edge-global; a distributed caller can cycle POPs to bypass them. Each accepted POST writes a ~4 KB D1 `events` row with **no retention TTL** in application code.
-- `AGENT_TOKEN_SECRET` falls back to a public constant on missing secret (see above).
+- `POST /telemetry` and `POST /error` rate limits are per-isolate `Map`s, not edge-global; a distributed caller can cycle POPs to bypass them. Accepted POSTs write a ≤ 4 KB D1 `events` row. **Retention:** a daily `scheduled` cron (`wrangler.toml` `crons = ["0 4 * * *"]`) calls `purgeOldEvents(env.DB, EVENTS_RETENTION_MS)` to delete rows older than **30 days** ([`src/server/reporting.ts`](../src/server/reporting.ts)).
+- `POST /mcp` rate limit and body cap are enforced, but a distributed attacker cycling POPs still sees the per-isolate fallback when the `MCP_RATE_LIMITER` binding is absent (e.g. `wrangler dev`). Also: `delta_v_quick_match` polling storms and `/mcp/wait` long-polls can hold GAME DOs warm within the cap.
 - `MatchmakerDO` serializes the full quick-match queue under one legacy-KV key (128 KB ceiling). Sustained distributed heartbeats can push the queue past that limit — enqueue then throws and quick-match stops working globally.
 - `archiveRoomState()` leaves `roomConfig`, event chunks, and checkpoints in DO storage on inactivity timeout. Abandoned `/create` rooms accumulate permanently.
 - `GET /replay/{code}` re-projects the full event stream on every hit with no `Cache-Control`, even for terminal states.
-- `GET /api/leaderboard` has edge `s-maxage=60` but no cache-key normalization; querystring-busting scrapers bypass the cache.
 
-Unbounded-growth tables / stores today: D1 `events`, D1 `match_archive`, D1 `player` (one row per unique playerKey with a claimed username), R2 `matches/{gameId}.json`, and per-room DO storage. None have automatic retention in application code (see the "Data retention" section below).
+Stores **without** automatic application-level retention: D1 `match_archive`, D1 `player` (one row per unique playerKey with a claimed username), D1 `match_rating` (one row per rated match), R2 `matches/{gameId}.json`, and per-room DO storage. D1 `events` is the only table with a scheduled purge today (see the "Data retention" section below for operational levers on the rest).
 
 ### 5. Bot challenge protection (optional)
 
@@ -190,7 +189,7 @@ Current assessment:
 - **Host-seat integrity:** good
 - **Guest-seat integrity:** acceptable for friendly matches (room-code model is deliberate)
 - **Match availability under hostile payloads:** good
-- **Rate limiting:** good for `/create` in the checked-in production config, per-isolate only in lower environments without the binding; WebSocket **upgrades** have a per-isolate hashed-IP window, WebSocket **message** flood is capped per socket, and **telemetry/error** plus **join/replay** HTTP probes have per-isolate hashed-IP windows (see table above); optional WAF for global caps
+- **Rate limiting:** good — `/create`, `/api/agent-token`, `/quick-match`, `/api/claim-name`, `/telemetry`, `/error`, and `/mcp` use Cloudflare `[[ratelimits]]` bindings (global across the edge), with per-isolate in-memory fallbacks when the binding is absent (e.g. `wrangler dev`); WebSocket upgrades and join/replay/match-list/leaderboard probes have per-isolate hashed-IP windows; WebSocket message flood is capped per socket (see table above); optional WAF remains available for cross-edge caps on the in-memory paths
 - **XSS posture:** good (trusted HTML boundary, no user-generated content)
 - **Room secrecy / public matchmaking readiness:** weak (short codes; default join/replay throttles are per-isolate, not global)
 
@@ -216,15 +215,15 @@ Concrete abuse-hardening follow-ups belong in [BACKLOG.md](./BACKLOG.md) when th
 
 What persists today:
 
-- **D1** `events` (telemetry/errors), `match_archive` (metadata index).
-- **R2** (when bound) `matches/{gameId}.json` full archives.
-- **Durable Object storage** — live match chunks, checkpoints, room config; evicted when the DO is inactive (plus optional R2 archive at match end).
+- **D1 `events`** (telemetry/errors, server-side lifecycle rows). **30-day rolling window** via the daily `scheduled` Worker cron (`wrangler.toml` `crons = ["0 4 * * *"]` → `purgeOldEvents`).
+- **D1 `match_archive`** — one row per completed match (metadata index). No automatic TTL.
+- **D1 `player`** / **D1 `match_rating`** — leaderboard ownership and per-rated-match snapshots. No automatic TTL.
+- **R2 `MATCH_ARCHIVE`** (when bound) — full JSON per match at `matches/{gameId}.json`. No automatic TTL.
+- **Durable Object storage** — live match chunks, checkpoints, room config; evicted when the DO is archived on inactivity (plus optional R2 archive at match end).
 
-**Default policy:** retain telemetry and match archives until an explicit operations policy says otherwise; there is **no automatic TTL** in application code. Growth is unbounded by default in code.
+**Operational control:** Cloudflare D1 export/backup, R2 lifecycle rules (tiering or delete after N days), and manual SQL (`DELETE` batches) when a shorter retention window is mandated for the un-purged tables.
 
-**Operational control:** Cloudflare D1 export/backup, R2 lifecycle rules (tiering or delete after N days), and manual SQL (`DELETE` batches) when a retention window is mandated.
-
-**User deletion requests:** if a jurisdiction requires erasure, use **`anon_id`** and time windows in `events`; match archives may require **gameId/room_code** correlation — document a runbook when needed. Automated purge or stricter programs are [BACKLOG.md](./BACKLOG.md) ops/engineering work when the product requires it.
+**User deletion requests:** if a jurisdiction requires erasure, use **`anon_id`** and time windows in `events` (subject to the 30-day window), **`player_key`** in `player` / `match_rating`, and **`gameId` / `room_code`** correlation for `match_archive` and R2 archives — document a runbook when needed. Automated purge or stricter programs are [BACKLOG.md](./BACKLOG.md) ops/engineering work when the product requires it.
 
 ## Operational References
 

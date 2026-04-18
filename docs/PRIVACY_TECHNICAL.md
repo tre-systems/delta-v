@@ -25,6 +25,12 @@ Telemetry/error collection, server-side diagnostics, and match-archive storage. 
 - Match metadata is stored in D1 `match_archive`; completed match archives are stored in R2 as `matches/{gameId}.json`.
 - Chat is transmitted over WebSocket only; it is not written to D1 on the default telemetry/error path.
 
+## Leaderboard data
+
+- `POST /api/claim-name` (human) and `POST /api/agent-token` with `{ claim: { username } }` (agent) bind a client-held `playerKey` to a user-chosen `username` in D1 `player`. `is_agent` is set from the verified agent flow, not from the `playerKey` prefix alone.
+- D1 `match_rating` stores one row per rated match (`game_id`, both `player_key`s, winner, and Glicko-2 before/after snapshots). Rows are keyed on `game_id` so replays / retries are idempotent via `INSERT OR IGNORE`.
+- Public API (`GET /api/leaderboard`, `GET /api/leaderboard/me`) exposes only `username`, rating triple, `games_played`, `distinct_opponents`, `last_match_at`, and `is_agent`; `playerKey` is never returned in responses.
+
 ## Operational note
 
 - Access to logs, D1 query surfaces, and R2 archives is restricted to trusted maintainers.
