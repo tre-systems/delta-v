@@ -62,6 +62,7 @@ const classifySessionRequestFailure = (
 };
 
 const fetchWithTimeout = async (
+  fetchImpl: typeof fetch,
   input: Parameters<typeof fetch>[0],
   init?: Parameters<typeof fetch>[1],
   externalSignal?: AbortSignal,
@@ -85,7 +86,7 @@ const fetchWithTimeout = async (
   }
 
   try {
-    return await fetch(input, {
+    return await fetchImpl(input, {
       ...(init ?? {}),
       signal: timeoutAbort.signal,
     });
@@ -117,6 +118,8 @@ export interface SessionApiDeps {
   setScenario: (scenario: string) => void;
   connect: (code: string) => void;
   track: (event: string, props?: Record<string, unknown>) => void;
+  fetchImpl?: typeof fetch;
+  location?: Location;
 }
 
 const delay = (ms: number): Promise<void> =>
@@ -156,6 +159,8 @@ const webStorage = (
 };
 
 export const createSessionApi = (deps: SessionApiDeps) => {
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const location = deps.location ?? window.location;
   let quickMatchTicket: string | null = null;
   let quickMatchPlayerKey: string | null = null;
   let quickMatchQueuedAtMs: number | null = null;
@@ -218,9 +223,13 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         if (quickMatchPlayerKey) {
           quickMatchLock?.heartbeat(quickMatchPlayerKey, ticket);
         }
-        const response = await fetchWithTimeout(`/quick-match/${ticket}`, {
-          method: 'GET',
-        });
+        const response = await fetchWithTimeout(
+          fetchImpl,
+          `/quick-match/${ticket}`,
+          {
+            method: 'GET',
+          },
+        );
         const payload = (await response.json()) as QuickMatchResponse;
 
         if (payload.status === 'matched') {
@@ -264,7 +273,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     deps.setMenuLoading(true, 'create');
     try {
       deps.setScenario(scenario);
-      const res = await fetchWithTimeout('/create', {
+      const res = await fetchWithTimeout(fetchImpl, '/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scenario }),
@@ -343,7 +352,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
 
       quickMatchPlayerKey = player.playerKey;
       deps.setScenario(QUICK_MATCH_SCENARIO);
-      const response = await fetchWithTimeout('/quick-match', {
+      const response = await fetchWithTimeout(fetchImpl, '/quick-match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -426,7 +435,8 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     > => {
       try {
         const response = await fetchWithTimeout(
-          buildJoinCheckUrl(window.location, code, token),
+          fetchImpl,
+          buildJoinCheckUrl(location, code, token),
         );
 
         if (response.ok) {
@@ -515,10 +525,10 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     }
 
     try {
-      const url = new URL(`/replay/${code}`, window.location.origin);
+      const url = new URL(`/replay/${code}`, location.origin);
       url.searchParams.set('playerToken', playerToken);
       url.searchParams.set('gameId', gameId);
-      const response = await fetchWithTimeout(url.toString());
+      const response = await fetchWithTimeout(fetchImpl, url.toString());
 
       if (!response.ok) {
         if (response.status === 403) {
@@ -557,10 +567,11 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     signal?: AbortSignal,
   ): Promise<import('../../shared/replay').ReplayTimeline | null> => {
     try {
-      const url = new URL(`/replay/${code}`, window.location.origin);
+      const url = new URL(`/replay/${code}`, location.origin);
       url.searchParams.set('viewer', 'spectator');
       url.searchParams.set('gameId', gameId);
       const response = await fetchWithTimeout(
+        fetchImpl,
         url.toString(),
         undefined,
         signal,

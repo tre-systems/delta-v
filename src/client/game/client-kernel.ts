@@ -159,6 +159,9 @@ export const createGameClient = () => {
     tooltipEl,
     showToast,
     track,
+    fetchImpl: globalThis.fetch.bind(globalThis),
+    location: window.location,
+    webSocketCtor: WebSocket,
   });
 
   applyGameState = sessionShell.applyGameState;
