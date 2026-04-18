@@ -44,7 +44,7 @@ The legacy `{code, playerToken}` tool-arg path is preserved for `/create` users 
 
 Token revocation is currently coarse: rotate `AGENT_TOKEN_SECRET` to invalidate every issued token. Per-token revocation lists are out of scope for v1; agents that suspect a leak should re-issue and rotate the secret.
 
-Implementation: `src/server/auth/` (token signing, issuance route), `src/server/mcp/handlers.ts` (Authorization-header validation, matchToken minting + verification on every tool call).
+Implementation: `src/server/auth/` (token signing, issuance route), `packages/mcp-adapter/src/handlers.ts` (Authorization-header validation, matchToken minting + verification on every tool call).
 
 ## Remaining Competitive Risks
 

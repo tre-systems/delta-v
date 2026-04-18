@@ -137,9 +137,9 @@ Findings from a 2026-04-17 cost-surface review. Ordered by expected blast radius
 
 ### Extract MCP adapter into a dedicated subpackage
 
-Move hosted and local MCP surfaces into a separate workspace package (for example `packages/mcp-adapter`) with its own `package.json` so `@modelcontextprotocol/sdk` and `zod` are scoped to MCP integration instead of the core game/runtime package. Keep the existing MCP behavior and tool contracts unchanged while making the core app build path dependency-light.
+**Done (2026-04-17):** hosted MCP (`handleMcpHttpRequest`, `queueRemoteMatch`) lives in `packages/mcp-adapter/` with its own `package.json`; the root app depends on `@delta-v/mcp-adapter` so `@modelcontextprotocol/sdk` and `zod` are not top-level dependencies. Local stdio MCP (`scripts/delta-v-mcp-server.ts`) imports the SDK via `@delta-v/mcp-adapter/runtime`.
 
-**Files:** `packages/mcp-adapter/` (new), `src/server/mcp/handlers.ts`, `scripts/delta-v-mcp-server.ts`, `src/server/index.ts`, root `package.json`/workspace config, MCP docs
+**Files:** `packages/mcp-adapter/`, `scripts/delta-v-mcp-server.ts`, `src/server/index.ts`, root `package.json` workspaces, MCP docs
 
 ### Deterministic initial publication path
 

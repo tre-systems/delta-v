@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { issueAgentToken, issueMatchToken } from '../auth';
-import type { Env } from '../env';
+import { issueAgentToken, issueMatchToken } from '../../../src/server/auth';
+import type { Env } from '../../../src/server/env';
 import { buildMcpServer, handleMcpHttpRequest } from './handlers';
 
 const TEST_SECRET = 'mcp-handlers-test-secret-must-be-16-chars';

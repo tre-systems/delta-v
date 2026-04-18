@@ -7,9 +7,9 @@
 // Returns the matched room code + playerToken once the matchmaker pairs us
 // with an opponent, or throws on timeout / expiry.
 
-import type { QuickMatchResponse } from '../../shared/matchmaking';
-import type { Env } from '../env';
-import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from '../quick-match-internal';
+import type { Env } from '../../../src/server/env';
+import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from '../../../src/server/quick-match-internal';
+import type { QuickMatchResponse } from '../../../src/shared/matchmaking';
 
 export interface QuickMatchArgs {
   scenario: string;

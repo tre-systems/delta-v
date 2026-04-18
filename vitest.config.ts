@@ -5,9 +5,13 @@ export default defineConfig({
     exclude: ['e2e/**'],
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts'],
+      include: ['src/**/*.ts', 'packages/mcp-adapter/**/*.ts'],
       exclude: [
         'src/**/*.test.ts',
+        'packages/mcp-adapter/**/*.test.ts',
+        // Pure re-exports — no executable lines to cover meaningfully.
+        'packages/mcp-adapter/src/index.ts',
+        'packages/mcp-adapter/src/runtime.ts',
         // Test-only utilities (shared mocks, fixtures helpers) — no
         // production code imports these, so they'd otherwise drag
         // coverage down without reflecting real regressions.
@@ -32,6 +36,14 @@ export default defineConfig({
           branches: 76,
           functions: 78,
           lines: 83,
+        },
+        // Hosted MCP adapter: branch-heavy auth + tool paths; floors match
+        // post-move v8 numbers so CI stays green without counting barrel files.
+        'packages/mcp-adapter/**/*.ts': {
+          statements: 67,
+          branches: 52,
+          functions: 75,
+          lines: 70,
         },
         // Tighter floor on the Durable Object layer specifically — the
         // game-do/ subtree is where state, archiving, and MCP plumbing
@@ -69,7 +81,11 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'server-shared',
-          include: ['src/server/**/*.test.ts', 'src/shared/**/*.test.ts'],
+          include: [
+            'src/server/**/*.test.ts',
+            'src/shared/**/*.test.ts',
+            'packages/mcp-adapter/**/*.test.ts',
+          ],
           environment: 'node',
         },
       },

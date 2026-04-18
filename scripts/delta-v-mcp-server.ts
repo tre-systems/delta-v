@@ -2,10 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage } from 'node:http';
 import process from 'node:process';
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
+  McpServer,
+  StdioServerTransport,
+  z,
+} from '@delta-v/mcp-adapter/runtime';
 import WebSocket from 'ws';
-import { z } from 'zod';
 
 import {
   buildObservation,

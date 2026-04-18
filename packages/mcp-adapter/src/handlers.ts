@@ -21,7 +21,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
-import { isPlayerToken, isRoomCode } from '../../shared/ids';
 import {
   type AgentTokenPayload,
   extractBearerToken,
@@ -32,9 +31,10 @@ import {
   resolveAgentTokenSecret,
   verifyAgentToken,
   verifyMatchToken,
-} from '../auth';
-import type { Env } from '../env';
-import { hashIp } from '../reporting';
+} from '../../../src/server/auth';
+import type { Env } from '../../../src/server/env';
+import { hashIp } from '../../../src/server/reporting';
+import { isPlayerToken, isRoomCode } from '../../../src/shared/ids';
 import { queueRemoteMatch } from './quick-match';
 
 // Maximum JSON-RPC payload the hosted MCP endpoint will parse. The tool

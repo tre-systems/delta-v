@@ -17,7 +17,7 @@ export interface Env {
   ERROR_RATE_LIMITER?: CreateRateLimiterBinding;
   // Per-agent / per-IP limiter for the hosted MCP entry point. Keyed on
   // the agentToken hash when available, hashed IP otherwise. See
-  // src/server/mcp/handlers.ts.
+  // packages/mcp-adapter/src/handlers.ts.
   MCP_RATE_LIMITER?: CreateRateLimiterBinding;
   MATCH_ARCHIVE?: R2Bucket;
   // HMAC secret for signing agentToken / matchToken. Set via

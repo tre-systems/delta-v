@@ -1,3 +1,4 @@
+import { handleMcpHttpRequest } from '@delta-v/mcp-adapter';
 import { asRoomCode } from '../shared/ids';
 import { normalizePlayerKey } from '../shared/player';
 import {
@@ -16,7 +17,6 @@ import { handleLiveMatchesList } from './live-matches-list';
 import { LiveRegistryDO } from './live-registry-do';
 import { handleMatchesList } from './matches-list';
 import { MatchmakerDO } from './matchmaker-do';
-import { handleMcpHttpRequest } from './mcp/handlers';
 import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
 
 export type { CreateRateLimiterBinding, Env } from './env';
