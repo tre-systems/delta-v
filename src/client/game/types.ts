@@ -64,6 +64,8 @@ export interface HudViewModel {
   queuedLaunchCount: number;
   /** Batch-combat attacks queued locally before FIRE ALL (not single-ship resolution). */
   queuedCombatAttackCount: number;
+  /** Short label for the focused combat target (HUD status line). */
+  combatTargetLabel: string | null;
   multipleShipsAlive: boolean;
   speed: number;
   fuelToStop: number;

@@ -167,7 +167,10 @@ export type HudPlanningSnapshot = Pick<ShipSelectionView, 'selectedShipId'> &
     | 'queuedOrdnanceLaunches'
     | 'acknowledgedOrdnanceShips'
   > &
-  Pick<CombatPlanningView, 'queuedAttacks'>;
+  Pick<
+    CombatPlanningView,
+    'queuedAttacks' | 'combatTargetId' | 'combatTargetType'
+  >;
 export type KeyboardPlanningSnapshot = Pick<
   ShipSelectionView,
   'selectedShipId'
