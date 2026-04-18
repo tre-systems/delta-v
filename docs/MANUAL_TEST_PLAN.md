@@ -32,6 +32,16 @@ Use the browser accessibility / color picker or an external contrast checker on 
 
 Cover single-player online, single-player offline, two-tab multiplayer, and refresh/reconnect/rematch.
 
+## Agent / MCP smoke (pre-release, optional)
+
+Run when agent protocol, MCP adapter, matchmaking, or `scripts/benchmark.ts` changes.
+
+1. **In-process benchmark** — `npm run benchmark -- --agent-command "<your agent>" --opponent easy,normal,hard --scenario duel --games 10` (tune flags per `scripts/benchmark.ts --help`). From the JSON summary, check each `matchups[]` row: **`actionValidityRate` ≥ 0.95**, **`parseErrorRate` === 0**, **`timeoutRate` < 0.05** (stricter is fine).
+2. **Concurrent hosted MCP** — run `scripts/mcp-six-agent-harness.ts` (see script `--help`) and confirm it finishes **three** concurrent matches without Durable Object errors or stuck tickets.
+3. **Live quick-match agent** — run `scripts/quick-match-agent.ts` against each AI difficulty for a small **N**; confirm stable action acceptance and no systematic JSON parse failures.
+
+Skip this section when the release did not touch agent or MCP surfaces.
+
 ---
 
 ## 1. Smoke test (2 min, Bi-Planetary vs AI)
