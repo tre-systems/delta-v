@@ -92,6 +92,8 @@ Findings from a 2026-04-18 deep-research pass against the [2018 Triplanetary rul
 
 Hard difficulty currently fires nukes whenever target score ≥70, OR enemy stronger and ≤6 hexes, OR target carries passengers and ≤6 hexes. Misses three rulebook factors: nukes cost **300 MCr** (15× a torpedo), can be shot down at **2:1 odds** with full range/velocity modifiers (p.6), and detonate on contact with **any** ship / base / asteroid / mine / torpedo (friendly-fire risk). Add an expected-damage estimate that nets out anti-nuke intercept odds and disqualifies launches whose vector passes through friendly hexes.
 
+**Mitigations shipped (2026-04-18):** `assessNukeBallisticToEnemy` extends the existing 5-turn ballistic intercept stepper with per-turn friendly-ship motion; any ordnance path / ally path intersection suppresses the nuke. Hard tier also applies `nukeMinReachProbability` (default **0.22**): grouped anti-nuke volley destroy probability is derived from the same `ANTI_NUKE_ODDS`, range, and velocity modifiers as `resolveAntiNukeAttack`, then compounded across the modelled intercept window. **Still open:** explicit 300 MCr vs torpedo trade-off in scoring, bases/asteroids/mines/torpedoes on the lane, and tuning against `simulate:duel-sweep` measurements.
+
 **Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/engine/combat.ts`
 
 ### Audit four subtle ordnance/combat rules for drift from 2018 rulebook
@@ -113,7 +115,7 @@ Verify the current engine matches the rulebook on:
 
 ### Add ordnance AI regression fixtures for impossible-shot launches
 
-**Partial (2026-04-18):** `driftingEnemyWouldBeHitByOpenSpaceBallistic` + `EMPTY_SOLAR_MAP` in `test-helpers.ts` now back fixtures that assert hard AI **does not** launch torpedoes/nukes when no 5-turn open-space intercept exists. **Still open:** friendly-lane / same-stack exclusion cases, fixtures on real `buildSolarSystemMap()` gravity geometries, and optional `game-engine.test.ts` integration seeds.
+**Partial (2026-04-18):** `driftingEnemyWouldBeHitByOpenSpaceBallistic` + `EMPTY_SOLAR_MAP` in `test-helpers.ts` now back fixtures that assert hard AI **does not** launch torpedoes/nukes when no 5-turn open-space intercept exists. **Update (same pass):** regression tests cover friendly-lane nuke suppression and grouped anti-nuke EV gating. **Still open:** same-stack edge cases beyond launch-hex stacking, fixtures on real `buildSolarSystemMap()` gravity geometries, and optional `game-engine.test.ts` integration seeds.
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
 
