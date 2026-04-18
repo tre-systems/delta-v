@@ -8,6 +8,7 @@ export const TOAST = {
     couldNotConnect: 'Could not connect to game',
     couldNotReachServer: 'Could not reach game server',
     connectionRejected: 'Connection rejected by server',
+    rateLimited: 'Too many requests — wait a moment and try again',
     serverErrorRetryShortly: 'Server error — try again shortly',
   },
   session: {
