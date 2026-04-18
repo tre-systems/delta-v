@@ -19,7 +19,11 @@ import type { OrdnancePlanningSnapshot } from './planning';
 
 type OrdnanceState = Pick<
   GameState,
-  'ships' | 'scenarioRules' | 'pendingAstrogationOrders'
+  | 'ships'
+  | 'scenarioRules'
+  | 'pendingAstrogationOrders'
+  | 'players'
+  | 'destroyedBases'
 >;
 
 export type ClientActionError = {
@@ -83,10 +87,11 @@ const getSelectedShip = (
 export const getFirstLaunchableShipId = (
   state: OrdnanceState,
   playerId: PlayerId,
+  map?: SolarSystemMap | null,
 ): string | null => {
   return (
     getOrderableShipsForPlayer(state, playerId).find((ship) =>
-      hasValidOrdnanceLaunch(state, ship),
+      hasValidOrdnanceLaunch(state, ship, undefined, map),
     )?.id ?? null
   );
 };
@@ -98,7 +103,7 @@ export const getOrdnanceActionableShipIds = (
 ): string[] => {
   const orderableShips = getOrderableShipsForPlayer(state, playerId);
   const launchableShips = orderableShips.filter((ship) =>
-    hasValidOrdnanceLaunch(state, ship),
+    hasValidOrdnanceLaunch(state, ship, undefined, map),
   );
   const launchableIds = new Set(launchableShips.map((ship) => ship.id));
   const emplacementShips = orderableShips.filter(
@@ -149,9 +154,12 @@ export const getFirstBaseEmplacementShipId = (
 export const getUnambiguousLaunchableShipId = (
   state: OrdnanceState,
   playerId: PlayerId,
+  map?: SolarSystemMap | null,
 ): string | null => {
   const launchable = state.ships.filter(
-    (ship) => ship.owner === playerId && hasValidOrdnanceLaunch(state, ship),
+    (ship) =>
+      ship.owner === playerId &&
+      hasValidOrdnanceLaunch(state, ship, undefined, map),
   );
 
   return launchable.length === 1 ? launchable[0].id : null;
@@ -164,6 +172,7 @@ export const resolveOrdnanceLaunchPlan = (
     'selectedShipId' | 'torpedoAccel' | 'torpedoAccelSteps'
   >,
   ordnanceType: OrdnanceType,
+  map?: SolarSystemMap | null,
 ): OrdnanceLaunchPlan => {
   if (!planning.selectedShipId) {
     return {
@@ -179,7 +188,7 @@ export const resolveOrdnanceLaunchPlan = (
     return { ok: false, message: null, level: 'error' };
   }
 
-  const error = validateOrdnanceLaunch(state, ship, ordnanceType);
+  const error = validateOrdnanceLaunch(state, ship, ordnanceType, map);
 
   if (error) {
     return { ok: false, message: error.message, level: 'error' };

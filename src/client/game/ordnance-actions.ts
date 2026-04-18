@@ -68,6 +68,7 @@ export const queueOrdnanceLaunch = (
     gameState,
     deps.planningState,
     ordType,
+    deps.getMap(),
   );
 
   if (!plan.ok) {

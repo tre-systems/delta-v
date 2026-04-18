@@ -105,9 +105,9 @@ Verify the current engine matches the rulebook on:
 
 ### Validate mine launcher actually clears its own hex
 
-Rulebook p.5 requires the launching ship to "execute an immediate course change to insure that it does not remain in the same hex as the mine." AI mine launches are currently gated on "burn declared" without verifying the resulting course leaves the mine's hex — AI mines can self-destruct on the launcher.
+**Mitigations shipped:** `validateOrdnanceLaunch` now requires a committed astrogation **burn** with fuel (overload alone no longer counts), and when a `SolarSystemMap` is supplied it mirrors ordnance-phase movement resolution (`computeCourse` with disabled-ship clearing, auto-land toward `targetBody`, weak-gravity choices, and destroyed bases). Launches are rejected when the resolved destination hex still equals the launch hex. The map is threaded through `processOrdnance`, `shouldEnterOrdnancePhase`, AI ordnance selection, and client ordnance/HUD paths so UI and bots agree with the server.
 
-**Files:** `src/shared/engine/ordnance.ts`, `src/shared/ai/ordnance.ts`
+**Files:** `src/shared/engine/util.ts`, `src/shared/engine/astrogation.ts`, `src/shared/engine/ordnance.ts`, `src/shared/ai/ordnance.ts`, `src/client/game/ordnance.ts`, `src/client/game/hud-view-model.ts`, `src/client/game/ordnance-actions.ts`
 
 ### Add ordnance AI regression fixtures for impossible-shot launches
 

@@ -153,6 +153,7 @@ const getOrdnanceActionState = (
   selectedShip: ReturnType<typeof getSelectedShip>,
   allowedOrdnanceTypes: Set<Ordnance['type']>,
   ordnanceType: Ordnance['type'],
+  map?: SolarSystemMap | null,
 ): OrdnanceActionState => {
   if (!allowedOrdnanceTypes.has(ordnanceType)) {
     return {
@@ -170,22 +171,24 @@ const getOrdnanceActionState = (
     };
   }
 
-  const error = validateOrdnanceLaunch(state, selectedShip, ordnanceType);
+  const error = validateOrdnanceLaunch(state, selectedShip, ordnanceType, map);
   const condensedTitle =
     error?.message === 'Only warships and orbital bases can launch torpedoes'
       ? 'Warships or bases only'
       : error?.message === 'Ship must change course when launching a mine'
         ? 'Needs a course change'
-        : error?.message?.startsWith('Not enough cargo')
-          ? 'Not enough cargo'
-          : error?.message === 'Cannot launch ordnance while landed'
-            ? 'Cannot launch while landed'
-            : error?.message ===
-                'Ships cannot launch ordnance during a turn in which they resupply'
-              ? 'Resupplied this turn'
-              : error?.message === 'Ship is disabled'
-                ? 'Ship disabled'
-                : (error?.message ?? '');
+        : error?.message === 'Committed mine launch course must leave this hex'
+          ? 'Mine needs leaving hex'
+          : error?.message?.startsWith('Not enough cargo')
+            ? 'Not enough cargo'
+            : error?.message === 'Cannot launch ordnance while landed'
+              ? 'Cannot launch while landed'
+              : error?.message ===
+                  'Ships cannot launch ordnance during a turn in which they resupply'
+                ? 'Resupplied this turn'
+                : error?.message === 'Ship is disabled'
+                  ? 'Ship disabled'
+                  : (error?.message ?? '');
 
   return {
     visible: true,
@@ -337,18 +340,21 @@ export const deriveHudViewModel = (
       selectedShip,
       allowedOrdnanceTypes,
       'mine',
+      map,
     ),
     launchTorpedoState: getOrdnanceActionState(
       state,
       selectedShip,
       allowedOrdnanceTypes,
       'torpedo',
+      map,
     ),
     launchNukeState: getOrdnanceActionState(
       state,
       selectedShip,
       allowedOrdnanceTypes,
       'nuke',
+      map,
     ),
   };
 };

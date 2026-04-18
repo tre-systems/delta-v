@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { HEX_DIRECTIONS } from '../../shared/hex';
 import { asShipId } from '../../shared/ids';
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameState, Ship } from '../../shared/types/domain';
@@ -34,14 +35,42 @@ const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   ...overrides,
 });
 
+const defaultPlayers: GameState['players'] = [
+  {
+    connected: true,
+    ready: true,
+    targetBody: '',
+    homeBody: '',
+    bases: [],
+    escapeWins: false,
+  },
+  {
+    connected: true,
+    ready: true,
+    targetBody: '',
+    homeBody: '',
+    bases: [],
+    escapeWins: false,
+  },
+];
+
 const createState = (
   ships: Ship[],
   scenarioRules: GameState['scenarioRules'] = {},
   pendingAstrogationOrders: GameState['pendingAstrogationOrders'] = null,
-): Pick<GameState, 'ships' | 'scenarioRules' | 'pendingAstrogationOrders'> => ({
+): Pick<
+  GameState,
+  | 'ships'
+  | 'scenarioRules'
+  | 'pendingAstrogationOrders'
+  | 'players'
+  | 'destroyedBases'
+> => ({
   ships,
   scenarioRules,
   pendingAstrogationOrders,
+  destroyedBases: [],
+  players: defaultPlayers,
 });
 
 const createPlanning = (
@@ -70,9 +99,9 @@ describe('game-client-ordnance', () => {
       createShip({ id: asShipId('launchable') }),
     ]);
 
-    expect(getFirstLaunchableShipId(state, 0)).toBe('launchable');
+    expect(getFirstLaunchableShipId(state, 0, map)).toBe('launchable');
 
-    expect(getFirstLaunchableShipId(state, 1)).toBe('enemy');
+    expect(getFirstLaunchableShipId(state, 1, map)).toBe('enemy');
   });
 
   it('skips ships that cannot launch any allowed ordnance this turn', () => {
@@ -95,8 +124,8 @@ describe('game-client-ordnance', () => {
       { allowedOrdnanceTypes: ['nuke'] },
     );
 
-    expect(getFirstLaunchableShipId(state, 0)).toBe('packet');
-    expect(getUnambiguousLaunchableShipId(state, 0)).toBe('packet');
+    expect(getFirstLaunchableShipId(state, 0, map)).toBe('packet');
+    expect(getUnambiguousLaunchableShipId(state, 0, map)).toBe('packet');
   });
 
   it('skips mine carriers without a committed burn when choosing launchable ships', () => {
@@ -115,8 +144,34 @@ describe('game-client-ordnance', () => {
       [{ shipId: asShipId('burn-committed'), burn: 0, overload: null }],
     );
 
-    expect(getFirstLaunchableShipId(state, 0)).toBe('burn-committed');
-    expect(getUnambiguousLaunchableShipId(state, 0)).toBe('burn-committed');
+    expect(getFirstLaunchableShipId(state, 0, map)).toBe('burn-committed');
+    expect(getUnambiguousLaunchableShipId(state, 0, map)).toBe(
+      'burn-committed',
+    );
+  });
+
+  it('skips mine carriers whose burn still resolves on the same hex when map is provided', () => {
+    const dir = HEX_DIRECTIONS[2];
+    const state = createState(
+      [
+        createShip({
+          id: asShipId('stays'),
+          type: 'frigate',
+          velocity: { dq: -dir.dq, dr: -dir.dr },
+        }),
+        createShip({
+          id: asShipId('ok'),
+          type: 'frigate',
+        }),
+      ],
+      { allowedOrdnanceTypes: ['mine'] },
+      [
+        { shipId: asShipId('stays'), burn: 2, overload: null },
+        { shipId: asShipId('ok'), burn: 0, overload: null },
+      ],
+    );
+
+    expect(getFirstLaunchableShipId(state, 0, map)).toBe('ok');
   });
 
   it('falls back to a base carrier when ordnance phase is for emplacement only', () => {
@@ -134,7 +189,7 @@ describe('game-client-ordnance', () => {
       { allowedOrdnanceTypes: [] },
     );
 
-    expect(getFirstLaunchableShipId(state, 0)).toBeNull();
+    expect(getFirstLaunchableShipId(state, 0, map)).toBeNull();
     expect(getFirstOrdnanceActionableShipId(state, 0, map)).toBe(
       'base-carrier',
     );
@@ -264,6 +319,29 @@ describe('game-client-ordnance', () => {
     ).toEqual({
       ok: false,
       message: 'Ship must change course when launching a mine',
+      level: 'error',
+    });
+
+    const dir = HEX_DIRECTIONS[2];
+    expect(
+      resolveOrdnanceLaunchPlan(
+        createState(
+          [
+            createShip({
+              type: 'frigate',
+              velocity: { dq: -dir.dq, dr: -dir.dr },
+            }),
+          ],
+          {},
+          [{ shipId: asShipId('ship-1'), burn: 2, overload: null }],
+        ),
+        createPlanning(),
+        'mine',
+        map,
+      ),
+    ).toEqual({
+      ok: false,
+      message: 'Committed mine launch course must leave this hex',
       level: 'error',
     });
 

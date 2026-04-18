@@ -142,12 +142,13 @@ export const aiOrdnance = (
     const bestEnemyCurrentDist = bestEnemyTarget.currentDistance;
     const bestEnemyPredictedDist = bestEnemyTarget.predictedDistance;
     const canLaunchNuke =
-      validateOrdnanceLaunch(state, ship, 'nuke') === null &&
+      validateOrdnanceLaunch(state, ship, 'nuke', map) === null &&
       !hasFriendlyLaunchStack &&
       (ship.passengersAboard ?? 0) === 0;
     const canLaunchTorpedo =
-      validateOrdnanceLaunch(state, ship, 'torpedo') === null;
-    const canLaunchMine = validateOrdnanceLaunch(state, ship, 'mine') === null;
+      validateOrdnanceLaunch(state, ship, 'torpedo', map) === null;
+    const canLaunchMine =
+      validateOrdnanceLaunch(state, ship, 'mine', map) === null;
 
     // Early-turn nuke guard ported from scripts/llm-agent-coach.ts:
     // in the first two turns, a nuke is only considered when the enemy is
