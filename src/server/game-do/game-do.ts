@@ -96,6 +96,10 @@ export interface Env {
 }
 
 export class GameDO extends DurableObject<Env> {
+  private currentStateCache: {
+    gameId: import('../../shared/ids').GameId;
+    state: GameState;
+  } | null = null;
   private readonly map = buildSolarSystemMap();
   private readonly replacedSockets = new WeakSet<WebSocket>();
   // Per-match idempotency ring, cleared on phase advance so each phase has a
@@ -180,10 +184,26 @@ export class GameDO extends DurableObject<Env> {
     const gameId = await this.getLatestGameId();
 
     if (!gameId) {
+      this.currentStateCache = null;
       return null;
     }
 
-    return getProjectedCurrentStateRaw(this.storage, gameId);
+    if (this.currentStateCache?.gameId === gameId) {
+      return structuredClone(this.currentStateCache.state);
+    }
+
+    const projected = await getProjectedCurrentStateRaw(this.storage, gameId);
+
+    if (projected) {
+      this.currentStateCache = {
+        gameId,
+        state: structuredClone(projected),
+      };
+    } else {
+      this.currentStateCache = null;
+    }
+
+    return projected;
   }
 
   private async getRoomConfig(): Promise<RoomConfig | null> {
@@ -248,6 +268,7 @@ export class GameDO extends DurableObject<Env> {
   private async archiveRoomState(): Promise<void> {
     const code = await this.getGameCode();
     const latestGameId = await this.getLatestGameId();
+    this.currentStateCache = null;
     await Promise.all([
       this.storage.put(GAME_DO_STORAGE_KEYS.roomArchived, true),
       this.storage.delete(GAME_DO_STORAGE_KEYS.botTurnAt),
@@ -747,6 +768,10 @@ export class GameDO extends DurableObject<Env> {
       primaryMessage,
       publicationOpts,
     );
+    this.currentStateCache = {
+      gameId: state.gameId,
+      state: structuredClone(state),
+    };
     // Wake every HTTP /mcp/wait or /mcp/action long-poller — mirror of the
     // WebSocket broadcast. Either seat may be waiting (simultaneous phases,
     // observation polling, gameOver close-out), so wake unconditionally.
@@ -982,6 +1007,7 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async initGame() {
+    this.currentStateCache = null;
     await initGameSession(this.createInitGameDeps());
     // Register the new match in the LIVE_REGISTRY for the /matches page.
     const roomConfig = await this.getRoomConfig();

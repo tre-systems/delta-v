@@ -23,6 +23,7 @@ import {
 import {
   getProjectedCurrentStateForViewer,
   getProjectedCurrentState as getProjectedCurrentStateFromEvents,
+  getProjectionParityDiff,
   hasProjectedStateParity,
   projectReplayTimeline,
 } from './projection';
@@ -216,6 +217,15 @@ export const hasProjectionParity = async (
 ): Promise<boolean> => {
   const projectedState = await getProjectedCurrentStateRaw(storage, gameId);
   return hasProjectedStateParity(projectedState, liveState);
+};
+
+export const getProjectionParityDiffFromStorage = async (
+  storage: Storage,
+  gameId: GameId,
+  liveState: import('../../shared/types/domain').GameState,
+) => {
+  const projectedState = await getProjectedCurrentStateRaw(storage, gameId);
+  return getProjectionParityDiff(projectedState, liveState);
 };
 
 // --- Match identity ---

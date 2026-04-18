@@ -1337,8 +1337,43 @@ describe('GameDO', () => {
         gameId: asGameId('PARCHK-m1'),
         liveTurn: state.turnNumber,
         projectedTurn: projected.turnNumber,
+        diffs: expect.any(Array),
       }),
     );
+  });
+
+  it('reuses the in-memory projected state cache between reads', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+    });
+    await ctx.storage.put('gameCode', 'ABCDE');
+    const game = createGameDO(ctx);
+
+    await (
+      game as unknown as {
+        initGame: () => Promise<void>;
+      }
+    ).initGame();
+
+    const storageGetSpy = vi.spyOn(ctx.storage, 'get');
+
+    const first = await (
+      game as unknown as {
+        getCurrentGameState: () => Promise<GameState | null>;
+      }
+    ).getCurrentGameState();
+    const callsAfterFirstRead = storageGetSpy.mock.calls.length;
+    const second = await (
+      game as unknown as {
+        getCurrentGameState: () => Promise<GameState | null>;
+      }
+    ).getCurrentGameState();
+
+    expect(first).toEqual(second);
+    expect(storageGetSpy.mock.calls).toHaveLength(callsAfterFirstRead + 2);
   });
 
   it('falls back to checkpoint-backed replay when archive is unavailable', async () => {

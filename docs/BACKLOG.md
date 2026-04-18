@@ -136,24 +136,6 @@ Findings from a 2026-04-17 cost-surface review. Baseline controls are documented
 
 **Files:** `src/server/game-do/match.ts`, `src/server/game-do/publication.ts`, `src/server/game-do/game-do.ts`, `src/shared/prng.ts`
 
-### Replayable turn advancement
-
-Make reinforcement and fleet-conversion side effects fully replayable by either emitting explicit turn-advance events or sharing one mutation implementation between the live engine and the event projector.
-
-**Files:** `src/shared/engine/turn-advance.ts`, `src/shared/engine/victory.ts`, `src/shared/engine/event-projector/lifecycle.ts`, `src/shared/engine/engine-events.ts`
-
-### Cached current-state projection
-
-In-memory cache of current state so reads avoid rebuilding from checkpoint + tail on every wake; invalidate on every event append.
-
-**Files:** `src/server/game-do/projection.ts`, `src/server/game-do/game-do.ts`
-
-### Publication and broadcast safety rails
-
-Replace coarse JSON-string parity failures with structured diffs, converge normalization between production and tests, make lower-level broadcast helpers private, and add an exhaustive S2C builder/broadcast check similar to the C2S action map.
-
-**Files:** `src/server/game-do/publication.ts`, `src/server/game-do/broadcast.ts`, `src/server/game-do/message-builders.ts`, `src/server/game-do/archive.test.ts`
-
 ### Boundary hardening and explicit client seams
 
 Hide clone-sensitive engine mutators behind non-exported modules, extend import-boundary enforcement to the missing directions, and finish the client kernel DI cleanup so `WebSocket` and `fetch` are injected rather than reached directly.

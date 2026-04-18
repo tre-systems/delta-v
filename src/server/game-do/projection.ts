@@ -192,8 +192,10 @@ export const projectReplayTimeline = (
 // Strip fields that legitimately diverge between projected and live state:
 // - connected / ready: session-level flags updated outside the engine
 // - detected: visibility recomputed each tick from sensor data
-const normalizeStateForParity = (state: GameState): GameState => ({
+// - firedThisPhase / combatTargetedThisPhase: UI/planning-only combat residue
+export const normalizeStateForParity = (state: GameState): GameState => ({
   ...state,
+  combatTargetedThisPhase: undefined,
   players: state.players.map((player) => ({
     ...player,
     connected: false,
@@ -202,13 +204,94 @@ const normalizeStateForParity = (state: GameState): GameState => ({
   ships: state.ships.map((ship) => ({
     ...ship,
     detected: false,
+    firedThisPhase: undefined,
   })),
 });
+
+export interface ProjectionParityDiff {
+  path: string;
+  live: unknown;
+  projected: unknown;
+}
+
+const collectParityDiffs = (
+  live: unknown,
+  projected: unknown,
+  path = '',
+): ProjectionParityDiff[] => {
+  if (typeof live !== typeof projected) {
+    return [{ path, live, projected }];
+  }
+
+  if (
+    live === null ||
+    projected === null ||
+    typeof live !== 'object' ||
+    typeof projected !== 'object'
+  ) {
+    return Object.is(live, projected) ? [] : [{ path, live, projected }];
+  }
+
+  if (Array.isArray(live) || Array.isArray(projected)) {
+    if (!Array.isArray(live) || !Array.isArray(projected)) {
+      return [{ path, live, projected }];
+    }
+
+    const diffs: ProjectionParityDiff[] = [];
+    const length = Math.max(live.length, projected.length);
+
+    for (let index = 0; index < length; index++) {
+      diffs.push(
+        ...collectParityDiffs(
+          live[index],
+          projected[index],
+          `${path}[${index}]`,
+        ),
+      );
+    }
+
+    return diffs;
+  }
+
+  const liveRecord = live as Record<string, unknown>;
+  const projectedRecord = projected as Record<string, unknown>;
+  const keys = new Set([
+    ...Object.keys(liveRecord),
+    ...Object.keys(projectedRecord),
+  ]);
+  const diffs: ProjectionParityDiff[] = [];
+
+  for (const key of [...keys].sort()) {
+    diffs.push(
+      ...collectParityDiffs(
+        liveRecord[key],
+        projectedRecord[key],
+        path ? `${path}.${key}` : key,
+      ),
+    );
+  }
+
+  return diffs;
+};
+
+export const getProjectionParityDiff = (
+  projectedState: GameState | null,
+  liveState: GameState,
+): ProjectionParityDiff[] =>
+  projectedState === null
+    ? [
+        {
+          path: '',
+          live: normalizeStateForParity(liveState),
+          projected: null,
+        },
+      ]
+    : collectParityDiffs(
+        normalizeStateForParity(liveState),
+        normalizeStateForParity(projectedState),
+      );
 
 export const hasProjectedStateParity = (
   projectedState: GameState | null,
   liveState: GameState,
-): boolean =>
-  projectedState !== null &&
-  JSON.stringify(normalizeStateForParity(projectedState)) ===
-    JSON.stringify(normalizeStateForParity(liveState));
+): boolean => getProjectionParityDiff(projectedState, liveState).length === 0;

@@ -14,6 +14,7 @@ import {
 import { scheduleArchiveCompletedMatch } from './match-archive';
 import {
   resolveStateBearingMessage,
+  STATEFUL_SERVER_MESSAGE_TYPES,
   type StatefulServerMessage,
 } from './message-builders';
 
@@ -36,6 +37,20 @@ export interface PublicationOptions {
   restartTurnTimer?: boolean;
   events?: EngineEvent[];
 }
+
+const assertKnownStatefulMessage = (
+  message: StatefulServerMessage,
+): StatefulServerMessage => {
+  if (
+    !STATEFUL_SERVER_MESSAGE_TYPES.includes(
+      message.type as (typeof STATEFUL_SERVER_MESSAGE_TYPES)[number],
+    )
+  ) {
+    throw new Error(`Unsupported stateful server message: ${message.type}`);
+  }
+
+  return message;
+};
 
 // Step 1: Append engine events to the event stream.
 const appendEvents = async (
@@ -121,7 +136,9 @@ export const runPublicationPipeline = async (
   const { actor = null, restartTurnTimer = true, events = [] } = options ?? {};
 
   const roomCode = await deps.getGameCode();
-  const replayMessage = resolveStateBearingMessage(state, primaryMessage);
+  const replayMessage = assertKnownStatefulMessage(
+    resolveStateBearingMessage(state, primaryMessage),
+  );
 
   // Step 1: Append events
   const eventSeq = await appendEvents(
