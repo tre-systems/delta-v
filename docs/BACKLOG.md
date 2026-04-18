@@ -202,7 +202,9 @@ Prefer `engineFailure()` everywhere, then surface typed rate-limit / validation 
 
 **Partial (2026-04-18):** `contracts.json` C2S now covers combat / combatSingle edge shapes (implicit `targetType`, omitted `attackStrength`, ordnance targets, multi-volley `combat`, `guards` passthrough) plus `c2sRejected` rows for invalid `targetType`, empty attackers / blank attacker id / empty `targetId`, non-integer `attackStrength`, and out-of-range strength.
 
-**Still open:** more positive/negative C2S rows for other message types (optional **fleetReady**, **surrender**, **skip\*** / phase one-shots); `src/server/game-do/__fixtures__/transport.json` transport coverage.
+**Partial (2026-04-19):** additional `c2sRejected` rows for unknown `type`, **fleetReady** purchase shape errors, **surrender** `shipIds` shape errors; `transport.json` documents **stateUpdate** with **transferEvents** (asserted in `message-builders.test.ts`); Vitest covers surrender list **>64** ids.
+
+**Still open:** optional positive/negative rows for parameterless phase messages beyond current coverage; deeper `transport.json` vs live DO parity.
 
 **Files:** `src/shared/__fixtures__/contracts.json`, `src/shared/protocol.test.ts`, `src/server/game-do/__fixtures__/transport.json`
 

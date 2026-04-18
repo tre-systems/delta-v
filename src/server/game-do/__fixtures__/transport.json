@@ -12,6 +12,18 @@
       "type": "stateUpdate",
       "state": "__STATE__"
     },
+    "stateUpdateWithTransferEvents": {
+      "type": "stateUpdate",
+      "state": "__STATE__",
+      "transferEvents": [
+        {
+          "type": "fuelTransferred",
+          "fromShipId": "s0",
+          "toShipId": "s1",
+          "amount": 4
+        }
+      ]
+    },
     "movementResult": {
       "type": "movementResult",
       "movements": [

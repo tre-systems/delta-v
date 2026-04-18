@@ -224,6 +224,10 @@ describe('S2C state-bearing payload fixtures', () => {
         amount: 4,
       },
     ]);
+
+    expect(normalizeStateEnvelope(msg)).toEqual(
+      transportFixtures.s2c.stateUpdateWithTransferEvents,
+    );
   });
 
   it('movementResult payload has exactly { type, movements, ordnanceMovements, events, state }', () => {

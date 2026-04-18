@@ -1457,10 +1457,18 @@ describe('C2S contract fixtures', () => {
     });
   });
 
+  it('rejects surrender shipIds list longer than 64', () => {
+    const shipIds = Array.from({ length: 65 }, (_, i) => `s${i}`);
+    expect(validateClientMessage({ type: 'surrender', shipIds }).ok).toBe(
+      false,
+    );
+  });
+
   it('parameterless action wire shapes', () => {
     for (const type of [
       'skipOrdnance',
       'beginCombat',
+      'endCombat',
       'skipCombat',
       'skipLogistics',
       'rematch',
