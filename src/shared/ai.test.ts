@@ -1932,6 +1932,83 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
     expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
   });
 
+  it('hard AI does not commit a nuke whose lane crosses map terrain before the primary target', () => {
+    const lead = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      cargoUsed: 0,
+    });
+    const primary = createTestShip({
+      id: asShipId('p0-dn'),
+      owner: 0,
+      type: 'dreadnaught',
+      position: { q: 5, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const mapWithMidLaneAsteroid: SolarSystemMap = {
+      ...EMPTY_SOLAR_MAP,
+      hexes: new Map([[asHexKey('2,0'), { terrain: 'asteroid' }]]),
+    };
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        map: EMPTY_SOLAR_MAP,
+        ordnanceStart: lead.position,
+        ordnanceVelocity: { ...lead.velocity },
+        enemyStart: primary.position,
+        enemyVelocity: primary.velocity,
+      }),
+    ).toBe(true);
+
+    const state = createTestState({
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['nuke', 'torpedo'] },
+      ships: [primary, lead],
+    });
+    const launches = aiOrdnance(state, 1, mapWithMidLaneAsteroid, 'hard');
+    expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
+  });
+
+  it('hard AI does not commit a nuke whose lane crosses a pending asteroid hazard hex', () => {
+    const lead = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      cargoUsed: 0,
+    });
+    const primary = createTestShip({
+      id: asShipId('p0-dn'),
+      owner: 0,
+      type: 'dreadnaught',
+      position: { q: 5, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        map: EMPTY_SOLAR_MAP,
+        ordnanceStart: lead.position,
+        ordnanceVelocity: { ...lead.velocity },
+        enemyStart: primary.position,
+        enemyVelocity: primary.velocity,
+      }),
+    ).toBe(true);
+
+    const state = createTestState({
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['nuke', 'torpedo'] },
+      ships: [primary, lead],
+      pendingAsteroidHazards: [{ shipId: primary.id, hex: { q: 2, r: 0 } }],
+    });
+    const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
+    expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
+  });
+
   it('hard AI does not commit a nuke whose lane crosses enemy ordnance in flight', () => {
     const lead = createTestShip({
       id: asShipId('p1-lead'),
