@@ -506,10 +506,10 @@ describe('lookupOtherDamage', () => {
     });
   });
 
-  it('asteroid roll 6 = D2', () => {
+  it('asteroid roll 6 = D1 (2018 rulebook OTHER DAMAGE column)', () => {
     expect(lookupOtherDamage(6, 'asteroid')).toEqual({
       type: 'disabled',
-      disabledTurns: 2,
+      disabledTurns: 1,
     });
   });
 

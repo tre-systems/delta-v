@@ -158,6 +158,7 @@ Land a damaged or low-fuel ship at a friendly base → next turn: fuel restored,
 - **Disconnect forfeit:** one player disconnected > 30 s → the other wins by forfeit with a clear reason.
 - **Rematch / exit:** REMATCH starts a fresh match with reset state; EXIT returns to menu cleanly.
 - **Post-game replay selector:** finished two matches in the same room → `-m1` / `-m2` in the selector; start / prev / next / end navigation works; EXIT REPLAY restores the latest match outcome.
+- **Archived replay (connecting):** open a spectator/archived replay URL (room code plus `gameId`, or the in-app path) so the **Connecting** overlay appears while the timeline fetch runs. Press **Cancel** or exit to the menu before loading finishes. **Pass:** you land on the menu without a flash of wrong endgame state from a late response; starting the same or another replay afterward behaves normally.
 
 ## 17. AI opponent
 

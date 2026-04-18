@@ -276,7 +276,7 @@ describe('renderer combat helpers', () => {
       dieRoll: 5,
       modifiedRoll: 5,
       damageType: 'disabled',
-      disabledTurns: 2,
+      disabledTurns: 1,
       counterattack: null,
     };
 
@@ -298,7 +298,7 @@ describe('renderer combat helpers', () => {
     };
 
     expect(formatCombatResult(asteroidResult, previousState)).toBe(
-      'frigate: asteroid [5] DISABLED 2T',
+      'frigate: asteroid [5] DISABLED 1T',
     );
 
     expect(formatCombatResult(antiNukeResult, state)).toBe(
