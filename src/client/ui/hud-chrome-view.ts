@@ -35,6 +35,8 @@ export interface HUDChromeView {
   updateLatency: (latencyMs: number | null) => void;
   updateFleetStatus: (status: string, ariaLabel?: string) => void;
   toggleHelpOverlay: () => void;
+  /** Opens the help overlay if needed and scrolls the named section into view. */
+  openHelpSection: (sectionElementId: string) => void;
   updateSoundButton: (muted: boolean) => void;
   bindTurnTimerSignal: (
     timerSignal: ReadonlySignal<{
@@ -183,6 +185,28 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       const restoreTarget = helpOverlayReturnFocusEl;
       helpOverlayReturnFocusEl = null;
       (restoreTarget ?? helpBtn).focus();
+    });
+  };
+
+  const openHelpSection = (sectionElementId: string): void => {
+    const wasOpen = helpOverlayVisibleSignal.peek();
+    if (!wasOpen) {
+      const activeElement = document.activeElement;
+      helpOverlayReturnFocusEl =
+        activeElement instanceof HTMLElement ? activeElement : null;
+      helpOverlayVisibleSignal.value = true;
+    }
+
+    const scrollToTarget = (): void => {
+      const target = document.getElementById(sectionElementId);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    requestAnimationFrame(() => {
+      scrollToTarget();
+      if (!wasOpen) {
+        helpCloseBtn.focus();
+      }
     });
   };
 
@@ -548,6 +572,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
     updateLatency,
     updateFleetStatus,
     toggleHelpOverlay,
+    openHelpSection,
     updateSoundButton,
     bindTurnTimerSignal,
     showAttackButton,

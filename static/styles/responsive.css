@@ -462,6 +462,10 @@
     flex-direction: column;
   }
 
+  .tutorial-tip-actions .btn-tutorial-help {
+    margin-right: 0;
+  }
+
   .tutorial-tip-actions .btn {
     width: 100%;
   }

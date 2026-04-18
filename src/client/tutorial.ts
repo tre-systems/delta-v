@@ -11,6 +11,27 @@ import { getWebLocalStorage } from './web-local-storage';
 
 const STORAGE_KEY = 'deltav_tutorial_done';
 
+export interface TutorialCreateDeps {
+  openHelpSection?: (sectionElementId: string) => void;
+}
+
+const helpSectionForTutorialStep = (step: TutorialStep): string => {
+  switch (step.id) {
+    case 'welcome':
+    case 'select-ship':
+    case 'fuel':
+      return 'help-group-movement';
+    case 'gravity':
+      return 'help-group-gravity';
+    case 'ordnance-intro':
+      return 'help-group-ordnance';
+    case 'combat-intro':
+      return 'help-group-combat';
+    default:
+      return 'help-group-phases';
+  }
+};
+
 interface TutorialStep {
   id: string;
   phase: 'astrogation' | 'ordnance' | 'combat' | 'any';
@@ -77,11 +98,12 @@ const STEPS: TutorialStep[] = [
   },
 ];
 
-export const createTutorial = (): Tutorial => {
+export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
   const scope = createDisposalScope();
   const tipEl = byId('tutorialTip');
   const textEl = byId('tutorialTipText');
   const progressEl = byId('tutorialProgress');
+  const openHelpBtnEl = byId<HTMLButtonElement>('tutorialOpenHelpBtn');
 
   const storage = getWebLocalStorage();
   let completed = storage?.getItem(STORAGE_KEY) === '1';
@@ -96,6 +118,7 @@ export const createTutorial = (): Tutorial => {
     | ((event: string, props?: Record<string, unknown>) => void)
     | null = null;
   let tutorialStartTime: number | null = null;
+  let openHelpTargetSection = 'help-group-phases';
 
   const emitTelemetry = (
     event: string,
@@ -125,10 +148,12 @@ export const createTutorial = (): Tutorial => {
     }
 
     activeStepId = step.id;
+    openHelpTargetSection = helpSectionForTutorialStep(step);
 
     text(textEl, cachedMobile && step.mobileText ? step.mobileText : step.text);
 
     visible(tipEl, true, 'block');
+    visible(openHelpBtnEl, Boolean(deps.openHelpSection), 'inline-block');
 
     tipEl.style.animation = 'none';
     void tipEl.offsetHeight;
@@ -223,6 +248,16 @@ export const createTutorial = (): Tutorial => {
   withScope(scope, () => {
     listen(byId('tutorialNextBtn'), 'click', () => advance());
     listen(byId('tutorialSkipBtn'), 'click', () => skip());
+    listen(openHelpBtnEl, 'click', () => {
+      if (!deps.openHelpSection) {
+        return;
+      }
+      deps.openHelpSection(openHelpTargetSection);
+      emitTelemetry('tutorial_open_help', {
+        step: activeStepId,
+        section: openHelpTargetSection,
+      });
+    });
     // Only re-read the breakpoint on an explicit viewport change; no
     // re-render of the active step because rotating mid-step should not
     // re-flow the copy the user is currently reading.

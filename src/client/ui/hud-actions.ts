@@ -11,6 +11,7 @@ type CreateHudActionsInput = {
     burns: Map<string, number | null>,
   ) => void;
   toggleHelpOverlay: () => void;
+  openHelpSection: (sectionElementId: string) => void;
   updateSoundButton: (muted: boolean) => void;
   showAttackButton: (isVisible: boolean) => void;
   showFireButton: (isVisible: boolean, count: number) => void;
@@ -22,6 +23,7 @@ export const createHudActions = ({
   updateFleetStatus,
   updateShipList,
   toggleHelpOverlay,
+  openHelpSection,
   updateSoundButton,
   showAttackButton,
   showFireButton,
@@ -33,6 +35,7 @@ export const createHudActions = ({
   updateFleetStatus,
   updateShipList,
   toggleHelpOverlay,
+  openHelpSection,
   updateSoundButton,
   showAttackButton,
   showFireButton,

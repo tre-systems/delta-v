@@ -48,6 +48,7 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.02);
+  scroll-margin-top: 0.75rem;
 }
 
 .help-group > h3 {
@@ -1334,9 +1335,15 @@ h2.game-over-neutral {
 
 .tutorial-tip-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 0.85rem;
+}
+
+.btn-tutorial-help {
+  margin-right: auto;
 }
 
 .btn-tutorial {
