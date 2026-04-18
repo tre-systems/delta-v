@@ -269,6 +269,7 @@ const applyActionRejectedPlan: ClientMessagePlanHandler<'actionRejected'> = (
 ): void => {
   deps.trackEvent('action_rejected_received', {
     reason: plan.reason,
+    submitterPlayerId: plan.submitterPlayerId,
     expectedTurn: plan.expected.turn,
     expectedPhase: plan.expected.phase,
     actualTurn: plan.actual.turn,
