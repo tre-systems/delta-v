@@ -4,7 +4,7 @@ Delta-V is an online multiplayer space combat and racing game. This document des
 
 The authoritative server model is event-sourced: the Durable Object persists a match-scoped event stream plus checkpoints, and recovers authoritative state from checkpoint + event tail (not from a separate persisted `gameState` snapshot slot).
 
-Document boundary: gameplay rules and protocol examples live in [SPEC.md](./SPEC.md), coding conventions live in [CODING_STANDARDS.md](./CODING_STANDARDS.md), contributor workflow lives in [CONTRIBUTING.md](./CONTRIBUTING.md), open work lives in [BACKLOG.md](./BACKLOG.md), and the deeper walk-through of *why* patterns look the way they do lives in [patterns/](../patterns/README.md).
+Document boundary: gameplay rules and protocol examples live in [SPEC.md](./SPEC.md), coding conventions live in [CODING_STANDARDS.md](./CODING_STANDARDS.md), contributor workflow lives in [CONTRIBUTING.md](./CONTRIBUTING.md), optional scoped tasks may live in [BACKLOG.md](./BACKLOG.md), and the deeper walk-through of *why* patterns look the way they do lives in [patterns/](../patterns/README.md).
 
 ## Quick Navigation
 
@@ -613,7 +613,7 @@ game-do/game-do.ts (Durable Object)
 
 ## 5. Current Decisions and Planned Shifts
 
-See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current architectural stances and why they exist.
+Scoped tasks may be listed in [BACKLOG.md](./BACKLOG.md). This section captures current architectural stances and why they exist.
 
 - **User accounts / auth**: Adds login friction that hurts adoption during user testing. The current anonymous token model is sufficient. Revisit for native app store distribution or payment integration.
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.

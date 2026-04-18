@@ -77,10 +77,10 @@ All tools accept `sessionId` unless otherwise noted.
 | `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `username`, `playerKey?` | `{ sessionId, code, playerId, playerToken, status }` |
 | `delta_v_list_sessions` | List active local sessions | none | `{ sessions[] }` |
 | `delta_v_get_state` | Raw authoritative state | `sessionId` | `{ state, latestEventId }` |
-| `delta_v_get_observation` | Agent observation payload | `sessionId`, `includeSummary?`, `includeLegalActionInfo?`, `includeTactical?`, `includeSpatialGrid?`, `includeCandidateLabels?` | `AgentTurnInput`-compatible object |
-| `delta_v_wait_for_turn` | Block until actionable turn window | `sessionId`, `timeoutMs?`, same include flags as observation | observation payload |
+| `delta_v_get_observation` | Agent observation payload | `sessionId`, include flags as above, `compactState?` (default **false** — full `state`; set **true** to shrink `state` to phase/turn/activePlayer only) | `AgentTurnInput`-compatible object |
+| `delta_v_wait_for_turn` | Block until actionable turn window | `sessionId`, `timeoutMs?`, same include flags + optional `compactState` | same shape as `get_observation` |
 | `delta_v_get_events` | Read buffered event stream | `sessionId`, `afterEventId?`, `limit?`, `clear?` | `{ events[], bufferedRemaining }` |
-| `delta_v_send_action` | Submit C2S action | `sessionId`, `action` | `{ actionType }` (or richer action result when enabled) |
+| `delta_v_send_action` | Submit C2S action | `sessionId`, `action`, optional `compactState` when `includeNextObservation` | `{ actionType }` (or richer action result when enabled) |
 | `delta_v_send_chat` | Send chat message | `sessionId`, `text` (alias: `message`) | `{ text }` |
 | `delta_v_close_session` | Close local MCP session | `sessionId` | `{ closed }` |
 
