@@ -69,6 +69,23 @@ describe('ui-screens', () => {
       cancelActionLabel: 'Cancel search',
       quickMatchQueuedAtMs: 1_700_000_000_000,
     });
+
+    expect(
+      buildWaitingScreenCopy({
+        kind: 'private',
+        code: 'XYZZY',
+        connecting: true,
+      }),
+    ).toEqual({
+      titleText: 'Connecting',
+      codeText: 'XYZZY',
+      codeVariant: 'roomCode',
+      statusText: 'Establishing connection...',
+      scenarioText: null,
+      showCopyActions: true,
+      cancelActionLabel: 'Cancel',
+      quickMatchQueuedAtMs: null,
+    });
   });
 
   it('builds game-over, reconnect, and rematch-pending overlay copy', () => {

@@ -226,13 +226,13 @@ export const buildWaitingScreenCopy = (
 
   return state.connecting
     ? {
-        titleText: 'Game Created',
+        titleText: 'Connecting',
         codeText: state.code || '...',
         codeVariant: 'roomCode',
-        statusText: 'Connecting...',
+        statusText: 'Establishing connection...',
         scenarioText: null,
         showCopyActions: true,
-        cancelActionLabel: null,
+        cancelActionLabel: 'Cancel',
         quickMatchQueuedAtMs: null,
       }
     : {

@@ -237,9 +237,16 @@ export const createMainInteractionController = (
       case 'quickMatch':
         void deps.sessionApi.startQuickMatch();
         return;
-      case 'cancelQuickMatch':
+      case 'cancelQuickMatch': {
         deps.sessionApi.cancelQuickMatch();
+        // `cancelQuickMatch` only clears an active quick-match ticket. Hosts
+        // waiting for a guest, join/spectate handshakes, and post-match
+        // quick-match WebSocket opens still need a full session teardown.
+        if (deps.ctx.stateSignal.peek() !== 'menu') {
+          deps.exitToMenu();
+        }
         return;
+      }
       case 'createGame':
         deps.sessionApi.createGame(plan.scenario);
         return;
