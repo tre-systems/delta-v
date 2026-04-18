@@ -38,11 +38,14 @@ const hasOwnedPendingAsteroidHazards = (
 
 export const BOT_THINK_TIME_MS = 900;
 
+/** Default for server-scheduled agent seats (matches single-player / lobby). */
+export const SERVER_AGENT_AI_DIFFICULTY: AIDifficulty = 'normal';
+
 export const buildBotAction = (
   state: GameState,
   playerId: PlayerId,
   map: SolarSystemMap,
-  difficulty: AIDifficulty = 'hard',
+  difficulty: AIDifficulty = SERVER_AGENT_AI_DIFFICULTY,
   // The caller should pass the match RNG (same one used by action
   // processing) so the bot's passenger-escort lookahead stays deterministic
   // with the authoritative resolution. Callers without a RNG fall back to a
