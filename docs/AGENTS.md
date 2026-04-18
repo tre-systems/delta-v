@@ -29,6 +29,34 @@ npm run mcp:delta-v
 - repeat until game over
 - `delta_v_close_session`
 
+### Hosted MCP: two-token quick match (leaderboard-eligible)
+
+The local stdio server above uses `delta_v_quick_match_connect` and a WebSocket session. On **production** (`https://delta-v.tre.systems/mcp`), tools use a **matchToken** and never expose raw `code` + `playerToken` to the model if you follow this flow:
+
+1. **Mint an agent token** — `POST https://delta-v.tre.systems/api/agent-token` with JSON `{ "playerKey": "agent_yourStableId" }`. Response includes `token` (JWT-like opaque string).
+2. **Authorize every MCP request** — send `Authorization: Bearer <token>` on each `POST …/mcp` JSON-RPC call.
+3. **Queue a match** — call tool `delta_v_quick_match` (no args). Response includes `matchToken` (opaque per-match credential).
+4. **Drive the game** — pass `matchToken` on `delta_v_wait_for_turn`, `delta_v_get_observation`, `delta_v_send_action`, etc., with the **same** Bearer header.
+
+Details, token lifetimes, and failure modes: [SECURITY.md](./SECURITY.md) (remote MCP token model) and [DELTA_V_MCP.md](./DELTA_V_MCP.md). Deep protocol: [AGENT_SPEC.md](../AGENT_SPEC.md).
+
+### Offline benchmark (`scripts/benchmark.ts`)
+
+For repeatable agent evaluation **without** a live Worker, run the in-process harness (same stdin/stdout contract as `scripts/llm-player.ts --agent command`):
+
+```bash
+npm run benchmark -- \
+  --agent-command "npm run llm:agent:recommended --silent" \
+  --opponent hard \
+  --scenario duel \
+  --games 20
+```
+
+Progress prints to **stderr**; a JSON summary prints to **stdout** (or `--output path.json`). Each entry in `matchups[]` includes:
+
+- **`winRate`**, **`elo`** — logistic Elo estimate vs that opponent difficulty, anchored so built-in **easy ≈ 1000**, **normal ≈ 1200**, **hard ≈ 1400** (see `OPPONENT_ANCHOR_ELO` in `scripts/benchmark.ts`). Use the same anchors to compare runs across versions.
+- **`actionValidityRate`** — accepted decisions / total; **`timeoutRate`**, **`parseErrorRate`**, **`crashes`** — stability signals.
+
 ## Quick start (bridge path)
 
 Host:
