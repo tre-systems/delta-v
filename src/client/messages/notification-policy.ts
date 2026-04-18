@@ -39,3 +39,40 @@ export const preferNotificationChannel = (
   notificationChannelPrecedenceIndex(a) <= notificationChannelPrecedenceIndex(b)
     ? a
     : b;
+
+export type ToastDedupeType = 'error' | 'info' | 'success';
+
+/** Default window for suppressing identical transient toasts. */
+export const TOAST_DEDUPE_WINDOW_MS = 450;
+
+export interface ToastDedupeGate {
+  /**
+   * Returns false when the same non-error toast+message was emitted inside
+   * the dedupe window. Errors always return true so repeated failures are
+   * never silently dropped.
+   */
+  allow: (message: string, type: ToastDedupeType) => boolean;
+}
+
+export const createToastDedupeGate = (
+  windowMs: number = TOAST_DEDUPE_WINDOW_MS,
+): ToastDedupeGate => {
+  let last: { message: string; type: ToastDedupeType; at: number } | null =
+    null;
+  return {
+    allow(message, type) {
+      if (type === 'error') return true;
+      const now = Date.now();
+      if (
+        last &&
+        last.message === message &&
+        last.type === type &&
+        now - last.at < windowMs
+      ) {
+        return false;
+      }
+      last = { message, type, at: now };
+      return true;
+    },
+  };
+};

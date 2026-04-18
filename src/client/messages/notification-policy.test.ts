@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
+  createToastDedupeGate,
   NOTIFICATION_CHANNEL_PRECEDENCE,
   notificationChannelPrecedenceIndex,
   preferNotificationChannel,
@@ -34,5 +35,30 @@ describe('preferNotificationChannel', () => {
 
   it('returns the first argument on a tie', () => {
     expect(preferNotificationChannel('toast', 'toast')).toBe('toast');
+  });
+});
+
+describe('createToastDedupeGate', () => {
+  it('blocks duplicate info toasts inside the window', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(0);
+    const gate = createToastDedupeGate(200);
+    expect(gate.allow('hello', 'info')).toBe(true);
+    expect(gate.allow('hello', 'info')).toBe(false);
+    vi.setSystemTime(250);
+    expect(gate.allow('hello', 'info')).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it('never blocks duplicate errors', () => {
+    const gate = createToastDedupeGate(10_000);
+    expect(gate.allow('oops', 'error')).toBe(true);
+    expect(gate.allow('oops', 'error')).toBe(true);
+  });
+
+  it('treats success and info as distinct types', () => {
+    const gate = createToastDedupeGate(200);
+    expect(gate.allow('x', 'info')).toBe(true);
+    expect(gate.allow('x', 'success')).toBe(true);
   });
 });
