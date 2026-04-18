@@ -111,9 +111,9 @@ Verify the current engine matches the rulebook on:
 
 ### Add ordnance AI regression fixtures for impossible-shot launches
 
-The research pass produced concrete geometries where `hard` AI still launches despite no credible 5-turn intercept window. Encode those as deterministic tests before retuning heuristics: divergent-vector nuke case, long-range torpedo no-shot case, and friendly-lane exclusion cases for mine / nuke launches. This keeps future sweeps from reintroducing "fires wildly" behavior after tuning changes.
+**Partial (2026-04-18):** `driftingEnemyWouldBeHitByOpenSpaceBallistic` + `EMPTY_SOLAR_MAP` in `test-helpers.ts` approximate ordnance kinematics on an empty map; Vitest locks a divergent **torpedo** and **nuke** geometry where the helper reports **no** intercept but `hard` `aiOrdnance` still commits (comments mark where expectations should flip once vector intercept gating lands). **Still open:** friendly-lane / same-stack cases, fixtures on the real `buildSolarSystemMap()` with gravity, and optional `game-engine.test.ts` integration seeds.
 
-**Files:** `src/shared/ai.test.ts`, `src/shared/engine/game-engine.test.ts`, optional small fixture helpers under `src/shared/test-helpers.ts`
+**Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
 
 ---
 
