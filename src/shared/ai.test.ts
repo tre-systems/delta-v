@@ -39,6 +39,7 @@ const aiOrdnance = (
 ): OrdnanceLaunch[] => rawAiOrdnance(state, playerId, map, difficulty, rng);
 
 import { findDirectionToward, pickNextCheckpoint } from './ai/common';
+import { evaluateOrdnanceLaunchIntercept } from './ai/ordnance';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import {
@@ -1767,6 +1768,51 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
         enemyVelocity: { dq: 0, dr: 0 },
       }),
     ).toBe(true);
+  });
+
+  it('evaluateOrdnanceLaunchIntercept matches drift-helper geometry on empty map', () => {
+    const ordnanceVelocity = { dq: 1, dr: 0 };
+    const enemyStart = { q: 3, r: 0 };
+    const enemyVelocity = { dq: 0, dr: 0 };
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        map: EMPTY_SOLAR_MAP,
+        ordnanceStart: { q: 0, r: 0 },
+        ordnanceVelocity,
+        enemyStart,
+        enemyVelocity,
+      }),
+    ).toBe(true);
+
+    const aiShip = createTestShip({
+      id: asShipId('p1-launch'),
+      owner: 1,
+      position: { q: 0, r: 0 },
+      velocity: ordnanceVelocity,
+    });
+    const enemy = createTestShip({
+      id: asShipId('p0-target'),
+      owner: 0,
+      position: enemyStart,
+      velocity: enemyVelocity,
+    });
+    const state = createTestState({
+      ships: [enemy, aiShip],
+      scenarioRules: { allowedOrdnanceTypes: ['nuke'] },
+    });
+    const assessment = evaluateOrdnanceLaunchIntercept(
+      state,
+      1,
+      {
+        shipId: aiShip.id,
+        ordnanceType: 'nuke',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
+      EMPTY_SOLAR_MAP,
+    );
+    expect(assessment.hasIntercept).toBe(true);
+    expect(assessment.targetShipId).toBe(enemy.id);
   });
 
   it('does not fire a torpedo when open-space drift model shows no intercept', () => {
