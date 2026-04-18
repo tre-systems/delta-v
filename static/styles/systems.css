@@ -267,3 +267,20 @@
 .log-enemy { color: var(--danger); }
 .log-env { color: var(--accent); }
 .log-obj { color: var(--warning); }
+
+@media (prefers-contrast: more) {
+  #phaseAlert {
+    backdrop-filter: none;
+    background: #0a1426;
+    border-color: var(--border);
+  }
+}
+
+@media (forced-colors: active) {
+  #phaseAlert {
+    backdrop-filter: none;
+    background: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+}

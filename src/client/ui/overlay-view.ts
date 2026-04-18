@@ -1,5 +1,6 @@
 import { byId, clearHTML, el, hide, listen, show, text, visible } from '../dom';
 import { isClientFeatureEnabled } from '../feature-flags';
+import { createToastDedupeGate } from '../messages/notification-policy';
 import {
   computed,
   createDisposalScope,
@@ -21,6 +22,7 @@ import type { OverlayStateStore } from './overlay-state';
  *
  * Precedence helpers: `NOTIFICATION_CHANNEL_PRECEDENCE` and
  * `preferNotificationChannel` in `src/client/messages/notification-policy.ts`.
+ * Identical non-error toasts are deduped via `createToastDedupeGate` there.
  */
 export interface OverlayView {
   showToast: (message: string, type?: 'error' | 'info' | 'success') => void;
@@ -264,11 +266,13 @@ export const createOverlayView = (
   };
 
   const gameOverStatsEl = byId('gameOverStats');
+  const toastDedupe = createToastDedupeGate();
 
   const showToast = (
     message: string,
     type: 'error' | 'info' | 'success' = 'info',
   ): void => {
+    if (!toastDedupe.allow(message, type)) return;
     const id = nextToastId++;
     toastsSignal.update((toasts) => [...toasts, { id, message, type }]);
 
