@@ -182,24 +182,18 @@ const pushEvent = (session: DeltaVSession, message: S2C): void => {
 // Triplanetary uses I-Go-You-Go turns: each player completes all phases
 // (astrogation → ordnance → movement → combat → resupply) before the
 // other player goes. Only fleetBuilding is truly simultaneous (both
-// players submit purchases before the game starts).
-//
-// Astrogation is treated as actionable for both seats so agents can
-// pre-submit orders while the opponent's turn resolves. The server
-// holds pending orders in `pendingAstrogationOrders` until the phase
-// actually reaches this player. This avoids forcing agents to poll
-// for their exact turn window.
+// players submit purchases before the game starts). Astrogation and every
+// later phase require state.activePlayer === playerId — same contract as
+// `src/server/game-do/mcp-handlers.ts` so `delta_v_wait_for_turn` does not
+// unblock with candidates for the wrong seat (NOT_YOUR_TURN on send).
 const isActionable = (state: GameState, playerId: PlayerSeat): boolean => {
   switch (state.phase) {
     case 'waiting':
     case 'gameOver':
       return false;
     case 'fleetBuilding':
-    case 'astrogation':
-      // Fleet building: genuinely simultaneous (both submit before start).
-      // Astrogation: sequential per Triplanetary rules, but we allow
-      // pre-submission so agents don't miss their turn window.
       return true;
+    case 'astrogation':
     case 'ordnance':
     case 'combat':
     case 'logistics':
@@ -522,7 +516,7 @@ server.registerTool(
   'delta_v_wait_for_turn',
   {
     description:
-      "Block until it is the caller's turn to act (or the fleetBuilding/astrogation phase opens, which both seats can act in), then return a fresh observation. Eliminates polling for MCP agents. Respects a timeout (default 30s) and throws if the game reaches gameOver before becoming actionable. Supports the same v2 enrichment toggles as delta_v_get_observation.",
+      "Block until it is the caller's turn to act (fleetBuilding: both seats; every other phase including astrogation: state.activePlayer must match this seat), then return a fresh observation. Eliminates polling for MCP agents. Respects a timeout (default 30s) and throws if the game reaches gameOver before becoming actionable. Supports the same v2 enrichment toggles as delta_v_get_observation.",
     inputSchema: {
       sessionId: z.string(),
       timeoutMs: z.number().int().min(1_000).max(300_000).optional(),

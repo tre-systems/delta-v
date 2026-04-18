@@ -606,8 +606,8 @@ const handleActionRequest = async (
 
   // Wait until the publishStateChange triggered by our action lands, or
   // until a state-bearing event arrives that lets us compute effects. The
-  // accepted-but-pending case (e.g. simultaneous astrogation waiting on the
-  // opponent) returns with pending=true after the timeout.
+  // accepted-but-pending case (e.g. fleet-building still waiting on the other
+  // seat) returns with pending=true after the timeout.
   while (Date.now() < deadline) {
     const after = await resolvePlayerState(deps, playerId);
     if (after && after.state !== stateBefore) {

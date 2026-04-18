@@ -53,7 +53,7 @@ Note your `playerId` from the response. If this returns an error (gameOver or ti
 On each observation:
 
 1. If `state.phase === 'gameOver'`: announce result, call `delta_v_close_session`. Done.
-2. If it's not your turn: Triplanetary uses I-Go-You-Go turns — one player completes all phases before the other goes. If `state.activePlayer !== playerId`, call `delta_v_wait_for_turn` (timeoutMs: 30000). Exception: during `astrogation` phase you can pre-submit orders even when it's not your turn (the server holds them). If wait errors with gameOver, get final observation and report result.
+2. If it's not your turn: Triplanetary uses I-Go-You-Go turns — one player completes all phases before the other goes. If `state.activePlayer !== playerId`, call `delta_v_wait_for_turn` (timeoutMs: 30000). That includes **astrogation**: only `state.activePlayer` may submit burns for this phase (same as ordnance/combat/logistics). If wait errors with gameOver, get final observation and report result.
 3. If `coachDirective` is present, read it first: it is short human coaching for this seat. Prefer candidates that honor it when they remain tactically sound; if it conflicts with obvious survival, say so briefly and favor survival.
 4. Read the `summary`, `spatialGrid`, `tactical`, and `labeledCandidates`.
 5. **Analyze the position** using the tactical principles below — don't just pick `recommendedIndex`.
@@ -251,7 +251,7 @@ Evacuate passengers from a doomed station. Speed is everything — get transport
 ## Error Handling
 
 - **`accepted: false`** means the action was rejected. Common causes: wrong phase (the game advanced while you were deciding), invalid ship ID, illegal action. Get a fresh observation and retry.
-- **`accepted: null` (pending)** means the server is waiting for both players (e.g. simultaneous astrogation). Call `delta_v_wait_for_turn` to block until resolved.
+- **`accepted: null` (pending)** means the server is still waiting on a simultaneous step (today: **fleet building** while the other seat finishes picks). Call `delta_v_wait_for_turn` to block until resolved.
 - **`wait_for_turn` error: gameOver** means the game ended while you were waiting. Call `delta_v_get_observation` to see the final state, announce the result.
 - **`wait_for_turn` timeout** means the opponent hasn't moved yet. Retry with a fresh `wait_for_turn`.
 - **Keep playing through errors.** Don't give up on a game because of one rejected action.

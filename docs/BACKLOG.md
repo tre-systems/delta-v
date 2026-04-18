@@ -120,11 +120,11 @@ Local stdio exposes `delta_v_quick_match_connect` plus `delta_v_list_sessions`, 
 
 ### Pick one astrogation turn contract and derive the surfaces from it
 
-`AGENT_SPEC.md`, `static/agent-playbook.json`, `.claude/skills/play/SKILL.md`, and the local stdio MCP all describe astrogation as simultaneous or pre-submittable, but the hosted MCP and the engine gate astrogation on `activePlayer`. Agents currently learn contradictory rules depending on which surface they read first, then see different rejection behavior at runtime. Decide whether astrogation is truly simultaneous, sequential with pre-submit, or sequential only; then make the engine gate, `wait_for_turn` semantics, ActionGuards behavior, playbook JSON, and skill/docs all reflect that single model.
+**Mitigations shipped (2026-04-18):** the engine has always gated astrogation on `activePlayer`; local stdio `delta_v_wait_for_turn` now uses the same `isActionable` contract as hosted MCP (`fleetBuilding` only for both seats). `checkActionGuards` now applies `wrongActivePlayer` in astrogation so auto-stamped guards reject the inactive seat early (matches dispatch behaviour). `AGENT_SPEC.md` §5.1, `.claude/skills/play/SKILL.md`, hosted adapter tool copy, and `mcp-handlers` comments no longer claim simultaneous / pre-submittable astrogation. `static/agent-playbook.json` already described sequential astrogation by `activePlayer`.
 
-**Concrete repro (2026-04-18 exploratory pass):** the local MCP `delta_v_wait_for_turn` returned turn-1 `astrogation` candidates for `playerId: 0` while the authoritative state still reported `activePlayer: 1`; sending the recommended candidate immediately came back `accepted: false` with `reason: NOT_YOUR_TURN`. Minimum safe fix: make local MCP `isActionable` match the hosted MCP / engine contract (`fleetBuilding` only for simultaneous turns) unless product intentionally extends the engine to accept pre-submitted astrogation orders.
+**Still open:** if product ever wants true pre-submitted astrogation, that requires an explicit engine + protocol change — today’s contract is sequential only after fleet building.
 
-**Files:** `scripts/delta-v-mcp-server.ts`, `src/server/game-do/mcp-handlers.ts`, `src/server/game-do/action-guards.ts`, `src/shared/engine/util.ts`, `static/agent-playbook.json`, `AGENT_SPEC.md`, `.claude/skills/play/SKILL.md`, `docs/DELTA_V_MCP.md`
+**Files:** `scripts/delta-v-mcp-server.ts`, `src/server/game-do/mcp-handlers.ts`, `src/server/game-do/action-guards.ts`, `src/shared/engine/util.ts`, `static/agent-playbook.json`, `AGENT_SPEC.md`, `.claude/skills/play/SKILL.md`, `docs/DELTA_V_MCP.md`, `packages/mcp-adapter/src/handlers.ts`
 
 ### Ship MCP resources: rules, match log, replay
 
