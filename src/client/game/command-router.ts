@@ -1,4 +1,3 @@
-import { SHIP_STATS } from '../../shared/constants';
 import { hexKey } from '../../shared/hex';
 import type {
   FleetPurchase,
@@ -6,10 +5,6 @@ import type {
   PlayerId,
 } from '../../shared/types/domain';
 import { isMuted, playSelect, setMuted } from '../audio';
-import {
-  toastCommandSelectedShip,
-  toastCommandUndoAttack,
-} from '../messages/toasts';
 import {
   type AstrogationActionDeps,
   clearSelectedBurn,
@@ -97,9 +92,7 @@ const setCombatPlan = (
 };
 
 const undoQueuedAttack = (deps: CommandRouterDeps): void => {
-  const count = deps.ctx.planningState.popQueuedAttack();
-
-  deps.ui.overlay.showToast(toastCommandUndoAttack(count), 'info');
+  deps.ctx.planningState.popQueuedAttack();
 };
 
 const getActiveLogisticsContext = (
@@ -158,17 +151,6 @@ const selectShip = (
   if (ship) {
     deps.ctx.planningState.selectShip(shipId, hexKey(ship.position));
     deps.renderer.centerOnHex(ship.position);
-
-    const myAlive = gameState?.ships.filter(
-      (candidate) =>
-        candidate.owner === deps.ctx.getPlayerId() &&
-        candidate.lifecycle !== 'destroyed',
-    );
-
-    if (myAlive && myAlive.length > 1) {
-      const name = SHIP_STATS[ship.type]?.name ?? ship.type;
-      deps.ui.overlay.showToast(toastCommandSelectedShip(name), 'info');
-    }
   } else {
     deps.ctx.planningState.setSelectedShipId(shipId);
   }
