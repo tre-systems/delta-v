@@ -16,7 +16,7 @@ Run WCAG contrast / readability measurements each release using [MANUAL_TEST_PLA
 
 ### Stronger high-contrast modes
 
-Spot-check any `.menu-content` surfaces off `#menu` and remaining game-over chrome in strict **forced-colors** / **prefers-contrast: more** if playtesters report flat contrast.
+Spot-check remaining HUD / systems chrome if playtesters still see flat contrast. **Done for this slice:** `#scenarioSelect` / `#waiting` panels aligned with `#menu` under **prefers-contrast: more** and **forced-colors**; game-over shell, card, kicker, and replay strip use explicit Canvas/contrast-friendly panels.
 
 **Files:** `static/styles/base.css`, `static/styles/components.css`, `static/styles/hud.css`, `static/styles/overlays.css`, `static/styles/systems.css`
 
