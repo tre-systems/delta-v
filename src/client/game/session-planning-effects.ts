@@ -83,8 +83,12 @@ export const attachSessionCombatButtonsEffect = (
 
     const hasTarget = session.planningState.combatTargetId !== null;
     const hasSelection = session.planningState.selectedShipId !== null;
+    const queuedCombat = session.planningState.queuedAttacks.length;
     ui.showAttackButton(isCombatMode && hasTarget);
-    ui.showFireButton(isCombatMode && (hasTarget || hasSelection), 0);
+    ui.showFireButton(
+      isCombatMode && (hasTarget || hasSelection),
+      queuedCombat,
+    );
   });
 
 /**

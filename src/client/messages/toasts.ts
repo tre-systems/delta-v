@@ -58,7 +58,6 @@ export const TOAST = {
   gameplay: {
     orbitalBaseEmplaced: 'Orbital base emplaced!',
     noDetectedEnemies: 'No detected enemies',
-    combatSelectTarget: 'Select an enemy ship or nuke to target',
     combatTargetBlocked: 'Selected target is blocked or has no legal attackers',
     torpedoAimingIntro:
       'Torpedo aiming: choose an adjacent hex for boost, or queue again for a straight shot',
@@ -67,9 +66,6 @@ export const TOAST = {
 
 export const toastJoinInvalidCode = (codeLength: number): string =>
   `Invalid code — must be ${codeLength} characters`;
-
-export const toastCombatAttackQueued = (count: number): string =>
-  `Attack queued (${count}). Press Enter to fire.`;
 
 export const toastCommandUndoAttack = (queuedCount: number): string =>
   queuedCount > 0

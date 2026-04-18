@@ -38,6 +38,7 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   allOrdnanceShipsAcknowledged: false,
   queuedOrdnanceType: null,
   queuedLaunchCount: 0,
+  queuedCombatAttackCount: 0,
   astrogationCtx: defaultCtx,
   speed: 0,
   fuelToStop: 0,
@@ -233,6 +234,19 @@ describe('ui hud helpers', () => {
     });
 
     expect(
+      buildHUDView(
+        buildInput({
+          turn: 5,
+          phase: 'combat',
+          queuedCombatAttackCount: 2,
+        }),
+      ),
+    ).toMatchObject({
+      statusText:
+        'Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done \u00b7 2 attacks queued',
+    });
+
+    expect(
       buildHUDView(buildInput({ turn: 5, phase: 'combat', isMyTurn: false })),
     ).toMatchObject({
       phaseText: "OPPONENT'S TURN",
@@ -383,6 +397,18 @@ describe('ui hud helpers', () => {
       buildHUDView(buildInput({ isMobile: true, phase: 'combat' })).statusText,
     ).toBe(
       'Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done',
+    );
+
+    expect(
+      buildHUDView(
+        buildInput({
+          isMobile: true,
+          phase: 'combat',
+          queuedCombatAttackCount: 1,
+        }),
+      ).statusText,
+    ).toBe(
+      'Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done \u00b7 1 queued',
     );
 
     expect(

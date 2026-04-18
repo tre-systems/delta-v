@@ -332,6 +332,7 @@ export const deriveHudViewModel = (
         )?.ordnanceType ?? null)
       : null,
     queuedLaunchCount: planning.queuedOrdnanceLaunches.length,
+    queuedCombatAttackCount: planning.queuedAttacks.length,
     multipleShipsAlive: myShips.filter(isOrderableShip).length > 1,
     speed: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
     fuelToStop: selectedShip ? hexVecLength(selectedShip.velocity) : 0,

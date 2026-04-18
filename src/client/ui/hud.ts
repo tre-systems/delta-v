@@ -252,6 +252,7 @@ export interface HUDInput {
   allOrdnanceShipsAcknowledged: boolean;
   queuedOrdnanceType: string | null;
   queuedLaunchCount: number;
+  queuedCombatAttackCount: number;
   astrogationCtx: AstrogationContext;
   speed: number;
   fuelToStop: number;
@@ -282,6 +283,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     launchMineState,
     launchTorpedoState,
     launchNukeState,
+    queuedCombatAttackCount,
     astrogationCtx,
     speed,
     fuelToStop,
@@ -317,13 +319,22 @@ export const buildHUDView = (input: HUDInput): HUDView => {
         : phase === 'ordnance'
           ? getOrdnanceStatusText(input, isMobile)
           : phase === 'combat'
-            ? isMobile
-              ? astrogationCtx.hasSelection
-                ? 'Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done'
-                : 'Select a ship or tap a highlighted enemy'
-              : astrogationCtx.hasSelection
-                ? 'Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done'
-                : 'Select a ship or click a highlighted enemy'
+            ? (() => {
+                const q = queuedCombatAttackCount;
+                const queueSuffix =
+                  q > 0
+                    ? isMobile
+                      ? ` \u00b7 ${q} queued`
+                      : ` \u00b7 ${q} attack${q === 1 ? '' : 's'} queued`
+                    : '';
+                return isMobile
+                  ? astrogationCtx.hasSelection
+                    ? `Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done${queueSuffix}`
+                    : `Select a ship or tap a highlighted enemy${queueSuffix}`
+                  : astrogationCtx.hasSelection
+                    ? `Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done${queueSuffix}`
+                    : `Select a ship or click a highlighted enemy${queueSuffix}`;
+              })()
             : phase === 'logistics'
               ? isMobile
                 ? 'Transfer fuel/cargo or skip'

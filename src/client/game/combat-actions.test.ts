@@ -7,7 +7,6 @@ import type {
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
-import { toastCombatAttackQueued } from '../messages/toasts';
 import {
   advanceToNextAttacker,
   autoSkipCombatIfNoTargets,
@@ -291,10 +290,7 @@ describe('combat action helpers', () => {
 
     queueAttack(deps);
 
-    expect(deps.showToast).toHaveBeenLastCalledWith(
-      toastCombatAttackQueued(1),
-      'info',
-    );
+    expect(deps.showToast).not.toHaveBeenCalled();
     expect(deps.planningState.queuedAttacks).toHaveLength(1);
     expect(deps.planningState.combatTargetId).toBeNull();
   });
