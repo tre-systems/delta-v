@@ -1,15 +1,18 @@
 import { canAttack } from '../../shared/combat';
+import type { HexCoord } from '../../shared/hex';
 import type {
   GameState,
   PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { clamp } from '../../shared/util';
+import { playSelect } from '../audio';
 import { TOAST } from '../messages/toasts';
 import { batch } from '../reactive';
 import {
   buildCurrentAttack,
   createCombatTargetPlan,
+  cycleCombatTargetPlan,
   findPreferredTarget,
   getAttackStrengthForSelection,
   hasVisibleCombatTargets,
@@ -265,5 +268,43 @@ export const resetCombatStrengthToMax = (deps: CombatActionDeps) => {
 
   if (maxStrength > 0) {
     deps.planningState.setCombatAttackStrength(maxStrength);
+  }
+};
+
+export const cycleCombatTarget = (
+  deps: CombatActionDeps,
+  direction: 1 | -1,
+  centerOnHex: (hex: HexCoord) => void,
+): void => {
+  const gameState = deps.getGameState();
+
+  if (!gameState || deps.getClientState() !== 'playing_combat') {
+    return;
+  }
+
+  const plan = cycleCombatTargetPlan(
+    gameState,
+    deps.getPlayerId(),
+    deps.planningState,
+    deps.getMap(),
+    direction,
+  );
+
+  if (!plan?.combatTargetId || !plan.combatTargetType) {
+    return;
+  }
+
+  deps.planningState.applyCombatPlanUpdate(plan);
+  playSelect();
+
+  const position =
+    plan.combatTargetType === 'ship'
+      ? gameState.ships.find((ship) => ship.id === plan.combatTargetId)
+          ?.position
+      : gameState.ordnance.find((item) => item.id === plan.combatTargetId)
+          ?.position;
+
+  if (position) {
+    centerOnHex(position);
   }
 };

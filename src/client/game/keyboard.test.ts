@@ -91,6 +91,20 @@ describe('game-client-keyboard', () => {
     });
   });
 
+  it('cycles combat targets with bracket keys during combat', () => {
+    expect(actionFor('[', { state: 'playing_combat' })).toEqual({
+      kind: 'cycleCombatTarget',
+      preventDefault: true,
+      direction: -1,
+    });
+
+    expect(actionFor(']', { state: 'playing_combat' })).toEqual({
+      kind: 'cycleCombatTarget',
+      preventDefault: true,
+      direction: 1,
+    });
+  });
+
   it('routes enter and space by phase', () => {
     expect(
       actionFor('Enter', {
