@@ -24,6 +24,7 @@ const installFixture = () => {
     <div id="hudBottomButtons" class="hud-bottom-buttons is-empty"></div>
     <div id="helpOverlay" hidden>
       <button id="helpCloseBtn"></button>
+      <div id="help-group-movement" style="height: 400px">Movement</div>
     </div>
     <button id="helpBtn"></button>
     <button id="soundBtn"></button>
@@ -275,6 +276,35 @@ describe('HUDChromeView', () => {
         .getElementById('hudBottomButtons')
         ?.classList.contains('is-empty'),
     ).toBe(true);
+  });
+
+  it('opens help to a section and scrolls the target into view', async () => {
+    const scrollIntoView = vi.fn();
+    const movement = document.getElementById(
+      'help-group-movement',
+    ) as HTMLElement;
+    movement.scrollIntoView = scrollIntoView;
+
+    const view = createHUDChromeView({
+      queueLayoutSync: vi.fn(),
+      onStatusText: vi.fn(),
+    });
+
+    const helpOverlay = document.getElementById('helpOverlay') as HTMLElement;
+
+    view.openHelpSection('help-group-movement');
+    await new Promise((r) => {
+      requestAnimationFrame(() => r(undefined));
+    });
+
+    expect(helpOverlay.hasAttribute('hidden')).toBe(false);
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'start',
+    });
+    expect(document.activeElement).toBe(
+      document.getElementById('helpCloseBtn'),
+    );
   });
 
   it('traps focus inside the help overlay and closes it on Escape', async () => {

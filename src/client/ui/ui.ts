@@ -230,6 +230,8 @@ export const createUIManager = (deps: UIManagerDeps) => {
     updateShipList: (ships, selectedId, burns) =>
       shipListView.update(ships, selectedId, burns),
     toggleHelpOverlay: () => hudChromeView.toggleHelpOverlay(),
+    openHelpSection: (sectionElementId) =>
+      hudChromeView.openHelpSection(sectionElementId),
     updateSoundButton: (muted) => hudChromeView.updateSoundButton(muted),
     showAttackButton: (isVisible) => hudChromeView.showAttackButton(isVisible),
     showFireButton: (isVisible, count) =>
