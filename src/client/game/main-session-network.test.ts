@@ -101,6 +101,9 @@ const createDeps = (): MainNetworkDeps => ({
   track: vi.fn(),
   createLocalTransport: vi.fn(() => createTransport()),
   stopTurnTimer: vi.fn(),
+  abortInflightArchivedReplayFetch: vi.fn(),
+  registerArchivedReplayFetchAbort: vi.fn(),
+  releaseArchivedReplayFetchAbortIfMatches: vi.fn(),
 });
 
 describe('main-session-network', () => {
@@ -245,6 +248,7 @@ describe('main-session-network', () => {
 
     exitToMenuFromMain(deps);
 
+    expect(deps.abortInflightArchivedReplayFetch).toHaveBeenCalledOnce();
     expect(mocks.exitToMenuSession).toHaveBeenCalledWith(expect.any(Object));
 
     const exitDeps = mocks.exitToMenuSession.mock.calls[0]?.[0];

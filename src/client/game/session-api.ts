@@ -64,17 +64,36 @@ const classifySessionRequestFailure = (
 const fetchWithTimeout = async (
   input: Parameters<typeof fetch>[0],
   init?: Parameters<typeof fetch>[1],
+  externalSignal?: AbortSignal,
 ): Promise<Response> => {
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), SESSION_REQUEST_TIMEOUT_MS);
+  const timeoutAbort = new AbortController();
+  const timer = setTimeout(
+    () => timeoutAbort.abort(),
+    SESSION_REQUEST_TIMEOUT_MS,
+  );
+
+  const onExternalAbort = (): void => {
+    timeoutAbort.abort();
+  };
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      clearTimeout(timer);
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+  }
 
   try {
     return await fetch(input, {
       ...(init ?? {}),
-      signal: abort.signal,
+      signal: timeoutAbort.signal,
     });
   } finally {
     clearTimeout(timer);
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', onExternalAbort);
+    }
   }
 };
 
@@ -535,12 +554,17 @@ export const createSessionApi = (deps: SessionApiDeps) => {
   const fetchArchivedReplay = async (
     code: string,
     gameId: string,
+    signal?: AbortSignal,
   ): Promise<import('../../shared/replay').ReplayTimeline | null> => {
     try {
       const url = new URL(`/replay/${code}`, window.location.origin);
       url.searchParams.set('viewer', 'spectator');
       url.searchParams.set('gameId', gameId);
-      const response = await fetchWithTimeout(url.toString());
+      const response = await fetchWithTimeout(
+        url.toString(),
+        undefined,
+        signal,
+      );
 
       if (!response.ok) {
         deps.track('archived_replay_fetch_failed', {
@@ -554,6 +578,9 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       deps.track('archived_replay_fetch_succeeded', { gameId });
       return (await response.json()) as import('../../shared/replay').ReplayTimeline;
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return null;
+      }
       const failureKind = classifySessionRequestFailure(err);
       deps.track('archived_replay_fetch_failed', {
         reason: failureKind === 'timeout' ? 'timeout' : 'network',

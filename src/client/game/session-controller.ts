@@ -103,6 +103,7 @@ export interface ArchivedReplaySessionDeps {
   fetchArchivedReplay: (
     code: string,
     gameId: string,
+    signal?: AbortSignal,
   ) => Promise<import('../../shared/replay').ReplayTimeline | null>;
   applyGameState: (state: GameState) => void;
   startArchivedReplay: (
@@ -331,6 +332,7 @@ export const beginArchivedReplaySession = async (
   deps: ArchivedReplaySessionDeps,
   code: string,
   gameId: string,
+  fetchSignal?: AbortSignal,
 ): Promise<void> => {
   prepareRemoteSession(deps.ctx as ClientSession, true);
   deps.resetTurnTelemetry();
@@ -343,7 +345,11 @@ export const beginArchivedReplaySession = async (
     connecting: true,
   });
 
-  const timeline = await deps.fetchArchivedReplay(code, gameId);
+  const timeline = await deps.fetchArchivedReplay(code, gameId, fetchSignal);
+
+  if (fetchSignal?.aborted) {
+    return;
+  }
 
   if (!timeline || timeline.entries.length === 0) {
     deps.showToast(TOAST.sessionController.replayUnavailable, 'error');
