@@ -571,3 +571,10 @@
   }
 
 }
+
+@media (min-width: 1024px) {
+  #menu .menu-content,
+  #scenarioSelect .menu-content {
+    width: min(640px, 100%);
+  }
+}
