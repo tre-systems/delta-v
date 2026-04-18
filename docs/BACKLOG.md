@@ -4,6 +4,10 @@ Unfinished actionable work, in one global priority order. Shipped history lives 
 
 The sections below are grouped by theme but ordered within each group by priority. Gameplay-feel items (P1) translate most directly into a better player experience; architecture-solidity items (P2) unblock confident iteration on P1.
 
+## Recently shipped (2026-04-18)
+
+Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; stronger placeholders and `prefers-contrast: more` / `forced-colors: active` baselines; HUD default|large text scale (localStorage + lobby controls + `html[data-hud-scale]` CSS); help overlay jump links + TOC styling; quick-match waiting elapsed time; scenario `lobbyMeta` rendered on lobby cards; difficulty `role="radiogroup"` and hint line; wider menu/scenario shell at ≥1024px; ship-list bottom fade when scrollable; larger burn/overload hit targets; chat character counter; reconnect reassurance copy; game-over rematch auto-focus; `#hudBoardSummary` live region for board context; Ko-fi image dimensions; shorter welcome tutorial line; `src/client/messages/notification-policy.ts` as documented channel names (runtime deduplication enforcement still open below).
+
 ---
 
 ## Gameplay UX & matchmaking integrity
@@ -148,7 +152,11 @@ HUD and menu buttons are uppercased via CSS `text-transform`, but scenario title
 
 ## Cost & abuse hardening
 
-Findings from a 2026-04-17 cost-surface review. Ordered by expected blast radius on billing and auth integrity. See [SECURITY.md](./SECURITY.md) for the posture these close.
+Findings from a 2026-04-17 cost-surface review. Ordered by expected blast radius on billing and auth integrity.
+
+**Current baseline (already enforced):** see [SECURITY.md](./SECURITY.md) — join/replay hashed-IP GET throttles, WebSocket upgrade cap, per-socket message rate limit, chat throttle, telemetry POST caps, authoritative room creation, MCP two-token model with `AGENT_TOKEN_SECRET` fail-closed in production.
+
+**Still backlog / trigger-gated:** WAF or `[[ratelimits]]` if baseline throttles prove insufficient; Turnstile on human name claim; proof-of-work on bulk agent name claims; spectator delay for serious competition. Concrete file hooks are listed under [Future features](#future-features-not-currently-planned) where applicable.
 
 ---
 
