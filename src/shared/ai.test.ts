@@ -1817,4 +1817,91 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
     const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
     expect(launches.some((l) => l.ordnanceType === 'nuke')).toBe(false);
   });
+
+  it('hard AI does not commit a nuke whose ballistic lane crosses a friendly', () => {
+    const lead = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      cargoUsed: 0,
+    });
+    const wing = createTestShip({
+      id: asShipId('p1-wing'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: 1, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const enemy = createTestShip({
+      id: asShipId('p0-dn'),
+      owner: 0,
+      type: 'dreadnaught',
+      position: { q: 5, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        map: EMPTY_SOLAR_MAP,
+        ordnanceStart: lead.position,
+        ordnanceVelocity: { ...lead.velocity },
+        enemyStart: enemy.position,
+        enemyVelocity: enemy.velocity,
+      }),
+    ).toBe(true);
+
+    const state = createTestState({
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['nuke', 'torpedo'] },
+      ships: [enemy, wing, lead],
+    });
+    const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
+    expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
+  });
+
+  it('hard AI skips a nuke when grouped anti-nuke geometry is too strong', () => {
+    const lead = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      cargoUsed: 0,
+    });
+    const primary = createTestShip({
+      id: asShipId('p0-dn'),
+      owner: 0,
+      type: 'dreadnaught',
+      position: { q: 4, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const pickets = [
+      { q: 1, r: 0 },
+      { q: 1, r: -1 },
+      { q: 0, r: -1 },
+      { q: -1, r: 0 },
+      { q: -1, r: 1 },
+      { q: 0, r: 1 },
+    ].map((pos, i) =>
+      createTestShip({
+        id: asShipId(`p0-p${i}`),
+        owner: 0,
+        type: 'corvette',
+        position: pos,
+        velocity: { dq: 0, dr: 0 },
+        cargoUsed: 0,
+      }),
+    );
+    const state = createTestState({
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['nuke', 'torpedo'] },
+      ships: [primary, ...pickets, lead],
+    });
+    const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
+    expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
+  });
 });

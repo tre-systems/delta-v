@@ -1,5 +1,12 @@
-import { canAttack, getCombatStrength } from '../combat';
-import { SHIP_STATS } from '../constants';
+import {
+  canAttack,
+  computeGroupRangeModToTarget,
+  computeGroupVelocityModToTarget,
+  getCombatStrength,
+  hasLineOfSightToTarget,
+  lookupGunCombat,
+} from '../combat';
+import { ANTI_NUKE_ODDS, SHIP_STATS } from '../constants';
 import { validateOrdnanceLaunch } from '../engine/util';
 import {
   HEX_DIRECTIONS,
@@ -20,6 +27,7 @@ import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   GameState,
   GravityEffect,
+  Ordnance,
   OrdnanceLaunch,
   PlayerId,
   Ship,
@@ -119,6 +127,145 @@ const findBallisticIntercept = (
   }
 
   return { hasIntercept: false, turnsToIntercept: Number.POSITIVE_INFINITY };
+};
+
+const clonePendingEffects = (ship: Ship): GravityEffect[] =>
+  (ship.pendingGravityEffects ?? []).map((e) => ({
+    ...e,
+    hex: { ...e.hex },
+  }));
+
+/** Same stepping as `findBallisticIntercept`, plus friendly-ship path risk. */
+const assessNukeBallisticToEnemy = (
+  launcher: Ship,
+  enemy: Ship,
+  allyBlockers: Ship[],
+  map: SolarSystemMap,
+  turns = 5,
+): {
+  hasIntercept: boolean;
+  turnsToIntercept: number;
+  blockedByFriendly: boolean;
+} => {
+  let ordPos: HexCoord = { ...launcher.position };
+  let ordVel: HexVec = { ...launcher.velocity };
+  let ordPending: GravityEffect[] = [];
+  let enemyPos: HexCoord = { ...enemy.position };
+  let enemyVel: HexVec = { ...enemy.velocity };
+  let enemyPending: GravityEffect[] = clonePendingEffects(enemy);
+
+  const allyStates = allyBlockers.map((ally) => ({
+    pos: { ...ally.position } as HexCoord,
+    vel: { ...ally.velocity } as HexVec,
+    pending: clonePendingEffects(ally),
+  }));
+
+  for (let turn = 1; turn <= turns; turn++) {
+    const ordStep = projectBallisticStep(ordPos, ordVel, ordPending, map);
+    const enemyStep = projectBallisticStep(
+      enemyPos,
+      enemyVel,
+      enemyPending,
+      map,
+    );
+    const allySteps = allyStates.map((a) =>
+      projectBallisticStep(a.pos, a.vel, a.pending, map),
+    );
+
+    const ordPathKeys = new Set(ordStep.path.map((hex) => `${hex.q},${hex.r}`));
+
+    for (const allyStep of allySteps) {
+      const crossesFriendly = allyStep.path.some((hex) =>
+        ordPathKeys.has(`${hex.q},${hex.r}`),
+      );
+      if (crossesFriendly) {
+        return {
+          hasIntercept: false,
+          turnsToIntercept: Number.POSITIVE_INFINITY,
+          blockedByFriendly: true,
+        };
+      }
+    }
+
+    const intersectsEnemy = enemyStep.path.some((hex) =>
+      ordPathKeys.has(`${hex.q},${hex.r}`),
+    );
+
+    if (intersectsEnemy) {
+      return {
+        hasIntercept: true,
+        turnsToIntercept: turn,
+        blockedByFriendly: false,
+      };
+    }
+
+    ordPos = ordStep.to;
+    ordVel = ordStep.newVelocity;
+    ordPending = ordStep.pendingGravityEffects;
+    enemyPos = enemyStep.to;
+    enemyVel = enemyStep.newVelocity;
+    enemyPending = enemyStep.pendingGravityEffects;
+    for (let i = 0; i < allyStates.length; i++) {
+      const step = allySteps[i];
+      const st = allyStates[i];
+      st.pos = step.to;
+      st.vel = step.newVelocity;
+      st.pending = step.pendingGravityEffects;
+    }
+  }
+
+  return {
+    hasIntercept: false,
+    turnsToIntercept: Number.POSITIVE_INFINITY,
+    blockedByFriendly: false,
+  };
+};
+
+const groupedAntiNukeVolleyDestroyProbability = (
+  attackers: Ship[],
+  target: Pick<Ship | Ordnance, 'position' | 'velocity'>,
+): number => {
+  if (attackers.length === 0) return 0;
+  const rangeMod = computeGroupRangeModToTarget(attackers, target);
+  const velocityMod = computeGroupVelocityModToTarget(attackers, target);
+  let destroyOutcomes = 0;
+  for (let die = 1; die <= 6; die++) {
+    const result = lookupGunCombat(
+      ANTI_NUKE_ODDS,
+      die - rangeMod - velocityMod,
+    );
+    if (result.type !== 'none') {
+      destroyOutcomes += 1;
+    }
+  }
+  return destroyOutcomes / 6;
+};
+
+const estimateNukeReachSurvival = (
+  ship: Ship,
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+  turnsToIntercept: number,
+): number => {
+  if (!Number.isFinite(turnsToIntercept) || turnsToIntercept <= 0) {
+    return 0;
+  }
+  const synthetic: Pick<Ship | Ordnance, 'position' | 'velocity'> = {
+    position: ship.position,
+    velocity: ship.velocity,
+  };
+  const attackers = state.ships.filter(
+    (s) =>
+      s.owner !== playerId &&
+      s.lifecycle === 'active' &&
+      canAttack(s) &&
+      hasLineOfSightToTarget(s, synthetic, map),
+  );
+  const pVolley = groupedAntiNukeVolleyDestroyProbability(attackers, synthetic);
+  const pSurvive = 1 - pVolley;
+  const volleyCount = Math.min(5, Math.max(1, Math.ceil(turnsToIntercept)));
+  return pSurvive ** volleyCount;
 };
 
 const pickTorpedoInterceptVector = (
@@ -326,10 +473,16 @@ export const aiOrdnance = (
     const bestEnemy = bestEnemyTarget.enemy;
     const bestEnemyCurrentDist = bestEnemyTarget.currentDistance;
     const bestEnemyPredictedDist = bestEnemyTarget.predictedDistance;
-    const nukeIntercept = findBallisticIntercept(
-      ship.position,
-      ship.velocity,
+    const allyNukeBlockers = state.ships.filter(
+      (other) =>
+        other.id !== ship.id &&
+        other.owner === playerId &&
+        other.lifecycle === 'active',
+    );
+    const nukeIntercept = assessNukeBallisticToEnemy(
+      ship,
       bestEnemy,
+      allyNukeBlockers,
       map,
     );
     const torpedoVector = pickTorpedoInterceptVector(ship, bestEnemy, map);
@@ -337,7 +490,8 @@ export const aiOrdnance = (
       validateOrdnanceLaunch(state, ship, 'nuke', map) === null &&
       !hasFriendlyLaunchStack &&
       (ship.passengersAboard ?? 0) === 0 &&
-      nukeIntercept.hasIntercept;
+      nukeIntercept.hasIntercept &&
+      !nukeIntercept.blockedByFriendly;
     const canLaunchTorpedo =
       validateOrdnanceLaunch(state, ship, 'torpedo', map) === null &&
       torpedoVector !== null;
@@ -383,7 +537,25 @@ export const aiOrdnance = (
         ((bestEnemy.passengersAboard ?? 0) > 0 &&
           bestEnemyCurrentDist <= cfg.nukeStrengthRange);
 
-      if (shouldUseNuke && bestEnemyCurrentDist <= cfg.nukeStrengthRange) {
+      const nukeReachSurvival =
+        cfg.nukeMinReachProbability > 0
+          ? estimateNukeReachSurvival(
+              ship,
+              state,
+              playerId,
+              map,
+              nukeIntercept.turnsToIntercept,
+            )
+          : 1;
+      const antiNukeGateOk =
+        cfg.nukeMinReachProbability <= 0 ||
+        nukeReachSurvival >= cfg.nukeMinReachProbability;
+
+      if (
+        shouldUseNuke &&
+        bestEnemyCurrentDist <= cfg.nukeStrengthRange &&
+        antiNukeGateOk
+      ) {
         launches.push({
           shipId: ship.id,
           ordnanceType: 'nuke',
