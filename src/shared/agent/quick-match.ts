@@ -3,6 +3,7 @@
 // Keep this side-effect free (only calls fetch + setTimeout) so it stays
 // safe to import from anywhere.
 
+import { isValidScenario } from '../map-data';
 import type { QuickMatchResponse } from '../matchmaking';
 
 export interface QuickMatchArgs {
@@ -58,6 +59,9 @@ export const queueForMatch = async (
   const serverUrl = normalizeQuickMatchServerUrl(args.serverUrl);
   const pollMs = args.pollMs ?? DEFAULT_POLL_MS;
   const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  if (!isValidScenario(args.scenario)) {
+    throw new Error(`Unknown scenario: ${args.scenario}`);
+  }
 
   let bearer = args.authorizationBearer;
   if (args.playerKey.startsWith('agent_') && !bearer) {

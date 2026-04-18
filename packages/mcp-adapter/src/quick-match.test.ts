@@ -39,6 +39,18 @@ describe('queueRemoteMatch', () => {
     ).rejects.toThrow(/agent_/);
   });
 
+  it('rejects unknown scenarios before enqueueing', async () => {
+    const { env, calls } = buildEnv(() => new Response('{}'));
+    await expect(
+      queueRemoteMatch(env, {
+        scenario: 'not-a-real-scenario',
+        username: 'tester',
+        playerKey: 'agent_test_unknown_scenario',
+      }),
+    ).rejects.toThrow('Unknown scenario: not-a-real-scenario');
+    expect(calls).toEqual([]);
+  });
+
   it('returns match details after matchmaker pairs', async () => {
     let pollCount = 0;
     const { env, calls } = buildEnv((req) => {
