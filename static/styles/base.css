@@ -232,6 +232,15 @@ body::before {
     --muted-strong: rgba(208, 219, 238, 0.96);
   }
 
+  .screen {
+    backdrop-filter: none;
+    background: rgba(4, 9, 18, 0.94);
+  }
+
+  .menu-content {
+    background: #0c1629;
+  }
+
   .menu-surface-note {
     color: rgba(226, 234, 252, 0.92);
   }
@@ -249,6 +258,17 @@ body::before {
   .game-log,
   .hud-bar,
   .hud-bottom-buttons {
+    border-color: CanvasText;
+  }
+
+  .screen {
+    backdrop-filter: none;
+    background: Canvas;
+  }
+
+  .menu-content {
+    background: Canvas;
+    color: CanvasText;
     border-color: CanvasText;
   }
 }

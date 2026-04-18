@@ -1388,3 +1388,75 @@ h2.game-over-neutral {
   box-shadow: var(--btn-shadow);
   filter: none;
 }
+
+@media (prefers-contrast: more) {
+  .overlay-panel {
+    backdrop-filter: none;
+    background: linear-gradient(180deg, #101a30, #060d1a);
+  }
+
+  .reconnect-overlay {
+    backdrop-filter: none;
+    background: rgba(4, 9, 18, 0.96);
+  }
+
+  .toast {
+    backdrop-filter: none;
+  }
+
+  .tutorial-tip {
+    backdrop-filter: none;
+    background: #070e1c;
+  }
+
+  .help-btn,
+  .sound-btn {
+    backdrop-filter: none;
+    background: var(--panel-strong);
+  }
+
+  .help-toc,
+  .help-group {
+    background: rgba(10, 18, 34, 0.96);
+    border-color: var(--border);
+  }
+}
+
+@media (forced-colors: active) {
+  .overlay-panel {
+    backdrop-filter: none;
+    background: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+
+  .reconnect-overlay {
+    backdrop-filter: none;
+    background: Canvas;
+  }
+
+  .toast {
+    backdrop-filter: none;
+  }
+
+  .tutorial-tip {
+    backdrop-filter: none;
+    background: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+
+  .help-btn,
+  .sound-btn {
+    backdrop-filter: none;
+    background: Canvas;
+    color: CanvasText;
+    border-color: CanvasText;
+  }
+
+  .help-toc,
+  .help-group {
+    background: Canvas;
+    border-color: CanvasText;
+  }
+}
