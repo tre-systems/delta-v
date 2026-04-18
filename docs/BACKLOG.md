@@ -123,6 +123,74 @@ Four papercuts hit while pairing a local MCP agent against a human browser seat 
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/shared/agent/`, `src/shared/types/protocol.ts`, `.claude/skills/play/SKILL.md`
 
+### Local MCP: reconnect-by-matchToken, survive wait_for_turn timeouts
+
+A 2026-04-18 exploratory pass found that `wait_for_turn` timing out **destroys the local MCP session**: subsequent `get_state` returns `Unknown sessionId` and `list_sessions` is empty, while the match continues on the server and the browser client surfaces *"Your fleet and plotted burns are saved — we're restoring the match state."* Local MCP has no tool to rejoin an in-flight match by `matchToken` / `sessionId`. This forces agents to redo matchmaking after every transient timeout and cedes the seat to server-side fallback behaviour (implicit coast / auto-confirm), which is a serious footgun for long-running autonomous play.
+
+Minimum fixes: keep the session handle alive across `wait_for_turn` timeouts (timeout = "not actionable yet", not "tear down"), and add a `delta_v_reconnect` (or let `quick_match_connect` accept an existing `matchToken` as a resume path) so agents can recover from dropped WebSockets the way the browser already does.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, `src/shared/mcp-stdio-serialized-send.ts`, `src/shared/agent/quick-match.ts`, `packages/mcp-adapter/src/handlers.ts`, `docs/DELTA_V_MCP.md`
+
+### Queue-time scenario validation
+
+`quick_match_connect({ scenario: "not-a-real-scenario" })` is accepted silently by the server and only surfaces as an opponent-timeout after the full wait. Validate the scenario against the published list in `/.well-known/agent.json` at enqueue time and return a structured 4xx-style error ("unknown scenario"), so agents fail fast instead of burning their default timeout.
+
+**Files:** `src/server/`, `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts`, `static/.well-known/agent.json`
+
+### Liveness endpoint
+
+No `/healthz` (or `/health` / `/status`) — probes currently must scrape the SPA home page. Add a small JSON endpoint returning `{ ok: true, sha, bootedAt }` for uptime monitors and release gates.
+
+**Files:** `src/server/`, `docs/DEPLOYMENT.md` (if present)
+
+### Match-isolation flag for automated verification
+
+During exploratory pairing on the production server, an MCP agent and a paired browser seat were split across the public queue — the browser matched a real user instead of the intended MCP partner, making exploratory / regression testing both flaky and user-disruptive. Options: a `delta_v_quick_match_connect({ scenario, rendezvousCode })` mode that pairs only with clients presenting the same short code (bypassing the public queue), a `private: true` flag that puts the ticket in a segregated pool, or a dev-only scenario namespace (e.g. `duel:test`) that never mixes with public queues.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/server/`, `src/shared/agent/quick-match.ts`
+
+### Fleet-building behaviour surfaced in MCP tool docs
+
+Observed inconsistency across two duels from the same agent: one match went straight to `astrogation` on the first `wait_for_turn` (implicit `fleetReady`), the next left `fleetBuilding` open and required an explicit `{ type: "fleetReady", purchases: [] }`. Whatever the actual server logic, it is not documented at the tool level and the skill body silently glosses over it. Either make the behaviour deterministic, or document it clearly in the tool description and in [DELTA_V_MCP.md](./DELTA_V_MCP.md) so agents know whether to always send `fleetReady` explicitly after connect.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, `src/server/game-do/`, `docs/DELTA_V_MCP.md`, `.claude/skills/play/SKILL.md`
+
+### Stale `?code=` parameter persistence in URL
+
+Navigating to `https://delta-v.tre.systems/?code=<dead>` correctly falls back to the lobby, but the URL **keeps** the `?code=` parameter across subsequent navigations, which is confusing while debugging and makes "I'm on a fresh lobby" harder to assert from automation. Strip the parameter once the lobby has determined the code is not joinable.
+
+**Files:** `src/client/`, `src/client/ui/`
+
+### Broken `scenario` filter on `/api/matches`
+
+`GET /api/matches?scenario=nonexistent` silently returns all recent matches (all duels in current data) with no indication the filter was ignored. Observed 2026-04-18. Either honor the filter or reject unknown scenario values with a 400; `limit`, `offset`, `winner` params should also be validated and documented (they appear to accept but not enforce).
+
+**Files:** `src/server/`, `static/.well-known/agent.json`
+
+### Playbook vs skill: astrogation simultaneity contradiction
+
+`/agent-playbook.json` declares `phaseActionMap.astrogation.simultaneous: true`, but `.claude/skills/play/SKILL.md` and observed behaviour say astrogation is sequential (I-Go-You-Go, only `state.activePlayer` may submit burns). Pick one source of truth and align the other. If the engine truly is I-Go-You-Go, the playbook's `simultaneous` field is misleading for any agent author consuming the JSON first.
+
+**Files:** `static/agent-playbook.json`, `.claude/skills/play/SKILL.md`, `docs/AGENT_SPEC.md`
+
+### `/join/{code}` returns `GAME_IN_PROGRESS` for completed games
+
+`GET /join/3GMTH` (game completed, turns=17, `completedAt` in the past) responds `{ code: "GAME_IN_PROGRESS", message: "Game not available" }`. For UIs distinguishing "full lobby", "live match", and "archived match" this blurs two cases. Add a `GAME_COMPLETED` discriminator so clients can route users to replay vs spectate vs full-match messaging.
+
+**Files:** `src/server/`
+
+### Public `/api/matches` exposes user-typed usernames
+
+The matches JSON (public, unauthenticated) includes `winnerUsername` / `loserUsername` as the raw callsign the user typed at the lobby. Users entering real names, emails, or personal handles would have those published indefinitely in the public match log. Options: show only the agent playerKey prefix or a hashed handle for non-leaderboard matches, rate-limit per-IP, or warn users at the callsign input that the value will be published. (Pre-launch is the cheapest time to tighten this.)
+
+**Files:** `src/server/`, `static/index.html`, `src/client/ui/` (callsign input warning)
+
+### Hosted-MCP `/mcp` Accept-header error message
+
+Without `Accept: application/json, text/event-stream` the hosted MCP endpoint returns JSON-RPC error `-32000: Not Acceptable: Client must accept both application/json and text/event-stream`. Correct per spec but unhelpful for first-time integrators — the `/agents` doc and `agent.json` `endpoints[].description` for `/mcp` should call out the required Accept header explicitly (it currently only hints at "Streamable-HTTP MCP endpoint").
+
+**Files:** `static/.well-known/agent.json`, `/agents` page source (likely `src/server/` or a static MD)
+
 ### Retire legacy `{code, playerToken}` tool args once leaderboard stabilises
 
 Hosted MCP tools still accept either `matchToken` or `{code, playerToken}` via `matchTargetSchema` in `packages/mcp-adapter/src/handlers.ts`. Carrying both doubles tool-args surface area and forces every call site to branch on auth mode. Once the public leaderboard is live and all active agents have migrated to `matchToken`, drop the legacy union and simplify the adapter — consistent with the pre-launch-deletions stance elsewhere.
