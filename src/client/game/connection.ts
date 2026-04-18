@@ -28,6 +28,7 @@ export interface ConnectionDeps {
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   exitToMenu: () => void;
   trackEvent: (event: string, props?: Record<string, unknown>) => void;
+  webSocketCtor?: typeof WebSocket;
 }
 
 export interface ConnectionManager {
@@ -93,6 +94,7 @@ const parseServerPayload = (
 export const createConnectionManager = (
   deps: ConnectionDeps,
 ): ConnectionManager => {
+  const WebSocketCtor = deps.webSocketCtor ?? WebSocket;
   const runtime: ConnectionRuntime = {
     ws: null,
     pingInterval: null,
@@ -102,7 +104,7 @@ export const createConnectionManager = (
   };
 
   const send = (msg: unknown) => {
-    if (runtime.ws?.readyState === WebSocket.OPEN) {
+    if (runtime.ws?.readyState === WebSocketCtor.OPEN) {
       runtime.ws.send(JSON.stringify(msg));
     }
   };
@@ -115,7 +117,7 @@ export const createConnectionManager = (
   const startPing = () => {
     stopPing();
     runtime.pingInterval = window.setInterval(() => {
-      if (runtime.ws?.readyState === WebSocket.OPEN) {
+      if (runtime.ws?.readyState === WebSocketCtor.OPEN) {
         const sentAt = Date.now();
         send({ type: 'ping', t: sentAt });
       }
@@ -248,7 +250,7 @@ export const createConnectionManager = (
     runtime.suppressDisconnectHandling = false;
     runtime.lastClose = null;
     const spectator = deps.isSpectatorSession();
-    const socket = new WebSocket(
+    const socket = new WebSocketCtor(
       buildWebSocketUrl(
         location,
         code,

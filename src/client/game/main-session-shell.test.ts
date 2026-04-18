@@ -193,6 +193,9 @@ const createArgs = () => {
     tooltipEl: {} as HTMLElement,
     showToast: vi.fn(),
     track: vi.fn(),
+    fetchImpl: vi.fn() as typeof fetch,
+    location: window.location,
+    webSocketCtor: WebSocket,
   };
 };
 
@@ -342,6 +345,27 @@ describe('main-session-shell', () => {
 
     sessionDeps.setMenuLoading(false);
     expect(args.ui.setMenuLoading).toHaveBeenLastCalledWith(false, undefined);
+  });
+
+  it('threads explicit browser seams into connection and session API deps', () => {
+    const args = createArgs();
+    createMainSessionShell(args);
+
+    const connectionDeps = (
+      mocks.createConnectionManager.mock.calls as unknown[][]
+    )[0]?.[0] as { webSocketCtor: typeof WebSocket } | undefined;
+    const sessionApiDeps = (
+      mocks.createSessionApi.mock.calls as unknown[][]
+    )[0]?.[0] as
+      | {
+          fetchImpl: typeof fetch;
+          location: Location;
+        }
+      | undefined;
+
+    expect(connectionDeps?.webSocketCtor).toBe(args.webSocketCtor);
+    expect(sessionApiDeps?.fetchImpl).toBe(args.fetchImpl);
+    expect(sessionApiDeps?.location).toBe(args.location);
   });
 
   it('applies client game state through the shared projection helper', () => {

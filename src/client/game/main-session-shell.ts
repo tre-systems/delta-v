@@ -74,6 +74,9 @@ export interface MainSessionShellDeps {
   tooltipEl: HTMLElement;
   showToast: (message: string, type: ToastType) => void;
   track: (event: string, props?: Record<string, unknown>) => void;
+  fetchImpl: typeof fetch;
+  location: Location;
+  webSocketCtor: typeof WebSocket;
 }
 
 export interface MainSessionShell {
@@ -147,6 +150,7 @@ export const createMainSessionShell = (
     showToast: args.showToast,
     exitToMenu,
     trackEvent: args.track,
+    webSocketCtor: args.webSocketCtor,
   });
 
   const sessionApi = createSessionApi({
@@ -160,6 +164,8 @@ export const createMainSessionShell = (
     setScenario: (scenario) => setScenario(args.ctx, scenario),
     connect: (code) => connection.connect(code),
     track: args.track,
+    fetchImpl: args.fetchImpl,
+    location: args.location,
   });
 
   replayController = createReplayController({
