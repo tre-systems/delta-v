@@ -4,6 +4,7 @@ import {
   computed,
   createDisposalScope,
   effect,
+  registerDisposer,
   signal,
   withScope,
 } from '../reactive';
@@ -175,6 +176,19 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
 
         return entry;
       });
+
+      const syncScrollMask = (): void => {
+        const canScroll = shipListEl.scrollHeight > shipListEl.clientHeight + 2;
+        shipListEl.classList.toggle('ship-list--scrollable', canScroll);
+      };
+
+      syncScrollMask();
+      registerDisposer(listen(shipListEl, 'scroll', syncScrollMask));
+      registerDisposer(
+        listen(window, 'resize', () => {
+          queueMicrotask(syncScrollMask);
+        }),
+      );
     });
   });
 

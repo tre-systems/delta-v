@@ -138,6 +138,9 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const timerEl = byId('turnTimer');
   const attackBtn = byId('attackBtn');
   const fireBtn = byId('fireBtn');
+  const boardSummaryEl = document.getElementById(
+    'hudBoardSummary',
+  ) as HTMLElement | null;
 
   const setMobile = (isMobile: boolean): void => {
     isMobileSignal.value = isMobile;
@@ -243,6 +246,13 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       text(turnInfoEl, hudView.turnText);
       text(phaseInfoEl, hudView.phaseText);
       text(objectiveEl, hudView.objectiveText);
+
+      if (boardSummaryEl) {
+        text(
+          boardSummaryEl,
+          `${hudView.turnText}. ${hudView.phaseText}. ${hudView.objectiveText}`,
+        );
+      }
 
       const compassDeg = hudView.objectiveCompassDegrees;
       if (compassDeg !== null) {

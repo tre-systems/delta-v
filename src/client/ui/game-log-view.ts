@@ -50,6 +50,9 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   const chatInputRow = byId('chatInputRow');
   const chatInput = byId<HTMLInputElement>('chatInput');
   const chatSendBtn = byId('chatSendBtn');
+  const chatCharCounterEl = document.getElementById(
+    'chatCharCounter',
+  ) as HTMLElement | null;
   const logLatestBar = byId('logLatestBar');
   const logLatestText = byId('logLatestText');
   const logStatusText = el('span', {
@@ -161,6 +164,10 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   const setChatEnabled = (enabled: boolean): void => {
     chatEnabledSignal.value = enabled;
     chatInput.value = '';
+    if (chatCharCounterEl) {
+      chatCharCounterEl.textContent = '';
+      chatCharCounterEl.hidden = true;
+    }
   };
 
   const logTurn = (turn: number, player: string): void => {
@@ -228,14 +235,34 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   };
 
   withScope(scope, () => {
-    const submitChat = () => {
+    const CHAT_MAX = 200;
+    const CHAT_LOW = 20;
+
+    const updateChatCounter = (): void => {
+      if (!chatCharCounterEl) return;
+      const remaining = CHAT_MAX - chatInput.value.length;
+      if (remaining > CHAT_LOW) {
+        chatCharCounterEl.textContent = '';
+        chatCharCounterEl.hidden = true;
+        return;
+      }
+      chatCharCounterEl.hidden = false;
+      chatCharCounterEl.textContent = `${remaining} left`;
+    };
+
+    const submitChat = (): void => {
       const text = chatInput.value.trim();
 
       if (!text) return;
 
       deps.onChat(text);
       chatInput.value = '';
+      updateChatCounter();
     };
+
+    listen(chatInput, 'input', () => {
+      updateChatCounter();
+    });
 
     listen(chatInput, 'keydown', (event) => {
       event.stopPropagation();

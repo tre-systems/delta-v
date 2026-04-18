@@ -8,6 +8,12 @@ const SCENARIOS_INTERNAL = {
     name: 'Bi-Planetary',
     tags: ['Beginner'],
     description: '1v1 corvettes race to land on the ' + "opponent's world",
+    lobbyMeta: {
+      beginnerFriendly: true,
+      length: 'short',
+      complexity: 'low',
+      mechanics: ['1v1', 'Corvette start'],
+    },
     players: [
       {
         ships: [
@@ -43,6 +49,11 @@ const SCENARIOS_INTERNAL = {
     tags: ['Asymmetric'],
     description:
       '3 pilgrim transports flee Terra ' + '— enforcers must stop them',
+    lobbyMeta: {
+      length: 'medium',
+      complexity: 'high',
+      mechanics: ['Asymmetric', 'Hidden cargo', 'Escape edge'],
+    },
     rules: {
       allowedOrdnanceTypes: ['nuke'],
       planetaryDefenseEnabled: false,
@@ -214,6 +225,11 @@ const SCENARIOS_INTERNAL = {
     description:
       'Frigates face off across Mercury ' +
       '— use gravity to outmaneuver your opponent',
+    lobbyMeta: {
+      length: 'short',
+      complexity: 'medium',
+      mechanics: ['1v1', 'Combat-heavy'],
+    },
     rules: {
       planetaryDefenseEnabled: false,
       // Duel-only AI scoring: reduce combat-closing pressure so the AI

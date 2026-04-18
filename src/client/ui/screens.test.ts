@@ -50,12 +50,14 @@ describe('ui-screens', () => {
       scenarioText: null,
       showCopyActions: true,
       cancelActionLabel: 'Cancel',
+      quickMatchQueuedAtMs: null,
     });
 
     expect(
       buildWaitingScreenCopy({
         kind: 'quickMatch',
         statusText: 'Searching for an opponent...',
+        queuedAtMs: 1_700_000_000_000,
       }),
     ).toEqual({
       titleText: 'Quick Match',
@@ -65,6 +67,7 @@ describe('ui-screens', () => {
       scenarioText: null,
       showCopyActions: false,
       cancelActionLabel: 'Cancel search',
+      quickMatchQueuedAtMs: 1_700_000_000_000,
     });
   });
 

@@ -139,6 +139,7 @@ const webStorage = (
 export const createSessionApi = (deps: SessionApiDeps) => {
   let quickMatchTicket: string | null = null;
   let quickMatchPlayerKey: string | null = null;
+  let quickMatchQueuedAtMs: number | null = null;
   const quickMatchLock =
     deps.quickMatchLock ??
     (() => {
@@ -158,6 +159,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
   const releaseQuickMatch = (): void => {
     quickMatchTicket = null;
     quickMatchPlayerKey = null;
+    quickMatchQueuedAtMs = null;
     quickMatchLock?.release();
   };
 
@@ -221,6 +223,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         deps.setWaitingScreenState({
           kind: 'quickMatch',
           statusText: 'Searching for an opponent...',
+          queuedAtMs: quickMatchQueuedAtMs ?? undefined,
         });
       } catch (err) {
         releaseQuickMatch();
@@ -362,9 +365,11 @@ export const createSessionApi = (deps: SessionApiDeps) => {
 
       quickMatchTicket = payload.ticket;
       quickMatchLock?.heartbeat(player.playerKey, payload.ticket);
+      quickMatchQueuedAtMs = Date.now();
       deps.setWaitingScreenState({
         kind: 'quickMatch',
         statusText: 'Searching for an opponent...',
+        queuedAtMs: quickMatchQueuedAtMs,
       });
       deps.track('quick_match_queued', {
         scenario: payload.scenario,

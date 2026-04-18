@@ -10,6 +10,14 @@ export type { ScenarioKey } from '../scenario-definitions';
 
 // --- Scenario configuration ---
 
+/** Optional lobby card metadata (not authoritative rules text). */
+export interface ScenarioLobbyMeta {
+  beginnerFriendly?: boolean;
+  length?: 'short' | 'medium' | 'long';
+  complexity?: 'low' | 'medium' | 'high';
+  mechanics?: string[];
+}
+
 export interface ScenarioPlayer {
   ships: ScenarioShip[];
   targetBody: string;
@@ -23,6 +31,7 @@ export interface ScenarioDefinition {
   name: string;
   description: string;
   tags?: string[];
+  lobbyMeta?: ScenarioLobbyMeta;
   players: ScenarioPlayer[];
   rules?: ScenarioRules;
   startingPlayer?: 0 | 1;

@@ -331,6 +331,15 @@
     0 12px 24px rgba(21, 66, 128, 0.2);
 }
 
+#menu .difficulty-hint {
+  min-height: 2.5em;
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: rgba(206, 220, 242, 0.82);
+  text-align: center;
+}
+
 #menu .divider {
   margin: 0.1rem 0;
   color: rgba(199, 212, 234, 0.42);
@@ -369,6 +378,46 @@
 #menu .kofi-link img {
   border-radius: var(--radius-pill);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+#menu .hud-scale-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem 0.6rem;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+#menu .hud-scale-label {
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(199, 212, 234, 0.68);
+}
+
+#menu .hud-scale-btn {
+  min-height: 44px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  flex: 1 1 auto;
+  max-width: 160px;
+}
+
+#menu .hud-scale-btn.hud-scale-btn--active {
+  --btn-border: rgba(122, 215, 255, 0.56);
+  --btn-color: #f7fbff;
+  --btn-bg:
+    linear-gradient(180deg, rgba(52, 108, 180, 0.32), rgba(19, 53, 103, 0.36));
+  --btn-bg-hover:
+    linear-gradient(180deg, rgba(63, 123, 198, 0.38), rgba(24, 64, 120, 0.4));
 }
 
 #menu .menu-disclosure {
@@ -709,6 +758,17 @@
   letter-spacing: 0.03em;
   line-height: 1.45;
   text-transform: none;
+}
+
+.scenario-meta {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(180, 198, 226, 0.88);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
 }
 
 .scenario-tag {

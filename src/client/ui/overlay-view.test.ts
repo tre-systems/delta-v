@@ -40,6 +40,7 @@ const installFixture = () => {
     <div id="reconnectOverlay" hidden></div>
     <div id="reconnectText"></div>
     <div id="reconnectAttempt"></div>
+    <p id="reconnectReassure" class="reconnect-reassure" hidden></p>
     <button id="reconnectCancelBtn"></button>
     <div id="opponentDisconnectOverlay" hidden></div>
     <div id="opponentDisconnectText"></div>

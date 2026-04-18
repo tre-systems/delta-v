@@ -90,6 +90,19 @@
   max-width: 170px;
 }
 
+.ship-list.ship-list--scrollable {
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 calc(100% - 28px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    #000 calc(100% - 28px),
+    transparent 100%
+  );
+}
+
 .ship-list-empty {
   padding: 0.5rem 0.55rem;
   font-size: 0.68rem;
@@ -258,9 +271,20 @@
 
 .chat-input-row {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.35rem;
   padding: 0.45rem 0.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-char-counter {
+  flex: 1 1 100%;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--warning);
+  min-height: 1.1em;
 }
 
 .chat-input {
@@ -277,7 +301,7 @@
 }
 
 .chat-input::placeholder {
-  color: rgba(144, 160, 186, 0.4);
+  color: rgba(160, 176, 202, 0.52);
 }
 
 .chat-input:focus {
@@ -494,4 +518,42 @@
 
 .latency-bad {
   color: var(--danger);
+}
+
+html[data-hud-scale='large'] .hud-bar {
+  font-size: 0.82rem;
+}
+
+html[data-hud-scale='large'] .ship-entry {
+  font-size: 0.78rem;
+}
+
+html[data-hud-scale='large'] .ship-status,
+html[data-hud-scale='large'] .ship-fuel {
+  font-size: 0.72rem;
+}
+
+html[data-hud-scale='large'] .log-status-bar,
+html[data-hud-scale='large'] .log-entries {
+  font-size: 0.72rem;
+}
+
+html[data-hud-scale='large'] .chat-input {
+  font-size: 0.85rem;
+}
+
+html[data-hud-scale='large'] .hud-bottom .btn {
+  font-size: 0.92rem;
+}
+
+html[data-hud-scale='large'] .objective-text {
+  font-size: 0.82rem;
+}
+
+html[data-hud-scale='large'] .turn-timer {
+  font-size: 0.78rem;
+}
+
+html[data-hud-scale='large'] .fleet-status {
+  font-size: 0.78rem;
 }

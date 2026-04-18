@@ -34,6 +34,8 @@ export interface WaitingScreenCopy {
   // cancel control so users aren't trapped in the queue state.
   // `null` hides the control; a string shows it with that label.
   cancelActionLabel: string | null;
+  /** Wall-clock ms when quick-match search began; drives elapsed UI. */
+  quickMatchQueuedAtMs: number | null;
 }
 
 export type WaitingScreenState =
@@ -45,6 +47,8 @@ export type WaitingScreenState =
   | {
       kind: 'quickMatch';
       statusText: string;
+      /** Present while polling for a match (not during "connecting" handoff). */
+      queuedAtMs?: number;
     };
 
 export interface GameOverStatsLike {
@@ -216,6 +220,7 @@ export const buildWaitingScreenCopy = (
       scenarioText: null,
       showCopyActions: false,
       cancelActionLabel: 'Cancel search',
+      quickMatchQueuedAtMs: state.queuedAtMs ?? null,
     };
   }
 
@@ -228,6 +233,7 @@ export const buildWaitingScreenCopy = (
         scenarioText: null,
         showCopyActions: true,
         cancelActionLabel: null,
+        quickMatchQueuedAtMs: null,
       }
     : {
         titleText: 'Game Created',
@@ -237,6 +243,7 @@ export const buildWaitingScreenCopy = (
         scenarioText: null,
         showCopyActions: true,
         cancelActionLabel: 'Cancel',
+        quickMatchQueuedAtMs: null,
       };
 };
 
