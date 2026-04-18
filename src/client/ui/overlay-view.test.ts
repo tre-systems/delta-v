@@ -239,13 +239,20 @@ describe('OverlayView', () => {
     const state = createOverlayStateStore();
     const view = createOverlayView(state);
 
-    view.showToast('Warning', 'error');
+    view.showToast('FYI', 'info');
     expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(1);
     expect(document.getElementById('toastContainer')?.textContent).toContain(
-      'Warning',
+      'FYI',
     );
 
     vi.advanceTimersByTime(3100);
+    expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(0);
+
+    view.showToast('Problem', 'error');
+    expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(1);
+    vi.advanceTimersByTime(5000);
+    expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(1);
+    (document.querySelector('.toast-dismiss') as HTMLButtonElement).click();
     expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(0);
 
     view.showPhaseAlert('astrogation', true);
@@ -282,6 +289,6 @@ describe('OverlayView', () => {
         'hidden',
       ),
     ).toBe(true);
-    expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(1);
+    expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(0);
   });
 });
