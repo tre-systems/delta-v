@@ -86,6 +86,7 @@ describe('replay-controller', () => {
       }),
       fetchReplay: async () => null,
       showToast: () => {},
+      logText: () => {},
       clearTrails: () => {},
       applyGameState: () => {},
       frameOnActivePlayer: () => {},
@@ -118,6 +119,7 @@ describe('replay-controller', () => {
         return timeline;
       },
       showToast: () => {},
+      logText: () => {},
       clearTrails: () => {},
       applyGameState: (state) => {
         appliedStates.push(state.gameId);
@@ -152,6 +154,7 @@ describe('replay-controller', () => {
       }),
       fetchReplay: async () => null,
       showToast: () => {},
+      logText: () => {},
       clearTrails: () => {},
       applyGameState: (state) => {
         appliedStates.push(`${state.gameId}#t${state.turnNumber}`);
@@ -193,6 +196,7 @@ describe('replay-controller', () => {
       showToast: (message, type) => {
         toastCalls.push({ message, type });
       },
+      logText: () => {},
       clearTrails: () => {},
       applyGameState: (state) => applied.push(state.gameId),
       frameOnActivePlayer: () => {},

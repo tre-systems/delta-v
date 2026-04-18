@@ -244,6 +244,7 @@ export interface LocalGameTransportDeps {
   localGameFlowDeps: LocalGameFlowDeps;
   applyGameState: (state: GameState) => void;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
+  logText: (text: string, cssClass?: string) => void;
   logScenarioBriefing: () => void;
   transitionToPhase: () => void;
   onAnimationComplete: () => void;
@@ -252,11 +253,12 @@ export interface LocalGameTransportDeps {
 }
 
 const handleLocalEmplacementSuccess = (
-  deps: Pick<LocalGameTransportDeps, 'showToast'>,
+  deps: Pick<LocalGameTransportDeps, 'logText'>,
 ): void => {
   // Emplacement state has already been applied through the shared
-  // local-resolution path; surface the user-facing confirmation only.
-  deps.showToast(TOAST.gameplay.orbitalBaseEmplaced, 'success');
+  // local-resolution path; log only so we do not stack a success toast
+  // alongside engine/logistics lines for the same action.
+  deps.logText(TOAST.gameplay.orbitalBaseEmplaced, 'log-env');
 };
 
 const handleLocalFleetReady = (

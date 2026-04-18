@@ -2,7 +2,6 @@ import type { GameState, PlayerId } from '../../shared/types/domain';
 import { TOAST } from '../messages/toasts';
 import type { Renderer } from '../renderer/renderer';
 import { HEX_SIZE } from '../renderer/renderer';
-import type { OverlayView } from '../ui/overlay-view';
 import {
   getNearestEnemyPosition,
   getNextSelectedShip,
@@ -15,7 +14,8 @@ export interface CameraControllerDeps {
   getPlayerId: () => PlayerId | -1;
   getPlanningState: () => PlanningSelectionStore;
   renderer: Renderer;
-  overlay: OverlayView;
+  /** Navigation hints that should not stack as toasts (see notification-policy). */
+  logText: (text: string, cssClass?: string) => void;
 }
 
 export const createCameraController = (deps: CameraControllerDeps) => ({
@@ -48,7 +48,7 @@ export const createCameraController = (deps: CameraControllerDeps) => ({
     );
 
     if (!position) {
-      deps.overlay.showToast(TOAST.gameplay.noDetectedEnemies, 'info');
+      deps.logText(TOAST.gameplay.noDetectedEnemies, 'log-env');
       return;
     }
     deps.renderer.centerOnHex(position);
