@@ -943,12 +943,6 @@ h2.game-over-neutral {
   color: rgba(235, 240, 255, 0.88);
 }
 
-.replay-nav {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
 /* ── Game over: action buttons ── */
 
 .game-over-actions {
