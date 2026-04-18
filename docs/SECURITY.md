@@ -4,7 +4,7 @@ This document describes the current security posture of Delta-V with emphasis on
 
 Use it as an implementation-level security baseline for engineering decisions. It is not a legal policy document.
 
-Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md) (optional scoped tasks), [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md).
+Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md) (open and trigger-gated tasks), [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md).
 
 ## Current Protections
 
