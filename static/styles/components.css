@@ -795,7 +795,9 @@
 }
 
 @media (prefers-contrast: more) {
-  #menu {
+  #menu,
+  #scenarioSelect,
+  #waiting {
     background: linear-gradient(180deg, #0a1426, #050a14);
   }
 
@@ -804,7 +806,9 @@
     opacity: 0.35;
   }
 
-  #menu .menu-content {
+  #menu .menu-content,
+  #scenarioSelect .menu-content,
+  #waiting .menu-content {
     background: #0f1a2f;
     border-color: var(--border);
   }
@@ -834,7 +838,9 @@
 }
 
 @media (forced-colors: active) {
-  #menu {
+  #menu,
+  #scenarioSelect,
+  #waiting {
     background: Canvas;
   }
 
@@ -843,7 +849,9 @@
     display: none;
   }
 
-  #menu .menu-content {
+  #menu .menu-content,
+  #scenarioSelect .menu-content,
+  #waiting .menu-content {
     background: Canvas;
     border-color: CanvasText;
     color: CanvasText;

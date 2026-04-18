@@ -1427,6 +1427,21 @@ h2.game-over-neutral {
     background: rgba(10, 18, 34, 0.96);
     border-color: var(--border);
   }
+
+  #gameOver {
+    background: rgba(4, 9, 18, 0.94);
+  }
+
+  #gameOver .game-over-content.overlay-panel {
+    background: linear-gradient(180deg, #121f36, #0a1424);
+    border-color: var(--border);
+  }
+
+  .game-over-kicker {
+    border-color: var(--border);
+    background: rgba(12, 20, 38, 0.92);
+    color: var(--muted-strong);
+  }
 }
 
 @media (forced-colors: active) {
@@ -1481,5 +1496,26 @@ h2.game-over-neutral {
 
   .game-over-divider {
     forced-color-adjust: none;
+  }
+
+  #gameOver {
+    background: Canvas;
+  }
+
+  #gameOver .game-over-content {
+    background: Canvas;
+    color: CanvasText;
+    border-color: CanvasText;
+  }
+
+  .game-over-kicker {
+    background: Canvas;
+    color: CanvasText;
+    border-color: CanvasText;
+  }
+
+  .replay-controls.overlay-section-panel {
+    background: Canvas;
+    border-color: CanvasText;
   }
 }
