@@ -38,7 +38,7 @@ const aiOrdnance = (
   rng: () => number = TEST_RNG,
 ): OrdnanceLaunch[] => rawAiOrdnance(state, playerId, map, difficulty, rng);
 
-import { pickNextCheckpoint } from './ai/common';
+import { findDirectionToward, pickNextCheckpoint } from './ai/common';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import {
@@ -47,10 +47,22 @@ import {
   processAstrogation,
   skipCombat,
 } from './engine/game-engine';
-import { asHexKey } from './hex';
-import { asGameId, asOrdnanceId, type ShipId } from './ids';
+import {
+  asHexKey,
+  HEX_DIRECTIONS,
+  hexAdd,
+  hexDistance,
+  hexVecLength,
+} from './hex';
+import { asGameId, asOrdnanceId, asShipId, type ShipId } from './ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from './map-data';
 import { computeCourse } from './movement';
+import {
+  createTestShip,
+  createTestState,
+  driftingEnemyWouldBeHitByOpenSpaceBallistic,
+  EMPTY_SOLAR_MAP,
+} from './test-helpers';
 import type { SolarSystemMap } from './types';
 
 let map: SolarSystemMap;
@@ -1698,5 +1710,113 @@ describe('aiCombat — multiple targets', () => {
         allAttackerIds.push(id);
       }
     }
+  });
+});
+
+describe('aiOrdnance — impossible-shot regression fixtures', () => {
+  it('open-space ballistic helper sees a stationary intercept', () => {
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        map: EMPTY_SOLAR_MAP,
+        ordnanceStart: { q: 0, r: 0 },
+        ordnanceVelocity: { dq: 1, dr: 0 },
+        enemyStart: { q: 3, r: 0 },
+        enemyVelocity: { dq: 0, dr: 0 },
+      }),
+    ).toBe(true);
+  });
+
+  it('fixture: hard AI still fires a torpedo when open-space drift model shows no intercept', () => {
+    const aiShip = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const enemy = createTestShip({
+      id: asShipId('p0-en'),
+      owner: 0,
+      type: 'packet',
+      position: { q: 10, r: 0 },
+      velocity: { dq: 0, dr: 5 },
+      cargoUsed: 0,
+    });
+    const predicted = hexAdd(enemy.position, enemy.velocity);
+    const bestDir = findDirectionToward(aiShip.position, predicted);
+    const steps =
+      hexDistance(aiShip.position, predicted) > 4 ||
+      hexVecLength(enemy.velocity) > 1
+        ? 2
+        : 1;
+    const dirVec = HEX_DIRECTIONS[bestDir];
+    const torpVel = {
+      dq: aiShip.velocity.dq + dirVec.dq * steps,
+      dr: aiShip.velocity.dr + dirVec.dr * steps,
+    };
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        map: EMPTY_SOLAR_MAP,
+        ordnanceStart: aiShip.position,
+        ordnanceVelocity: torpVel,
+        enemyStart: enemy.position,
+        enemyVelocity: enemy.velocity,
+      }),
+    ).toBe(false);
+
+    const state = createTestState({
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['torpedo'] },
+      ships: [enemy, aiShip],
+    });
+    const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
+    // When vector intercept gating exists, flip this to expect no torpedo.
+    expect(launches.some((l) => l.ordnanceType === 'torpedo')).toBe(true);
+  });
+
+  it('fixture: hard AI still commits a nuke when open-space drift model shows no intercept', () => {
+    const lead = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 3, dr: 0 },
+      cargoUsed: 0,
+    });
+    const wing = createTestShip({
+      id: asShipId('p1-wing'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: -4, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const enemy = createTestShip({
+      id: asShipId('p0-dn'),
+      owner: 0,
+      type: 'dreadnaught',
+      position: { q: 5, r: 0 },
+      velocity: { dq: 0, dr: 4 },
+      cargoUsed: 0,
+    });
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        map: EMPTY_SOLAR_MAP,
+        ordnanceStart: lead.position,
+        ordnanceVelocity: { ...lead.velocity },
+        enemyStart: enemy.position,
+        enemyVelocity: enemy.velocity,
+      }),
+    ).toBe(false);
+
+    const state = createTestState({
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['nuke', 'torpedo'] },
+      ships: [enemy, wing, lead],
+    });
+    const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
+    // When vector intercept gating exists, flip this to expect no nuke.
+    expect(launches.some((l) => l.ordnanceType === 'nuke')).toBe(true);
   });
 });

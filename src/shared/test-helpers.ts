@@ -2,8 +2,28 @@
 // Provides helpers with sensible defaults for constructing Ship, GameState,
 // and other domain objects in tests, eliminating repeated deep object literals.
 
+import { ORDNANCE_LIFETIME } from './constants';
+import {
+  type HexCoord,
+  type HexVec,
+  hexAdd,
+  hexEqual,
+  hexLineDraw,
+  hexSubtract,
+} from './hex';
 import { asGameId, asOrdnanceId, asShipId } from './ids';
-import type { GameState, Ordnance, PlayerState, Ship } from './types';
+import {
+  applyPendingGravityEffects,
+  collectEnteredGravityEffects,
+} from './movement';
+import type {
+  GameState,
+  GravityEffect,
+  Ordnance,
+  PlayerState,
+  Ship,
+  SolarSystemMap,
+} from './types';
 
 export { asGameId, asOrdnanceId, asShipId };
 
@@ -106,4 +126,56 @@ export const createTestState = (
     outcome: null,
     ...rest,
   };
+};
+
+/** Empty map: no gravity hexes — matches `openMap` in `ai.test.ts`. */
+export const EMPTY_SOLAR_MAP: SolarSystemMap = {
+  hexes: new Map(),
+  bodies: [],
+  bounds: { minQ: -200, maxQ: 200, minR: -200, maxR: 200 },
+};
+
+export type DriftingEnemyBallisticInput = {
+  map: SolarSystemMap;
+  ordnanceStart: HexCoord;
+  ordnanceVelocity: HexVec;
+  enemyStart: HexCoord;
+  enemyVelocity: HexVec;
+  /** Defaults to `ORDNANCE_LIFETIME` (5). */
+  turns?: number;
+};
+
+/**
+ * Whether a ballistic ordnance path (same kinematics as `moveOrdnance` on an
+ * empty map) would share a hex with an enemy that drifts by a constant
+ * velocity each turn. Intended for AI regression fixtures — not a full
+ * gravity / ship-movement model.
+ */
+export const driftingEnemyWouldBeHitByOpenSpaceBallistic = (
+  input: DriftingEnemyBallisticInput,
+): boolean => {
+  const turns = input.turns ?? ORDNANCE_LIFETIME;
+  let ordPos: HexCoord = { ...input.ordnanceStart };
+  let ordVel: HexVec = { ...input.ordnanceVelocity };
+  let ordPending: GravityEffect[] = [];
+  let enemyPos: HexCoord = { ...input.enemyStart };
+  const enemyVel = input.enemyVelocity;
+
+  for (let t = 0; t < turns; t++) {
+    const from = { ...ordPos };
+    const rawDest = hexAdd(ordPos, ordVel);
+    const finalDest = applyPendingGravityEffects(rawDest, ordPending);
+    const path = hexLineDraw(from, finalDest);
+    for (const h of path) {
+      if (hexEqual(h, enemyPos)) {
+        return true;
+      }
+    }
+    ordPos = finalDest;
+    ordVel = hexSubtract(finalDest, from);
+    ordPending = collectEnteredGravityEffects(path, input.map);
+    enemyPos = hexAdd(enemyPos, enemyVel);
+  }
+
+  return false;
 };
