@@ -394,7 +394,7 @@ export const AI_CONFIG: Readonly<
     mineRange: 6,
     ordnanceSkipChance: 0,
     nukeStrengthRange: 6,
-    nukeMinReachProbability: 0.22,
+    nukeMinReachProbability: 0.28,
     targetDistPenalty: 2,
     targetModPenalty: 3,
     targetDisabledBonus: 5,
