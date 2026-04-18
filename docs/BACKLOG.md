@@ -8,12 +8,6 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Items below are **open** or **partial** (still need follow-up or verification).
 
-### Refine `:focus` vs `:focus-visible` on form controls
-
-**Partial (2026-04-18):** menu profile field, room **code** input, and HUD **chat** input now apply border/box-shadow rings on `:focus-visible` only (outline still cleared on `:focus` so mouse clicks do not flash the keyboard ring). Chat **border + box-shadow** ring matches menu join/profile strength; lobby **HUD text scale** buttons use **48px** min touch height.
-
-**Files:** `static/styles/components.css`, `static/styles/hud.css`
-
 ### Contrast audit (quantified)
 
 Several surfaces were brightened (e.g. duel queue note, game-over stat labels, chat/menu placeholders, `prefers-contrast: more` hooks). **Partial (2026-04-18):** [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md) now has a **Contrast & readability** section with explicit WCAG AA spot-check steps for help overlay and game-over; [A11Y.md](./A11Y.md) manual checklist links there. Remaining: execute the measurements each release and tune CSS from findings.
@@ -74,12 +68,6 @@ Renderer burn/overload **disks** are visual; **astrogation picks still resolve b
 
 Findings from a 2026-04-18 deep-research pass against the [2018 Triplanetary rulebook](../Triplanetary2018.pdf) (pp. 5-6) plus the AI ordnance code path. User-visible symptom: AI fires ordnance wildly and drops nukes for no apparent reason. The rulebook makes clear that hitting is meant to be hard because of *vector geometry over a 5-turn window*, not the damage table — several AI gates skip that geometry entirely.
 
-### AI ordnance: vector intercept check before launch
-
-**Mitigations shipped (2026-04-18):** `aiOrdnance` now runs a 5-turn ballistic intercept projection (ordnance + target drift with pending gravity via `applyPendingGravityEffects`/`collectEnteredGravityEffects`) before committing torpedoes or nukes. Torpedoes search all 6 accel directions × {1,2} steps and choose the earliest intercept vector; nukes only commit when an intercept exists on the projected path. This removes the "range-only, no geometry" launch behavior.
-
-**Files:** `src/shared/ai/ordnance.ts`
-
 ### `recommendedIndex` over-suggests consecutive ordnance launches
 
 **Partial (2026-04-18):** candidate ranking now checks for consecutive-turn ordnance pressure (own active ordnance at `turnsRemaining === 4`) and demotes low-confidence follow-up ordnance recommendations behind `skipOrdnance`. Confidence is based on per-launch intercept projection (`evaluateOrdnanceLaunchIntercept`): nukes must have short-fuse intercepts (≤2 turns), torpedoes ≤3 turns. This keeps `recommendedIndex` from reflexively chaining weak follow-up launches while still allowing high-quality opportunities.
@@ -98,20 +86,9 @@ Hard difficulty currently fires nukes whenever target score ≥70, OR enemy stro
 
 ### Audit four subtle ordnance/combat rules for drift from 2018 rulebook
 
-Verify the current engine matches the rulebook on:
+**Verified (2026-04-18):** Code review plus regression tests in `src/shared/combat.test.ts` (`Triplanetary 2018 gun combat geometry`) lock **closest-approach range** (`computeRangeModToTarget` + `lastMovementPath`) and **velocity modifier threshold** (`VELOCITY_MODIFIER_THRESHOLD` / `computeVelocityModToTarget`). **Torpedo eligibility** matches `SHIP_STATS.canLaunchTorpedoes` (warships + orbital bases only; packet/civilians false) and `validateShipOrdnanceLaunch` in `src/shared/engine/util.ts`. **One ordnance per ship per ordnance phase** is enforced in `processOrdnance` (`launchedShips` set) and property-tested in `src/shared/ordnance.property.test.ts`. AI torpedo launches go through the same `validateOrdnanceLaunch` path.
 
-- Range = "attacker's *closest approach* to target's final position" (p.5), not range to final position alone.
-- Velocity penalty applies only when the difference **exceeds 2 hexes** — first two hexes are free (p.5).
-- Each ship may release **only one ordnance item per turn** (p.5).
-- **Only warships may launch torpedoes** (p.6); transports / packets / tankers / liners may not.
-
-**Files:** `src/shared/combat.ts`, `src/shared/engine/combat.ts`, `src/shared/engine/ordnance.ts`, `src/shared/ai/ordnance.ts`
-
-### Validate mine launcher actually clears its own hex
-
-**Mitigations shipped:** `validateOrdnanceLaunch` now requires a committed astrogation **burn** with fuel (overload alone no longer counts), and when a `SolarSystemMap` is supplied it mirrors ordnance-phase movement resolution (`computeCourse` with disabled-ship clearing, auto-land toward `targetBody`, weak-gravity choices, and destroyed bases). Launches are rejected when the resolved destination hex still equals the launch hex. The map is threaded through `processOrdnance`, `shouldEnterOrdnancePhase`, AI ordnance selection, and client ordnance/HUD paths so UI and bots agree with the server.
-
-**Files:** `src/shared/engine/util.ts`, `src/shared/engine/astrogation.ts`, `src/shared/engine/ordnance.ts`, `src/shared/ai/ordnance.ts`, `src/client/game/ordnance.ts`, `src/client/game/hud-view-model.ts`, `src/client/game/ordnance-actions.ts`
+**Files:** `src/shared/combat.ts`, `src/shared/combat.test.ts`, `src/shared/engine/astrogation.ts`, `src/shared/engine/util.ts`, `src/shared/ordnance.property.test.ts`, `src/shared/ai/ordnance.ts`
 
 ### Add ordnance AI regression fixtures for impossible-shot launches
 
@@ -142,6 +119,8 @@ Local stdio exposes `delta_v_quick_match_connect` plus `delta_v_list_sessions`, 
 ### Pick one astrogation turn contract and derive the surfaces from it
 
 `AGENT_SPEC.md`, `static/agent-playbook.json`, `.claude/skills/play/SKILL.md`, and the local stdio MCP all describe astrogation as simultaneous or pre-submittable, but the hosted MCP and the engine gate astrogation on `activePlayer`. Agents currently learn contradictory rules depending on which surface they read first, then see different rejection behavior at runtime. Decide whether astrogation is truly simultaneous, sequential with pre-submit, or sequential only; then make the engine gate, `wait_for_turn` semantics, ActionGuards behavior, playbook JSON, and skill/docs all reflect that single model.
+
+**Concrete repro (2026-04-18 exploratory pass):** the local MCP `delta_v_wait_for_turn` returned turn-1 `astrogation` candidates for `playerId: 0` while the authoritative state still reported `activePlayer: 1`; sending the recommended candidate immediately came back `accepted: false` with `reason: NOT_YOUR_TURN`. Minimum safe fix: make local MCP `isActionable` match the hosted MCP / engine contract (`fleetBuilding` only for simultaneous turns) unless product intentionally extends the engine to accept pre-submitted astrogation orders.
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `src/server/game-do/mcp-handlers.ts`, `src/server/game-do/action-guards.ts`, `src/shared/engine/util.ts`, `static/agent-playbook.json`, `AGENT_SPEC.md`, `.claude/skills/play/SKILL.md`, `docs/DELTA_V_MCP.md`
 
@@ -235,7 +214,7 @@ Prefer `engineFailure()` everywhere, then surface typed rate-limit / validation 
 
 ### Broaden engine and protocol coverage (partial)
 
-Property tests for ordnance launch duplication/phase gating and logistics transfer validation shipped in `ordnance.property.test.ts` / `logistics.property.test.ts`. Remaining: positive C2S fixtures for edge combat/combat-single messages and negative-fixture protocol coverage for malformed payloads.
+Property tests for ordnance launch duplication/phase gating and logistics transfer validation shipped in `ordnance.property.test.ts` / `logistics.property.test.ts`. Gun-combat geometry invariants (range path, velocity threshold, torpedo-capable hull set) are regression-locked in `combat.test.ts`. **`c2sRejected`** in `contracts.json` now includes extra malformed **combat** / **combatSingle** rows (wrong `attacks` type, missing `attack`, non-object `attack`). Remaining: positive C2S fixtures for edge combat/combat-single messages and broader negative coverage beyond the curated set.
 
 **Files:** `src/shared/__fixtures__/contracts.json`, `src/shared/protocol.test.ts`, `src/server/game-do/__fixtures__/transport.json`
 

@@ -1,6 +1,8 @@
 // Property tests for processOrdnance: launch duplication, phase gating,
 // and empty-launch identity. Keeps the invariants enforceable without
-// having to hand-craft a specific scenario each time.
+// having to hand-craft a specific scenario each time. Duplicate shipId
+// entries model the rulebook "one ordnance item per ship per turn" gate
+// (see docs/BACKLOG.md — ordnance/combat rulebook audit).
 
 import * as fc from 'fast-check';
 import { describe, expect, it } from 'vitest';

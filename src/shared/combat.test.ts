@@ -8,7 +8,9 @@ import {
   computeGroupVelocityMod,
   computeOdds,
   computeRangeMod,
+  computeRangeModToTarget,
   computeVelocityMod,
+  computeVelocityModToTarget,
   getCombatStrength,
   getCounterattackers,
   hasLineOfSight,
@@ -17,7 +19,7 @@ import {
   resolveCombat,
   rollD6,
 } from './combat';
-import { SHIP_STATS } from './constants';
+import { SHIP_STATS, type ShipType } from './constants';
 import { asHexKey } from './hex';
 import { asShipId } from './ids';
 import type { Ship, SolarSystemMap } from './types';
@@ -926,5 +928,78 @@ describe('heroism', () => {
     resolveCombat([attacker], target, [attacker, target], () => 0.5);
 
     expect(attacker.heroismAvailable).toBe(true);
+  });
+});
+
+describe('Triplanetary 2018 gun combat geometry (backlog rulebook audit)', () => {
+  it('range modifier uses closest approach on lastMovementPath vs defender position', () => {
+    const attacker = makeShip({
+      id: asShipId('a'),
+      owner: 0,
+      originalOwner: 0,
+      position: { q: 10, r: 0 },
+      lastMovementPath: [
+        { q: 0, r: 0 },
+        { q: 5, r: 0 },
+        { q: 10, r: 0 },
+      ],
+    });
+    const target = makeShip({
+      id: asShipId('t'),
+      owner: 1,
+      originalOwner: 1,
+      position: { q: 5, r: 0 },
+    });
+    // Closest point on the attacker's path is (5,0): range 0, not distance
+    // from the endpoint (10,0) which would be 5.
+    expect(computeRangeModToTarget(attacker, target)).toBe(0);
+  });
+
+  it('velocity modifier ignores the first two hexes of relative velocity', () => {
+    const still = makeShip({
+      id: asShipId('s'),
+      owner: 0,
+      originalOwner: 0,
+      velocity: { dq: 0, dr: 0 },
+    });
+    const matchVel = makeShip({
+      id: asShipId('m'),
+      owner: 1,
+      originalOwner: 1,
+      velocity: { dq: 2, dr: 0 },
+    });
+    const overThreshold = makeShip({
+      id: asShipId('o'),
+      owner: 1,
+      originalOwner: 1,
+      velocity: { dq: 5, dr: 0 },
+    });
+    expect(computeVelocityModToTarget(still, matchVel)).toBe(0);
+    expect(computeVelocityModToTarget(still, overThreshold)).toBe(3);
+  });
+
+  it('only warships and orbital bases are flagged to launch torpedoes', () => {
+    const torpedoCapable: ShipType[] = [];
+    const notTorpedo: ShipType[] = [];
+    for (const type of Object.keys(SHIP_STATS) as ShipType[]) {
+      if (SHIP_STATS[type].canLaunchTorpedoes) {
+        torpedoCapable.push(type);
+      } else {
+        notTorpedo.push(type);
+      }
+    }
+    expect(new Set(torpedoCapable)).toEqual(
+      new Set<ShipType>([
+        'corvette',
+        'corsair',
+        'frigate',
+        'dreadnaught',
+        'torch',
+        'orbitalBase',
+      ]),
+    );
+    expect(notTorpedo).toEqual(
+      expect.arrayContaining(['transport', 'packet', 'tanker', 'liner']),
+    );
   });
 });
