@@ -21,7 +21,6 @@ import { buildHUDView, type HUDInput } from './hud';
 
 export interface HUDChromeViewDeps {
   queueLayoutSync: () => void;
-  showPhaseAlert: (phase: string, isMyTurn: boolean) => void;
   onStatusText: (text: string | null) => void;
 }
 
