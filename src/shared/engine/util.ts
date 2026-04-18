@@ -4,8 +4,9 @@ import {
   ORDNANCE_MASS,
   SHIP_STATS,
 } from '../constants';
-import { type HexKey, parseHexKey } from '../hex';
+import { type HexKey, hexEqual, parseHexKey } from '../hex';
 import { bodyHasGravity } from '../map-data';
+import { computeCourse, detectOrbit } from '../movement';
 import { deriveCapabilities } from '../scenario-capabilities';
 import {
   type EngineError,
@@ -249,12 +250,50 @@ export const validateShipOrdnanceLaunch = (
   return null;
 };
 
+/** State slice required to validate mine launches against resolved movement. */
+export type OrdnanceLaunchValidationState = Pick<
+  GameState,
+  'scenarioRules' | 'pendingAstrogationOrders' | 'players' | 'destroyedBases'
+>;
+
+const mineResolvedMovementLeavesLaunchHex = (
+  state: Pick<
+    GameState,
+    'pendingAstrogationOrders' | 'players' | 'destroyedBases'
+  >,
+  ship: Ship,
+  map: SolarSystemMap,
+): boolean => {
+  const pendingOrder = (state.pendingAstrogationOrders ?? []).find(
+    (o) => o.shipId === ship.id,
+  );
+  const isDisabled = ship.damage.disabledTurns > 0;
+  const burn = isDisabled ? null : (pendingOrder?.burn ?? null);
+  const overload = isDisabled ? null : (pendingOrder?.overload ?? null);
+
+  const targetBody = state.players[ship.owner]?.targetBody;
+  const shouldAutoLand =
+    !pendingOrder?.land &&
+    Boolean(targetBody) &&
+    detectOrbit(ship, map) === targetBody;
+
+  const course = computeCourse(ship, burn, map, {
+    overload,
+    weakGravityChoices: pendingOrder?.weakGravityChoices,
+    destroyedBases: state.destroyedBases,
+    land: pendingOrder?.land || shouldAutoLand || undefined,
+  });
+
+  return !hexEqual(course.destination, ship.position);
+};
+
 // Full launch validation including scenario restrictions
 // and turn-level ship constraints (including mine + committed course change).
 export const validateOrdnanceLaunch = (
-  state: Pick<GameState, 'scenarioRules' | 'pendingAstrogationOrders'>,
+  state: OrdnanceLaunchValidationState,
   ship: Ship,
   ordnanceType: Ordnance['type'],
+  map?: SolarSystemMap | null,
 ): EngineError | null => {
   const allowedTypes = getAllowedOrdnanceTypes(state);
 
@@ -279,13 +318,21 @@ export const validateOrdnanceLaunch = (
     const pendingOrder = (state.pendingAstrogationOrders ?? []).find(
       (o) => o.shipId === ship.id,
     );
-    const hasBurn =
-      pendingOrder?.burn != null || pendingOrder?.overload != null;
+    const isDisabled = ship.damage.disabledTurns > 0;
+    const burn = isDisabled ? null : (pendingOrder?.burn ?? null);
+    const hasCommittedBurn = burn != null && ship.fuel > 0;
 
-    if (!hasBurn) {
+    if (!hasCommittedBurn) {
       return engineError(
         ErrorCode.NOT_ALLOWED,
         'Ship must change course when launching a mine',
+      );
+    }
+
+    if (map && !mineResolvedMovementLeavesLaunchHex(state, ship, map)) {
+      return engineError(
+        ErrorCode.NOT_ALLOWED,
+        'Committed mine launch course must leave this hex',
       );
     }
   }
@@ -294,12 +341,13 @@ export const validateOrdnanceLaunch = (
 };
 
 export const hasValidOrdnanceLaunch = (
-  state: Pick<GameState, 'scenarioRules' | 'pendingAstrogationOrders'>,
+  state: OrdnanceLaunchValidationState,
   ship: Ship,
   allowedTypes = getAllowedOrdnanceTypes(state),
+  map?: SolarSystemMap | null,
 ): boolean => {
   for (const ordnanceType of allowedTypes) {
-    if (validateOrdnanceLaunch(state, ship, ordnanceType) === null) {
+    if (validateOrdnanceLaunch(state, ship, ordnanceType, map) === null) {
       return true;
     }
   }

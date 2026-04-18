@@ -211,7 +211,12 @@ export const processOrdnance = (
       );
     }
 
-    const shipError = validateOrdnanceLaunch(state, ship, launch.ordnanceType);
+    const shipError = validateOrdnanceLaunch(
+      state,
+      ship,
+      launch.ordnanceType,
+      map,
+    );
 
     if (shipError) return { error: shipError };
 

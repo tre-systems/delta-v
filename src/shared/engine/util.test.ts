@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { asHexKey } from '../hex';
+import { asHexKey, HEX_DIRECTIONS } from '../hex';
 import { asShipId } from '../ids';
+import { buildSolarSystemMap } from '../map-data';
 import type { GameState, Ordnance, Ship } from '../types';
 import {
   canLaunchOrdnance,
@@ -31,12 +32,38 @@ const errorMessage = (
 ): string | null => result?.message ?? null;
 
 const bounds = { minQ: -10, maxQ: 10, minR: -10, maxR: 10 };
+
+const defaultTestPlayers: GameState['players'] = [
+  {
+    connected: true,
+    ready: true,
+    targetBody: '',
+    homeBody: '',
+    bases: [],
+    escapeWins: false,
+  },
+  {
+    connected: true,
+    ready: true,
+    targetBody: '',
+    homeBody: '',
+    bases: [],
+    escapeWins: false,
+  },
+];
+
 const makeScenarioRulesState = (
   scenarioRules: GameState['scenarioRules'] = {},
   pendingAstrogationOrders: GameState['pendingAstrogationOrders'] = null,
-): Pick<GameState, 'scenarioRules' | 'pendingAstrogationOrders'> => ({
+  extras?: Partial<Pick<GameState, 'destroyedBases' | 'players'>>,
+): Pick<
+  GameState,
+  'scenarioRules' | 'pendingAstrogationOrders' | 'destroyedBases' | 'players'
+> => ({
   scenarioRules,
   pendingAstrogationOrders,
+  destroyedBases: extras?.destroyedBases ?? [],
+  players: extras?.players ?? defaultTestPlayers,
 });
 
 const makeShip = (overrides: Partial<Ship> = {}): Ship => ({
@@ -319,7 +346,23 @@ describe('validateOrdnanceLaunch', () => {
     });
   });
 
+  it('rejects mine launch when overload is set without a burn', () => {
+    const ship = makeShip({ id: asShipId('s1'), type: 'frigate' });
+    expect(
+      validateOrdnanceLaunch(
+        makeScenarioRulesState({}, [
+          { shipId: asShipId('s1'), burn: null, overload: 3 },
+        ]),
+        ship,
+        'mine',
+      ),
+    ).toMatchObject({
+      message: 'Ship must change course when launching a mine',
+    });
+  });
+
   it('allows mine launch when pending astrogation includes a burn', () => {
+    const map = buildSolarSystemMap();
     expect(
       validateOrdnanceLaunch(
         makeScenarioRulesState({}, [
@@ -327,8 +370,33 @@ describe('validateOrdnanceLaunch', () => {
         ]),
         makeShip({ id: asShipId('s1'), type: 'frigate' }),
         'mine',
+        map,
       ),
     ).toBeNull();
+  });
+
+  it('rejects mine launch when resolved movement stays on the launch hex', () => {
+    const map = buildSolarSystemMap();
+    const dir = HEX_DIRECTIONS[2];
+    const ship = makeShip({
+      id: asShipId('s1'),
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: -dir.dq, dr: -dir.dr },
+    });
+
+    expect(
+      validateOrdnanceLaunch(
+        makeScenarioRulesState({}, [
+          { shipId: asShipId('s1'), burn: 2, overload: null },
+        ]),
+        ship,
+        'mine',
+        map,
+      ),
+    ).toMatchObject({
+      message: 'Committed mine launch course must leave this hex',
+    });
   });
 });
 

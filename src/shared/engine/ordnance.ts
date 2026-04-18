@@ -168,7 +168,7 @@ export const shouldEnterOrdnancePhase = (
       s.damage.disabledTurns === 0 &&
       !s.resuppliedThisTurn &&
       s.control !== 'captured' &&
-      hasValidOrdnanceLaunch(state, s, allowedOrdnanceTypes),
+      hasValidOrdnanceLaunch(state, s, allowedOrdnanceTypes, map),
   );
 };
 
