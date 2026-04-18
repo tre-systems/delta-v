@@ -6,16 +6,18 @@ import {
   asRoomCode,
   asShipId,
 } from '../../shared/ids';
-import type {
-  CombatResult,
+import {
+  type CombatResult,
   ErrorCode,
-  GameState,
-  MovementEvent,
-  OrdnanceMovement,
-  Ship,
-  ShipMovement,
+  type GameState,
+  type MovementEvent,
+  type OrdnanceMovement,
+  type Ship,
+  type ShipMovement,
 } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
+import { SERVER_ERROR_USER_HINT } from '../messages/server-error-hints';
+import { TOAST } from '../messages/toasts';
 import {
   handleServerMessage,
   type MessageHandlerDeps,
@@ -173,7 +175,7 @@ describe('client integration: connection flow', () => {
     expect(deps.ctx.reconnectAttempts).toBe(0);
     expect(deps.ctx.reconnectOverlayState).toBeNull();
     expect(deps.calls['ui.overlay.showToast']).toEqual([
-      ['Reconnected!', 'success'],
+      [TOAST.reconnect.client, 'success'],
     ]);
     expect(deps.calls.trackEvent).toEqual([
       ['reconnect_succeeded', { attempts: 3 }],
@@ -257,7 +259,7 @@ describe('client integration: connection flow', () => {
 
     expect(deps.ctx.opponentDisconnectDeadlineMs).toBeNull();
     expect(deps.calls['ui.overlay.showToast']).toEqual([
-      ['Opponent reconnected', 'info'],
+      [TOAST.reconnect.opponent, 'info'],
     ]);
   });
 });
@@ -555,7 +557,7 @@ describe('client integration: chat and errors', () => {
     handleServerMessage(deps, {
       type: 'error',
       message: 'Room not found',
-      code: 'INVALID_INPUT' as ErrorCode,
+      code: ErrorCode.INVALID_INPUT,
     });
 
     expect(deps.calls.trackEvent).toEqual([
@@ -565,7 +567,10 @@ describe('client integration: chat and errors', () => {
       ],
     ]);
     expect(deps.calls['ui.overlay.showToast']).toEqual([
-      ['Invalid action \u2014 please try again: Room not found', 'error'],
+      [
+        `${SERVER_ERROR_USER_HINT[ErrorCode.INVALID_INPUT]}: Room not found`,
+        'error',
+      ],
     ]);
     expect(deps.calls.setState).toEqual([['menu']]);
   });

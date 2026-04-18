@@ -5,6 +5,7 @@ import type {
   PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
+import { TOAST, toastOrdnanceQueued } from '../messages/toasts';
 import {
   getFirstUnacknowledgedOrdnanceActionableShipId,
   getOrdnanceActionableShipIds,
@@ -59,10 +60,7 @@ export const queueOrdnanceLaunch = (
   if (ordType === 'torpedo' && !deps.planningState.torpedoAimingActive) {
     deps.planningState.clearTorpedoAcceleration();
     deps.planningState.setTorpedoAimingActive(true);
-    deps.showToast(
-      'Torpedo aiming: choose an adjacent hex for boost, or queue again for a straight shot',
-      'info',
-    );
+    deps.showToast(TOAST.gameplay.torpedoAimingIntro, 'info');
     return;
   }
 
@@ -88,7 +86,10 @@ export const queueOrdnanceLaunch = (
     ordType === 'torpedo' && launch.torpedoAccel !== null
       ? ` with \u00d7${launch.torpedoAccelSteps ?? 1} boost`
       : '';
-  deps.showToast(`${plan.shipName}: ${ordType} queued${boostHint}`, 'success');
+  deps.showToast(
+    toastOrdnanceQueued(plan.shipName, ordType, boostHint),
+    'success',
+  );
   deps.logText(`${plan.shipName} launched ${ordType}`);
   advanceToNextOrdnanceShip(deps);
 

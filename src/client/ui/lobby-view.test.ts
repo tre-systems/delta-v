@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TOAST } from '../messages/toasts';
+import { TOAST, toastJoinInvalidCode } from '../messages/toasts';
 import { createLobbyView } from './lobby-view';
 
 const installFixture = () => {
@@ -333,10 +333,7 @@ describe('LobbyView', () => {
     input.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
     );
-    expect(showToast).toHaveBeenCalledWith(
-      'Enter a game code to join',
-      'error',
-    );
+    expect(showToast).toHaveBeenCalledWith(TOAST.lobby.joinNeedCode, 'error');
 
     // Shows toast for invalid code via Enter key
     input.value = 'AB';
@@ -344,10 +341,7 @@ describe('LobbyView', () => {
     input.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
     );
-    expect(showToast).toHaveBeenCalledWith(
-      'Invalid code \u2014 must be 5 characters',
-      'error',
-    );
+    expect(showToast).toHaveBeenCalledWith(toastJoinInvalidCode(5), 'error');
   });
 
   it('removes button listeners on dispose', () => {
