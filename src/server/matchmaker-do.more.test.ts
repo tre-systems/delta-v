@@ -12,6 +12,7 @@ vi.mock('cloudflare:workers', () => ({
 }));
 
 import { MatchmakerDO } from './matchmaker-do';
+import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
 
 type MockStorage = DurableObjectStorage & {
   data: Map<string, unknown>;
@@ -490,7 +491,10 @@ describe('MatchmakerDO additional coverage', () => {
     await matchmaker.fetch(
       new Request('https://matchmaker.internal/enqueue', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          [QUICK_MATCH_VERIFIED_AGENT_HEADER]: '1',
+        },
         body: JSON.stringify({
           player: {
             playerKey: 'agent_dupkey01',

@@ -42,7 +42,7 @@ import { queueRemoteMatch } from './quick-match';
 // arguments); anything larger is a malformed payload or an attempt to
 // burn server CPU on parsing. Kept below Cloudflare's Worker request
 // body cap so this rejection short-circuits transport-level handling.
-const MCP_MAX_BODY_BYTES = 64 * 1024;
+const MCP_MAX_BODY_BYTES = 16 * 1024;
 
 const SERVER_INTERNAL = 'https://game.internal';
 
@@ -139,18 +139,22 @@ const resolveMatchTarget = async (
       fail(`Invalid matchToken: ${verified.reason}`);
     }
     if (!verified.ok) throw new Error('unreachable');
-    if (agentIdentity) {
+    if (!agentIdentity) {
+      fail(
+        'matchToken requires Authorization: Bearer <agentToken> — the token is bound to the issuing agent',
+      );
+    } else {
       const expected = await hashAgentToken(agentIdentity.rawAgentToken);
       if (verified.payload.agentTokenHash !== expected) {
         fail(
           'matchToken does not bind to the supplied agentToken — likely issued for a different agent',
         );
       }
+      return {
+        code: verified.payload.code,
+        playerToken: verified.payload.playerToken,
+      };
     }
-    return {
-      code: verified.payload.code,
-      playerToken: verified.payload.playerToken,
-    };
   }
   if (!args.code || !args.playerToken) {
     fail('Provide either matchToken, or both code and playerToken');
@@ -174,7 +178,7 @@ export const buildMcpServer = (
     { name: 'delta-v-mcp-remote', version: '0.1.0' },
     {
       instructions:
-        'Use this server to play Delta-V via the hosted MCP endpoint. Recommended flow: (1) call POST /api/agent-token once with your stable agent_-prefixed playerKey to obtain an agentToken; (2) send it as Authorization: Bearer <token> on every /mcp request; (3) call delta_v_quick_match (no args needed) to receive an opaque matchToken; (4) drive the game via delta_v_wait_for_turn / delta_v_send_action passing matchToken in args. Legacy {code, playerToken} args are still accepted for /create users.',
+        'Use this server to play Delta-V via the hosted MCP endpoint. Recommended flow: (1) call POST /api/agent-token once with your stable agent_-prefixed playerKey to obtain an agentToken; (2) send it as Authorization: Bearer <token> on every /mcp request; (3) call delta_v_quick_match (no args needed) to receive an opaque matchToken; (4) drive the game via delta_v_wait_for_turn / delta_v_send_action passing matchToken in args (matchToken always requires the same Bearer). Legacy {code, playerToken} args are still accepted for /create users.',
     },
   );
 
@@ -198,12 +202,18 @@ export const buildMcpServer = (
         `agent_remote_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
       const username =
         args.username ?? agentIdentity?.payload.playerKey ?? 'agent';
+      const verifiedLeaderboardAgent = Boolean(
+        agentIdentity &&
+          playerKey.startsWith('agent_') &&
+          agentIdentity.payload.playerKey === playerKey,
+      );
       const matched = await queueRemoteMatch(env, {
         scenario: args.scenario ?? 'duel',
         username,
         playerKey,
         pollMs: args.pollMs,
         timeoutMs: args.timeoutMs,
+        verifiedLeaderboardAgent,
       });
 
       if (agentIdentity) {

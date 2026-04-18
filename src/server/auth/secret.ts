@@ -4,7 +4,9 @@
 // reads it from the bound env. Rotation: issue a new secret, redeploy —
 // existing tokens become invalid (they all carry the same signer).
 //
-// Dev / test: set DEV_MODE=1 in wrangler.toml and the fallback kicks in.
+// Dev / test: set `DEV_MODE=1` in `.dev.vars` (see `.dev.vars.example`) or
+// in Vitest env overrides so the fallback kicks in without weakening the
+// default deploy `[vars]` (`DEV_MODE=0`).
 // Tokens signed under the dev secret are explicitly invalid in production
 // (the prod secret will differ).
 //
