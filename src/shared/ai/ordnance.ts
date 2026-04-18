@@ -50,6 +50,13 @@ type InterceptResult = {
   turnsToIntercept: number;
 };
 
+// Rulebook ordnance prices (Triplanetary 2018, equipment table): nuke 300 MCr,
+// torpedo 20 MCr. When both are geometrically viable, the AI should not spend
+// the nuke premium for marginal target value.
+const NUKE_SCORE_FLOOR = 70;
+const NUKE_SCORE_FLOOR_WHEN_TORPEDO_VIABLE = 115;
+const NUKE_STRENGTH_RATIO_WHEN_TORPEDO_VIABLE = 2;
+
 export type LaunchInterceptAssessment = {
   hasIntercept: boolean;
   turnsToIntercept: number;
@@ -530,9 +537,20 @@ export const aiOrdnance = (
     ) {
       const enemyStrength = getCombatStrength([bestEnemy]);
       const myStrength = getCombatStrength([ship]);
+      const torpedoAlsoViable =
+        canLaunchTorpedo &&
+        Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange;
+      const nukeScoreFloor = torpedoAlsoViable
+        ? NUKE_SCORE_FLOOR_WHEN_TORPEDO_VIABLE
+        : NUKE_SCORE_FLOOR;
+      const strengthOutgunsForNuke =
+        enemyStrength >= myStrength &&
+        (!torpedoAlsoViable ||
+          enemyStrength >=
+            myStrength * NUKE_STRENGTH_RATIO_WHEN_TORPEDO_VIABLE);
       const shouldUseNuke =
-        bestEnemyTarget.score >= 70 ||
-        (enemyStrength >= myStrength &&
+        bestEnemyTarget.score >= nukeScoreFloor ||
+        (strengthOutgunsForNuke &&
           bestEnemyCurrentDist <= cfg.nukeStrengthRange) ||
         ((bestEnemy.passengersAboard ?? 0) > 0 &&
           bestEnemyCurrentDist <= cfg.nukeStrengthRange);
