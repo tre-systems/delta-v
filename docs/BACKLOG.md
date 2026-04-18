@@ -38,9 +38,11 @@ Jump links and TOC styling exist; optional follow-up: highlight the section in v
 
 **Partial (2026-04-18):** `notification-policy.ts` helpers + Vitest; toast dedupe gate and phase-alert suppression of info/success toasts in `overlay-view.ts`; `attachSessionPhaseAlertEffect` drives phase alerts with dedupe on `(phase, turn, activePlayer)`. Ordnance launches log once (no duplicate success toast vs game log — `ordnance-actions.ts`). Batch combat no longer mirrors targeting / queue-count copy as transient toasts; HUD status line shows queued volley count and `showFireButton` passes the queue depth (`combat-actions.ts`, `hud.ts`, `session-planning-effects.ts`).
 
-**Still open:** audit remaining toast producers (e.g. command router, logistics, reconnect) for duplicate copy vs HUD / log on the same tick.
+**Partial (2026-04-19):** torpedo aiming intro routes to the **game log** instead of a transient toast (`ordnance-actions.ts`).
 
-**Files:** `src/client/messages/notification-policy.ts`, `src/client/ui/overlay-view.ts`, `src/client/game/session-ui-effects.ts`, `src/client/game/session-signals.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/telemetry.ts`
+**Still open:** audit remaining toast producers (command router, session/quick-match/replay, logistics, reconnect) for duplicate copy vs HUD / log on the same tick; connection and reconnect outcomes remain toast channel per policy.
+
+**Files:** `src/client/messages/notification-policy.ts`, `src/client/ui/overlay-view.ts`, `src/client/game/session-ui-effects.ts`, `src/client/game/session-signals.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/game/ordnance-actions.ts`, `src/client/telemetry.ts`
 
 ### Digital-input parity for map selection and targeting
 
@@ -70,15 +72,23 @@ Findings from a 2026-04-18 deep-research pass against the [2018 Triplanetary rul
 
 ### Tighten Hard-difficulty nuke gates with cost and intercept probability
 
-Hard difficulty currently fires nukes whenever target score ≥70, OR enemy stronger and ≤6 hexes, OR target carries passengers and ≤6 hexes. Misses three rulebook factors: nukes cost **300 MCr** (15× a torpedo), can be shot down at **2:1 odds** with full range/velocity modifiers (p.6), and detonate on contact with **any** ship / base / asteroid / mine / torpedo (friendly-fire risk). Add an expected-damage estimate that nets out anti-nuke intercept odds and disqualifies launches whose vector passes through friendly hexes.
+Hard difficulty historically over-fired nukes on marginal geometry and cost. Rulebook factors: **300 MCr vs 20 MCr** torpedo cost, **2:1** anti-nuke odds with modifiers (p.6), and detonation on contact with **any** ship / base / asteroid / mine / torpedo on the lane.
 
-**Partial (2026-04-18):** `assessNukeBallisticToEnemy` (friendly path / intercept risk) and hard-tier `nukeMinReachProbability` (default **0.22**, anti-nuke EV from combat odds). **Still open:** explicit 300 MCr vs torpedo trade-off in scoring, bases/asteroids/mines/torpedoes on the lane, and tuning against `simulate:duel-sweep` measurements.
+**Partial (2026-04-18):** `assessNukeBallisticToEnemy` with friendly-path and intercept checks; hard-tier `nukeMinReachProbability` (default **0.22**); grouped anti-nuke EV gating.
+
+**Partial (2026-04-19):** torpedo-viable **nuke score floor** and **2× strength** gate vs cheaper torpedo shots; lane occlusion for **other enemy ships** and **enemy ordnance in flight** (same ballistic stepping as ships); **map lane hazards** from non-space `MapHex` cells (bases, bodies, asteroid/planet/sun surface terrain) plus **pending asteroid hazard** hexes.
+
+**Still open:** expected-damage refinement beyond current gates, and **`simulate:duel-sweep`**-driven tuning of thresholds.
 
 **Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/engine/combat.ts`
 
 ### Add ordnance AI regression fixtures for impossible-shot launches
 
-**Partial (2026-04-18):** `driftingEnemyWouldBeHitByOpenSpaceBallistic` + `EMPTY_SOLAR_MAP` back “no open-space intercept” fixtures; regression tests also cover friendly-lane nuke suppression and grouped anti-nuke EV gating. **Still open:** same-stack edge cases beyond launch-hex stacking, fixtures on real `buildSolarSystemMap()` gravity geometries, optional `game-engine.test.ts` integration seeds.
+**Partial (2026-04-18):** `driftingEnemyWouldBeHitByOpenSpaceBallistic` + `EMPTY_SOLAR_MAP` back “no open-space intercept” fixtures; regression tests also cover friendly-lane nuke suppression and grouped anti-nuke EV gating.
+
+**Partial (2026-04-19):** regression tests for **nuke lane** suppression when the ballistic segment crosses **map terrain** or a **pending asteroid hazard** hex (no third ship / ordnance occluder).
+
+**Still open:** same-stack edge cases beyond launch-hex stacking, fixtures on real `buildSolarSystemMap()` gravity geometries, optional `game-engine.test.ts` integration seeds.
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
 
@@ -192,7 +202,7 @@ Prefer `engineFailure()` everywhere, then surface typed rate-limit / validation 
 
 **Partial (2026-04-18):** `contracts.json` C2S now covers combat / combatSingle edge shapes (implicit `targetType`, omitted `attackStrength`, ordnance targets, multi-volley `combat`, `guards` passthrough) plus `c2sRejected` rows for invalid `targetType`, empty attackers / blank attacker id / empty `targetId`, non-integer `attackStrength`, and out-of-range strength.
 
-**Still open:** more positive/negative C2S rows for other message types; `src/server/game-do/__fixtures__/transport.json` transport coverage.
+**Still open:** more positive/negative C2S rows for other message types (optional **fleetReady**, **surrender**, **skip\*** / phase one-shots); `src/server/game-do/__fixtures__/transport.json` transport coverage.
 
 **Files:** `src/shared/__fixtures__/contracts.json`, `src/shared/protocol.test.ts`, `src/server/game-do/__fixtures__/transport.json`
 
