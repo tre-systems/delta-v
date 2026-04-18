@@ -238,6 +238,15 @@ describe('show', () => {
 
     expect(div.style.display).toBe('inline-block');
   });
+
+  it('clears aria-hidden so visibility matches assistive tech', () => {
+    const div = document.createElement('div');
+    div.setAttribute('aria-hidden', 'true');
+
+    show(div);
+
+    expect(div.getAttribute('aria-hidden')).toBeNull();
+  });
 });
 
 describe('hide', () => {
