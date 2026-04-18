@@ -34,7 +34,11 @@ import {
   getProjectedCurrentStateRaw,
 } from './archive';
 import { purgeMatchScopedStorage } from './archive-storage';
-import { BOT_THINK_TIME_MS, buildBotAction } from './bot';
+import {
+  BOT_THINK_TIME_MS,
+  buildBotAction,
+  SERVER_AGENT_AI_DIFFICULTY,
+} from './bot';
 import {
   broadcastMessage,
   broadcastStateChange,
@@ -763,7 +767,13 @@ export class GameDO extends DurableObject<Env> {
     }
 
     const rng = await this.getActionRng();
-    const action = buildBotAction(gameState, playerId, this.map, 'hard', rng);
+    const action = buildBotAction(
+      gameState,
+      playerId,
+      this.map,
+      SERVER_AGENT_AI_DIFFICULTY,
+      rng,
+    );
 
     if (!action) {
       await this.rescheduleAlarm();

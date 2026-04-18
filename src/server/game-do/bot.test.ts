@@ -92,7 +92,7 @@ describe('buildBotAction', () => {
       state,
       0,
       map,
-      'hard',
+      'normal',
       expect.any(Function),
     );
   });
