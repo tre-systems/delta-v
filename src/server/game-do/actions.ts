@@ -25,7 +25,9 @@ import {
 import type { C2S } from '../../shared/types/protocol';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
 import {
+  type ActionAcceptedMessage,
   type ActionRejectedMessage,
+  buildActionAccepted,
   buildActionRejected,
   checkActionGuards,
   type IdempotencyKeyCache,
@@ -374,6 +376,7 @@ export interface RunActionDeps {
     err: unknown,
   ) => void;
   sendError: (message: string, code?: EngineError['code']) => void;
+  sendActionAccepted: (accepted: ActionAcceptedMessage) => void;
   sendActionRejected: (rejected: ActionRejectedMessage) => void;
 }
 
@@ -386,7 +389,10 @@ export type GameStateActionRunner = <Success extends { state: GameState }>(
     gameState: GameState,
   ) => Success | EngineFailure | Promise<Success | EngineFailure>,
   onSuccess: (result: Success) => Promise<void> | void,
-  preCheck?: (gameState: GameState) => ActionRejectedMessage | null,
+  preCheck?: (gameState: GameState) => {
+    accepted: ActionAcceptedMessage;
+    rejected: ActionRejectedMessage | null;
+  },
 ) => Promise<void>;
 
 export const runGameStateAction = async <
@@ -399,7 +405,10 @@ export const runGameStateAction = async <
     gameState: GameState,
   ) => Success | EngineFailure | Promise<Success | EngineFailure>,
   onSuccess: (result: Success) => Promise<void> | void,
-  preCheck?: (gameState: GameState) => ActionRejectedMessage | null,
+  preCheck?: (gameState: GameState) => {
+    accepted: ActionAcceptedMessage;
+    rejected: ActionRejectedMessage | null;
+  },
 ): Promise<void> => {
   const gameState = await deps.getCurrentGameState();
 
@@ -407,8 +416,11 @@ export const runGameStateAction = async <
     return;
   }
 
+  let accepted: ActionAcceptedMessage | null = null;
   if (preCheck) {
-    const rejected = preCheck(gameState);
+    const preCheckResult = preCheck(gameState);
+    accepted = preCheckResult.accepted;
+    const rejected = preCheckResult.rejected;
     if (rejected) {
       deps.sendActionRejected(rejected);
       return;
@@ -434,6 +446,9 @@ export const runGameStateAction = async <
     deps.sendError(result.error.message, result.error.code);
     return;
   }
+  if (accepted) {
+    deps.sendActionAccepted(accepted);
+  }
   await onSuccess(result);
 };
 
@@ -451,24 +466,45 @@ export const dispatchGameStateAction = async (
 
   const guards = message.guards;
 
-  const preCheck = (gameState: GameState): ActionRejectedMessage | null => {
-    const rejection = checkActionGuards(guards, gameState, playerId, message);
-    if (rejection)
-      return buildActionRejected(rejection, gameState, guards, playerId);
+  const preCheck = (gameState: GameState) => {
+    const guardCheck = checkActionGuards(guards, gameState, playerId, message);
+    const accepted = buildActionAccepted(
+      guardCheck.guardStatus,
+      gameState,
+      guards,
+      playerId,
+    );
+    if (guardCheck.rejection) {
+      return {
+        accepted,
+        rejected: buildActionRejected(
+          guardCheck.rejection,
+          gameState,
+          guards,
+          playerId,
+        ),
+      };
+    }
 
     const key = guards?.idempotencyKey;
     if (key && idempotencyCache?.has(playerId, key)) {
-      return buildActionRejected(
-        {
-          reason: 'duplicateIdempotencyKey',
-          message: `idempotency key already processed this phase`,
-        },
-        gameState,
-        guards,
-        playerId,
-      );
+      return {
+        accepted,
+        rejected: buildActionRejected(
+          {
+            reason: 'duplicateIdempotencyKey',
+            message: `idempotency key already processed this phase`,
+          },
+          gameState,
+          guards,
+          playerId,
+        ),
+      };
     }
-    return null;
+    return {
+      accepted,
+      rejected: null,
+    };
   };
 
   await runner(
@@ -492,7 +528,7 @@ export const dispatchGameStateAction = async (
 // success into broadcastStateChange, but HTTP must surface the verdict in the
 // response body.
 export type DispatchOutcome =
-  | { kind: 'accepted' }
+  | { kind: 'accepted'; accepted: ActionAcceptedMessage | null }
   | { kind: 'rejected'; rejected: ActionRejectedMessage }
   | { kind: 'error'; message: string; code?: EngineError['code'] }
   | { kind: 'noState' };
@@ -519,7 +555,7 @@ export const dispatchGameStateActionForHttp = async (
   message: GameStateActionMessage,
   deps: HttpDispatchDeps,
 ): Promise<DispatchOutcome> => {
-  let outcome: DispatchOutcome = { kind: 'accepted' };
+  let outcome: DispatchOutcome = { kind: 'accepted', accepted: null };
   let outcomeSet = false;
   const setOutcome = (next: DispatchOutcome): void => {
     if (outcomeSet) return;
@@ -532,6 +568,8 @@ export const dispatchGameStateActionForHttp = async (
     getGameCode: deps.getGameCode,
     reportEngineError: deps.reportEngineError,
     sendError: (msg, code) => setOutcome({ kind: 'error', message: msg, code }),
+    sendActionAccepted: (accepted) =>
+      setOutcome({ kind: 'accepted', accepted }),
     sendActionRejected: (rejected) =>
       setOutcome({ kind: 'rejected', rejected }),
   };

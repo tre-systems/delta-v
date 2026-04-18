@@ -7,13 +7,20 @@ import { allowedActionTypesForPhase } from '../../shared/agent/candidates';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { ActionGuards, C2S, S2C } from '../../shared/types/protocol';
 
+export type ActionAcceptedMessage = Extract<S2C, { type: 'actionAccepted' }>;
 export type ActionRejectedMessage = Extract<S2C, { type: 'actionRejected' }>;
 
+export type ActionGuardStatus = ActionAcceptedMessage['guardStatus'];
 export type ActionRejectionReason = ActionRejectedMessage['reason'];
 
 export interface ActionGuardRejection {
   reason: ActionRejectionReason;
   message: string;
+}
+
+export interface ActionGuardCheckResult {
+  guardStatus: ActionGuardStatus;
+  rejection: ActionGuardRejection | null;
 }
 
 // Check the caller-supplied guards against the current authoritative state.
@@ -34,16 +41,24 @@ export const checkActionGuards = (
   state: GameState,
   playerId: PlayerId,
   msg?: C2S,
-): ActionGuardRejection | null => {
-  if (!guards) return null;
+): ActionGuardCheckResult => {
+  if (!guards) {
+    return {
+      guardStatus: 'inSync',
+      rejection: null,
+    };
+  }
 
   if (
     typeof guards.expectedTurn === 'number' &&
     guards.expectedTurn !== state.turnNumber
   ) {
     return {
-      reason: 'staleTurn',
-      message: `expected turn ${guards.expectedTurn} but server is on turn ${state.turnNumber}`,
+      guardStatus: 'inSync',
+      rejection: {
+        reason: 'staleTurn',
+        message: `expected turn ${guards.expectedTurn} but server is on turn ${state.turnNumber}`,
+      },
     };
   }
 
@@ -53,8 +68,11 @@ export const checkActionGuards = (
       allowedActionTypesForPhase(state.phase).has(msg.type as C2S['type']);
     if (!actionTypeOkForCurrentPhase) {
       return {
-        reason: 'stalePhase',
-        message: `expected phase ${guards.expectedPhase} but server is in ${state.phase}`,
+        guardStatus: 'inSync',
+        rejection: {
+          reason: 'stalePhase',
+          message: `expected phase ${guards.expectedPhase} but server is in ${state.phase}`,
+        },
       };
     }
     // Stale guard, but the action type is valid for the real phase — let
@@ -72,12 +90,21 @@ export const checkActionGuards = (
     state.phase === 'logistics';
   if (isSequential && state.activePlayer !== playerId) {
     return {
-      reason: 'wrongActivePlayer',
-      message: `not your turn in ${state.phase} (active player is ${state.activePlayer})`,
+      guardStatus: 'inSync',
+      rejection: {
+        reason: 'wrongActivePlayer',
+        message: `not your turn in ${state.phase} (active player is ${state.activePlayer})`,
+      },
     };
   }
 
-  return null;
+  return {
+    guardStatus:
+      guards.expectedPhase && guards.expectedPhase !== state.phase
+        ? 'stalePhaseForgiven'
+        : 'inSync',
+    rejection: null,
+  };
 };
 
 // Per-match ring of recently-processed idempotency keys. Keeps the last N
@@ -141,5 +168,26 @@ export const buildActionRejected = (
     activePlayer: state.activePlayer,
   },
   state,
+  idempotencyKey: guards?.idempotencyKey,
+});
+
+export const buildActionAccepted = (
+  guardStatus: ActionGuardStatus,
+  state: GameState,
+  guards: ActionGuards | undefined,
+  submitterPlayerId?: PlayerId,
+): ActionAcceptedMessage => ({
+  type: 'actionAccepted',
+  guardStatus,
+  ...(submitterPlayerId !== undefined ? { submitterPlayerId } : {}),
+  expected: {
+    turn: guards?.expectedTurn,
+    phase: guards?.expectedPhase,
+  },
+  actual: {
+    turn: state.turnNumber,
+    phase: state.phase,
+    activePlayer: state.activePlayer,
+  },
   idempotencyKey: guards?.idempotencyKey,
 });

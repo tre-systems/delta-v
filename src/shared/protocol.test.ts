@@ -1627,6 +1627,36 @@ describe('validateServerMessage', () => {
     });
   });
 
+  describe('actionAccepted', () => {
+    const minimalAccepted = {
+      type: 'actionAccepted' as const,
+      guardStatus: 'inSync' as const,
+      expected: {},
+      actual: {
+        turn: 2,
+        phase: 'astrogation' as const,
+        activePlayer: 0 as const,
+      },
+    };
+
+    it('accepts valid actionAccepted payloads', () => {
+      const result = validateServerMessage(minimalAccepted);
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects invalid actionAccepted payloads', () => {
+      expect(
+        validateServerMessage({
+          ...minimalAccepted,
+          guardStatus: 'bad',
+        }),
+      ).toEqual({
+        ok: false,
+        error: 'Invalid actionAccepted payload',
+      });
+    });
+  });
+
   describe('spectatorWelcome', () => {
     it('accepts valid spectatorWelcome', () => {
       const result = validateServerMessage({

@@ -784,6 +784,14 @@ server.registerTool(
     };
 
     while (Date.now() < deadline) {
+      const acceptedEvent = session.events.find(
+        (e) => e.id >= cursor && e.message.type === 'actionAccepted',
+      );
+      const guardStatus =
+        acceptedEvent && acceptedEvent.message.type === 'actionAccepted'
+          ? acceptedEvent.message.guardStatus
+          : 'inSync';
+
       // Any actionRejected since submission dominates: report rejection.
       const rejectedEvent = session.events.find(
         (e) => e.id >= cursor && e.message.type === 'actionRejected',
@@ -842,6 +850,7 @@ server.registerTool(
             matchToken: session.sessionId,
             actionType: action.type,
             accepted: true,
+            guardStatus,
             turnApplied: preState.turnNumber,
             phaseApplied: preState.phase,
             nextTurn: session.lastState.turnNumber,
@@ -863,6 +872,14 @@ server.registerTool(
     // Timed out without seeing a state transition. Common when both players
     // must submit before the phase advances (e.g. astrogation). The action
     // is still in flight; the caller can poll via wait_for_turn.
+    const acceptedEvent = session.events.find(
+      (e) => e.id >= cursor && e.message.type === 'actionAccepted',
+    );
+    const pendingGuardStatus =
+      acceptedEvent && acceptedEvent.message.type === 'actionAccepted'
+        ? acceptedEvent.message.guardStatus
+        : 'inSync';
+
     return toolOk(
       `Sent action ${action.type} on session ${resolvedSessionId}; no state update within ${waitTimeoutMs ?? ACTION_RESULT_DEFAULT_MS}ms (still pending).`,
       {
@@ -870,6 +887,7 @@ server.registerTool(
         matchToken: session.sessionId,
         actionType: action.type,
         accepted: null,
+        guardStatus: pendingGuardStatus,
         pending: true,
         guarded: Boolean(payload.guards),
       },

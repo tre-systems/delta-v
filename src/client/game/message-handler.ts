@@ -263,6 +263,21 @@ const applyErrorPlan: ClientMessagePlanHandler<'error'> = (
   }
 };
 
+const applyActionAcceptedPlan: ClientMessagePlanHandler<'actionAccepted'> = (
+  deps,
+  plan,
+): void => {
+  deps.trackEvent('action_accepted_received', {
+    guardStatus: plan.guardStatus,
+    submitterPlayerId: plan.submitterPlayerId,
+    expectedTurn: plan.expected.turn,
+    expectedPhase: plan.expected.phase,
+    actualTurn: plan.actual.turn,
+    actualPhase: plan.actual.phase,
+    activePlayer: plan.actual.activePlayer,
+  });
+};
+
 const applyActionRejectedPlan: ClientMessagePlanHandler<'actionRejected'> = (
   deps,
   plan,
@@ -329,6 +344,7 @@ const clientMessagePlanHandlers = {
   gameOver: applyGameOverPlan,
   rematchPending: applyRematchPendingPlan,
   error: applyErrorPlan,
+  actionAccepted: applyActionAcceptedPlan,
   actionRejected: applyActionRejectedPlan,
   chat: applyChatPlan,
   pong: applyPongPlan,

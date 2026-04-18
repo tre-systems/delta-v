@@ -594,6 +594,7 @@ const handleActionRequest = async (
       actionType: action.type,
       pending: true,
       guarded: action.guards !== undefined,
+      guardStatus: outcome.accepted?.guardStatus ?? 'inSync',
     });
   }
 
@@ -620,6 +621,7 @@ const handleActionRequest = async (
         ok: true,
         accepted: true,
         actionType: action.type,
+        guardStatus: outcome.accepted?.guardStatus ?? 'inSync',
         turnApplied: stateBefore.turnNumber,
         phaseApplied: stateBefore.phase,
         nextTurn: after.state.turnNumber,
@@ -664,6 +666,7 @@ const handleActionRequest = async (
     actionType: action.type,
     pending: true,
     guarded: action.guards !== undefined,
+    guardStatus: outcome.accepted?.guardStatus ?? 'inSync',
   });
 };
 

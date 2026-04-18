@@ -10,6 +10,7 @@ import {
 import type { GameState } from '../../shared/types/domain';
 
 import {
+  buildActionAccepted,
   buildActionRejected,
   checkActionGuards,
   IdempotencyKeyCache,
@@ -27,21 +28,30 @@ beforeAll(() => {
 });
 
 describe('checkActionGuards', () => {
-  it('returns null when guards are omitted', () => {
-    expect(checkActionGuards(undefined, state, 0)).toBeNull();
+  it('returns an inSync acceptance when guards are omitted', () => {
+    expect(checkActionGuards(undefined, state, 0)).toEqual({
+      guardStatus: 'inSync',
+      rejection: null,
+    });
   });
 
-  it('returns null for empty guards when caller is the active player', () => {
-    expect(checkActionGuards({}, state, state.activePlayer)).toBeNull();
+  it('returns inSync for empty guards when caller is the active player', () => {
+    expect(checkActionGuards({}, state, state.activePlayer)).toEqual({
+      guardStatus: 'inSync',
+      rejection: null,
+    });
   });
 
-  it('returns null when expectedTurn matches', () => {
+  it('returns inSync when expectedTurn matches', () => {
     const result = checkActionGuards(
       { expectedTurn: state.turnNumber },
       state,
       state.activePlayer,
     );
-    expect(result).toBeNull();
+    expect(result).toEqual({
+      guardStatus: 'inSync',
+      rejection: null,
+    });
   });
 
   it('rejects staleTurn when expectedTurn is off', () => {
@@ -50,22 +60,25 @@ describe('checkActionGuards', () => {
       state,
       0,
     );
-    expect(result?.reason).toBe('staleTurn');
+    expect(result.rejection?.reason).toBe('staleTurn');
   });
 
-  it('returns null when expectedPhase matches', () => {
+  it('returns inSync when expectedPhase matches', () => {
     const result = checkActionGuards(
       { expectedPhase: state.phase },
       state,
       state.activePlayer,
     );
-    expect(result).toBeNull();
+    expect(result).toEqual({
+      guardStatus: 'inSync',
+      rejection: null,
+    });
   });
 
   it('rejects stalePhase when expectedPhase differs', () => {
     const other = state.phase === 'astrogation' ? 'combat' : 'astrogation';
     const result = checkActionGuards({ expectedPhase: other }, state, 0);
-    expect(result?.reason).toBe('stalePhase');
+    expect(result.rejection?.reason).toBe('stalePhase');
   });
 
   it('forgives stalePhase when the action type is valid for the current phase', () => {
@@ -85,7 +98,10 @@ describe('checkActionGuards', () => {
         orders: [],
       },
     );
-    expect(result).toBeNull();
+    expect(result).toEqual({
+      guardStatus: 'stalePhaseForgiven',
+      rejection: null,
+    });
   });
 
   it('still rejects stalePhase when the action type does not match the real phase', () => {
@@ -97,19 +113,22 @@ describe('checkActionGuards', () => {
       type: 'combat',
       attacks: [],
     });
-    expect(result?.reason).toBe('stalePhase');
+    expect(result.rejection?.reason).toBe('stalePhase');
   });
 
   it('rejects wrongActivePlayer during astrogation when caller is not activePlayer', () => {
     const inactive = state.activePlayer === 0 ? 1 : 0;
     const result = checkActionGuards({}, state, inactive);
-    expect(result?.reason).toBe('wrongActivePlayer');
+    expect(result.rejection?.reason).toBe('wrongActivePlayer');
   });
 
   it('does not reject wrongActivePlayer during fleetBuilding for either seat', () => {
     const fleetState = { ...state, phase: 'fleetBuilding' as const };
     const inactive = fleetState.activePlayer === 0 ? 1 : 0;
-    expect(checkActionGuards({}, fleetState, inactive)).toBeNull();
+    expect(checkActionGuards({}, fleetState, inactive)).toEqual({
+      guardStatus: 'inSync',
+      rejection: null,
+    });
   });
 });
 
@@ -172,6 +191,23 @@ describe('buildActionRejected', () => {
     expect(msg.actual.turn).toBe(state.turnNumber);
     expect(msg.actual.phase).toBe(state.phase);
     expect(msg.state).toBe(state);
+    expect(msg.idempotencyKey).toBe('abc');
+  });
+});
+
+describe('buildActionAccepted', () => {
+  it('carries guard metadata for accepted actions', () => {
+    const msg = buildActionAccepted(
+      'stalePhaseForgiven',
+      state,
+      { expectedPhase: 'combat', idempotencyKey: 'abc' },
+      1,
+    );
+    expect(msg.type).toBe('actionAccepted');
+    expect(msg.guardStatus).toBe('stalePhaseForgiven');
+    expect(msg.submitterPlayerId).toBe(1);
+    expect(msg.expected.phase).toBe('combat');
+    expect(msg.actual.turn).toBe(state.turnNumber);
     expect(msg.idempotencyKey).toBe('abc');
   });
 });
