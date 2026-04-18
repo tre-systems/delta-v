@@ -34,9 +34,9 @@ Highlight the section in view on scroll, or collapse long groups with `<details>
 
 ### Enforce notification channel precedence in code
 
-Audit remaining toast producers (command router, session/quick-match/replay, logistics, reconnect) for duplicate copy vs HUD / log on the same tick. Connection and reconnect outcomes stay on the toast channel per policy.
+Remaining audit: session UI effects / reactive wiring, telemetry-driven copy, and any logistics paths that still mirror the game log as a toast. Turn timer, local emplacement success, “no enemies” camera hint, and local-only replay now use HUD/sound or the game log instead of stacking toasts. Connection, reconnect, and session errors stay on the toast channel per policy.
 
-**Files:** `src/client/messages/notification-policy.ts`, `src/client/ui/overlay-view.ts`, `src/client/game/session-ui-effects.ts`, `src/client/game/session-signals.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/game/command-router.ts`, `src/client/telemetry.ts`
+**Files:** `src/client/ui/overlay-view.ts`, `src/client/game/session-ui-effects.ts`, `src/client/game/session-signals.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/game/command-router.ts`, `src/client/telemetry.ts`
 
 ### Digital-input parity for map selection and targeting
 

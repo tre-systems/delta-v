@@ -23,6 +23,7 @@ interface ReplayControllerDeps {
   };
   fetchReplay: (code: string, gameId: string) => Promise<ReplayTimeline | null>;
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+  logText: (text: string, cssClass?: string) => void;
   clearTrails: () => void;
   applyGameState: (state: GameState) => void;
   frameOnActivePlayer: (state: GameState) => void;
@@ -253,7 +254,7 @@ export const createReplayController = (
       const ctx = deps.getClientContext();
 
       if (ctx.isLocalGame) {
-        deps.showToast(TOAST.sessionController.replayLocalOnly, 'info');
+        deps.logText(TOAST.sessionController.replayLocalOnly, 'log-env');
         return;
       }
 
