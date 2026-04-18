@@ -253,6 +253,18 @@
       "raw": { "type": "chat" },
       "expectedOk": false
     },
+    "combatAttacksWrongType": {
+      "raw": { "type": "combat", "attacks": "not-an-array" },
+      "expectedOk": false
+    },
+    "combatSingleAttackMissing": {
+      "raw": { "type": "combatSingle" },
+      "expectedOk": false
+    },
+    "combatSingleAttackNotObject": {
+      "raw": { "type": "combatSingle", "attack": 42 },
+      "expectedOk": false
+    },
     "pingTimestampMissing": {
       "raw": { "type": "ping" },
       "expectedOk": false
