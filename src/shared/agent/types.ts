@@ -54,6 +54,14 @@ export interface CoachDirective {
 // only read state/candidates/summary/legalActionInfo keep working. The v2
 // fields (tactical, spatialGrid, labeledCandidates) are opt-in via the
 // buildObservation options; absence means the caller didn't ask for them.
+/** Populated once on the next observation after the server advanced the seat on a decision timeout. */
+export type LastTurnAutoPlayedReason = 'timeout';
+
+export interface LastTurnAutoPlayed {
+  index: number;
+  reason: LastTurnAutoPlayedReason;
+}
+
 export interface AgentTurnInput {
   version: 1;
   gameCode: string;
@@ -61,6 +69,8 @@ export interface AgentTurnInput {
   state: GameState;
   candidates: C2S[];
   recommendedIndex: number;
+  /** One-shot: server played this candidate index for you after a turn timer fired; then cleared. */
+  lastTurnAutoPlayed?: LastTurnAutoPlayed;
   summary?: string;
   legalActionInfo?: LegalActionInfo;
   // v2 optional enrichments — see src/shared/agent/tactical.ts,

@@ -26,6 +26,7 @@ npm run mcp:delta-v
 - `delta_v_wait_for_turn`
 - pick candidate (or custom action)
 - `delta_v_send_action`
+- (hosted MCP) if an observation includes `lastTurnAutoPlayed`, your seat was auto-advanced after a turn timeout — compare `candidates[lastTurnAutoPlayed.index]` and tighten your per-turn budget
 - repeat until game over
 - `delta_v_close_session`
 

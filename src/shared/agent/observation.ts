@@ -16,7 +16,11 @@ import {
 import { buildLegalActionInfo } from './legal-actions';
 import { renderSpatialGrid } from './spatial-grid';
 import { buildTacticalFeatures } from './tactical';
-import type { AgentTurnInput, CoachDirective } from './types';
+import type {
+  AgentTurnInput,
+  CoachDirective,
+  LastTurnAutoPlayed,
+} from './types';
 
 const describeDirection = (dir: number): string =>
   DIRECTION_NAMES[dir] ?? `dir${dir}`;
@@ -118,6 +122,8 @@ export const buildStateSummary = (
 
 export interface BuildObservationOptions {
   gameCode: string;
+  /** When set, attached to the observation once (caller clears after emit). */
+  lastTurnAutoPlayed?: LastTurnAutoPlayed;
   // Pre-built map, when the caller already has one (e.g. the bridge).
   // Omit to build a fresh one.
   map?: SolarSystemMap;
@@ -159,6 +165,9 @@ export const buildObservation = (
     state,
     candidates,
     recommendedIndex: 0,
+    ...(options.lastTurnAutoPlayed
+      ? { lastTurnAutoPlayed: options.lastTurnAutoPlayed }
+      : {}),
     summary: includeSummary
       ? buildStateSummary(
           state,
@@ -193,8 +202,10 @@ export const withCompactObservationState = (
   observation: AgentTurnInput,
 ): AgentTurnInput => {
   const s = observation.state;
+  const { lastTurnAutoPlayed, ...rest } = observation;
   return {
-    ...observation,
+    ...rest,
+    ...(lastTurnAutoPlayed ? { lastTurnAutoPlayed } : {}),
     state: {
       phase: s.phase,
       turnNumber: s.turnNumber,
