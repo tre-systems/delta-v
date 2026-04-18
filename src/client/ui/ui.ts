@@ -103,16 +103,6 @@ export const createUIManager = (deps: UIManagerDeps) => {
 
   let lobbyView: LobbyView;
 
-  lobbyView = createLobbyView({
-    emit,
-    showMenu: () => showMenu(),
-    showScenarioSelect: () => showScenarioSelect(),
-    showToast: (message, type) => overlay.showToast(message, type),
-    getPlayerName: () => deps.playerProfile.getProfile().username,
-    setPlayerName: (name) => deps.playerProfile.setUsername(name).username,
-    getPlayerKey: () => deps.playerProfile.getProfile().playerKey,
-  });
-
   const shipListView = createShipListView({
     onSelectShip: (shipId) => {
       emit({ type: 'selectShip', shipId });
@@ -123,6 +113,17 @@ export const createUIManager = (deps: UIManagerDeps) => {
     onStatusText: (text) => {
       log.setStatusText(text);
     },
+  });
+
+  lobbyView = createLobbyView({
+    emit,
+    showMenu: () => showMenu(),
+    showScenarioSelect: () => showScenarioSelect(),
+    showToast: (message, type) => overlay.showToast(message, type),
+    toggleHelpOverlay: () => hudChromeView.toggleHelpOverlay(),
+    getPlayerName: () => deps.playerProfile.getProfile().username,
+    setPlayerName: (name) => deps.playerProfile.setUsername(name).username,
+    getPlayerKey: () => deps.playerProfile.getProfile().playerKey,
   });
 
   scope.add(

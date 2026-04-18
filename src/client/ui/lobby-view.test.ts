@@ -59,6 +59,7 @@ describe('LobbyView', () => {
           showMenu: vi.fn(),
           showScenarioSelect: vi.fn(),
           showToast: vi.fn(),
+          toggleHelpOverlay: vi.fn(),
           getPlayerName: () => 'Pilot 1',
           setPlayerName: (name) => name,
           getPlayerKey: () => 'humankey12345678',
@@ -80,6 +81,34 @@ describe('LobbyView', () => {
     }
   });
 
+  it('routes menu How to Play through toggleHelpOverlay (HUD path)', () => {
+    const toggleHelpOverlay = vi.fn();
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay,
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 1',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
+    });
+
+    document.getElementById('menuHowToPlayBtn')?.click();
+    expect(toggleHelpOverlay).toHaveBeenCalledTimes(1);
+  });
+
   it('emits multiplayer and single-player scenario events', () => {
     const emit = vi.fn();
     const showMenu = vi.fn();
@@ -89,6 +118,7 @@ describe('LobbyView', () => {
       showMenu,
       showScenarioSelect,
       showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
@@ -138,6 +168,7 @@ describe('LobbyView', () => {
       showMenu,
       showScenarioSelect: vi.fn(),
       showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
@@ -180,6 +211,7 @@ describe('LobbyView', () => {
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
       showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
@@ -259,6 +291,7 @@ describe('LobbyView', () => {
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
       showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
@@ -295,6 +328,7 @@ describe('LobbyView', () => {
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
       showToast,
+      toggleHelpOverlay: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
@@ -353,6 +387,7 @@ describe('LobbyView', () => {
       showMenu,
       showScenarioSelect,
       showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
@@ -399,6 +434,7 @@ describe('LobbyView', () => {
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
       showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName,
       getPlayerKey: () => 'humankey12345678',
@@ -429,6 +465,7 @@ describe('LobbyView', () => {
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
       showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name.trim(),
       getPlayerKey: () => 'humankey12345678',
@@ -452,6 +489,7 @@ describe('LobbyView', () => {
       showMenu: vi.fn(),
       showScenarioSelect: vi.fn(),
       showToast,
+      toggleHelpOverlay: vi.fn(),
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name.trim(),
       getPlayerKey: () => 'humankey12345678',

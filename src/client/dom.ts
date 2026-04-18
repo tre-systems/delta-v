@@ -171,6 +171,7 @@ export const hide = (element: HTMLElement): void => {
 // Show an element by clearing `hidden` and optionally setting `display`.
 export const show = (element: HTMLElement, display = ''): void => {
   element.removeAttribute('hidden');
+  element.removeAttribute('aria-hidden');
   element.style.display = display;
 };
 

@@ -29,6 +29,8 @@ export interface LobbyViewDeps {
   showMenu: () => void;
   showScenarioSelect: () => void;
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+  /** Same HUD help toggle as in-game (single listener on `#helpCloseBtn` / `?`). */
+  toggleHelpOverlay: () => void;
   getPlayerName: () => string;
   setPlayerName: (name: string) => string;
   getPlayerKey: () => string;
@@ -85,8 +87,6 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const joinBtn = byId<HTMLButtonElement>('joinBtn');
   const codeInputEl = byId<HTMLInputElement>('codeInput');
   const menuHowToPlayBtn = byId('menuHowToPlayBtn');
-  const helpOverlayEl = byId('helpOverlay');
-  const helpCloseBtnEl = byId<HTMLButtonElement>('helpCloseBtn');
   const copyBtn = byId('copyBtn');
   const copySpectateBtn = byId('copySpectateBtn');
   const cancelWaitingBtn = byId<HTMLButtonElement>('cancelWaitingBtn');
@@ -280,13 +280,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     });
 
     listen(menuHowToPlayBtn, 'click', () => {
-      show(helpOverlayEl, 'flex');
-      helpCloseBtnEl.focus();
-    });
-
-    listen(helpCloseBtnEl, 'click', () => {
-      hide(helpOverlayEl);
-      menuHowToPlayBtn.focus();
+      deps.toggleHelpOverlay();
     });
 
     listen(createBtn, 'click', () => {
