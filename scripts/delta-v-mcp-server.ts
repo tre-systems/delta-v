@@ -12,6 +12,7 @@ import WebSocket from 'ws';
 import {
   buildObservation,
   computeActionEffects,
+  normalizeQuickMatchServerUrl,
   queueForMatch,
 } from '../src/shared/agent';
 import type { GameState } from '../src/shared/types/domain';
@@ -111,14 +112,13 @@ const stripStateForLLM = <T extends { state?: unknown }>(
   };
 };
 
-const normalizeServerUrl = (raw: string): string => raw.replace(/\/+$/, '');
-
 const buildWsUrl = (
   serverUrl: string,
   code: string,
   playerToken: string,
 ): string => {
-  const wsBase = serverUrl.replace(/^http/, 'ws');
+  const httpBase = normalizeQuickMatchServerUrl(serverUrl);
+  const wsBase = httpBase.replace(/^http/, 'ws');
   return `${wsBase}/ws/${code}?playerToken=${encodeURIComponent(playerToken)}`;
 };
 
@@ -170,6 +170,12 @@ const pushEvent = (session: DeltaVSession, message: S2C): void => {
   // gameOver does not carry state but is terminal; still wake waiters so
   // callers can exit their wait loop promptly.
   if (message.type === 'gameOver') {
+    stateChanged = true;
+  }
+  // Protocol errors (e.g. INVALID_INPUT for unknown action types) do not
+  // carry game state; still wake send_action / wait_for_turn waiters so
+  // blocking tool calls resolve immediately.
+  if (message.type === 'error') {
     stateChanged = true;
   }
 
@@ -352,7 +358,9 @@ server.registerTool(
     },
   },
   async (args) => {
-    const serverUrl = normalizeServerUrl(args.serverUrl ?? DEFAULT_SERVER_URL);
+    const serverUrl = normalizeQuickMatchServerUrl(
+      args.serverUrl ?? DEFAULT_SERVER_URL,
+    );
     const scenario = args.scenario ?? DEFAULT_SCENARIO;
     const playerKey =
       args.playerKey ??
@@ -719,6 +727,20 @@ server.registerTool(
             nextObservation: buildObs(msg.state),
           },
         );
+      }
+
+      const protocolError = session.events.find(
+        (e) => e.id >= cursor && e.message.type === 'error',
+      );
+      if (protocolError && protocolError.message.type === 'error') {
+        const msg = protocolError.message;
+        return toolOk(`Action ${action.type} failed: ${msg.message}`, {
+          sessionId,
+          actionType: action.type,
+          accepted: false,
+          reason: msg.code ?? 'ERROR',
+          message: msg.message,
+        });
       }
 
       const stateAdvanced = preState !== null && session.lastState !== preState;
