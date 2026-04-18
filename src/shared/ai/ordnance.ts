@@ -142,17 +142,23 @@ const clonePendingEffects = (ship: Ship): GravityEffect[] =>
     hex: { ...e.hex },
   }));
 
-/** Same stepping as `findBallisticIntercept`, plus friendly-ship path risk. */
+/** Same stepping as `findBallisticIntercept`, plus lane risk from friendlies
+ *  and from other enemy ships (rulebook: nuke detonates on contact with any
+ *  ship — a third-party enemy on the ballistic lane is not a clean shot at
+ *  the intended target).
+ */
 const assessNukeBallisticToEnemy = (
   launcher: Ship,
   enemy: Ship,
   allyBlockers: Ship[],
+  otherEnemyShips: Ship[],
   map: SolarSystemMap,
   turns = 5,
 ): {
   hasIntercept: boolean;
   turnsToIntercept: number;
   blockedByFriendly: boolean;
+  blockedByOtherEnemy: boolean;
 } => {
   let ordPos: HexCoord = { ...launcher.position };
   let ordVel: HexVec = { ...launcher.velocity };
@@ -165,6 +171,11 @@ const assessNukeBallisticToEnemy = (
     pos: { ...ally.position } as HexCoord,
     vel: { ...ally.velocity } as HexVec,
     pending: clonePendingEffects(ally),
+  }));
+  const otherEnemyStates = otherEnemyShips.map((s) => ({
+    pos: { ...s.position } as HexCoord,
+    vel: { ...s.velocity } as HexVec,
+    pending: clonePendingEffects(s),
   }));
 
   for (let turn = 1; turn <= turns; turn++) {
@@ -190,6 +201,24 @@ const assessNukeBallisticToEnemy = (
           hasIntercept: false,
           turnsToIntercept: Number.POSITIVE_INFINITY,
           blockedByFriendly: true,
+          blockedByOtherEnemy: false,
+        };
+      }
+    }
+
+    const otherEnemySteps = otherEnemyStates.map((s) =>
+      projectBallisticStep(s.pos, s.vel, s.pending, map),
+    );
+    for (const otherStep of otherEnemySteps) {
+      const crossesOtherEnemy = otherStep.path.some((hex) =>
+        ordPathKeys.has(`${hex.q},${hex.r}`),
+      );
+      if (crossesOtherEnemy) {
+        return {
+          hasIntercept: false,
+          turnsToIntercept: Number.POSITIVE_INFINITY,
+          blockedByFriendly: false,
+          blockedByOtherEnemy: true,
         };
       }
     }
@@ -203,6 +232,7 @@ const assessNukeBallisticToEnemy = (
         hasIntercept: true,
         turnsToIntercept: turn,
         blockedByFriendly: false,
+        blockedByOtherEnemy: false,
       };
     }
 
@@ -219,12 +249,20 @@ const assessNukeBallisticToEnemy = (
       st.vel = step.newVelocity;
       st.pending = step.pendingGravityEffects;
     }
+    for (let i = 0; i < otherEnemyStates.length; i++) {
+      const step = otherEnemySteps[i];
+      const st = otherEnemyStates[i];
+      st.pos = step.to;
+      st.vel = step.newVelocity;
+      st.pending = step.pendingGravityEffects;
+    }
   }
 
   return {
     hasIntercept: false,
     turnsToIntercept: Number.POSITIVE_INFINITY,
     blockedByFriendly: false,
+    blockedByOtherEnemy: false,
   };
 };
 
@@ -486,10 +524,12 @@ export const aiOrdnance = (
         other.owner === playerId &&
         other.lifecycle === 'active',
     );
+    const otherEnemyLaneShips = enemyShips.filter((s) => s.id !== bestEnemy.id);
     const nukeIntercept = assessNukeBallisticToEnemy(
       ship,
       bestEnemy,
       allyNukeBlockers,
+      otherEnemyLaneShips,
       map,
     );
     const torpedoVector = pickTorpedoInterceptVector(ship, bestEnemy, map);
@@ -498,7 +538,8 @@ export const aiOrdnance = (
       !hasFriendlyLaunchStack &&
       (ship.passengersAboard ?? 0) === 0 &&
       nukeIntercept.hasIntercept &&
-      !nukeIntercept.blockedByFriendly;
+      !nukeIntercept.blockedByFriendly &&
+      !nukeIntercept.blockedByOtherEnemy;
     const canLaunchTorpedo =
       validateOrdnanceLaunch(state, ship, 'torpedo', map) === null &&
       torpedoVector !== null;

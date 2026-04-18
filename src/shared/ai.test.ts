@@ -1888,6 +1888,50 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
     expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
   });
 
+  it('hard AI does not commit a nuke whose lane crosses a third enemy before the primary target', () => {
+    const lead = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      cargoUsed: 0,
+    });
+    const occluder = createTestShip({
+      id: asShipId('p0-screen'),
+      owner: 0,
+      type: 'corvette',
+      position: { q: 2, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const primary = createTestShip({
+      id: asShipId('p0-dn'),
+      owner: 0,
+      type: 'dreadnaught',
+      position: { q: 5, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        map: EMPTY_SOLAR_MAP,
+        ordnanceStart: lead.position,
+        ordnanceVelocity: { ...lead.velocity },
+        enemyStart: primary.position,
+        enemyVelocity: primary.velocity,
+      }),
+    ).toBe(true);
+
+    const state = createTestState({
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['nuke', 'torpedo'] },
+      ships: [primary, occluder, lead],
+    });
+    const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
+    expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
+  });
+
   it('hard AI skips a nuke when grouped anti-nuke geometry is too strong', () => {
     const lead = createTestShip({
       id: asShipId('p1-lead'),
