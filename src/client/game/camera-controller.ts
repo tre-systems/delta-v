@@ -1,4 +1,5 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
+import { TOAST } from '../messages/toasts';
 import type { Renderer } from '../renderer/renderer';
 import { HEX_SIZE } from '../renderer/renderer';
 import type { OverlayView } from '../ui/overlay-view';
@@ -47,7 +48,7 @@ export const createCameraController = (deps: CameraControllerDeps) => ({
     );
 
     if (!position) {
-      deps.overlay.showToast('No detected enemies', 'info');
+      deps.overlay.showToast(TOAST.gameplay.noDetectedEnemies, 'info');
       return;
     }
     deps.renderer.centerOnHex(position);
