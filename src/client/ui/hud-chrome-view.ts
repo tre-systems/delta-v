@@ -33,7 +33,7 @@ export interface HUDChromeView {
   setMobile: (isMobile: boolean) => void;
   update: (input: Omit<HUDInput, 'isMobile'>) => void;
   updateLatency: (latencyMs: number | null) => void;
-  updateFleetStatus: (status: string) => void;
+  updateFleetStatus: (status: string, ariaLabel?: string) => void;
   toggleHelpOverlay: () => void;
   updateSoundButton: (muted: boolean) => void;
   bindTurnTimerSignal: (
@@ -89,7 +89,10 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const inputSignal = signal<Omit<HUDInput, 'isMobile'> | null>(null);
   const isMobileSignal = signal(false);
   const latencySignal = signal<number | null>(null);
-  const fleetStatusSignal = signal('');
+  const fleetStatusPresentation = signal<{ text: string; aria: string }>({
+    text: '',
+    aria: '',
+  });
   const helpOverlayVisibleSignal = signal(false);
   const soundMutedSignal = signal(false);
   const hiddenTurnTimerSignal = signal<{
@@ -153,8 +156,11 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
     latencySignal.value = latencyMs;
   };
 
-  const updateFleetStatus = (status: string): void => {
-    fleetStatusSignal.value = status;
+  const updateFleetStatus = (status: string, ariaLabel?: string): void => {
+    fleetStatusPresentation.value = {
+      text: status,
+      aria: status ? (ariaLabel ?? status) : '',
+    };
   };
 
   const toggleHelpOverlay = (): void => {
@@ -425,7 +431,15 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       latencyEl.className = status.className;
     });
 
-    text(fleetStatusEl, fleetStatusSignal);
+    effect(() => {
+      const { text: fleetText, aria } = fleetStatusPresentation.value;
+      fleetStatusEl.textContent = fleetText;
+      if (aria) {
+        fleetStatusEl.setAttribute('aria-label', aria);
+      } else {
+        fleetStatusEl.removeAttribute('aria-label');
+      }
+    });
     visible(helpOverlayEl, helpOverlayVisibleSignal, 'flex');
 
     effect(() => {

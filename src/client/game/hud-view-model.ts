@@ -61,8 +61,12 @@ const getObjective = (state: GameState, playerId: PlayerId | -1): string => {
   return '⬡ Destroy all enemies';
 };
 
-const getFleetStatus = (state: GameState, playerId: PlayerId | -1): string => {
+const getFleetStatus = (
+  state: GameState,
+  playerId: PlayerId | -1,
+): { text: string; ariaLabel: string } => {
   const statusParts: string[] = [];
+  const ariaParts: string[] = [];
 
   if (playerId < 0) {
     const fleetOne = state.ships.filter((ship) => ship.owner === 0);
@@ -78,6 +82,9 @@ const getFleetStatus = (state: GameState, playerId: PlayerId | -1): string => {
 
     if (fleetOne.length > 0 || fleetTwo.length > 0) {
       statusParts.push(`👁 Spectating · ${fleetOneAlive} vs ${fleetTwoAlive}`);
+      ariaParts.push(
+        `Spectating: player one has ${fleetOneAlive} active ship${fleetOneAlive === 1 ? '' : 's'}, player two has ${fleetTwoAlive} active ship${fleetTwoAlive === 1 ? '' : 's'}.`,
+      );
     }
   } else {
     const myShips = state.ships.filter((ship) => ship.owner === playerId);
@@ -90,6 +97,9 @@ const getFleetStatus = (state: GameState, playerId: PlayerId | -1): string => {
 
     if (myShips.length > 1 || enemyShips.length > 1) {
       statusParts.push(`⚔ ${myAlive} vs ${enemyAlive}`);
+      ariaParts.push(
+        `${myAlive} of your ships alive versus ${enemyAlive} enemy ship${enemyAlive === 1 ? '' : 's'} alive.`,
+      );
     }
   }
 
@@ -97,11 +107,6 @@ const getFleetStatus = (state: GameState, playerId: PlayerId | -1): string => {
     (ordnance) => ordnance.lifecycle !== 'destroyed',
   );
 
-  if (activeOrdnance.length === 0) {
-    return statusParts.join(' ');
-  }
-
-  const ordnanceParts: string[] = [];
   const mines = count(activeOrdnance, (ordnance) => ordnance.type === 'mine');
   const torpedoes = count(
     activeOrdnance,
@@ -109,13 +114,38 @@ const getFleetStatus = (state: GameState, playerId: PlayerId | -1): string => {
   );
   const nukes = count(activeOrdnance, (ordnance) => ordnance.type === 'nuke');
 
+  if (activeOrdnance.length === 0) {
+    const text = statusParts.join(' ');
+    const ariaLabel = ariaParts.join(' ').trim();
+    return { text, ariaLabel: ariaLabel || text };
+  }
+
+  const ordnanceParts: string[] = [];
   if (mines > 0) ordnanceParts.push(`${mines}M`);
   if (torpedoes > 0) ordnanceParts.push(`${torpedoes}T`);
   if (nukes > 0) ordnanceParts.push(`${nukes}N`);
 
   statusParts.push(ordnanceParts.join('/'));
 
-  return statusParts.join(' ');
+  const ordnanceAriaBits: string[] = [];
+  if (mines > 0) {
+    ordnanceAriaBits.push(`${mines} mine${mines === 1 ? '' : 's'} in flight`);
+  }
+  if (torpedoes > 0) {
+    ordnanceAriaBits.push(
+      `${torpedoes} torpedo${torpedoes === 1 ? '' : 'es'} in flight`,
+    );
+  }
+  if (nukes > 0) {
+    ordnanceAriaBits.push(
+      `${nukes} nuclear weapon${nukes === 1 ? '' : 's'} in flight`,
+    );
+  }
+  ariaParts.push(`Ordnance: ${ordnanceAriaBits.join(', ')}.`);
+
+  const text = statusParts.join(' ');
+  const ariaLabel = ariaParts.join(' ').trim();
+  return { text, ariaLabel: ariaLabel || text };
 };
 
 const getOrdnanceActionState = (
@@ -234,6 +264,8 @@ export const deriveHudViewModel = (
     );
   }
 
+  const fleetStatusLine = getFleetStatus(state, playerId);
+
   return {
     turn: state.turnNumber,
     phase: state.phase,
@@ -248,7 +280,8 @@ export const deriveHudViewModel = (
     objective: getObjective(state, playerId),
     canOverload: stats?.canOverload ?? false,
     emplaceBaseState,
-    fleetStatus: getFleetStatus(state, playerId),
+    fleetStatus: fleetStatusLine.text,
+    fleetStatusAriaLabel: fleetStatusLine.ariaLabel,
     selectedShipLanded: selectedShip?.lifecycle === 'landed',
     selectedShipDisabled: (selectedShip?.damage.disabledTurns ?? 0) > 0,
     selectedShipHasBurn: selectedShip

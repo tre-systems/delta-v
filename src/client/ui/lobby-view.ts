@@ -552,6 +552,22 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       text(waitingTitleEl, copy.titleText);
       text(gameCodeEl, copy.codeText);
       gameCodeEl.dataset.variant = copy.codeVariant;
+      const rawCode = copy.codeText.trim();
+      if (copy.codeVariant === 'statusWord') {
+        gameCodeEl.setAttribute(
+          'aria-label',
+          rawCode === 'SEARCHING'
+            ? 'Searching for an opponent'
+            : `Status: ${copy.codeText}`,
+        );
+      } else if (rawCode === '' || rawCode === '...') {
+        gameCodeEl.removeAttribute('aria-label');
+      } else if (/^[A-Za-z0-9]{5}$/.test(rawCode)) {
+        const spelled = rawCode.toUpperCase().split('').join(' ');
+        gameCodeEl.setAttribute('aria-label', `Game code: ${spelled}`);
+      } else {
+        gameCodeEl.setAttribute('aria-label', `Game code: ${copy.codeText}`);
+      }
       const queuedAt = copy.quickMatchQueuedAtMs;
       queueElapsedTick.value;
       if (queuedAt != null) {

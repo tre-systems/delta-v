@@ -206,9 +206,13 @@ describe('HUDChromeView', () => {
     );
 
     view.updateFleetStatus('2 ships ready');
-    expect(document.getElementById('fleetStatus')?.textContent).toBe(
-      '2 ships ready',
-    );
+    const fleetStatus = document.getElementById('fleetStatus');
+    expect(fleetStatus?.textContent).toBe('2 ships ready');
+    expect(fleetStatus?.getAttribute('aria-label')).toBe('2 ships ready');
+
+    view.updateFleetStatus('1T', '1 torpedo in flight');
+    expect(fleetStatus?.textContent).toBe('1T');
+    expect(fleetStatus?.getAttribute('aria-label')).toBe('1 torpedo in flight');
 
     const helpBtn = document.getElementById('helpBtn') as HTMLButtonElement;
     helpBtn.focus();
