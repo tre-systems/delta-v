@@ -71,6 +71,7 @@ const buildInput = (
   allOrdnanceShipsAcknowledged: false,
   queuedOrdnanceType: null,
   queuedLaunchCount: 0,
+  queuedCombatAttackCount: 0,
   astrogationCtx: {
     selectedShipLanded: false,
     selectedShipDisabled: false,
