@@ -16,7 +16,6 @@ import {
   type ShipMovement,
 } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
-import { SERVER_ERROR_USER_HINT } from '../messages/server-error-hints';
 import { TOAST } from '../messages/toasts';
 import {
   handleServerMessage,
@@ -567,12 +566,23 @@ describe('client integration: chat and errors', () => {
       ],
     ]);
     expect(deps.calls['ui.overlay.showToast']).toEqual([
-      [
-        `${SERVER_ERROR_USER_HINT[ErrorCode.INVALID_INPUT]}: Room not found`,
-        'error',
-      ],
+      ['Invalid action — please try again: Room not found', 'error'],
     ]);
     expect(deps.calls.setState).toEqual([['menu']]);
+  });
+
+  it('server resource-limit error uses typed retry copy', () => {
+    const deps = createDeps('playing_astrogation', createState());
+
+    handleServerMessage(deps, {
+      type: 'error',
+      message: 'Rate limit exceeded',
+      code: ErrorCode.RESOURCE_LIMIT,
+    });
+
+    expect(deps.calls['ui.overlay.showToast']).toEqual([
+      [TOAST.connection.rateLimited, 'error'],
+    ]);
   });
 
   it('rematch pending shows UI', () => {

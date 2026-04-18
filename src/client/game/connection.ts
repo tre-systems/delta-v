@@ -2,6 +2,7 @@ import { must } from '../../shared/assert';
 import { validateServerMessage } from '../../shared/protocol';
 import type { GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
+import { getConnectCloseToastMessage } from '../messages/server-error-presentation';
 import { TOAST } from '../messages/toasts';
 import {
   deriveDisconnectHandling,
@@ -192,19 +193,10 @@ export const createConnectionManager = (
       deps.showToast(TOAST.connection.couldNotConnect, 'error');
       return;
     }
-    if (close.code === 1006) {
-      deps.showToast(TOAST.connection.couldNotReachServer, 'error');
-      return;
-    }
-    if (close.code === 1008) {
-      deps.showToast(TOAST.connection.connectionRejected, 'error');
-      return;
-    }
-    if (close.code === 1011) {
-      deps.showToast(TOAST.connection.serverErrorRetryShortly, 'error');
-      return;
-    }
-    deps.showToast(TOAST.connection.couldNotConnect, 'error');
+    deps.showToast(
+      getConnectCloseToastMessage(close.code, close.reason),
+      'error',
+    );
   };
 
   const handleDisconnect = () => {
