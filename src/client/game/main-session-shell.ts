@@ -95,6 +95,7 @@ export const createMainSessionShell = (
   let replayController: ReplayController;
   let messageHandlerDeps: MessageHandlerDeps;
   let networkDeps: MainNetworkDeps;
+  let archivedReplayFetchAbort: AbortController | null = null;
 
   const applyGameState = (state: GameState) => {
     applyClientGameState(
@@ -287,6 +288,18 @@ export const createMainSessionShell = (
     track: args.track,
     createLocalTransport,
     stopTurnTimer: () => args.turnTimer.stop(),
+    registerArchivedReplayFetchAbort: (controller) => {
+      archivedReplayFetchAbort = controller;
+    },
+    releaseArchivedReplayFetchAbortIfMatches: (controller) => {
+      if (archivedReplayFetchAbort === controller) {
+        archivedReplayFetchAbort = null;
+      }
+    },
+    abortInflightArchivedReplayFetch: () => {
+      archivedReplayFetchAbort?.abort();
+      archivedReplayFetchAbort = null;
+    },
   };
 
   return {

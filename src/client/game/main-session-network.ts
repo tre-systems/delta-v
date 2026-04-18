@@ -43,6 +43,14 @@ export interface MainNetworkDeps {
   actionDeps: ActionDeps;
   turnTelemetry: TurnTelemetryTracker;
   sessionApi: Pick<SessionApi, 'validateJoin' | 'fetchArchivedReplay'>;
+  /** Abort an in-flight archived-replay `fetch` (e.g. user hits Cancel / menu). */
+  abortInflightArchivedReplayFetch?: () => void;
+  /** Remember the `AbortController` for the active archived replay fetch. */
+  registerArchivedReplayFetchAbort?: (controller: AbortController) => void;
+  /** Clear the registered controller only if it is still the active one. */
+  releaseArchivedReplayFetchAbortIfMatches?: (
+    controller: AbortController,
+  ) => void;
   sessionTokens: Pick<
     SessionTokenService,
     'getStoredPlayerToken' | 'storePlayerToken'
@@ -186,8 +194,8 @@ const createMainArchivedReplaySessionDeps = (
   buildGameRoute,
   setWaitingScreenState: (state) => setWaitingScreenState(deps.ctx, state),
   setState: deps.setState,
-  fetchArchivedReplay: (gameCode, gameId) =>
-    deps.sessionApi.fetchArchivedReplay(gameCode, gameId),
+  fetchArchivedReplay: (gameCode, gameId, signal) =>
+    deps.sessionApi.fetchArchivedReplay(gameCode, gameId, signal),
   applyGameState: deps.applyGameState,
   startArchivedReplay: (timeline) =>
     deps.replayController.startArchivedReplay(timeline),
@@ -202,11 +210,21 @@ export const beginArchivedReplayFromMain = (
   gameId: string,
 ): void => {
   deps.ui.log.setLocalGame(false);
-  void beginArchivedReplaySession(
-    createMainArchivedReplaySessionDeps(deps),
-    code,
-    gameId,
-  );
+  deps.abortInflightArchivedReplayFetch?.();
+  const ac = new AbortController();
+  deps.registerArchivedReplayFetchAbort?.(ac);
+  void (async () => {
+    try {
+      await beginArchivedReplaySession(
+        createMainArchivedReplaySessionDeps(deps),
+        code,
+        gameId,
+        ac.signal,
+      );
+    } finally {
+      deps.releaseArchivedReplayFetchAbortIfMatches?.(ac);
+    }
+  })();
 };
 
 export const beginJoinGameFromMain = (
@@ -231,5 +249,6 @@ export const handleServerMessageFromMain = (
 };
 
 export const exitToMenuFromMain = (deps: MainNetworkDeps): void => {
+  deps.abortInflightArchivedReplayFetch?.();
   exitToMenuSession(createMainExitSessionDeps(deps));
 };

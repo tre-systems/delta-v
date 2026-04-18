@@ -524,7 +524,9 @@ describe('session-controller', () => {
     // No connect() surface on this deps shape — archived replay never
     // opens a live WebSocket. Scenario hydrated from the timeline.
     expect(deps.calls.setScenario).toEqual([['duel']]);
-    expect(deps.calls.fetchArchivedReplay).toEqual([['ZNMC6', 'ZNMC6-m1']]);
+    expect(deps.calls.fetchArchivedReplay).toEqual([
+      ['ZNMC6', 'ZNMC6-m1', undefined],
+    ]);
     // Final state applied before the replay controller starts.
     const appliedStates = deps.calls.applyGameState as Array<[GameState]>;
     expect(appliedStates).toHaveLength(1);
@@ -548,6 +550,70 @@ describe('session-controller', () => {
     expect(deps.calls.exitToMenu).toHaveLength(1);
     expect(deps.calls.startArchivedReplay).toBeUndefined();
     expect(deps.calls.applyGameState).toBeUndefined();
+  });
+
+  it('does not apply replay when the archived fetch signal aborts mid-flight', async () => {
+    const timeline = buildTimeline();
+    const ac = new AbortController();
+    const calls: Record<string, unknown[][]> = {};
+    const track =
+      (name: string) =>
+      (...args: unknown[]) => {
+        if (!calls[name]) calls[name] = [];
+        calls[name].push(args);
+      };
+
+    const deps: ArchivedReplaySessionDeps & {
+      calls: Record<string, unknown[][]>;
+    } = {
+      ctx: stubClientSession({
+        gameCode: null,
+        isLocalGame: false,
+        spectatorMode: false,
+        reconnectOverlayState: null,
+        opponentDisconnectDeadlineMs: null,
+      }),
+      resetTurnTelemetry: track('resetTurnTelemetry'),
+      replaceRoute: track('replaceRoute'),
+      buildGameRoute: (code) => `/game/${code}`,
+      setWaitingScreenState: track('setWaitingScreenState'),
+      setState: track('setState'),
+      fetchArchivedReplay: async (code, gameId, signal) => {
+        track('fetchArchivedReplay')(code, gameId, signal);
+        await new Promise<void>((resolve) => {
+          signal?.addEventListener(
+            'abort',
+            () => {
+              resolve();
+            },
+            { once: true },
+          );
+        });
+        return timeline;
+      },
+      applyGameState: track('applyGameState'),
+      startArchivedReplay: track('startArchivedReplay'),
+      showToast: track('showToast'),
+      exitToMenu: track('exitToMenu'),
+      setScenario: track('setScenario'),
+      calls,
+    };
+
+    const sessionPromise = beginArchivedReplaySession(
+      deps,
+      'ABCDE',
+      'ABCDE-m1',
+      ac.signal,
+    );
+    queueMicrotask(() => {
+      ac.abort();
+    });
+    await sessionPromise;
+
+    expect(deps.calls.startArchivedReplay).toBeUndefined();
+    expect(deps.calls.applyGameState).toBeUndefined();
+    expect(deps.calls.showToast).toBeUndefined();
+    expect(deps.calls.exitToMenu).toBeUndefined();
   });
 
   it('clears the active session when returning to menu', () => {
