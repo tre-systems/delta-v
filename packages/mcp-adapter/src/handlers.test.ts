@@ -202,6 +202,7 @@ describe('handleMcpHttpRequest', () => {
       'delta_v_get_observation',
       'delta_v_get_state',
       'delta_v_quick_match',
+      'delta_v_quick_match_connect',
       'delta_v_send_action',
       'delta_v_send_chat',
       'delta_v_wait_for_turn',
