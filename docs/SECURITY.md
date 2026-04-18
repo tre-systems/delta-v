@@ -4,7 +4,7 @@ This document describes the current security posture of Delta-V with emphasis on
 
 Use it as an implementation-level security baseline for engineering decisions. It is not a legal policy document.
 
-Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md) (security and abuse tasks), [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md).
+Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md) (optional scoped tasks), [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md).
 
 ## Current Protections
 
@@ -122,7 +122,7 @@ message-throttled at the edge; abuse is further mitigated by two seats per room 
 
 ### 4. Cost-abuse surface (current gaps)
 
-Distinct from competitive integrity — these are paths where a motivated attacker can drive Cloudflare billing faster than the current controls throttle them. Tracked in [BACKLOG.md](./BACKLOG.md) under "Cost & abuse hardening".
+Distinct from competitive integrity — these are paths where a motivated attacker can drive Cloudflare billing faster than the current controls throttle them. Treat follow-ups as scoped engineering/product work when any path below becomes material.
 
 - `POST /telemetry` and `POST /error` rate limits are per-isolate `Map`s, not edge-global; a distributed caller can cycle POPs to bypass them. Accepted POSTs write a ≤ 4 KB D1 `events` row. **Retention:** a daily `scheduled` cron (`wrangler.toml` `crons = ["0 4 * * *"]`) calls `purgeOldEvents(env.DB, EVENTS_RETENTION_MS)` to delete rows older than **30 days** ([`src/server/reporting.ts`](../src/server/reporting.ts)).
 - `POST /mcp` rate limit and body cap are enforced, but a distributed attacker cycling POPs still sees the per-isolate fallback when the `MCP_RATE_LIMITER` binding is absent (e.g. `wrangler dev`). Also: `delta_v_quick_match` polling storms and `/mcp/wait` long-polls can hold GAME DOs warm within the cap.
@@ -209,7 +209,7 @@ If the product scope expands beyond friendly matches:
 - Stronger join / replay HTTP throttling if room-code guessing or DO wake abuse becomes measurable (global controls, not just per-isolate windows)
 - Optional **global** (cross-edge) rate limits via WAF / `[[ratelimits]]` for reporting, join/replay, or WebSocket upgrades if needed
 
-Concrete abuse-hardening follow-ups belong in [BACKLOG.md](./BACKLOG.md) when the current per-isolate limits stop being sufficient for the product shape.
+When the current per-isolate limits stop being sufficient for the product shape, track concrete abuse-hardening follow-ups in [BACKLOG.md](./BACKLOG.md) or your issue tracker.
 
 ## Data retention (D1, R2, DO)
 
@@ -223,7 +223,7 @@ What persists today:
 
 **Operational control:** Cloudflare D1 export/backup, R2 lifecycle rules (tiering or delete after N days), and manual SQL (`DELETE` batches) when a shorter retention window is mandated for the un-purged tables.
 
-**User deletion requests:** if a jurisdiction requires erasure, use **`anon_id`** and time windows in `events` (subject to the 30-day window), **`player_key`** in `player` / `match_rating`, and **`gameId` / `room_code`** correlation for `match_archive` and R2 archives — document a runbook when needed. Automated purge or stricter programs are [BACKLOG.md](./BACKLOG.md) ops/engineering work when the product requires it.
+**User deletion requests:** if a jurisdiction requires erasure, use **`anon_id`** and time windows in `events` (subject to the 30-day window), **`player_key`** in `player` / `match_rating`, and **`gameId` / `room_code`** correlation for `match_archive` and R2 archives — document a runbook when needed. Automated purge or stricter programs are ops/engineering work when the product requires it.
 
 ## Operational References
 

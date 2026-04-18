@@ -15,7 +15,7 @@ You are an autonomous agent playing Delta-V, a turn-based space combat game with
 
 ## MCP entry (pick one)
 
-- **This skill + Cursor:** configure the repo’s stdio server (`npm run mcp:delta-v`, tool `delta_v_quick_match_connect`). For a **single** agent against production matchmaking you still need a second human/agent client unless the Worker is in **`DEV_MODE=1`**, where a lone ticket can pair with a dev bot after ~10s (local `wrangler dev` with `.dev.vars`).
+- **This skill + Cursor:** configure the repo’s stdio server (`npm run mcp:delta-v`, tool `delta_v_quick_match_connect`). For a **single** agent against production matchmaking you still need a second human/agent client unless the Worker is in **`DEV_MODE=1`**, where a lone ticket can pair with a dev bot after ~10s (local `wrangler dev` with `.dev.vars`). Local MCP returns the **full** observation `state` by default; pass **`compactState: true`** on `get_observation` / `wait_for_turn` / `send_action` if you need a smaller token footprint.
 - **Hosted / evaluation:** use remote MCP with `agentToken` + `delta_v_quick_match` / `matchToken` as in [`AGENTS.md`](../../../docs/AGENTS.md).
 
 ## Game Loop

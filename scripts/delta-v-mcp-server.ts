@@ -98,7 +98,7 @@ const stripStateForLLM = <T extends { state?: unknown }>(
   state?: { phase?: unknown; turnNumber?: unknown; activePlayer?: unknown };
 } => {
   // Observations can include a full `state` object, which is large. Keep a
-  // tiny subset needed by the repo's agent skills (e.g. `state.phase`).
+  // tiny subset needed when callers opt in via `compactState: true`.
   const { state, ...rest } = obs;
   if (!state) return rest;
   const safeState = state as Record<string, unknown>;
@@ -111,6 +111,14 @@ const stripStateForLLM = <T extends { state?: unknown }>(
     },
   };
 };
+
+const shapeObservationForTool = <T extends { state?: unknown }>(
+  observation: T,
+  compactState: boolean | undefined,
+): T | ReturnType<typeof stripStateForLLM<T>> =>
+  compactState === true
+    ? (stripStateForLLM(observation) as ReturnType<typeof stripStateForLLM<T>>)
+    : observation;
 
 const buildWsUrl = (
   serverUrl: string,
@@ -485,6 +493,8 @@ server.registerTool(
       includeTactical: z.boolean().optional(),
       includeSpatialGrid: z.boolean().optional(),
       includeCandidateLabels: z.boolean().optional(),
+      /** When true, shrink `state` to phase/turn/activePlayer only (smaller tokens). Default false = full `AgentTurnInput.state`. */
+      compactState: z.boolean().optional(),
     },
   },
   async ({
@@ -494,6 +504,7 @@ server.registerTool(
     includeTactical,
     includeSpatialGrid,
     includeCandidateLabels,
+    compactState,
   }) => {
     const session = getSessionOrThrow(sessionId);
     if (session.lastState === null) {
@@ -515,11 +526,11 @@ server.registerTool(
       includeSpatialGrid,
       includeCandidateLabels,
     });
-    const observationForLLM = stripStateForLLM(observation);
+    const out = shapeObservationForTool(observation, compactState);
 
     return toolOk(
       `Observation for session ${sessionId} (turn ${session.lastState.turnNumber}, phase ${session.lastState.phase}).`,
-      observationForLLM as Record<string, unknown>,
+      out as Record<string, unknown>,
     );
   },
 );
@@ -537,6 +548,7 @@ server.registerTool(
       includeTactical: z.boolean().optional(),
       includeSpatialGrid: z.boolean().optional(),
       includeCandidateLabels: z.boolean().optional(),
+      compactState: z.boolean().optional(),
     },
   },
   async ({
@@ -547,6 +559,7 @@ server.registerTool(
     includeTactical,
     includeSpatialGrid,
     includeCandidateLabels,
+    compactState,
   }) => {
     const session = getSessionOrThrow(sessionId);
     const deadline = Date.now() + (timeoutMs ?? WAIT_FOR_TURN_DEFAULT_MS);
@@ -569,10 +582,10 @@ server.registerTool(
             includeSpatialGrid,
             includeCandidateLabels,
           });
-          const observationForLLM = stripStateForLLM(observation);
+          const out = shapeObservationForTool(observation, compactState);
           return toolOk(
             `Actionable observation for session ${sessionId} (turn ${state.turnNumber}, phase ${state.phase}).`,
-            observationForLLM as Record<string, unknown>,
+            out as Record<string, unknown>,
           );
         }
       }
@@ -643,6 +656,7 @@ server.registerTool(
       includeTactical: z.boolean().optional(),
       includeSpatialGrid: z.boolean().optional(),
       includeCandidateLabels: z.boolean().optional(),
+      compactState: z.boolean().optional(),
     },
   },
   async ({
@@ -657,6 +671,7 @@ server.registerTool(
     includeTactical,
     includeSpatialGrid,
     includeCandidateLabels,
+    compactState,
   }) => {
     const session = getSessionOrThrow(sessionId);
     if (session.ws.readyState !== WebSocket.OPEN) {
@@ -703,7 +718,10 @@ server.registerTool(
         includeSpatialGrid,
         includeCandidateLabels,
       });
-      return stripStateForLLM(observation) as Record<string, unknown>;
+      return shapeObservationForTool(observation, compactState) as Record<
+        string,
+        unknown
+      >;
     };
 
     while (Date.now() < deadline) {
