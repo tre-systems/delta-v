@@ -41,6 +41,8 @@ export interface ActionGuards {
   idempotencyKey?: string;
 }
 
+export type ActionGuardStatus = 'inSync' | 'stalePhaseForgiven';
+
 type WithGuards<T> = T & { guards?: ActionGuards };
 
 export type C2S = WithGuards<
@@ -112,6 +114,21 @@ export type S2C =
       text: string;
     }
   | { type: 'error'; message: string; code?: ErrorCode }
+  | {
+      type: 'actionAccepted';
+      guardStatus: ActionGuardStatus;
+      submitterPlayerId?: PlayerId;
+      expected: {
+        turn?: number;
+        phase?: Phase;
+      };
+      actual: {
+        turn: number;
+        phase: Phase;
+        activePlayer: PlayerId;
+      };
+      idempotencyKey?: string;
+    }
   | {
       /**
        * Sent to the submitter (never broadcast) when an action failed its

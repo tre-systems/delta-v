@@ -187,7 +187,7 @@ export const processEmplacement = (
 
   const phaseError = validatePhaseAction(state, playerId, 'ordnance');
 
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   for (const emp of emplacements) {
     const ship = state.ships.find((s) => s.id === emp.shipId);

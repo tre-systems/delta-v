@@ -305,6 +305,8 @@ const createBotClient = (
         );
         return;
       }
+      case 'actionAccepted':
+        return;
       case 'actionRejected': {
         metrics.serverErrors++;
         metrics.errorBreakdown.actionRejected++;

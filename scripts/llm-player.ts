@@ -860,6 +860,13 @@ const run = async (config: Config): Promise<void> => {
             `server error${message.code ? ` (${message.code})` : ''}: ${message.message}`,
           );
           return;
+        case 'actionAccepted':
+          if (config.verbose && message.guardStatus !== 'inSync') {
+            console.log(
+              `action accepted (${message.guardStatus}) turn=${message.actual.turn} phase=${message.actual.phase}`,
+            );
+          }
+          return;
         case 'actionRejected': {
           console.warn(
             `action rejected (${message.reason}): ${message.message}`,

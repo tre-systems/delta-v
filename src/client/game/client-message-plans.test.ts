@@ -326,4 +326,30 @@ describe('game-client-message-plans', () => {
       },
     });
   });
+
+  it('derives a structured actionAccepted plan', () => {
+    expect(
+      derive({
+        type: 'actionAccepted',
+        guardStatus: 'stalePhaseForgiven',
+        submitterPlayerId: 1,
+        expected: { turn: 4, phase: 'astrogation' },
+        actual: {
+          turn: 5,
+          phase: 'ordnance',
+          activePlayer: 0,
+        },
+      }),
+    ).toEqual({
+      kind: 'actionAccepted',
+      guardStatus: 'stalePhaseForgiven',
+      submitterPlayerId: 1,
+      expected: { turn: 4, phase: 'astrogation' },
+      actual: {
+        turn: 5,
+        phase: 'ordnance',
+        activePlayer: 0,
+      },
+    });
+  });
 });

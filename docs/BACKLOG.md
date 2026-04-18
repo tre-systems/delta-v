@@ -106,7 +106,9 @@ Hosted MCP: add `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_
 
 ### Structured action-rejection reasons
 
-Distinct wire reason when ActionGuards **phase** mismatch is forgiven (action type already valid for the real phase) vs when the client is simply in sync. Richer discrimination for engine-level invalidations that still surface as generic `error` today.
+**Done for this slice:** submitter-only `actionAccepted` now carries `guardStatus: inSync | stalePhaseForgiven` so local MCP, hosted MCP, browser clients, and agent scripts can distinguish forgiven phase drift from fully in-sync submissions without overloading `actionRejected`.
+
+**Remaining:** richer discrimination for engine-level invalidations that still surface as generic `error` today.
 
 **Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/protocol.ts`, `src/shared/protocol.ts`, `scripts/delta-v-mcp-server.ts`, `src/client/game/client-message-plans.ts`
 
@@ -162,7 +164,9 @@ Tighten scenario/body registries around closed keys; brand ship / ordnance ident
 
 ### Standardized error surfaces and client recovery messaging
 
-Prefer `engineFailure()` everywhere, then surface typed rate-limit / validation handling in the client so user-facing error behavior can branch on error code instead of generic text alone.
+**Done for this slice:** core engine entry points now normalize phase / validation wrappers through `engineFailure()` instead of hand-building `{ error }` results.
+
+**Remaining:** surface typed rate-limit / validation handling in the client so user-facing error behavior can branch on error code instead of generic text alone.
 
 **Files:** `src/shared/engine/util.ts`, `src/shared/engine/astrogation.ts`, `src/shared/engine/ordnance.ts`, `src/shared/engine/logistics.ts`, `src/shared/engine/combat.ts`, `src/shared/types/domain.ts`, `src/server/game-do/socket.ts`, `src/client/game/connection.ts`, `src/client/game/message-handler.ts`
 

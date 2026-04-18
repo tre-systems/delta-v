@@ -272,7 +272,7 @@ export const processLogistics = (
 
   const phaseError = validatePhaseAction(state, playerId, 'logistics');
 
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   for (const transfer of transfers) {
     const error = validateTransfer(state, playerId, transfer);
@@ -355,7 +355,7 @@ export const skipLogistics = (
 
   const phaseError = validatePhaseAction(state, playerId, 'logistics');
 
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   checkGameEnd(state, map, engineEvents);
 
@@ -384,7 +384,7 @@ export const processSurrender = (
 
   const phaseError = validatePhaseAction(state, playerId, 'astrogation');
 
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   if (!state.scenarioRules.logisticsEnabled) {
     return engineFailure(

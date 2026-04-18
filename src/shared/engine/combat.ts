@@ -275,7 +275,7 @@ export const beginCombatPhase = (
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
 
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
@@ -321,7 +321,7 @@ export const processCombat = (
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
 
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 
@@ -604,7 +604,7 @@ export const processSingleCombat = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   const targeted = new Set(state.combatTargetedThisPhase ?? []);
   const targetKey = `${attack.targetType}:${attack.targetId}`;
@@ -765,7 +765,7 @@ export const endCombat = (
   const engineEvents: EngineEvent[] = [];
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   const results: CombatResult[] = [];
 
@@ -805,7 +805,7 @@ export const skipCombat = (
 
   const phaseError = validatePhaseAction(state, playerId, 'combat');
 
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   const results = resolvePendingAsteroidHazards(state, playerId, rng);
 

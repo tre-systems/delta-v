@@ -618,6 +618,24 @@ export const validateServerMessage = (raw: unknown): Result<S2C> => {
       }
       return ok(msg as unknown as S2C);
 
+    case 'actionAccepted':
+      if (
+        msg.guardStatus !== 'inSync' &&
+        msg.guardStatus !== 'stalePhaseForgiven'
+      ) {
+        return invalid('Invalid actionAccepted payload');
+      }
+      if (
+        msg.submitterPlayerId !== undefined &&
+        !isPlayerId(msg.submitterPlayerId)
+      ) {
+        return invalid('Invalid actionAccepted payload');
+      }
+      if (!isObject(msg.actual) || !isObject(msg.expected)) {
+        return invalid('Invalid actionAccepted payload');
+      }
+      return ok(msg as unknown as S2C);
+
     case 'actionRejected':
       if (!isString(msg.reason) || !isString(msg.message)) {
         return invalid('Invalid actionRejected payload');
