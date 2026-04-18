@@ -1,4 +1,5 @@
 import { TURN_TIMEOUT_MS } from '../../shared/constants';
+import { TOAST } from '../messages/toasts';
 import { type ReadonlySignal, signal } from '../reactive';
 
 export interface TurnTimerViewModel {
@@ -87,7 +88,7 @@ export const createTurnTimerManager = (
       if (timer.shouldWarn && !timerWarningPlayed) {
         timerWarningPlayed = true;
         deps.playWarning();
-        deps.showToast('30 seconds remaining!', 'info');
+        deps.showToast(TOAST.timer.thirtySecondsRemaining, 'info');
       }
     }, 1000);
   };

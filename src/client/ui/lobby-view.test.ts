@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { TOAST } from '../messages/toasts';
 import { createLobbyView } from './lobby-view';
 
 const installFixture = () => {
@@ -467,7 +468,7 @@ describe('LobbyView', () => {
 
     await expect.poll(() => emit.mock.calls.length).toBeGreaterThan(0);
     expect(showToast).toHaveBeenCalledWith(
-      'Could not save callsign online — you can still play.',
+      TOAST.lobby.claimCouldNotSaveOnline,
       'info',
     );
     expect(emit).toHaveBeenCalledWith({ type: 'quickMatch' });

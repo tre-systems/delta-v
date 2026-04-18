@@ -196,3 +196,17 @@ body::before {
   line-height: 1.55;
   color: var(--muted);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-tip,
+  .toast,
+  #gameOver,
+  .turn-timer-urgent,
+  .waiting-status-pulse {
+    animation: none !important;
+  }
+
+  .toast {
+    transition: none !important;
+  }
+}

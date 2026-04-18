@@ -2,6 +2,8 @@ import { reportError } from './telemetry';
 
 let shown = false;
 
+const GH_ISSUES_URL = 'https://github.com/tre-systems/delta-v/issues';
+
 const focusableSelector =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -75,10 +77,68 @@ export const showErrorScreen = (error: unknown): void => {
     detail.textContent = snippet;
   }
 
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.style.cssText = [
-    'margin-top:8px',
+  const buildClipboardPayload = (): string => {
+    const href = typeof location !== 'undefined' ? location.href : '';
+    return [
+      'Delta-V client error',
+      `Message: ${message}`,
+      `URL: ${href}`,
+      `Time: ${new Date().toISOString()}`,
+    ].join('\n');
+  };
+
+  const actionsRow = document.createElement('div');
+  actionsRow.style.cssText = [
+    'display:flex',
+    'flex-wrap:wrap',
+    'gap:10px',
+    'justify-content:center',
+    'margin-top:4px',
+  ].join(';');
+
+  const copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.id = 'error-copy-details-btn';
+  copyBtn.style.cssText = [
+    'padding:10px 20px',
+    'background:var(--chrome-surface-strong,rgba(7,14,28,0.88))',
+    'color:var(--text,#eef4ff)',
+    'border:1px solid var(--border-strong,rgba(122,215,255,0.38))',
+    'border-radius:var(--radius-pill,999px)',
+    "font-family:var(--font-display,'Space Grotesk',sans-serif)",
+    'font-size:0.95rem',
+    'cursor:pointer',
+  ].join(';');
+  copyBtn.textContent = 'Copy details';
+  copyBtn.addEventListener('click', () => {
+    const payload = buildClipboardPayload();
+    const write = navigator.clipboard?.writeText(payload);
+    if (write) {
+      void write
+        .then(() => {
+          copyBtn.textContent = 'Copied!';
+          window.setTimeout(() => {
+            copyBtn.textContent = 'Copy details';
+          }, 2500);
+        })
+        .catch(() => {
+          copyBtn.textContent = 'Copy failed';
+          window.setTimeout(() => {
+            copyBtn.textContent = 'Copy details';
+          }, 2500);
+        });
+    } else {
+      copyBtn.textContent = 'Copy failed';
+      window.setTimeout(() => {
+        copyBtn.textContent = 'Copy details';
+      }, 2500);
+    }
+  });
+
+  const reloadBtn = document.createElement('button');
+  reloadBtn.type = 'button';
+  reloadBtn.id = 'error-reload-btn';
+  reloadBtn.style.cssText = [
     'padding:10px 24px',
     'background:var(--accent-soft,rgba(122,215,255,0.14))',
     'color:var(--accent,#7ad7ff)',
@@ -88,10 +148,26 @@ export const showErrorScreen = (error: unknown): void => {
     'font-size:0.95rem',
     'cursor:pointer',
   ].join(';');
-  button.textContent = 'Reload';
-  button.addEventListener('click', () => {
+  reloadBtn.textContent = 'Reload';
+  reloadBtn.addEventListener('click', () => {
     window.location.reload();
   });
+
+  const help = document.createElement('p');
+  help.style.cssText = [
+    'margin:0',
+    'font-size:0.82rem',
+    'color:var(--muted,#90a0ba)',
+  ].join(';');
+  help.appendChild(document.createTextNode('Having trouble? '));
+  const reportLink = document.createElement('a');
+  reportLink.href = GH_ISSUES_URL;
+  reportLink.target = '_blank';
+  reportLink.rel = 'noopener noreferrer';
+  reportLink.textContent = 'Report on GitHub';
+  reportLink.style.color = 'var(--accent,#7ad7ff)';
+  help.appendChild(reportLink);
+  help.appendChild(document.createTextNode('.'));
 
   overlay.appendChild(heading);
   overlay.appendChild(body);
@@ -104,7 +180,11 @@ export const showErrorScreen = (error: unknown): void => {
   } else {
     overlay.setAttribute('aria-describedby', 'error-screen-desc');
   }
-  overlay.appendChild(button);
+
+  actionsRow.appendChild(copyBtn);
+  actionsRow.appendChild(reloadBtn);
+  overlay.appendChild(actionsRow);
+  overlay.appendChild(help);
   document.body.appendChild(overlay);
 
   const trapFocus = (ev: KeyboardEvent): void => {
@@ -132,6 +212,6 @@ export const showErrorScreen = (error: unknown): void => {
 
   overlay.addEventListener('keydown', trapFocus);
   requestAnimationFrame(() => {
-    button.focus();
+    copyBtn.focus();
   });
 };

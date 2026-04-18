@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { asGameId } from '../../shared/ids';
+import { TOAST } from '../messages/toasts';
 import { createSessionApi, type SessionApiDeps } from './session-api';
 import { stubClientSession } from './session-model';
 import { createSessionTokenService } from './session-token-service';
@@ -112,7 +113,7 @@ describe('session-api telemetry', () => {
       reason: 'timeout',
     });
     expect(deps.showToast).toHaveBeenLastCalledWith(
-      'Game creation timed out. Try again.',
+      TOAST.session.gameCreateTimeout,
       'error',
     );
     expect(deps.setState).toHaveBeenCalledWith('menu');
@@ -308,7 +309,7 @@ describe('session-api telemetry', () => {
       reason: 'active_in_other_tab',
     });
     expect(deps.showToast).toHaveBeenCalledWith(
-      'Quick Match is already active in another tab. Use a private window to join as a second local player.',
+      TOAST.session.quickMatchOtherTab,
       'error',
     );
     expect(deps.setState).toHaveBeenCalledWith('menu');

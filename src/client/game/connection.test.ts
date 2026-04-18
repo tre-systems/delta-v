@@ -8,6 +8,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
+import { TOAST } from '../messages/toasts';
 import { type ConnectionDeps, createConnectionManager } from './connection';
 
 type FakeWebSocketInstance = {
@@ -304,7 +305,7 @@ describe('game-client-connection', () => {
 
     expect(spies.setReconnectOverlayState).not.toHaveBeenCalled();
     expect(spies.showToast).toHaveBeenCalledWith(
-      'Could not connect to game',
+      TOAST.connection.couldNotConnect,
       'error',
     );
     expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
