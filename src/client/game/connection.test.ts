@@ -331,4 +331,20 @@ describe('game-client-connection', () => {
     );
     expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
   });
+
+  it('shows typed retry copy when the server rejects connect attempts for rate limiting', () => {
+    const { deps, setClientState, spies } = createDeps();
+    setClientState('connecting');
+    const manager = createConnectionManager(deps);
+
+    manager.connect('ABCDE');
+    const ws = FakeWebSocket.instances[0];
+    ws.close({ code: 1008, wasClean: true, reason: 'Rate limit exceeded' });
+
+    expect(spies.showToast).toHaveBeenCalledWith(
+      TOAST.connection.rateLimited,
+      'error',
+    );
+    expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
+  });
 });

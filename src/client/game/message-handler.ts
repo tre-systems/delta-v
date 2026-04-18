@@ -4,7 +4,7 @@ import type { RoomCode } from '../../shared/ids';
 import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
-import { SERVER_ERROR_USER_HINT } from '../messages/server-error-hints';
+import { getServerErrorToastMessage } from '../messages/server-error-presentation';
 import { TOAST } from '../messages/toasts';
 import { batch } from '../reactive';
 import {
@@ -253,10 +253,7 @@ const applyErrorPlan: ClientMessagePlanHandler<'error'> = (
     message: plan.message,
     code: plan.code,
   });
-  const friendlyMessage = plan.code && SERVER_ERROR_USER_HINT[plan.code];
-  const displayMessage = friendlyMessage
-    ? `${friendlyMessage}: ${plan.message}`
-    : plan.message;
+  const displayMessage = getServerErrorToastMessage(plan.message, plan.code);
   deps.ui.overlay.showToast(displayMessage, 'error');
   if (deps.ctx.state === 'connecting') {
     deps.setState('menu');
