@@ -799,6 +799,7 @@ server.registerTool(
             accepted: false,
             reason: msg.reason,
             message: msg.message,
+            submitterPlayerId: msg.submitterPlayerId,
             expected: msg.expected,
             actual: msg.actual,
             idempotencyKey: msg.idempotencyKey,

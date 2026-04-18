@@ -83,6 +83,7 @@ export type ClientMessagePlan =
         | 'wrongActivePlayer'
         | 'duplicateIdempotencyKey';
       message: string;
+      submitterPlayerId?: PlayerId;
       expected: {
         turn?: number;
         phase?: Phase;
@@ -203,6 +204,9 @@ export const deriveClientMessagePlan = (
         kind: 'actionRejected',
         reason: msg.reason,
         message: msg.message,
+        ...(msg.submitterPlayerId !== undefined
+          ? { submitterPlayerId: msg.submitterPlayerId }
+          : {}),
         expected: msg.expected,
         actual: msg.actual,
       };

@@ -126,6 +126,8 @@ export type S2C =
         | 'wrongActivePlayer'
         | 'duplicateIdempotencyKey';
       message: string;
+      /** Seat that submitted the rejected action (agents need not correlate WebSocket context). */
+      submitterPlayerId?: PlayerId;
       expected: {
         turn?: number;
         phase?: Phase;

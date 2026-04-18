@@ -304,6 +304,7 @@ describe('game-client-message-plans', () => {
         type: 'actionRejected',
         reason: 'stalePhase',
         message: 'expected phase astrogation but server is in ordnance',
+        submitterPlayerId: 1,
         expected: { turn: 4, phase: 'astrogation' },
         actual: {
           turn: 5,
@@ -316,6 +317,7 @@ describe('game-client-message-plans', () => {
       kind: 'actionRejected',
       reason: 'stalePhase',
       message: 'expected phase astrogation but server is in ordnance',
+      submitterPlayerId: 1,
       expected: { turn: 4, phase: 'astrogation' },
       actual: {
         turn: 5,

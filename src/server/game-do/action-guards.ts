@@ -125,10 +125,12 @@ export const buildActionRejected = (
   rejection: ActionGuardRejection,
   state: GameState,
   guards: ActionGuards | undefined,
+  submitterPlayerId?: PlayerId,
 ): ActionRejectedMessage => ({
   type: 'actionRejected',
   reason: rejection.reason,
   message: rejection.message,
+  ...(submitterPlayerId !== undefined ? { submitterPlayerId } : {}),
   expected: {
     turn: guards?.expectedTurn,
     phase: guards?.expectedPhase,

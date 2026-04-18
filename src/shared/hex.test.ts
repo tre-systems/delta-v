@@ -339,6 +339,8 @@ describe('isHexKey', () => {
   it('rejects arbitrary strings and non-string values', () => {
     expect(isHexKey('')).toBe(false);
     expect(isHexKey('q,r')).toBe(false);
+    expect(isHexKey('q3r5')).toBe(false);
+    expect(isHexKey('1, 2')).toBe(false);
     expect(isHexKey('1,')).toBe(false);
     expect(isHexKey(',')).toBe(false);
     expect(isHexKey('1,2,3')).toBe(false);
