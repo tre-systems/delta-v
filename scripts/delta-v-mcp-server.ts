@@ -62,6 +62,11 @@ interface DeltaVSession {
 
 const sessions = new Map<string, DeltaVSession>();
 
+type SessionRefArgs = {
+  sessionId?: string;
+  matchToken?: string;
+};
+
 const asTextContent = (text: string): { type: 'text'; text: string } => ({
   type: 'text',
   text,
@@ -271,6 +276,14 @@ const getSessionOrThrow = (sessionId: string): DeltaVSession => {
   return session;
 };
 
+const resolveSessionIdOrThrow = ({ sessionId, matchToken }: SessionRefArgs) => {
+  const resolved = sessionId ?? matchToken;
+  if (!resolved) {
+    throw new Error('Provide sessionId (local alias: matchToken).');
+  }
+  return resolved;
+};
+
 const inferSurrenderShipIds = (session: DeltaVSession, action: C2S): C2S => {
   if (action.type !== 'surrender' || action.shipIds !== undefined) {
     return action;
@@ -408,6 +421,7 @@ const handleQuickMatchConnect = async (args: {
     `Connected Delta-V session ${sessionId} (code ${matched.code}).`,
     {
       sessionId,
+      matchToken: sessionId,
       serverUrl,
       scenario,
       code: matched.code,
@@ -422,7 +436,7 @@ server.registerTool(
   'delta_v_quick_match_connect',
   {
     description:
-      'Queue for quick match, wait for match, and connect a player WebSocket session.',
+      'Queue for quick match, wait for match, and connect a player WebSocket session. Returns sessionId and matchToken (alias of sessionId) for local/hosted payload parity.',
     inputSchema: QUICK_MATCH_CONNECT_SCHEMA,
   },
   handleQuickMatchConnect,
@@ -432,7 +446,7 @@ server.registerTool(
   'delta_v_quick_match',
   {
     description:
-      'Alias for delta_v_quick_match_connect so local and hosted MCP share a quick-match entry point name.',
+      'Alias for delta_v_quick_match_connect so local and hosted MCP share a quick-match entry point name and return shape.',
     inputSchema: QUICK_MATCH_CONNECT_SCHEMA,
   },
   handleQuickMatchConnect,
@@ -447,6 +461,7 @@ server.registerTool(
     toolOk('Listed active Delta-V sessions.', {
       sessions: [...sessions.values()].map((session) => ({
         sessionId: session.sessionId,
+        matchToken: session.sessionId,
         code: session.code,
         scenario: session.scenario,
         serverUrl: session.serverUrl,
@@ -461,15 +476,22 @@ server.registerTool(
 server.registerTool(
   'delta_v_get_state',
   {
-    description: 'Get latest known game state for a session.',
+    description:
+      'Get latest known game state for a local MCP session (sessionId; alias: matchToken).',
     inputSchema: {
-      sessionId: z.string(),
+      sessionId: z.string().optional(),
+      matchToken: z.string().optional(),
     },
   },
-  async ({ sessionId }) => {
-    const session = getSessionOrThrow(sessionId);
-    return toolOk(`State for session ${sessionId}.`, {
+  async ({ sessionId, matchToken }) => {
+    const resolvedSessionId = resolveSessionIdOrThrow({
+      sessionId,
+      matchToken,
+    });
+    const session = getSessionOrThrow(resolvedSessionId);
+    return toolOk(`State for session ${resolvedSessionId}.`, {
       sessionId: session.sessionId,
+      matchToken: session.sessionId,
       code: session.code,
       playerId: session.playerId,
       state: session.lastState,
@@ -485,7 +507,8 @@ server.registerTool(
     description:
       'Get the unified agent observation for a session: candidates, legal-action metadata, prose summary, and recommendedIndex. Matches the AgentTurnInput shape sent by the stdin/HTTP bridge so the same agent code works via either path. Opt-in v2 enrichments (tactical features, ASCII spatial grid, labeled candidates with risk) cost extra tokens but help LLM agents reason without re-deriving geometry.',
     inputSchema: {
-      sessionId: z.string(),
+      sessionId: z.string().optional(),
+      matchToken: z.string().optional(),
       includeSummary: z.boolean().optional(),
       includeLegalActionInfo: z.boolean().optional(),
       includeTactical: z.boolean().optional(),
@@ -497,6 +520,7 @@ server.registerTool(
   },
   async ({
     sessionId,
+    matchToken,
     includeSummary,
     includeLegalActionInfo,
     includeTactical,
@@ -504,15 +528,19 @@ server.registerTool(
     includeCandidateLabels,
     compactState,
   }) => {
-    const session = getSessionOrThrow(sessionId);
+    const resolvedSessionId = resolveSessionIdOrThrow({
+      sessionId,
+      matchToken,
+    });
+    const session = getSessionOrThrow(resolvedSessionId);
     if (session.lastState === null) {
       throw new Error(
-        `Session ${sessionId} has no state yet; wait for gameStart before requesting an observation.`,
+        `Session ${resolvedSessionId} has no state yet; wait for gameStart before requesting an observation.`,
       );
     }
     if (session.playerId === null) {
       throw new Error(
-        `Session ${sessionId} has not received a welcome message yet; cannot build observation without a playerId.`,
+        `Session ${resolvedSessionId} has not received a welcome message yet; cannot build observation without a playerId.`,
       );
     }
 
@@ -527,8 +555,12 @@ server.registerTool(
     const out = shapeObservationForTool(observation, compactState);
 
     return toolOk(
-      `Observation for session ${sessionId} (turn ${session.lastState.turnNumber}, phase ${session.lastState.phase}).`,
-      out as unknown as Record<string, unknown>,
+      `Observation for session ${resolvedSessionId} (turn ${session.lastState.turnNumber}, phase ${session.lastState.phase}).`,
+      {
+        sessionId: session.sessionId,
+        matchToken: session.sessionId,
+        ...(out as unknown as Record<string, unknown>),
+      },
     );
   },
 );
@@ -539,7 +571,8 @@ server.registerTool(
     description:
       "Block until it is the caller's turn to act (fleetBuilding: both seats; every other phase including astrogation: state.activePlayer must match this seat), then return a fresh observation. Eliminates polling for MCP agents. Respects a timeout (default 30s) and throws if the game reaches gameOver before becoming actionable. Supports the same v2 enrichment toggles as delta_v_get_observation.",
     inputSchema: {
-      sessionId: z.string(),
+      sessionId: z.string().optional(),
+      matchToken: z.string().optional(),
       timeoutMs: z.number().int().min(1_000).max(300_000).optional(),
       includeSummary: z.boolean().optional(),
       includeLegalActionInfo: z.boolean().optional(),
@@ -551,6 +584,7 @@ server.registerTool(
   },
   async ({
     sessionId,
+    matchToken,
     timeoutMs,
     includeSummary,
     includeLegalActionInfo,
@@ -559,7 +593,11 @@ server.registerTool(
     includeCandidateLabels,
     compactState,
   }) => {
-    const session = getSessionOrThrow(sessionId);
+    const resolvedSessionId = resolveSessionIdOrThrow({
+      sessionId,
+      matchToken,
+    });
+    const session = getSessionOrThrow(resolvedSessionId);
     const deadline = Date.now() + (timeoutMs ?? WAIT_FOR_TURN_DEFAULT_MS);
 
     while (Date.now() < deadline) {
@@ -568,7 +606,7 @@ server.registerTool(
       if (state && playerId !== null) {
         if (state.phase === 'gameOver') {
           throw new Error(
-            `Session ${sessionId} reached gameOver before becoming actionable.`,
+            `Session ${resolvedSessionId} reached gameOver before becoming actionable.`,
           );
         }
         if (isActionable(state, playerId)) {
@@ -582,8 +620,12 @@ server.registerTool(
           });
           const out = shapeObservationForTool(observation, compactState);
           return toolOk(
-            `Actionable observation for session ${sessionId} (turn ${state.turnNumber}, phase ${state.phase}).`,
-            out as unknown as Record<string, unknown>,
+            `Actionable observation for session ${resolvedSessionId} (turn ${state.turnNumber}, phase ${state.phase}).`,
+            {
+              sessionId: session.sessionId,
+              matchToken: session.sessionId,
+              ...(out as unknown as Record<string, unknown>),
+            },
           );
         }
       }
@@ -595,7 +637,7 @@ server.registerTool(
     }
 
     throw new Error(
-      `wait_for_turn timed out on session ${sessionId} before it was actionable.`,
+      `wait_for_turn timed out on session ${resolvedSessionId} before it was actionable.`,
     );
   },
 );
@@ -605,14 +647,19 @@ server.registerTool(
   {
     description: 'Read buffered server events for a session.',
     inputSchema: {
-      sessionId: z.string(),
+      sessionId: z.string().optional(),
+      matchToken: z.string().optional(),
       afterEventId: z.number().int().min(0).optional(),
       limit: z.number().int().min(1).max(200).optional(),
       clear: z.boolean().optional(),
     },
   },
-  async ({ sessionId, afterEventId, limit, clear }) => {
-    const session = getSessionOrThrow(sessionId);
+  async ({ sessionId, matchToken, afterEventId, limit, clear }) => {
+    const resolvedSessionId = resolveSessionIdOrThrow({
+      sessionId,
+      matchToken,
+    });
+    const session = getSessionOrThrow(resolvedSessionId);
     const max = limit ?? 50;
     const filtered = session.events.filter((event) =>
       afterEventId === undefined ? true : event.id > afterEventId,
@@ -623,17 +670,21 @@ server.registerTool(
       session.events = [];
     }
 
-    return toolOk(`Returned ${selected.length} event(s) for ${sessionId}.`, {
-      sessionId,
-      events: selected.map((event) => ({
-        id: event.id,
-        receivedAt: event.receivedAt,
-        type: event.message.type,
-        message: event.message,
-      })),
-      bufferedRemaining: session.events.length,
-      latestEventId: session.nextEventId - 1,
-    });
+    return toolOk(
+      `Returned ${selected.length} event(s) for ${resolvedSessionId}.`,
+      {
+        sessionId: session.sessionId,
+        matchToken: session.sessionId,
+        events: selected.map((event) => ({
+          id: event.id,
+          receivedAt: event.receivedAt,
+          type: event.message.type,
+          message: event.message,
+        })),
+        bufferedRemaining: session.events.length,
+        latestEventId: session.nextEventId - 1,
+      },
+    );
   },
 );
 
@@ -643,7 +694,8 @@ server.registerTool(
     description:
       "Send a raw C2S game action for a session. ActionGuards are auto-filled from the session's current state unless autoGuards=false. When waitForResult=true (default false), blocks briefly for the next state-bearing S2C or actionRejected and returns an ActionResult with accepted, effects (visible deltas), turn/phase info, and optionally a fresh observation so agents can close the decision loop in one call.",
     inputSchema: {
-      sessionId: z.string(),
+      sessionId: z.string().optional(),
+      matchToken: z.string().optional(),
       action: z.object({ type: z.string() }).passthrough(),
       autoGuards: z.boolean().optional(),
       waitForResult: z.boolean().optional(),
@@ -659,6 +711,7 @@ server.registerTool(
   },
   async ({
     sessionId,
+    matchToken,
     action,
     autoGuards,
     waitForResult,
@@ -671,9 +724,13 @@ server.registerTool(
     includeCandidateLabels,
     compactState,
   }) => {
-    const session = getSessionOrThrow(sessionId);
+    const resolvedSessionId = resolveSessionIdOrThrow({
+      sessionId,
+      matchToken,
+    });
+    const session = getSessionOrThrow(resolvedSessionId);
     if (session.ws.readyState !== WebSocket.OPEN) {
-      throw new Error(`Session ${sessionId} socket is not open`);
+      throw new Error(`Session ${resolvedSessionId} socket is not open`);
     }
 
     const shouldAutoGuard = autoGuards ?? true;
@@ -695,11 +752,15 @@ server.registerTool(
     session.ws.send(JSON.stringify(payload));
 
     if (!waitForResult) {
-      return toolOk(`Sent action ${action.type} on session ${sessionId}.`, {
-        sessionId,
-        actionType: action.type,
-        guarded: Boolean(payload.guards),
-      });
+      return toolOk(
+        `Sent action ${action.type} on session ${resolvedSessionId}.`,
+        {
+          sessionId: session.sessionId,
+          matchToken: session.sessionId,
+          actionType: action.type,
+          guarded: Boolean(payload.guards),
+        },
+      );
     }
 
     const deadline = Date.now() + (waitTimeoutMs ?? ACTION_RESULT_DEFAULT_MS);
@@ -732,7 +793,8 @@ server.registerTool(
         return toolOk(
           `Action ${action.type} rejected: ${msg.reason} — ${msg.message}`,
           {
-            sessionId,
+            sessionId: session.sessionId,
+            matchToken: session.sessionId,
             actionType: action.type,
             accepted: false,
             reason: msg.reason,
@@ -751,7 +813,8 @@ server.registerTool(
       if (protocolError && protocolError.message.type === 'error') {
         const msg = protocolError.message;
         return toolOk(`Action ${action.type} failed: ${msg.message}`, {
-          sessionId,
+          sessionId: session.sessionId,
+          matchToken: session.sessionId,
           actionType: action.type,
           accepted: false,
           reason: msg.code ?? 'ERROR',
@@ -774,7 +837,8 @@ server.registerTool(
         return toolOk(
           `Action ${action.type} accepted (${effects.length} visible effect${effects.length === 1 ? '' : 's'}).`,
           {
-            sessionId,
+            sessionId: session.sessionId,
+            matchToken: session.sessionId,
             actionType: action.type,
             accepted: true,
             turnApplied: preState.turnNumber,
@@ -799,9 +863,10 @@ server.registerTool(
     // must submit before the phase advances (e.g. astrogation). The action
     // is still in flight; the caller can poll via wait_for_turn.
     return toolOk(
-      `Sent action ${action.type} on session ${sessionId}; no state update within ${waitTimeoutMs ?? ACTION_RESULT_DEFAULT_MS}ms (still pending).`,
+      `Sent action ${action.type} on session ${resolvedSessionId}; no state update within ${waitTimeoutMs ?? ACTION_RESULT_DEFAULT_MS}ms (still pending).`,
       {
-        sessionId,
+        sessionId: session.sessionId,
+        matchToken: session.sessionId,
         actionType: action.type,
         accepted: null,
         pending: true,
@@ -817,26 +882,32 @@ server.registerTool(
     description:
       'Send chat text in a Delta-V session. Canonical arg is `text`; `message` is accepted as an alias for agents that follow the more common chat-field naming.',
     inputSchema: {
-      sessionId: z.string(),
+      sessionId: z.string().optional(),
+      matchToken: z.string().optional(),
       text: z.string().min(1).max(200).optional(),
       message: z.string().min(1).max(200).optional(),
     },
   },
-  async ({ sessionId, text, message }) => {
+  async ({ sessionId, matchToken, text, message }) => {
     const chatText = text ?? message;
     if (!chatText) {
       throw new Error(
         'send_chat requires a non-empty `text` (alias: `message`).',
       );
     }
-    const session = getSessionOrThrow(sessionId);
+    const resolvedSessionId = resolveSessionIdOrThrow({
+      sessionId,
+      matchToken,
+    });
+    const session = getSessionOrThrow(resolvedSessionId);
     if (session.ws.readyState !== WebSocket.OPEN) {
-      throw new Error(`Session ${sessionId} socket is not open`);
+      throw new Error(`Session ${resolvedSessionId} socket is not open`);
     }
     const action: C2S = { type: 'chat', text: chatText };
     session.ws.send(JSON.stringify(action));
-    return toolOk(`Sent chat in session ${sessionId}.`, {
-      sessionId,
+    return toolOk(`Sent chat in session ${resolvedSessionId}.`, {
+      sessionId: session.sessionId,
+      matchToken: session.sessionId,
       text: chatText,
     });
   },
@@ -847,14 +918,23 @@ server.registerTool(
   {
     description: 'Close and remove a Delta-V session.',
     inputSchema: {
-      sessionId: z.string(),
+      sessionId: z.string().optional(),
+      matchToken: z.string().optional(),
     },
   },
-  async ({ sessionId }) => {
-    const session = getSessionOrThrow(sessionId);
+  async ({ sessionId, matchToken }) => {
+    const resolvedSessionId = resolveSessionIdOrThrow({
+      sessionId,
+      matchToken,
+    });
+    const session = getSessionOrThrow(resolvedSessionId);
     session.ws.close(1000, 'Closed by MCP tool');
-    sessions.delete(sessionId);
-    return toolOk(`Closed session ${sessionId}.`, { sessionId, closed: true });
+    sessions.delete(session.sessionId);
+    return toolOk(`Closed session ${resolvedSessionId}.`, {
+      sessionId: session.sessionId,
+      matchToken: session.sessionId,
+      closed: true,
+    });
   },
 );
 
