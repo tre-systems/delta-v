@@ -71,6 +71,12 @@ describe('ui formatters', () => {
       subtitle: "OPPONENT'S TURN",
       subtitleColor: 'var(--warning)',
     });
+
+    expect(getPhaseAlertCopy('logistics', true)).toEqual({
+      title: 'Logistics',
+      subtitle: 'YOUR TURN',
+      subtitleColor: 'var(--accent)',
+    });
   });
 
   it('formats movement event entries including captures', () => {

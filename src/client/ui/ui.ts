@@ -120,9 +120,6 @@ export const createUIManager = (deps: UIManagerDeps) => {
   });
   const hudChromeView = createHUDChromeView({
     queueLayoutSync,
-    showPhaseAlert: (phase, isMyTurn) => {
-      overlay.showPhaseAlert(phase, isMyTurn);
-    },
     onStatusText: (text) => {
       log.setStatusText(text);
     },

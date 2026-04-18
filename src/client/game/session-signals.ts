@@ -13,6 +13,7 @@ import {
   attachRendererGameStateEffect,
   attachSessionLatencyEffect,
   attachSessionLogisticsPanelEffect,
+  attachSessionPhaseAlertEffect,
   attachSessionPlayerIdentityEffect,
   attachSessionWaitingScreenEffect,
   type SessionGameStateRenderer,
@@ -20,6 +21,7 @@ import {
   type SessionInteractionUI,
   type SessionLatencyUI,
   type SessionLogisticsPanelUI,
+  type SessionPhaseAlertOverlay,
   type SessionWaitingScreenUI,
 } from './session-ui-effects';
 
@@ -30,7 +32,9 @@ type MainSessionEffectsDeps = {
     SessionWaitingScreenUI &
     SessionLatencyUI &
     SessionFleetPanelUI &
-    SessionInteractionUI;
+    SessionInteractionUI & {
+      overlay: SessionPhaseAlertOverlay;
+    };
   hud: SessionHudConsumer;
   logistics: SessionLogisticsPanelUI;
 };
@@ -59,6 +63,7 @@ export const attachMainSessionEffects = (
   scope.add(attachSessionLatencyEffect(session, deps.ui));
   scope.add(attachSessionLogisticsPanelEffect(session, deps.logistics));
   scope.add(attachRendererGameStateEffect(session, deps.renderer));
+  scope.add(attachSessionPhaseAlertEffect(session, deps.ui.overlay));
   deps.ui.bindClientStateSignal(session.stateSignal);
 
   return () => scope.dispose();
@@ -71,6 +76,7 @@ export {
   attachSessionHudEffect,
   attachSessionLatencyEffect,
   attachSessionLogisticsPanelEffect,
+  attachSessionPhaseAlertEffect,
   attachSessionPlanningSelectionEffect,
   attachSessionPlayerIdentityEffect,
   attachSessionWaitingScreenEffect,

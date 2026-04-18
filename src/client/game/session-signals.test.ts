@@ -17,6 +17,7 @@ import {
   attachSessionHudEffect,
   attachSessionLatencyEffect,
   attachSessionLogisticsPanelEffect,
+  attachSessionPhaseAlertEffect,
   attachSessionPlanningSelectionEffect,
   attachSessionPlayerIdentityEffect,
   attachSessionWaitingScreenEffect,
@@ -99,6 +100,7 @@ describe('session-signals', () => {
         updateFleetStatus: vi.fn(),
         updateShipList: vi.fn(),
         bindClientStateSignal: vi.fn(),
+        overlay: { showPhaseAlert: vi.fn() },
       },
       hud: {
         updateHUD: vi.fn(),
@@ -214,6 +216,36 @@ describe('session-signals', () => {
     session.playerId = 1;
     expect(setRendererPlayerId).toHaveBeenLastCalledWith(1);
     expect(setUIPlayerId).toHaveBeenLastCalledWith(1);
+
+    dispose();
+  });
+
+  it('shows phase alert when session enters a playing phase aligned with game phase', () => {
+    const session = createInitialClientSession();
+    const showPhaseAlert = vi.fn();
+    const dispose = attachSessionPhaseAlertEffect(session, { showPhaseAlert });
+
+    const gameState = createGameOrThrow(
+      SCENARIOS.duel,
+      buildSolarSystemMap(),
+      asGameId('PA1'),
+      findBaseHex,
+    );
+
+    session.playerId = 0;
+    session.gameState = gameState;
+    session.state = 'playing_astrogation';
+
+    expect(showPhaseAlert).toHaveBeenCalledTimes(1);
+    expect(showPhaseAlert).toHaveBeenCalledWith(
+      'astrogation',
+      gameState.activePlayer === 0,
+    );
+
+    showPhaseAlert.mockClear();
+    session.state = 'playing_movementAnim';
+    session.state = 'playing_astrogation';
+    expect(showPhaseAlert).toHaveBeenCalledTimes(1);
 
     dispose();
   });
