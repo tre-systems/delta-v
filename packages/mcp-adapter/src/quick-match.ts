@@ -9,6 +9,7 @@
 
 import type { Env } from '../../../src/server/env';
 import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from '../../../src/server/quick-match-internal';
+import { isValidScenario } from '../../../src/shared/map-data';
 import type { QuickMatchResponse } from '../../../src/shared/matchmaking';
 
 export interface QuickMatchArgs {
@@ -41,6 +42,9 @@ export const queueRemoteMatch = async (
     throw new Error(
       'playerKey must start with "agent_" for remote matchmaking',
     );
+  }
+  if (!isValidScenario(args.scenario)) {
+    throw new Error(`Unknown scenario: ${args.scenario}`);
   }
   const matchmaker = env.MATCHMAKER.get(env.MATCHMAKER.idFromName('global'));
 
