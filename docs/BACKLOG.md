@@ -72,9 +72,11 @@ Findings from a 2026-04-18 deep-research pass against the [2018 Triplanetary rul
 
 **Partial (2026-04-18):** candidate ranking now checks for consecutive-turn ordnance pressure (own active ordnance at `turnsRemaining === 4`) and demotes low-confidence follow-up ordnance recommendations behind `skipOrdnance`. Confidence is based on per-launch intercept projection (`evaluateOrdnanceLaunchIntercept`): nukes must have short-fuse intercepts (≤2 turns), torpedoes ≤3 turns. This keeps `recommendedIndex` from reflexively chaining weak follow-up launches while still allowing high-quality opportunities.
 
-**Still open:** tune thresholds with simulation outcomes (especially scenario-specific target velocities / gravity lanes) and decide whether confidence weighting should also appear in `labeledCandidates` reasoning text.
+**Update (2026-04-18):** when `includeCandidateLabels` is on, `labeledCandidates` ordnance entries append the same short-intercept rationale so agents see why a follow-up may trail skip/emplace.
 
-**Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/agent/observation.ts`, `src/shared/agent/candidates.ts`
+**Still open:** tune thresholds with simulation outcomes (especially scenario-specific target velocities / gravity lanes).
+
+**Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/agent/observation.ts`, `src/shared/agent/candidates.ts`, `src/shared/agent/candidate-labels.ts`
 
 ### Tighten Hard-difficulty nuke gates with cost and intercept probability
 
@@ -106,7 +108,7 @@ Findings from a 2026-04-18 agent/MCP experience review. The contract is strong �
 
 **Mitigations shipped:** local HTTP MCP for multi-process concurrency; stdio outbound **send queue** so concurrent tool *completions* cannot interleave JSON-RPC lines on stdout ([DELTA_V_MCP.md](./DELTA_V_MCP.md)); inbound requests are already dispatched concurrently by the MCP SDK (handlers are not awaited before reading the next stdin line).
 
-**Still open:** many MCP hosts only issue one in-flight `tools/call` at a time, so two `delta_v_quick_match_connect` probes from the same assistant turn may still run strictly back-to-back. When they do interleave, two `agent_` seats can still orphan-pair and autoplay — document operational workarounds (staggered keys, explicit room join) or add a dedicated “pair these two tickets” dev hook if product wants first-class two-client stdio ergonomics.
+**Partial (2026-04-18):** operational workarounds for serial hosts / orphan pairing / `DEV_MODE` bot seats are documented in [DELTA_V_MCP.md](./DELTA_V_MCP.md) (stdio quick match notes). **Still open:** a first-class “pair these two tickets” dev hook if product wants automated two-seat stdio without lobby URLs.
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `src/shared/mcp-stdio-serialized-send.ts`, `src/shared/agent/quick-match.ts`, `docs/DELTA_V_MCP.md`
 

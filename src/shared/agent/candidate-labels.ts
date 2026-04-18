@@ -10,8 +10,17 @@ import {
 } from '../combat';
 import { SHIP_STATS } from '../constants';
 import { HEX_DIRECTIONS, hexDistance } from '../hex';
-import type { GameState, PlayerId, Ship } from '../types/domain';
+import type {
+  GameState,
+  PlayerId,
+  Ship,
+  SolarSystemMap,
+} from '../types/domain';
 import type { C2S } from '../types/protocol';
+import {
+  hasRecentOwnOrdnanceLaunch,
+  isHighConfidenceConsecutiveOrdnanceAction,
+} from './candidates';
 import { describeCandidate } from './describe';
 
 export interface LabeledCandidate {
@@ -239,6 +248,7 @@ const reasoningFor = (
   index: number,
   state: GameState,
   playerId: PlayerId,
+  map: SolarSystemMap,
 ): string => {
   const recommended = index === 0;
   const prefix = recommended
@@ -291,7 +301,15 @@ const reasoningFor = (
           return l.ordnanceType;
         })
         .join(', ');
-      return `${prefix}: launch ${action.launches.length} ordnance (${launchDetails}).`;
+      let body = `${prefix}: launch ${action.launches.length} ordnance (${launchDetails}).`;
+      if (
+        hasRecentOwnOrdnanceLaunch(state, playerId) &&
+        !isHighConfidenceConsecutiveOrdnanceAction(state, playerId, action, map)
+      ) {
+        body +=
+          ' Own ordnance still mid-flight (4T fuse); this follow-up does not meet the short-intercept bar used for consecutive-turn ranking (nuke ≤2T, torpedo ≤3T), so skip or emplace may be ordered ahead of it.';
+      }
+      return body;
     }
     case 'combat': {
       const targets = new Set(action.attacks.map((a) => a.targetId));
@@ -351,11 +369,12 @@ export const labelCandidate = (
   index: number,
   state: GameState,
   playerId: PlayerId,
+  map: SolarSystemMap,
 ): LabeledCandidate => ({
   index,
   action,
   label: describeCandidate(action, index),
-  reasoning: reasoningFor(action, index, state, playerId),
+  reasoning: reasoningFor(action, index, state, playerId, map),
   risk: riskFor(action, state, playerId),
 });
 
@@ -363,7 +382,8 @@ export const labelCandidates = (
   candidates: readonly C2S[],
   state: GameState,
   playerId: PlayerId,
+  map: SolarSystemMap,
 ): LabeledCandidate[] =>
   candidates.map((action, index) =>
-    labelCandidate(action, index, state, playerId),
+    labelCandidate(action, index, state, playerId, map),
   );

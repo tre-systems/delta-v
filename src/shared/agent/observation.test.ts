@@ -268,6 +268,52 @@ describe('buildObservation', () => {
     expect(first?.reasoning).toBeTypeOf('string');
     expect(['low', 'medium', 'high']).toContain(first?.risk);
   });
+
+  it('labels low-confidence consecutive ordnance with short-intercept context', () => {
+    const consecutiveState = createTestState({
+      phase: 'ordnance',
+      activePlayer: 0,
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['torpedo'] },
+      ships: [
+        createTestShip({
+          id: asShipId('p0-frig'),
+          owner: 0,
+          type: 'frigate',
+          position: { q: 0, r: 0 },
+          velocity: { dq: 0, dr: 0 },
+          lifecycle: 'active',
+        }),
+        createTestShip({
+          id: asShipId('p1-dread'),
+          owner: 1,
+          type: 'packet',
+          position: { q: 7, r: 0 },
+          velocity: { dq: 0, dr: 0 },
+          lifecycle: 'active',
+        }),
+      ],
+      ordnance: [
+        createTestOrdnance({
+          id: asOrdnanceId('ord-prev'),
+          owner: 0,
+          sourceShipId: asShipId('p0-frig'),
+          turnsRemaining: 4,
+          lifecycle: 'active',
+        }),
+      ],
+    });
+    const obs = buildObservation(consecutiveState, 0, {
+      gameCode: 'LAB1',
+      map: EMPTY_SOLAR_MAP,
+      includeCandidateLabels: true,
+    });
+    const ord = obs.labeledCandidates?.find(
+      (e) => e.action.type === 'ordnance',
+    );
+    expect(ord).toBeDefined();
+    expect(ord?.reasoning).toContain('short-intercept');
+  });
 });
 
 describe('withCompactObservationState', () => {

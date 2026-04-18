@@ -15,6 +15,14 @@ For onboarding and workflow:
 | **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Stateless per request; layered `agentToken` (Bearer) + `matchToken` (tool arg). `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
 | **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
 
+### Stdio quick match: operational notes
+
+Many MCP hosts invoke tools **one at a time** (the next `tools/call` starts after the previous returns). Two `delta_v_quick_match_connect` probes issued in the same assistant step therefore run **sequentially**, not truly in parallel — fine for a single agent, awkward for “race two tickets” experiments. Prefer **`npm run mcp:delta-v:http`** when you need concurrent ticket issuance from **separate OS processes**.
+
+- Use **distinct `playerKey` values** per automated client so queue / pairing telemetry stays unambiguous when multiple scripts hit dev quick match.
+- If a session lands in an unintended **`DEV_MODE` bot seat**, call `delta_v_close_session` and queue again; for reproducible human-vs-human tests, join via normal lobby / share links instead of racing two anonymous quick-match tickets.
+- Outbound stdio responses are **queued** so concurrent tool completions cannot corrupt JSON-RPC framing; inbound calls are still limited by host serialization behaviour above.
+
 Full token model (HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET`): [SECURITY.md#remote-mcp-token-model](./SECURITY.md#remote-mcp-token-model).
 
 ## Discovery endpoints
