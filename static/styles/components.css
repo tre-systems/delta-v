@@ -211,7 +211,7 @@
 .menu-surface-note {
   max-width: 28ch;
   margin: -0.05rem auto 0.05rem;
-  color: rgba(206, 220, 242, 0.68);
+  color: rgba(218, 228, 246, 0.82);
   font-family: var(--font-body);
   font-size: 0.8rem;
   letter-spacing: 0.02em;
