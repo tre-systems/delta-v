@@ -6,7 +6,7 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 ## Recently shipped (2026-04-18)
 
-Follow-up on `main`: hosted MCP moved to workspace package `@delta-v/mcp-adapter`; server agent-seat bot AI now defaults to **normal** (same as single-player / lobby) via `SERVER_AGENT_AI_DIFFICULTY` instead of a hard-coded `hard` path in `game-do`. UX/docs: scenario list titles CSS-uppercased; menu/join/chat focus rings on `:focus-visible` only; notification-channel precedence helpers + tests; manual test plan contrast spot-check section; game-over replay nav matches bottom replay bar (`replay-btn` + SVGs).
+Follow-up on `main`: hosted MCP moved to workspace package `@delta-v/mcp-adapter`; server agent-seat bot AI now defaults to **normal** (same as single-player / lobby) via `SERVER_AGENT_AI_DIFFICULTY` instead of a hard-coded `hard` path in `game-do`. UX/docs: scenario list titles CSS-uppercased; menu/join/chat focus rings on `:focus-visible` only; notification-channel precedence helpers + tests; **toast dedupe** (`createToastDedupeGate` in `notification-policy.ts`, wired in `overlay-view.ts` `showToast`); `prefers-contrast: more` / `forced-colors: active` pass on full-screen `.screen`, menu shell, game-over `.overlay-panel`, reconnect, toasts, tutorial tip, help/sound FABs, help TOC/groups, and `#phaseAlert` (backdrop blur dropped, opaque or system colors); manual test plan contrast spot-check section; game-over replay nav matches bottom replay bar (`replay-btn` + SVGs).
 
 Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; stronger placeholders and `prefers-contrast: more` / `forced-colors: active` baselines; HUD default|large text scale (localStorage + lobby controls + `html[data-hud-scale]` CSS); help overlay jump links + TOC styling; quick-match waiting elapsed time; scenario `lobbyMeta` rendered on lobby cards; difficulty `role="radiogroup"` and hint line; wider menu/scenario shell at ≥1024px; ship-list bottom fade when scrollable; larger burn/overload hit targets; chat character counter; reconnect reassurance copy; game-over rematch auto-focus; `#hudBoardSummary` live region for board context; Ko-fi image dimensions; shorter welcome tutorial line; `src/client/messages/notification-policy.ts` as documented channel names (runtime deduplication enforcement still open below). Toasts: dismiss control, hover/focus pause + CSS `animation-play-state` for info/success, errors persist with `role="alert"` until dismissed. Waiting **Cancel** after `cancelQuickMatch` calls `exitToMenu` when still not on `menu` (fixes private-room / join / post-match quick-match teardown); connecting copy shows **Cancel** with clearer titles. Archived replay `fetch` is aborted when leaving to menu or starting another replay (`AbortSignal` + `releaseArchivedReplayFetchAbortIfMatches` guard). Asteroid column on the Other Damage table: rolls 5–6 are both D1 per 2018 rulebook (was D2 on 6). Security hardening: MCP JSON body cap 16 KB; committed `DEV_MODE=0` with local dev via `.dev.vars` (`DEV_MODE=1`, see `.dev.vars.example`); hosted MCP `matchToken` redemption requires `Authorization: Bearer`; `POST /quick-match` with `agent_…` `playerKey` requires a verified agent Bearer (shared `queueForMatch` mints via `/api/agent-token` first) so leaderboard `is_agent` is not prefix-spoofable; MCP enqueue sets an internal verified-agent header when the tool caller is authenticated.
 
@@ -30,9 +30,11 @@ Several surfaces were brightened (e.g. duel queue note, game-over stat labels, c
 
 ### Stronger high-contrast modes
 
-Current `prefers-contrast: more` / `forced-colors: active` improve borders, placeholders, and key labels. Still open: opaque panel fills, reducing `backdrop-filter` where it hurts legibility, and broader `CanvasText` / `Canvas` usage under `forced-colors`.
+**Partial (2026-04-18):** full-screen `.screen` and `.menu-content` use opaque fills with blur off under `prefers-contrast: more`; same plus `Canvas` / `CanvasText` under `forced-colors: active`. Overlays: game-over `.overlay-panel`, reconnect scrim, toasts, tutorial tip, help/sound buttons, help TOC/groups; systems `#phaseAlert` — blur removed and backgrounds solid or system-paired.
 
-**Files:** `static/styles/base.css`, `static/styles/components.css`, `static/styles/hud.css`, `static/styles/overlays.css`
+**Still open:** HUD chrome (`hud.css` blur tokens), any remaining translucent panels in `components.css`, and a pass to ensure forced-colors does not flatten game-over semantic colors where we still need victory/defeat distinction.
+
+**Files:** `static/styles/base.css`, `static/styles/components.css`, `static/styles/hud.css`, `static/styles/overlays.css`, `static/styles/systems.css`
 
 ### Tutorial: deepen task-first flow
 
@@ -48,7 +50,9 @@ Jump links and TOC styling exist; optional follow-up: highlight the section in v
 
 ### Enforce notification channel precedence in code
 
-**Partial (2026-04-18):** `notification-policy.ts` exports `NOTIFICATION_CHANNEL_PRECEDENCE`, `notificationChannelPrecedenceIndex`, and `preferNotificationChannel` so call sites can resolve conflicts without duplicating ordering; Vitest covers ordering and ties. **Still open:** wire `preferNotificationChannel` into overlay/HUD routing where two channels could fire together, and dedupe identical copy in the same tick.
+**Partial (2026-04-18):** `notification-policy.ts` exports `NOTIFICATION_CHANNEL_PRECEDENCE`, `notificationChannelPrecedenceIndex`, and `preferNotificationChannel` so call sites can resolve conflicts without duplicating ordering; Vitest covers ordering and ties. **`createToastDedupeGate`** suppresses identical non-error toasts within a short window (`overlay-view.ts` `showToast`); errors are never dropped.
+
+**Still open:** wire `preferNotificationChannel` into overlay/HUD/log routing where two channels could fire in the same tick (beyond toast dedupe).
 
 **Files:** `src/client/messages/notification-policy.ts`, `src/client/ui/overlay-view.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/telemetry.ts`
 
@@ -122,6 +126,84 @@ Rulebook p.5 requires the launching ship to "execute an immediate course change 
 The research pass produced concrete geometries where `hard` AI still launches despite no credible 5-turn intercept window. Encode those as deterministic tests before retuning heuristics: divergent-vector nuke case, long-range torpedo no-shot case, and friendly-lane exclusion cases for mine / nuke launches. This keeps future sweeps from reintroducing "fires wildly" behavior after tuning changes.
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/engine/game-engine.test.ts`, optional small fixture helpers under `src/shared/test-helpers.ts`
+
+---
+
+## Agent & MCP ergonomics
+
+Findings from a 2026-04-18 agent/MCP experience review. The contract is strong — AGENT_SPEC.md, pre-computed `candidates[]`, labelled observations, two-token auth, ActionGuards forgiveness — but the MCP surface has grown in two places (local stdio MCP in `scripts/delta-v-mcp-server.ts` and hosted `@delta-v/mcp-adapter`) and a handful of per-turn affordances still cost extra round-trips or external doc reads. Ordered by blast radius on agent experience.
+
+### Unify local and hosted MCP tool surfaces
+
+Local stdio exposes `delta_v_quick_match_connect` plus `delta_v_list_sessions`, `delta_v_get_events`, `delta_v_close_session`; hosted MCP exposes `delta_v_quick_match` (matchToken) and lacks the session tools. An agent that learns one surface does not port to the other without rewriting. Pick one name for the quick-match entry point (or have one delegate to the other), and decide whether session/event buffering belongs on the hosted side — remote agents on flaky networks benefit from server-side event buffers, so porting `get_events` and `close_session` to hosted is the higher-value direction.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `docs/DELTA_V_MCP.md`, `AGENT_SPEC.md`
+
+### `delta_v_wait_for_turn` should return the full observation
+
+The canonical per-turn loop today is `wait_for_turn` → `get_observation` → decide → `send_action`; the first two are paired on every turn. Extend the `actionable: true` return of `delta_v_wait_for_turn` to carry the same payload as `delta_v_get_observation` (with the same opt-in enrichment flags), so an agent turn is one blocking call plus one action call. Also stop silently compacting the local stdio MCP payload by rewriting `state` down to `{phase, turnNumber, activePlayer}`: the default contract should stay aligned with `AgentTurnInput` across bridge, local MCP, and hosted MCP, with any smaller payload shape gated behind an explicit opt-in flag instead. Halves per-turn round-trips and removes one transport-specific schema surprise for LLM agents.
+
+**Files:** `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts`, `src/server/game-do/mcp-handlers.ts`, `src/shared/agent/types.ts`, `docs/DELTA_V_MCP.md`, `AGENT_SPEC.md`
+
+### Pick one astrogation turn contract and derive the surfaces from it
+
+`AGENT_SPEC.md`, `static/agent-playbook.json`, `.claude/skills/play/SKILL.md`, and the local stdio MCP all describe astrogation as simultaneous or pre-submittable, but the hosted MCP and the engine gate astrogation on `activePlayer`. Agents currently learn contradictory rules depending on which surface they read first, then see different rejection behavior at runtime. Decide whether astrogation is truly simultaneous, sequential with pre-submit, or sequential only; then make the engine gate, `wait_for_turn` semantics, ActionGuards behavior, playbook JSON, and skill/docs all reflect that single model.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, `src/server/game-do/mcp-handlers.ts`, `src/server/game-do/action-guards.ts`, `src/shared/engine/util.ts`, `static/agent-playbook.json`, `AGENT_SPEC.md`, `.claude/skills/play/SKILL.md`, `docs/DELTA_V_MCP.md`
+
+### Scrimmage should exercise the verified agent identity path
+
+`scripts/quick-match-scrimmage.ts` currently generates `scrim_...` player keys, so hosted evaluation runs exercise the human quick-match path instead of the `agent_...` + Bearer verified-agent flow that production agents use. Switch scrimmage defaults to agent-prefixed identities and token issuance, and keep any non-agent path as an explicit opt-out for local/private debugging only. That keeps leaderboard / analytics separation intact and makes the main evaluation harness representative of real agent participation.
+
+**Files:** `scripts/quick-match-scrimmage.ts`, `src/shared/agent/quick-match.ts`, `docs/AGENTS.md`, `docs/MANUAL_TEST_PLAN.md`
+
+### Ship MCP resources: rules, match log, replay
+
+[AGENT_SPEC.md lines 91–96](../AGENT_SPEC.md) lists `game://rules/current`, `game://rules/{scenario}`, `game://matches/{id}/observation`, `game://matches/{id}/log`, `game://matches/{id}/replay`, `game://leaderboard/agents` as first-class MCP resources; none are served yet. The rules resource has the highest payoff — agents currently either bake rules into the skill body (`/play`) or re-read `/.well-known/agent.json` + `/agent-playbook.json` every session. Serving the same content as a listable MCP resource lets hosts cache it and skip repeated fetches.
+
+**Files:** `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts`, `static/.well-known/agent.json`, `src/shared/agent/`
+
+### Structured action-rejection reasons
+
+`checkActionGuards` in `src/server/game-do/action-guards.ts` rejects with a `reason` + human `message`, but the surface seen by agents mixes several causes (`expectedTurn` vs `expectedPhase` vs `wrongActivePlayer`, plus engine-level invalidations). Return a discriminated `{ reason, expected, actual }` so agents can branch without parsing strings. The smart-forgiveness path (phase stale but action type valid for the current phase) should also surface as a distinct reason when it fires, so agents can tell "you got lucky" from "you are in sync."
+
+**Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/domain.ts`, `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts`
+
+### Surface decision-timeout fallback in the next observation
+
+AGENT_SPEC §5.3 defines the 30-s decision fallback where the server plays `recommendedIndex` on behalf of a silent agent, but the agent is never told. For LLM agents with extended thinking budgets this is a silent footgun. Add a one-shot `lastTurnAutoPlayed: { index, reason: 'timeout' }` field on the next observation so agents notice the missed turn and can shrink their thinking budget next cycle.
+
+**Files:** `src/shared/agent/types.ts`, `src/shared/agent/observation.ts`, `src/server/game-do/mcp-handlers.ts`, `docs/AGENTS.md`
+
+### AGENTS.md: two-token walkthrough and benchmark section
+
+[docs/AGENTS.md](./AGENTS.md) recommends the MCP path but never steps through `POST /api/agent-token` → Bearer → `delta_v_quick_match` → `matchToken` → leaderboard-eligible play — agents default to the legacy `{code, playerToken}` path because the example is clearer. It also does not mention `scripts/benchmark.ts` or how to read its JSON output against Elo anchors (easy=1000, normal=1200, hard=1400). Add one short section for each so new agents find the happy path without reading AGENT_SPEC.md end-to-end.
+
+**Files:** `docs/AGENTS.md`, `scripts/benchmark.ts`, `docs/DELTA_V_MCP.md`
+
+### Agent smoke checklist in MANUAL_TEST_PLAN.md
+
+No section of [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md) exercises the agent path. Add a concise pre-release check: queue an MCP agent via `scripts/quick-match-agent.ts` against each difficulty for N games, verify ≥95% action acceptance rate, 0 parse errors, <5% decision-timeout rate, and that `scripts/mcp-six-agent-harness.ts` completes three concurrent matches without DO instability.
+
+**Files:** `docs/MANUAL_TEST_PLAN.md`, `scripts/quick-match-agent.ts`, `scripts/mcp-six-agent-harness.ts`
+
+### Rate limits in MCP tool descriptions
+
+[docs/DELTA_V_MCP.md](./DELTA_V_MCP.md) tool catalog omits per-endpoint rate limits, so agents only learn the numbers (5/60s on `/create` and `/quick-match`; 10 msg/s per WebSocket; 16 KB MCP body cap) by hitting a 429 or a size rejection. Add a "Rate limit" column or paragraph to the tool table, cross-referenced to [SECURITY.md](./SECURITY.md) §3, so agents can throttle themselves rather than back off on errors.
+
+**Files:** `docs/DELTA_V_MCP.md`, `docs/SECURITY.md`
+
+### `/play` skill: teach `coachDirective` and commit to one MCP surface
+
+The `/play` skill (`.claude/skills/play/SKILL.md`) has zero mentions of `coachDirective` even though observations surface it both structurally and in the Markdown summary (AGENT_SPEC.md line 351). Add a short section on reading the directive each turn and biasing candidate selection accordingly — otherwise human coaching is a dead feature from the agent side. Same skill should also commit to one MCP surface (hosted `matchToken` or local `quick_match_connect`) instead of referencing both.
+
+**Files:** `.claude/skills/play/SKILL.md`, `AGENT_SPEC.md`
+
+### Retire legacy `{code, playerToken}` tool args once leaderboard stabilises
+
+Hosted MCP tools still accept either `matchToken` or `{code, playerToken}` via `matchTargetSchema` in `packages/mcp-adapter/src/handlers.ts`. Carrying both doubles tool-args surface area and forces every call site to branch on auth mode. Once the public leaderboard is live and all active agents have migrated to `matchToken`, drop the legacy union and simplify the adapter — consistent with the pre-launch-deletions stance elsewhere.
+
+**Files:** `packages/mcp-adapter/src/handlers.ts`, `scripts/quick-match-agent.ts`, `scripts/llm-player.ts`, `docs/DELTA_V_MCP.md`
 
 ---
 
