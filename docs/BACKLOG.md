@@ -76,9 +76,9 @@ Findings from a 2026-04-18 deep-research pass against the [2018 Triplanetary rul
 
 ### AI ordnance: vector intercept check before launch
 
-AI gates ordnance on range buckets (`torpedoRange` 8-12 hexes) but never verifies the launch vector will intersect a target hex within the 5-turn ordnance lifetime, accounting for gravity. Result: torpedoes and nukes get fired into empty space. Per rulebook p.5-6, ordnance inherits the launcher's vector plus (torpedoes only) a 1-2 hex burn on the launch turn, then is ballistic for 5 turns. Add a short forward simulation that scores candidate launch burns by intersection probability against each enemy's predicted course before committing.
+**Mitigations shipped (2026-04-18):** `aiOrdnance` now runs a 5-turn ballistic intercept projection (ordnance + target drift with pending gravity via `applyPendingGravityEffects`/`collectEnteredGravityEffects`) before committing torpedoes or nukes. Torpedoes search all 6 accel directions × {1,2} steps and choose the earliest intercept vector; nukes only commit when an intercept exists on the projected path. This removes the "range-only, no geometry" launch behavior.
 
-**Files:** `src/shared/ai/ordnance.ts`, `src/shared/engine/ordnance.ts`, `src/shared/engine/resolve-movement.ts`
+**Files:** `src/shared/ai/ordnance.ts`
 
 ### `recommendedIndex` over-suggests consecutive ordnance launches
 
@@ -111,7 +111,7 @@ Verify the current engine matches the rulebook on:
 
 ### Add ordnance AI regression fixtures for impossible-shot launches
 
-**Partial (2026-04-18):** `driftingEnemyWouldBeHitByOpenSpaceBallistic` + `EMPTY_SOLAR_MAP` in `test-helpers.ts` approximate ordnance kinematics on an empty map; Vitest locks a divergent **torpedo** and **nuke** geometry where the helper reports **no** intercept but `hard` `aiOrdnance` still commits (comments mark where expectations should flip once vector intercept gating lands). **Still open:** friendly-lane / same-stack cases, fixtures on the real `buildSolarSystemMap()` with gravity, and optional `game-engine.test.ts` integration seeds.
+**Partial (2026-04-18):** `driftingEnemyWouldBeHitByOpenSpaceBallistic` + `EMPTY_SOLAR_MAP` in `test-helpers.ts` now back fixtures that assert hard AI **does not** launch torpedoes/nukes when no 5-turn open-space intercept exists. **Still open:** friendly-lane / same-stack exclusion cases, fixtures on real `buildSolarSystemMap()` gravity geometries, and optional `game-engine.test.ts` integration seeds.
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
 
