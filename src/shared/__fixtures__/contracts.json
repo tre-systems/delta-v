@@ -606,6 +606,73 @@
       },
       "expectedOk": false
     },
+    "combatAttackerIdsNotArray": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": "p0s0",
+            "targetId": "p1s0"
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "combatAttackerIdNotString": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": [42, "p0s0"],
+            "targetId": "p1s0"
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "combatTargetIdNotString": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": 99
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "combatAttackEntryNotObject": {
+      "raw": {
+        "type": "combat",
+        "attacks": ["not-an-object"]
+      },
+      "expectedOk": false
+    },
+    "combatNegativeAttackStrength": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "attackStrength": -1
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "combatSingleNegativeAttackStrength": {
+      "raw": {
+        "type": "combatSingle",
+        "attack": {
+          "attackerIds": ["p0s0"],
+          "targetId": "p1s0",
+          "attackStrength": -3
+        }
+      },
+      "expectedOk": false
+    },
     "pingTimestampMissing": {
       "raw": { "type": "ping" },
       "expectedOk": false
