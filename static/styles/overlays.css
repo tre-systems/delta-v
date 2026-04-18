@@ -1459,4 +1459,20 @@ h2.game-over-neutral {
     background: Canvas;
     border-color: CanvasText;
   }
+
+  /*
+   * Game over: `.overlay-panel` uses the system canvas so the modal stays
+   * readable, but outcome hues must remain distinguishable (victory / defeat /
+   * neutral). Opt these elements out of the forced palette.
+   */
+  h2.game-over-victory,
+  h2.game-over-defeat,
+  h2.game-over-neutral {
+    forced-color-adjust: none;
+    text-shadow: none;
+  }
+
+  .game-over-divider {
+    forced-color-adjust: none;
+  }
 }
