@@ -74,9 +74,9 @@ describe('handleMcpHttpRequest abuse protections', () => {
     expect(body.error).toBe('server_misconfigured');
   });
 
-  it('returns 413 when the POST body exceeds the 64KB cap', async () => {
+  it('returns 413 when the POST body exceeds the MCP body cap', async () => {
     const { env } = buildEnv(() => new Response('{}'));
-    const huge = 'x'.repeat(64 * 1024 + 10);
+    const huge = 'x'.repeat(16 * 1024 + 10);
     const res = await handleMcpHttpRequest(
       new Request('https://w.test/mcp', {
         method: 'POST',
@@ -100,7 +100,7 @@ describe('handleMcpHttpRequest abuse protections', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Content-Length': String(64 * 1024 + 1),
+          'Content-Length': String(16 * 1024 + 1),
         },
         body: 'small',
       }),
@@ -331,6 +331,43 @@ describe('handleMcpHttpRequest', () => {
     expect(body.result.isError).not.toBe(true);
   });
 
+  it('rejects matchToken without Authorization bearer', async () => {
+    const { env } = buildEnv(() =>
+      Response.json({
+        ok: true,
+        code: 'ABCDE',
+        playerId: 0,
+        state: null,
+        hasState: false,
+      }),
+    );
+    const playerToken = 'P'.repeat(32);
+    const { token: agentToken } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_no_bearer',
+    });
+    const { token: matchToken } = await issueMatchToken({
+      secret: TEST_SECRET,
+      code: 'ABCDE',
+      playerToken,
+      agentToken,
+    });
+    const res = await handleMcpHttpRequest(
+      post({
+        jsonrpc: '2.0',
+        id: 11,
+        method: 'tools/call',
+        params: {
+          name: 'delta_v_get_state',
+          arguments: { matchToken },
+        },
+      }),
+      env,
+    );
+    const body = (await res.json()) as { result: { isError: boolean } };
+    expect(body.result.isError).toBe(true);
+  });
+
   it('rejects matchToken issued for a different agentToken', async () => {
     const { env } = buildEnv(() => new Response('{}'));
     const { token: agentTokenA } = await issueAgentToken({
@@ -351,7 +388,7 @@ describe('handleMcpHttpRequest', () => {
       postAuthorized(
         {
           jsonrpc: '2.0',
-          id: 11,
+          id: 12,
           method: 'tools/call',
           params: {
             name: 'delta_v_get_state',
@@ -371,7 +408,7 @@ describe('handleMcpHttpRequest', () => {
     const res = await handleMcpHttpRequest(
       post({
         jsonrpc: '2.0',
-        id: 12,
+        id: 13,
         method: 'tools/call',
         params: {
           name: 'delta_v_get_state',

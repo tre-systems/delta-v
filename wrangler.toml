@@ -56,12 +56,11 @@ simple = { limit = 20, period = 60 }
 crons = ["0 4 * * *"]
 
 [vars]
-# DEV_MODE=1 lets resolveAgentTokenSecret fall back to a deterministic
-# placeholder when AGENT_TOKEN_SECRET is unset. `wrangler dev` (and
-# tests) pick up [vars] automatically; production deploys override with
-# `wrangler secret put AGENT_TOKEN_SECRET` and do NOT override DEV_MODE,
-# so the placeholder path never engages in prod.
-DEV_MODE = "1"
+# Production: keep `DEV_MODE=0` so missing `AGENT_TOKEN_SECRET` never falls
+# through to the public dev placeholder. For local `wrangler dev`, copy
+# `.dev.vars.example` → `.dev.vars` and set `DEV_MODE=1` (and optionally a
+# local `AGENT_TOKEN_SECRET`) — Wrangler merges `.dev.vars` over these defaults.
+DEV_MODE = "0"
 
 [observability]
 enabled = true

@@ -12,6 +12,11 @@ export interface QuickMatchArgs {
   playerKey: string;
   pollMs?: number;
   timeoutMs?: number;
+  /**
+   * When omitted and `playerKey` starts with `agent_`, a token is minted via
+   * POST /api/agent-token then sent as Authorization on `/quick-match`.
+   */
+  authorizationBearer?: string;
 }
 
 export interface QuickMatchResult {
@@ -42,11 +47,37 @@ export const queueForMatch = async (
   const pollMs = args.pollMs ?? DEFAULT_POLL_MS;
   const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
+  let bearer = args.authorizationBearer;
+  if (args.playerKey.startsWith('agent_') && !bearer) {
+    const issued = await fetchJson<{
+      ok: boolean;
+      token?: string;
+      error?: string;
+    }>(`${args.serverUrl}/api/agent-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerKey: args.playerKey }),
+    });
+    if (!issued.ok || !issued.token) {
+      throw new Error(
+        `agent-token issuance failed: ${issued.error ?? 'unknown'} (agent playerKeys require a Bearer token for quick-match)`,
+      );
+    }
+    bearer = issued.token;
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (bearer) {
+    headers.Authorization = `Bearer ${bearer}`;
+  }
+
   const enqueue = await fetchJson<QuickMatchResponse>(
     `${args.serverUrl}/quick-match`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         scenario: args.scenario,
         player: {

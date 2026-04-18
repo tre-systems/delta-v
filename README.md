@@ -107,19 +107,21 @@ Doc index by purpose:
    npx playwright install chromium
    ```
 
-4. **Run the dev server.**
+4. **Local Worker overrides (first run).** Copy [`.dev.vars.example`](./.dev.vars.example) to `.dev.vars` so `DEV_MODE=1` can engage the dev agent-token placeholder when `AGENT_TOKEN_SECRET` is not set (Wrangler merges `.dev.vars` over `wrangler.toml` `[vars]`).
+
+5. **Run the dev server.**
 
    ```bash
    npm run dev
    ```
 
-5. **Play.** Open <http://localhost:8787>, create a game in tab 1, copy the room link or 5-character code, and join from tab 2.
+6. **Play.** Open <http://localhost:8787>, create a game in tab 1, copy the room link or 5-character code, and join from tab 2.
 
 ### CLI Commands
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` | Start local development (Wrangler + esbuild) |
+| `npm run dev` | Start local development (Wrangler + esbuild; see `.dev.vars.example`) |
 | `npm run build` | Build the client bundle |
 | `npm run lint` | Biome lint + format check |
 | `npm run typecheck` | Typecheck `src/` |

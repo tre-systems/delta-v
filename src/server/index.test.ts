@@ -12,6 +12,7 @@ vi.mock('./live-registry-do', () => ({
   LiveRegistryDO: class LiveRegistryDO {},
 }));
 
+import { issueAgentToken } from './auth';
 import worker, {
   createRateMap,
   type Env,
@@ -21,6 +22,7 @@ import worker, {
   replayProbeRateMap,
   telemetryReportRateMap,
 } from './index';
+import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
 
 type MockDb = ReturnType<typeof mockDb>;
 type MockExecutionContext = ExecutionContext & {
@@ -41,6 +43,8 @@ type MockEnv = {
     get: ReturnType<typeof vi.fn<(id: DurableObjectId) => DurableObjectStub>>;
   };
   DB: MockDb;
+  AGENT_TOKEN_SECRET?: string;
+  DEV_MODE?: string;
   CREATE_RATE_LIMITER?: {
     limit: ReturnType<
       typeof vi.fn<(options: { key: string }) => Promise<{ success: boolean }>>
@@ -106,6 +110,8 @@ const createEnv = (
       get: vi.fn(() => matchmakerStub),
     },
     DB: mockDb(),
+    AGENT_TOKEN_SECRET: 'mcp-handlers-test-secret-must-be-16-chars',
+    DEV_MODE: '0',
     ...overrides,
   };
 
@@ -115,6 +121,7 @@ const createEnv = (
 describe('server index worker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    createRateMap.clear();
   });
 
   it('creates rooms with generated tokens and defaults invalid payloads to biplanetary', async () => {
@@ -180,6 +187,138 @@ describe('server index worker', () => {
         url: 'https://matchmaker.internal/enqueue',
       }),
     );
+  });
+
+  it('returns 403 when quick-match uses agent_ playerKey without Bearer', async () => {
+    const { env, matchmakerFetch } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/quick-match', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'agent_unauth_zz',
+            username: 'Bot',
+          },
+        }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(403);
+    expect(matchmakerFetch).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 when quick-match Bearer is not a valid agent token', async () => {
+    const { env, matchmakerFetch } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/quick-match', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer not-a-real-token',
+        },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'agent_bad_bearer_1',
+            username: 'Bot',
+          },
+        }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(401);
+    expect(matchmakerFetch).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when agent quick-match Bearer playerKey mismatches body', async () => {
+    const { env, matchmakerFetch } = createEnv();
+    const { token } = await issueAgentToken({
+      secret: env.AGENT_TOKEN_SECRET as string,
+      playerKey: 'agent_token_key_a',
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/quick-match', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'agent_token_key_b',
+            username: 'Bot',
+          },
+        }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(403);
+    expect(matchmakerFetch).not.toHaveBeenCalled();
+  });
+
+  it('forwards non-agent quick-match without verified header when JSON is invalid', async () => {
+    const { env, matchmakerFetch } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/quick-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{not json',
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(matchmakerFetch).toHaveBeenCalledOnce();
+    const forwarded = (
+      matchmakerFetch.mock.calls[0] as unknown as [Request]
+    )[0];
+    expect(forwarded.headers.get(QUICK_MATCH_VERIFIED_AGENT_HEADER)).toBeNull();
+    expect(response.status).not.toBe(403);
+  });
+
+  it('sets verified-agent header on enqueue when Bearer matches playerKey', async () => {
+    const { env, matchmakerFetch } = createEnv();
+    const { token } = await issueAgentToken({
+      secret: env.AGENT_TOKEN_SECRET as string,
+      playerKey: 'agent_index_ok_1',
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/quick-match', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'agent_index_ok_1',
+            username: 'Bot',
+          },
+        }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(matchmakerFetch).toHaveBeenCalledOnce();
+    const forwarded = (
+      matchmakerFetch.mock.calls[0] as unknown as [Request]
+    )[0];
+    expect(forwarded.headers.get(QUICK_MATCH_VERIFIED_AGENT_HEADER)).toBe('1');
   });
 
   it('retries collisions up to 12 times before returning 503', async () => {
