@@ -35,6 +35,8 @@ interface Env {
   // work. At runtime the worker always has DB bound; structured events are
   // skipped silently when it isn't available.
   DB?: D1Database;
+  /** When `'1'`, lone quick-match tickets can pair with a dev-only bot after a wait (see `DEV_QUICK_MATCH_BOT_FILL_WAIT_MS`). */
+  DEV_MODE?: string;
 }
 
 const participantKindForKey = (playerKey: string): 'human' | 'agent' =>
@@ -82,6 +84,9 @@ const MATCH_RESULT_TTL_MS = 60_000;
 // keeps typical-case latency small while leaving plenty of headroom
 // above the expected concurrent-matchmaking population.
 const MAX_ACTIVE_QUEUE_ENTRIES = 200;
+
+/** After this wait, `DEV_MODE=1` may append a synthetic opponent for solo quick-match testing. */
+const DEV_QUICK_MATCH_BOT_FILL_WAIT_MS = 10_000;
 
 const isActiveQueueEntry = (entry: QueueEntry, now: number): boolean =>
   entry.status === 'queued' && now - entry.lastSeenAt <= HEARTBEAT_TTL_MS;
@@ -138,6 +143,12 @@ const normalizeQuickMatchRequest = (
 
 const ticketFromEntropy = (): string =>
   generatePlayerToken().replace(/_/g, 'A').replace(/-/g, 'B');
+
+/** Synthetic opponent profile for dev-only quick-match bot fill (`DEV_MODE=1`). */
+const buildBotProfile = (humanTicket: string): PublicPlayerProfile => ({
+  playerKey: `agent_devqm_${humanTicket}`,
+  username: 'QM Bot',
+});
 
 export class MatchmakerDO extends DurableObject<Env> {
   private get storage(): DurableObjectStorage {
@@ -515,25 +526,45 @@ export class MatchmakerDO extends DurableObject<Env> {
       lastSeenAt: now,
     };
 
-    // Intentionally disabled for now: quick match should wait for another
-    // real queued player rather than silently filling with a heuristic bot.
-    // Previous behavior:
-    // if (now - current.queuedAt >= 10_000) {
-    //   const matchedEntries = await this.matchEntries(
-    //     entries,
-    //     index,
-    //     index,
-    //     buildBotProfile(ticket),
-    //   );
-    //
-    //   if (!matchedEntries) {
-    //     return new Response('Failed to allocate quick match', {
-    //       status: 503,
-    //     });
-    //   }
-    //
-    //   entries = matchedEntries;
-    // }
+    if (
+      current.status === 'queued' &&
+      this.env.DEV_MODE === '1' &&
+      now - current.queuedAt >= DEV_QUICK_MATCH_BOT_FILL_WAIT_MS &&
+      entries.length < MAX_ACTIVE_QUEUE_ENTRIES
+    ) {
+      const botTicket = `devqm_${ticket}`;
+      if (!entries.some((e) => e.ticket === botTicket)) {
+        const botEntry: QueueEntry = {
+          ticket: botTicket,
+          scenario: current.scenario,
+          player: buildBotProfile(ticket),
+          queuedAt: now,
+          lastSeenAt: now,
+          status: 'queued',
+        };
+        const working = [...entries];
+        working.push(botEntry);
+        const botIndex = working.length - 1;
+        const matchedEntries = await this.matchEntries(
+          working,
+          index,
+          botIndex,
+        );
+
+        if (!matchedEntries) {
+          return new Response('Failed to allocate quick match', {
+            status: 503,
+          });
+        }
+
+        await this.writeQueue(matchedEntries);
+        const humanRow = matchedEntries.find((e) => e.ticket === ticket);
+        if (!humanRow?.matched) {
+          return new Response('Failed to resolve quick match', { status: 500 });
+        }
+        return Response.json(humanRow.matched);
+      }
+    }
 
     await this.writeQueue(entries);
 

@@ -11,7 +11,7 @@ For onboarding and workflow:
 
 | Transport | Entry point | Shape | Session model |
 | --- | --- | --- | --- |
-| **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_close_session`) |
+| **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_close_session`). Many MCP hosts invoke tools **serially** (next call starts after the prior returns); use **local HTTP** (`npm run mcp:delta-v:http`) when you need concurrent tool requests from separate processes. |
 | **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Stateless per request; layered `agentToken` (Bearer) + `matchToken` (tool arg) |
 | **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
 
@@ -96,6 +96,7 @@ Local stdio MCP inherits the same limits once it opens a browser-facing WebSocke
 
 Notes:
 
+- **Solo quick match (local Worker):** with `DEV_MODE=1` (see `.dev.vars.example`), the matchmaker may pair a lone quick-match ticket with a synthetic dev bot after ~10s so one MCP client can reach `matched` without a second player. Production (`DEV_MODE=0`) still waits for a real opponent.
 - `delta_v_wait_for_turn` throws on timeout and may return/reject when game reaches `gameOver`.
 - `delta_v_get_events`, `delta_v_list_sessions`, and `delta_v_close_session` are local-session helpers (stdio MCP ownership model).
 - `delta_v_get_observation` is the preferred read surface for most agents; `delta_v_get_state` is lower-level.

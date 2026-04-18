@@ -13,6 +13,11 @@ You are an autonomous agent playing Delta-V, a turn-based space combat game with
 - `scenario` (optional): scenario name (default: `duel`). Options: duel, biplanetary, escape, convoy, evacuation
 - `server` (optional): server URL (default: production `https://delta-v.tre.systems`)
 
+## MCP entry (pick one)
+
+- **This skill + Cursor:** configure the repo’s stdio server (`npm run mcp:delta-v`, tool `delta_v_quick_match_connect`). For a **single** agent against production matchmaking you still need a second human/agent client unless the Worker is in **`DEV_MODE=1`**, where a lone ticket can pair with a dev bot after ~10s (local `wrangler dev` with `.dev.vars`).
+- **Hosted / evaluation:** use remote MCP with `agentToken` + `delta_v_quick_match` / `matchToken` as in [`AGENTS.md`](../../../docs/AGENTS.md).
+
 ## Game Loop
 
 Execute this loop autonomously with no user input needed:
@@ -49,10 +54,11 @@ On each observation:
 
 1. If `state.phase === 'gameOver'`: announce result, call `delta_v_close_session`. Done.
 2. If it's not your turn: Triplanetary uses I-Go-You-Go turns — one player completes all phases before the other goes. If `state.activePlayer !== playerId`, call `delta_v_wait_for_turn` (timeoutMs: 30000). Exception: during `astrogation` phase you can pre-submit orders even when it's not your turn (the server holds them). If wait errors with gameOver, get final observation and report result.
-3. Read the `summary`, `spatialGrid`, `tactical`, and `labeledCandidates`.
-4. **Analyze the position** using the tactical principles below — don't just pick `recommendedIndex`.
-5. Choose an action: pick a candidate OR craft a custom action.
-6. Send via `delta_v_send_action` with closed-loop response:
+3. If `coachDirective` is present, read it first: it is short human coaching for this seat. Prefer candidates that honor it when they remain tactically sound; if it conflicts with obvious survival, say so briefly and favor survival.
+4. Read the `summary`, `spatialGrid`, `tactical`, and `labeledCandidates`.
+5. **Analyze the position** using the tactical principles below — don't just pick `recommendedIndex`.
+6. Choose an action: pick a candidate OR craft a custom action.
+7. Send via `delta_v_send_action` with closed-loop response:
 
 ```
 delta_v_send_action({
@@ -64,7 +70,7 @@ delta_v_send_action({
 })
 ```
 
-7. Check the response: if `accepted: true`, read the `nextObservation` and go to step 1. If `accepted: false`, the action was rejected (wrong phase, stale state) — get a fresh observation and retry. If `accepted: null` (pending), the server is waiting for the other player — call `delta_v_wait_for_turn`.
+8. Check the response: if `accepted: true`, read the `nextObservation` and go to step 1. If `accepted: false`, the action was rejected (wrong phase, stale state) — get a fresh observation and retry. If `accepted: null` (pending), the server is waiting for the other player — call `delta_v_wait_for_turn`.
 
 For each turn, tell the user in 1-2 sentences what you see and your reasoning.
 
