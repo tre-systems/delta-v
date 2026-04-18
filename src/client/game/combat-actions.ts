@@ -5,7 +5,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { clamp } from '../../shared/util';
-import { TOAST, toastCombatAttackQueued } from '../messages/toasts';
+import { TOAST } from '../messages/toasts';
 import { batch } from '../reactive';
 import {
   buildCurrentAttack,
@@ -200,15 +200,12 @@ export const queueAttack = (deps: CombatActionDeps) => {
   );
 
   if (!attack) {
-    deps.showToast(TOAST.gameplay.combatSelectTarget, 'info');
     return;
   }
 
   batch(() => {
-    const count = deps.planningState.queueCombatAttack(attack);
+    deps.planningState.queueCombatAttack(attack);
     clearCombatSelection(deps);
-
-    deps.showToast(toastCombatAttackQueued(count), 'info');
   });
 };
 

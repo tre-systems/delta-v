@@ -252,6 +252,7 @@ describe('game client helpers', () => {
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
       queuedOrdnanceLaunches: [],
+      queuedAttacks: [],
     };
 
     expect(deriveHudViewModel(state, 0, planning)).toMatchObject({
@@ -324,6 +325,7 @@ describe('game client helpers', () => {
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
       queuedOrdnanceLaunches: [],
+      queuedAttacks: [],
     };
 
     expect(deriveHudViewModel(state, 0, planning)).toMatchObject({
@@ -367,6 +369,7 @@ describe('game client helpers', () => {
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
       queuedOrdnanceLaunches: [],
+      queuedAttacks: [],
     };
 
     expect(deriveHudViewModel(state, 0, planning, map)).toMatchObject({
@@ -475,6 +478,7 @@ describe('game client helpers', () => {
       acknowledgedShips: new Set<string>(),
       acknowledgedOrdnanceShips: new Set<string>(),
       queuedOrdnanceLaunches: [],
+      queuedAttacks: [],
     };
 
     expect(deriveHudViewModel(state, -1, planning)).toMatchObject({

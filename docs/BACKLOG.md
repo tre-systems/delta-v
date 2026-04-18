@@ -36,9 +36,9 @@ Jump links and TOC styling exist; optional follow-up: highlight the section in v
 
 ### Enforce notification channel precedence in code
 
-**Partial (2026-04-18):** `notification-policy.ts` helpers + Vitest; toast dedupe gate and phase-alert suppression of info/success toasts in `overlay-view.ts`; `attachSessionPhaseAlertEffect` drives phase alerts with dedupe on `(phase, turn, activePlayer)`. Ordnance launches log once (no duplicate success toast vs game log — `ordnance-actions.ts`).
+**Partial (2026-04-18):** `notification-policy.ts` helpers + Vitest; toast dedupe gate and phase-alert suppression of info/success toasts in `overlay-view.ts`; `attachSessionPhaseAlertEffect` drives phase alerts with dedupe on `(phase, turn, activePlayer)`. Ordnance launches log once (no duplicate success toast vs game log — `ordnance-actions.ts`). Batch combat no longer mirrors targeting / queue-count copy as transient toasts; HUD status line shows queued volley count and `showFireButton` passes the queue depth (`combat-actions.ts`, `hud.ts`, `session-planning-effects.ts`).
 
-**Still open:** audit HUD status line + remaining toast producers for duplicate copy on the same tick.
+**Still open:** audit remaining toast producers (e.g. command router, logistics, reconnect) for duplicate copy vs HUD / log on the same tick.
 
 **Files:** `src/client/messages/notification-policy.ts`, `src/client/ui/overlay-view.ts`, `src/client/game/session-ui-effects.ts`, `src/client/game/session-signals.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/telemetry.ts`
 
