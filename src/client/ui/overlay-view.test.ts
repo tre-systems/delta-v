@@ -271,6 +271,22 @@ describe('OverlayView', () => {
     expect(phaseAlert.classList.contains('active')).toBe(false);
   });
 
+  it('suppresses non-error toasts while phase alert is visible', () => {
+    const state = createOverlayStateStore();
+    const view = createOverlayView(state);
+
+    view.showPhaseAlert('combat', true);
+    view.showToast('Would stack under phase', 'info');
+    expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(0);
+
+    view.showToast('Still an error', 'error');
+    expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(1);
+
+    vi.advanceTimersByTime(1200);
+    view.showToast('After phase', 'info');
+    expect(document.querySelectorAll('#toastContainer .toast')).toHaveLength(2);
+  });
+
   it('disposes reconnect handlers and pending timers', () => {
     const state = createOverlayStateStore();
     const view = createOverlayView(state);

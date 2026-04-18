@@ -1,6 +1,10 @@
 import { byId, clearHTML, el, hide, listen, show, text, visible } from '../dom';
 import { isClientFeatureEnabled } from '../feature-flags';
-import { createToastDedupeGate } from '../messages/notification-policy';
+import {
+  createToastDedupeGate,
+  type NotificationChannel,
+  preferNotificationChannel,
+} from '../messages/notification-policy';
 import {
   computed,
   createDisposalScope,
@@ -23,6 +27,8 @@ import type { OverlayStateStore } from './overlay-state';
  * Precedence helpers: `NOTIFICATION_CHANNEL_PRECEDENCE` and
  * `preferNotificationChannel` in `src/client/messages/notification-policy.ts`.
  * Identical non-error toasts are deduped via `createToastDedupeGate` there.
+ * While the phase alert is visible, non-error toasts are dropped so
+ * `preferNotificationChannel` keeps phase above toast.
  */
 export interface OverlayView {
   showToast: (message: string, type?: 'error' | 'info' | 'success') => void;
@@ -273,6 +279,15 @@ export const createOverlayView = (
     type: 'error' | 'info' | 'success' = 'info',
   ): void => {
     if (!toastDedupe.allow(message, type)) return;
+    if (type !== 'error') {
+      const activeSurface: NotificationChannel = phaseAlertViewSignal.value
+        .active
+        ? 'phaseAlert'
+        : 'toast';
+      if (preferNotificationChannel('toast', activeSurface) !== 'toast') {
+        return;
+      }
+    }
     const id = nextToastId++;
     toastsSignal.update((toasts) => [...toasts, { id, message, type }]);
 

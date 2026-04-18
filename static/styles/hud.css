@@ -557,3 +557,51 @@ html[data-hud-scale='large'] .turn-timer {
 html[data-hud-scale='large'] .fleet-status {
   font-size: 0.78rem;
 }
+
+@media (prefers-contrast: more) {
+  .hud-bar,
+  .hud-bottom-buttons,
+  .ship-entry,
+  .game-log {
+    backdrop-filter: none;
+    --hud-surface-bg: var(--chrome-surface-strong);
+  }
+
+  .log-latest-bar {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--panel-strong);
+  }
+
+  .ship-tooltip {
+    backdrop-filter: none;
+    background: #070e1c;
+  }
+}
+
+@media (forced-colors: active) {
+  .hud-bar,
+  .hud-bottom-buttons,
+  .ship-entry,
+  .game-log {
+    backdrop-filter: none;
+    background: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+
+  .log-latest-bar {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+
+  .ship-tooltip {
+    backdrop-filter: none;
+    background: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+  }
+}
