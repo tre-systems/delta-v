@@ -154,14 +154,6 @@ Tighten scenario/body registries around closed keys; brand ship / ordnance ident
 
 **Files:** `src/shared/hex.ts`, `src/shared/ids.ts`, `src/shared/map-data.ts`, `src/shared/types/domain.ts`, `src/server/room-routes.ts`, `src/server/game-do/http-handlers.ts`, `src/client/game/main-session-network.ts`
 
-### Scenario and map validation
-
-**Done for this slice:** `createGame` rejects unknown `player.targetBody` names when the map declares bodies (same policy as `homeBody`).
-
-**Remaining:** conflicting rule combinations, invalid spawn hexes, overlapping bodies, unreachable bases, and bounds that should be derived from body placement instead of hardcoded constants.
-
-**Files:** `src/shared/map-data.ts`, `src/shared/map-layout.ts`, `src/shared/engine/game-creation.ts`, `src/shared/types/domain.ts`
-
 ### Standardized error surfaces and client recovery messaging
 
 **Done for this slice:** core engine entry points now normalize phase / validation wrappers through `engineFailure()` instead of hand-building `{ error }` results.

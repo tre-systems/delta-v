@@ -1,5 +1,11 @@
 import { SHIP_STATS } from '../constants';
-import { type HexKey, hexKey, parseHexKey } from '../hex';
+import {
+  type HexCoord,
+  type HexKey,
+  hexKey,
+  hexRing,
+  parseHexKey,
+} from '../hex';
 import { asShipId, type GameId } from '../ids';
 import type { ScenarioKey } from '../scenario-definitions';
 import { SCENARIOS } from '../scenario-definitions';
@@ -120,6 +126,221 @@ const validateScenarioBodyReferences = (
       );
     }
   }
+  for (const checkpointBody of scenario.rules?.checkpointBodies ?? []) {
+    if (!knownBodyNames.has(checkpointBody)) {
+      return engineError(
+        ErrorCode.INVALID_INPUT,
+        `Scenario ${scenario.name} references unknown body ` +
+          `"${checkpointBody}" in rules.checkpointBodies`,
+      );
+    }
+  }
+  for (const sharedBaseBody of scenario.rules?.sharedBases ?? []) {
+    if (!knownBodyNames.has(sharedBaseBody)) {
+      return engineError(
+        ErrorCode.INVALID_INPUT,
+        `Scenario ${scenario.name} references unknown body ` +
+          `"${sharedBaseBody}" in rules.sharedBases`,
+      );
+    }
+  }
+  return null;
+};
+
+const isWithinBounds = (position: HexCoord, map: SolarSystemMap): boolean => {
+  const { minQ, maxQ, minR, maxR } = map.bounds;
+  return (
+    position.q >= minQ &&
+    position.q <= maxQ &&
+    position.r >= minR &&
+    position.r <= maxR
+  );
+};
+
+const getBodySurfaceHexes = (
+  body: SolarSystemMap['bodies'][number],
+): HexCoord[] =>
+  body.surfaceRadius === 0
+    ? [body.center]
+    : [
+        body.center,
+        ...Array.from({ length: body.surfaceRadius }, (_, index) =>
+          hexRing(body.center, index + 1),
+        ).flat(),
+      ];
+
+const validateMapBounds = (map: SolarSystemMap): EngineError | null => {
+  for (const key of map.hexes.keys()) {
+    const coord = parseHexKey(key);
+    if (!isWithinBounds(coord, map)) {
+      return engineError(
+        ErrorCode.INVALID_INPUT,
+        `Map bounds exclude occupied hex ${key}`,
+      );
+    }
+  }
+
+  for (const body of map.bodies) {
+    if (!isWithinBounds(body.center, map)) {
+      return engineError(
+        ErrorCode.INVALID_INPUT,
+        `Map bounds exclude body center "${body.name}"`,
+      );
+    }
+  }
+
+  return null;
+};
+
+const validateMapBodies = (map: SolarSystemMap): EngineError | null => {
+  if (map.bodies.length === 0) return null;
+
+  const seenNames = new Set<string>();
+  const occupiedSurfaceHexes = new Map<HexKey, string>();
+
+  for (const body of map.bodies) {
+    if (seenNames.has(body.name)) {
+      return engineError(
+        ErrorCode.INVALID_INPUT,
+        `Map defines duplicate body "${body.name}"`,
+      );
+    }
+    seenNames.add(body.name);
+
+    for (const surfaceHex of getBodySurfaceHexes(body)) {
+      const key = hexKey(surfaceHex);
+      const occupant = occupiedSurfaceHexes.get(key);
+
+      if (occupant) {
+        return engineError(
+          ErrorCode.INVALID_INPUT,
+          `Map bodies "${occupant}" and "${body.name}" overlap at ${key}`,
+        );
+      }
+      occupiedSurfaceHexes.set(key, body.name);
+    }
+
+    const centerHex = map.hexes.get(hexKey(body.center));
+    if (centerHex?.body?.name !== body.name) {
+      return engineError(
+        ErrorCode.INVALID_INPUT,
+        `Map body "${body.name}" is missing a matching center hex`,
+      );
+    }
+  }
+
+  return null;
+};
+
+const validateScenarioRuleCombinations = (
+  scenario: ScenarioDefinition,
+): EngineError | null => {
+  if (
+    scenario.rules?.targetWinRequiresPassengers &&
+    !scenario.rules?.passengerRescueEnabled
+  ) {
+    return engineError(
+      ErrorCode.INVALID_INPUT,
+      `Scenario ${scenario.name} enables targetWinRequiresPassengers ` +
+        `without passengerRescueEnabled`,
+    );
+  }
+
+  if (
+    scenario.rules?.hiddenIdentityInspection &&
+    !scenario.players.some((player) => player.hiddenIdentity)
+  ) {
+    return engineError(
+      ErrorCode.INVALID_INPUT,
+      `Scenario ${scenario.name} enables hiddenIdentityInspection ` +
+        `without any hiddenIdentity player`,
+    );
+  }
+
+  return null;
+};
+
+const validateScenarioBaseAssignments = (
+  scenario: ScenarioDefinition,
+  map: SolarSystemMap,
+): EngineError | null => {
+  if (map.bodies.length === 0) return null;
+
+  for (const [playerIndex, player] of scenario.players.entries()) {
+    for (const base of player.bases ?? []) {
+      const key = hexKey(base);
+      const hex = map.hexes.get(key);
+
+      if (!hex) {
+        return engineError(
+          ErrorCode.INVALID_INPUT,
+          `Scenario ${scenario.name} references off-map base ${key} ` +
+            `for player ${playerIndex}`,
+        );
+      }
+      if (!hex.base) {
+        return engineError(
+          ErrorCode.INVALID_INPUT,
+          `Scenario ${scenario.name} references non-base hex ${key} ` +
+            `for player ${playerIndex}`,
+        );
+      }
+    }
+  }
+
+  for (const bodyName of scenario.rules?.sharedBases ?? []) {
+    const hasBase = [...map.hexes.values()].some(
+      (hex) => hex.base?.bodyName === bodyName,
+    );
+
+    if (!hasBase) {
+      return engineError(
+        ErrorCode.INVALID_INPUT,
+        `Scenario ${scenario.name} shares bases on "${bodyName}" ` +
+          `but the map has no base hexes for that body`,
+      );
+    }
+  }
+
+  return null;
+};
+
+const validateScenarioShipPlacements = (
+  scenario: ScenarioDefinition,
+  map: SolarSystemMap,
+): EngineError | null => {
+  for (const [playerIndex, player] of scenario.players.entries()) {
+    for (const ship of player.ships) {
+      if (!isWithinBounds(ship.position, map)) {
+        return engineError(
+          ErrorCode.INVALID_INPUT,
+          `Scenario ${scenario.name} places player ${playerIndex} ` +
+            `${ship.type} outside map bounds at ${hexKey(ship.position)}`,
+        );
+      }
+
+      if (ship.startLanded !== false && ship.startInOrbit) {
+        return engineError(
+          ErrorCode.INVALID_INPUT,
+          `Scenario ${scenario.name} marks player ${playerIndex} ` +
+            `${ship.type} as both startLanded and startInOrbit`,
+        );
+      }
+
+      if (ship.startLanded === false) {
+        const startHex = map.hexes.get(hexKey(ship.position));
+
+        if (startHex?.body) {
+          return engineError(
+            ErrorCode.INVALID_INPUT,
+            `Scenario ${scenario.name} places active player ${playerIndex} ` +
+              `${ship.type} on body surface at ${hexKey(ship.position)}`,
+          );
+        }
+      }
+    }
+  }
+
   return null;
 };
 
@@ -210,6 +431,26 @@ export const createGame = (
   const bodyRefError = validateScenarioBodyReferences(scenario, map);
   if (bodyRefError) {
     return { ok: false, error: bodyRefError };
+  }
+  const mapBoundsError = validateMapBounds(map);
+  if (mapBoundsError) {
+    return { ok: false, error: mapBoundsError };
+  }
+  const mapBodiesError = validateMapBodies(map);
+  if (mapBodiesError) {
+    return { ok: false, error: mapBodiesError };
+  }
+  const ruleCombinationError = validateScenarioRuleCombinations(scenario);
+  if (ruleCombinationError) {
+    return { ok: false, error: ruleCombinationError };
+  }
+  const baseAssignmentError = validateScenarioBaseAssignments(scenario, map);
+  if (baseAssignmentError) {
+    return { ok: false, error: baseAssignmentError };
+  }
+  const shipPlacementError = validateScenarioShipPlacements(scenario, map);
+  if (shipPlacementError) {
+    return { ok: false, error: shipPlacementError };
   }
   const playerBases = scenario.players.map((player) =>
     resolveControlledBases(player, map),
