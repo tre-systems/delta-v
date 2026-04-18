@@ -6,7 +6,7 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 ## Recently shipped (2026-04-18)
 
-Follow-up on `main`: hosted MCP moved to workspace package `@delta-v/mcp-adapter`; server agent-seat bot AI now defaults to **normal** (same as single-player / lobby) via `SERVER_AGENT_AI_DIFFICULTY` instead of a hard-coded `hard` path in `game-do`. UX/docs: scenario list titles CSS-uppercased; menu/join/chat focus rings on `:focus-visible` only (HUD chat ring matches menu strength; lobby HUD scale buttons 48px min height); notification-channel precedence helpers + tests; **toast dedupe** (`createToastDedupeGate` in `notification-policy.ts`, wired in `overlay-view.ts` `showToast`); **`preferNotificationChannel`** in `showToast` so **non-error toasts yield to an active phase alert**; `prefers-contrast: more` / `forced-colors: active` pass on full-screen `.screen`, menu shell, **`#menu` / `.menu-surface` / inputs** in `components.css`, game-over `.overlay-panel` (plus **forced-colors** outcome hues on `h2` / divider via `forced-color-adjust: none`), reconnect, toasts, tutorial tip, help/sound FABs, help TOC/groups, `#phaseAlert`, and **HUD** (`.hud-bar`, ship list / log, latest log bar, ship tooltip); manual test plan contrast spot-check section; game-over replay nav matches bottom replay bar (`replay-btn` + SVGs).
+Follow-up on `main`: hosted MCP moved to workspace package `@delta-v/mcp-adapter`; server agent-seat bot AI now defaults to **normal** (same as single-player / lobby) via `SERVER_AGENT_AI_DIFFICULTY` instead of a hard-coded `hard` path in `game-do`. UX/docs: scenario list titles CSS-uppercased; menu/join/chat focus rings on `:focus-visible` only (HUD chat ring matches menu strength; lobby HUD scale buttons 48px min height); notification-channel precedence helpers + tests; **phase banner** driven by `attachSessionPhaseAlertEffect` (`session-ui-effects.ts`) on aligned `playing_*` ↔ `gameState.phase` transitions (re-shows after `playing_movementAnim`); **toast dedupe** (`createToastDedupeGate` in `notification-policy.ts`, wired in `overlay-view.ts` `showToast`); **`preferNotificationChannel`** in `showToast` so **non-error toasts yield to an active phase alert**; `prefers-contrast: more` / `forced-colors: active` pass on full-screen `.screen`, menu shell, **`#menu` / `.menu-surface` / inputs** in `components.css`, game-over `.overlay-panel` (plus **forced-colors** outcome hues on `h2` / divider via `forced-color-adjust: none`), reconnect, toasts, tutorial tip, help/sound FABs, help TOC/groups, `#phaseAlert`, and **HUD** (`.hud-bar`, ship list / log, latest log bar, ship tooltip); manual test plan contrast spot-check section; game-over replay nav matches bottom replay bar (`replay-btn` + SVGs).
 
 Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; stronger placeholders and `prefers-contrast: more` / `forced-colors: active` baselines; HUD default|large text scale (localStorage + lobby controls + `html[data-hud-scale]` CSS); help overlay jump links + TOC styling; quick-match waiting elapsed time; scenario `lobbyMeta` rendered on lobby cards; difficulty `role="radiogroup"` and hint line; wider menu/scenario shell at ≥1024px; ship-list bottom fade when scrollable; larger burn/overload hit targets; chat character counter; reconnect reassurance copy; game-over rematch auto-focus; `#hudBoardSummary` live region for board context; Ko-fi image dimensions; shorter welcome tutorial line; `src/client/messages/notification-policy.ts` as documented channel names (later: toast dedupe + `preferNotificationChannel` wiring per backlog). Toasts: dismiss control, hover/focus pause + CSS `animation-play-state` for info/success, errors persist with `role="alert"` until dismissed. Waiting **Cancel** after `cancelQuickMatch` calls `exitToMenu` when still not on `menu` (fixes private-room / join / post-match quick-match teardown); connecting copy shows **Cancel** with clearer titles. Archived replay `fetch` is aborted when leaving to menu or starting another replay (`AbortSignal` + `releaseArchivedReplayFetchAbortIfMatches` guard). Asteroid column on the Other Damage table: rolls 5–6 are both D1 per 2018 rulebook (was D2 on 6). Security hardening: MCP JSON body cap 16 KB; committed `DEV_MODE=0` with local dev via `.dev.vars` (`DEV_MODE=1`, see `.dev.vars.example`); hosted MCP `matchToken` redemption requires `Authorization: Bearer`; `POST /quick-match` with `agent_…` `playerKey` requires a verified agent Bearer (shared `queueForMatch` mints via `/api/agent-token` first) so leaderboard `is_agent` is not prefix-spoofable; MCP enqueue sets an internal verified-agent header when the tool caller is authenticated.
 
@@ -15,6 +15,30 @@ Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; 
 ## Gameplay UX & matchmaking integrity
 
 Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Many original bullets shipped in **[Recently shipped](#recently-shipped-2026-04-18)**; the list below is **still open** or needs a verification pass.
+
+### Help overlay is `aria-hidden="true"` while visible
+
+On the menu, `#helpOverlay` is rendered with `role="dialog"`, `aria-modal="true"`, `display: flex` — **and** `aria-hidden="true"` on the same element, so screen readers skip the modal content entirely while sighted users see it. `applyUIVisibility` (`src/client/ui/visibility.ts`) toggles `display` via the `visible()` helper but does not manage `aria-hidden` in lockstep. Either drop the attribute on open, or remove it from the initial markup and only set it while closed.
+
+**Files:** `src/client/ui/visibility.ts`, `src/client/dom.ts`, `static/index.html`
+
+### `#helpCloseBtn` has two click handlers
+
+Both `src/client/game-client-browser.ts:92` (`listen(deps.helpCloseBtn, 'click', () => deps.onToggleHelp())`) and `src/client/ui/lobby-view.ts:287` (`listen(helpCloseBtnEl, 'click', () => { hide(helpOverlayEl); menuHowToPlayBtn.focus(); })`) bind click listeners on the same element. Both fire on a single click and each affects overlay visibility, so net behavior depends on registration order — browser exploration on 2026-04-18 saw the overlay sometimes need two clicks to actually close on the menu. Keep one path (prefer the `onToggleHelp` state-machine so `helpBtn` and `helpCloseBtn` stay in sync).
+
+**Files:** `src/client/game-client-browser.ts`, `src/client/ui/lobby-view.ts`
+
+### `#fleetStatus` abbreviations (1T / 2M / 1N) are opaque to screen readers
+
+`getFleetStatus` in `src/client/game/hud-view-model.ts:112-114` builds compact ordnance status like `1T` / `2M` / `1N` and injects it into `#fleetStatus` as plain text. The element has no `title` or `aria-label`, so screen readers read `"1 T"` with no context and new players have no expansion. Add a `.visually-hidden` sibling or an `aria-label` (`"1 torpedo in flight"`).
+
+**Files:** `src/client/game/hud-view-model.ts`, `src/client/ui/hud-chrome-view.ts`, `static/index.html`
+
+### Private-match `#gameCode` is not in a live region and has no aria-label
+
+When a player creates a private match, the 5-character room code is painted into a plain `<div id="gameCode">` with no `aria-label` and no ancestor `aria-live`. Screen-reader users are told a game was created but may miss the generated code unless they re-read the whole overlay. Wrap in a polite live region, or set `aria-label="Game code: {code}"` when the code is populated.
+
+**Files:** `static/index.html`, `src/client/ui/lobby-view.ts`
 
 ### Refine `:focus` vs `:focus-visible` on form controls
 
@@ -58,9 +82,11 @@ Jump links and TOC styling exist; optional follow-up: highlight the section in v
 
 **Partial (2026-04-18):** `notification-policy.ts` exports `NOTIFICATION_CHANNEL_PRECEDENCE`, `notificationChannelPrecedenceIndex`, and `preferNotificationChannel` so call sites can resolve conflicts without duplicating ordering; Vitest covers ordering and ties. **`createToastDedupeGate`** suppresses identical non-error toasts within a short window (`overlay-view.ts` `showToast`); errors are never dropped. **`showToast`** skips **info/success** while the phase alert banner is visible (`preferNotificationChannel('toast', 'phaseAlert')`).
 
-**Still open:** wire `preferNotificationChannel` at HUD status / game-log call sites if the same copy can still double-fire with toasts or phase (beyond overlay toast + phase).
+**Partial (2026-04-18):** `attachSessionPhaseAlertEffect` calls `overlay.showPhaseAlert` when the client enters `playing_astrogation` / `ordnance` / `logistics` / `combat` and `gameState.phase` matches (skips mismatches during animation, dedupes stable `(phase, turn, activePlayer)` until leaving those modes).
 
-**Files:** `src/client/messages/notification-policy.ts`, `src/client/ui/overlay-view.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/telemetry.ts`
+**Still open:** audit HUD status line + game log vs toast for duplicate **copy** on the same tick; `preferNotificationChannel` helpers are available at call sites.
+
+**Files:** `src/client/messages/notification-policy.ts`, `src/client/ui/overlay-view.ts`, `src/client/game/session-ui-effects.ts`, `src/client/game/session-signals.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/telemetry.ts`
 
 ### Digital-input parity for map selection and targeting
 
@@ -97,6 +123,12 @@ Findings from a 2026-04-18 deep-research pass against the [2018 Triplanetary rul
 AI gates ordnance on range buckets (`torpedoRange` 8-12 hexes) but never verifies the launch vector will intersect a target hex within the 5-turn ordnance lifetime, accounting for gravity. Result: torpedoes and nukes get fired into empty space. Per rulebook p.5-6, ordnance inherits the launcher's vector plus (torpedoes only) a 1-2 hex burn on the launch turn, then is ballistic for 5 turns. Add a short forward simulation that scores candidate launch burns by intersection probability against each enemy's predicted course before committing.
 
 **Files:** `src/shared/ai/ordnance.ts`, `src/shared/engine/ordnance.ts`, `src/shared/engine/resolve-movement.ts`
+
+### `recommendedIndex` over-suggests consecutive ordnance launches
+
+Exploratory duel session (2026-04-18): after launching a torpedo on turn 2, the ordnance-phase `recommendedIndex` on turn 3 pointed at a **nuke** with the enemy still ~3 hexes from Mercury and no immediate threat — wasting a 300 MCr nuke with little expected value. LLM agents that lean on the recommended index will blow their nuke budget early. Complements "Tighten Hard-difficulty nuke gates..." below, but targets the index exposed to agents specifically: consider penalizing consecutive same-turn-after-turn ordnance launches unless expected intercept probability justifies the cost.
+
+**Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/agent/observation.ts`, `src/shared/agent/candidates.ts`
 
 ### Tighten Hard-difficulty nuke gates with cost and intercept probability
 
@@ -138,6 +170,36 @@ The research pass produced concrete geometries where `hard` AI still launches de
 ## Agent & MCP ergonomics
 
 Findings from a 2026-04-18 agent/MCP experience review. The contract is strong — AGENT_SPEC.md, pre-computed `candidates[]`, labelled observations, two-token auth, ActionGuards forgiveness — but the MCP surface has grown in two places (local stdio MCP in `scripts/delta-v-mcp-server.ts` and hosted `@delta-v/mcp-adapter`) and a handful of per-turn affordances still cost extra round-trips or external doc reads. Ordered by blast radius on agent experience.
+
+### Parallel MCP stdio tool calls actually serialize
+
+Exploratory pass (2026-04-18): two `delta_v_quick_match_connect` calls sent in a single Claude message do not run in parallel — PlayerA's blocking quick-match poll runs to timeout first, then PlayerB queues and pairs with PlayerA's orphan ticket. Because both seats carry `kind: 'agent'`, the autoplayer fills both sides and the game self-plays in ~7 s. Blocks legitimate two-client MCP exploration and masks any turn-sync / interleave bugs an operator could otherwise surface. Make the stdio handler kick off non-blocking work per tool call before awaiting, or move long-poll waits off the stdio critical path so a second call can interleave.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, `src/shared/agent/quick-match.ts`, `docs/DELTA_V_MCP.md`
+
+### Friendlier first-touch errors on `delta_v_quick_match_connect`
+
+Two rough edges surface on the first invocation. (1) Passing `serverUrl: "ws://..."` (which matches the tool's advertised "WebSocket session") throws a bare `fetch failed` from undici because the pre-match REST calls run `fetch(${serverUrl}/api/agent-token)` — either normalize `ws://` → `http://` at the tool boundary or validate and reject with a clear message. (2) `Quick-match timed out after Xms` gives no hint whether the queue is empty, the WS never opened, or `AGENT_TOKEN_SECRET` / `DEV_MODE` is misconfigured; under `DEV_MODE=1` especially, a "no opponent queued; start a second client" hint would be actionable.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, `src/shared/agent/quick-match.ts`, `src/server/auth/issue-route.ts`, `docs/DELTA_V_MCP.md`
+
+### `send_action waitForResult` should treat protocol `error` as a rejection
+
+Sending an unknown action type (e.g. `{type:"nonexistent_action"}`) causes the server to emit an `error` event with `code: INVALID_INPUT`, but `mcp__delta-v__delta_v_send_action` with `waitForResult=true` returns `{accepted:null, pending:true, guarded:true}` and only resolves when the caller separately polls `get_events`. Legal-type wrong-phase actions produce proper `actionRejected` responses that the tool *does* pick up. Collapse the two paths so the tool always returns a resolved `{accepted:false, reason, message}` on any server-side repudiation.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, `src/server/game-do/mcp-handlers.ts`, `packages/mcp-adapter/src/handlers.ts`
+
+### Gate the disabled `buildBotProfile` bot-fill behind `DEV_MODE=1`
+
+`src/server/matchmaker-do.ts:518-536` has a commented-out bot-fill path (with the ready `buildBotProfile(ticket)` helper) so production quick-match waits for real opponents. A single-client MCP caller therefore cannot drive an end-to-end match without spawning a second process (`scripts/quick-match-scrimmage.ts`). Gating the block behind `DEV_MODE=1` unblocks local exploratory testing (`/play` skill, ad-hoc agent dev) without changing production behavior, and matches how `DEV_MODE` already gates the agent-token placeholder.
+
+**Files:** `src/server/matchmaker-do.ts`, `src/server/auth/secret.ts`, `docs/DELTA_V_MCP.md`
+
+### Bot `BOT_THINK_TIME_MS=900` can override LLM agents mid-reason
+
+Agent-kind seats are taken over by the bot autoplayer after 900 ms of silence. An LLM agent with a reasoning budget longer than that has its next turn played for it before it can decide. Related to but distinct from "Surface decision-timeout fallback in the next observation" (which is about *notifying* the agent) — the threshold itself is too aggressive for LLM operators. Consider a per-session configurable budget or a longer default (e.g. 10–30 s) that still guards against stalls.
+
+**Files:** `src/server/game-do/game-do.ts`, `src/server/game-do/bot.ts`, `src/shared/agent/types.ts`
 
 ### Unify local and hosted MCP tool surfaces
 

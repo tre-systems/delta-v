@@ -102,9 +102,11 @@ export const getPhaseAlertCopy = (
       ? 'Astrogation'
       : phase === 'ordnance'
         ? 'Ordnance'
-        : phase === 'combat'
-          ? 'Combat'
-          : phase;
+        : phase === 'logistics'
+          ? 'Logistics'
+          : phase === 'combat'
+            ? 'Combat'
+            : phase;
 
   return {
     title,

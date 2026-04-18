@@ -91,11 +91,9 @@ describe('HUDChromeView', () => {
 
   it('renders HUD state and alerts only when the phase key changes', () => {
     const queueLayoutSync = vi.fn();
-    const showPhaseAlert = vi.fn();
     const onStatusText = vi.fn();
     const view = createHUDChromeView({
       queueLayoutSync,
-      showPhaseAlert,
       onStatusText,
     });
 
@@ -117,8 +115,6 @@ describe('HUDChromeView', () => {
     expect(undoBtn.hasAttribute('hidden')).toBe(false);
     expect(undoBtn.style.display).toBe('inline-block');
     expect(confirmBtn.hasAttribute('hidden')).toBe(true);
-    // Phase alerts are no longer shown — HUD top bar is sufficient
-    expect(showPhaseAlert).not.toHaveBeenCalled();
     expect(queueLayoutSync).toHaveBeenCalled();
     expect(
       document
@@ -130,7 +126,6 @@ describe('HUDChromeView', () => {
   it('shows and rotates the objective compass when bearing is set', () => {
     const view = createHUDChromeView({
       queueLayoutSync: vi.fn(),
-      showPhaseAlert: vi.fn(),
       onStatusText: vi.fn(),
     });
 
@@ -147,7 +142,6 @@ describe('HUDChromeView', () => {
   it('renders separate ordnance skip and confirm buttons', () => {
     const view = createHUDChromeView({
       queueLayoutSync: vi.fn(),
-      showPhaseAlert: vi.fn(),
       onStatusText: vi.fn(),
     });
 
@@ -201,7 +195,6 @@ describe('HUDChromeView', () => {
     } | null>(null);
     const view = createHUDChromeView({
       queueLayoutSync,
-      showPhaseAlert: vi.fn(),
       onStatusText,
     });
     view.bindTurnTimerSignal(turnTimerSignal);
@@ -282,7 +275,6 @@ describe('HUDChromeView', () => {
   it('traps focus inside the help overlay and closes it on Escape', async () => {
     const view = createHUDChromeView({
       queueLayoutSync: vi.fn(),
-      showPhaseAlert: vi.fn(),
       onStatusText: vi.fn(),
     });
 
@@ -325,7 +317,6 @@ describe('HUDChromeView', () => {
     const onStatusText = vi.fn();
     const view = createHUDChromeView({
       queueLayoutSync: vi.fn(),
-      showPhaseAlert: vi.fn(),
       onStatusText,
     });
 
@@ -357,7 +348,6 @@ describe('HUDChromeView', () => {
     const onStatusText = vi.fn();
     const view = createHUDChromeView({
       queueLayoutSync: vi.fn(),
-      showPhaseAlert: vi.fn(),
       onStatusText,
     });
     const input = buildInput({
@@ -387,7 +377,6 @@ describe('HUDChromeView', () => {
     const onStatusText = vi.fn();
     const view = createHUDChromeView({
       queueLayoutSync: vi.fn(),
-      showPhaseAlert: vi.fn(),
       onStatusText,
     });
 
