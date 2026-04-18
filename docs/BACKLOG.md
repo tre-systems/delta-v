@@ -112,6 +112,17 @@ Hosted MCP: add `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_
 
 **Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/protocol.ts`, `src/shared/protocol.ts`, `scripts/delta-v-mcp-server.ts`, `src/client/game/client-message-plans.ts`
 
+### Live-play friction from 2026-04-18 MCP-vs-browser verification
+
+Four papercuts hit while pairing a local MCP agent against a human browser seat (duel, production server):
+
+- **Misleading `nextPhase` in `send_action` response.** After `skipOrdnance` the close-loop response reported `nextPhase: combat, nextActivePlayer: 1`, but the combat phase auto-resolved (no attackers in range) and the opponent's astrogation slipped in before the agent's follow-up `skipCombat` arrived, producing a `wrongActivePlayer` rejection. Consider flagging likely auto-skip phases in the response (`autoSkipLikely: true`) or surfacing the post-auto-resolution phase so agents can `wait_for_turn` instead of firing a doomed skip.
+- **Two-client queue race.** Default `quick_match_connect` timeout (120s) is tight when the caller has to start a second client after queueing the first; a `waitForOpponent: false` mode that returns a ticket immediately would let agents queue, then trigger the browser, then poll.
+- **Thin candidate set.** Turn-1 astrogation labelled candidates only offered NE / NE+overload / coast; other directions and fuel-vs-overload trade-offs were invisible without hand-rolling actions. Widen `labeledCandidates` coverage for opening turns.
+- **Verbose observations by default.** Local MCP returns the full state blob unless `compactState: true` is passed; flipping the default (or surfacing recommended defaults in the skill) would cut tokens across a full game.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/shared/agent/`, `src/shared/types/protocol.ts`, `.claude/skills/play/SKILL.md`
+
 ### Retire legacy `{code, playerToken}` tool args once leaderboard stabilises
 
 Hosted MCP tools still accept either `matchToken` or `{code, playerToken}` via `matchTargetSchema` in `packages/mcp-adapter/src/handlers.ts`. Carrying both doubles tool-args surface area and forces every call site to branch on auth mode. Once the public leaderboard is live and all active agents have migrated to `matchToken`, drop the legacy union and simplify the adapter — consistent with the pre-launch-deletions stance elsewhere.
@@ -153,14 +164,6 @@ Hide clone-sensitive engine mutators behind non-exported modules, extend import-
 Tighten scenario/body registries around closed keys; brand ship / ordnance identifiers so lookup-heavy paths stop depending on plain `string` (wire `isHexKey` coverage exists in Vitest — extend to call sites and registries).
 
 **Files:** `src/shared/hex.ts`, `src/shared/ids.ts`, `src/shared/map-data.ts`, `src/shared/types/domain.ts`, `src/server/room-routes.ts`, `src/server/game-do/http-handlers.ts`, `src/client/game/main-session-network.ts`
-
-### Standardized error surfaces and client recovery messaging
-
-**Done for this slice:** core engine entry points now normalize phase / validation wrappers through `engineFailure()` instead of hand-building `{ error }` results.
-
-**Remaining:** surface typed rate-limit / validation handling in the client so user-facing error behavior can branch on error code instead of generic text alone.
-
-**Files:** `src/shared/engine/util.ts`, `src/shared/engine/astrogation.ts`, `src/shared/engine/ordnance.ts`, `src/shared/engine/logistics.ts`, `src/shared/engine/combat.ts`, `src/shared/types/domain.ts`, `src/server/game-do/socket.ts`, `src/client/game/connection.ts`, `src/client/game/message-handler.ts`
 
 ---
 
