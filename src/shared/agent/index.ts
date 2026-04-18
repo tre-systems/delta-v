@@ -39,6 +39,7 @@ export {
   buildStateSummary,
 } from './observation';
 export {
+  normalizeQuickMatchServerUrl,
   type QuickMatchArgs,
   type QuickMatchResult,
   queueForMatch,
