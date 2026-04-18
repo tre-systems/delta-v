@@ -16,7 +16,9 @@ import {
   resolveCombatBroadcast,
   resolveMovementBroadcast,
   resolveStateBearingMessage,
+  STATEFUL_SERVER_MESSAGE_TYPES,
   toCombatResultMessage,
+  toCombatSingleResultMessage,
   toGameStartMessage,
   toMovementResultMessage,
   toStateUpdateMessage,
@@ -118,6 +120,48 @@ describe('game-do-message-builders', () => {
     expect(
       resolveStateBearingMessage(state, toStateUpdateMessage(state)),
     ).toEqual(toStateUpdateMessage(state));
+  });
+
+  it('lists every state-bearing message type used by the builders', () => {
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('SRV2C'),
+      findBaseHex,
+    );
+    const combatResult: CombatResult = {
+      attackerIds: [asShipId('p0s0')],
+      targetId: asShipId('p1s0'),
+      targetType: 'ship',
+      attackType: 'gun',
+      odds: '1:1',
+      attackStrength: 2,
+      defendStrength: 2,
+      rangeMod: 0,
+      velocityMod: 0,
+      dieRoll: 4,
+      modifiedRoll: 4,
+      damageType: 'disabled',
+      disabledTurns: 2,
+      counterattack: null,
+    };
+
+    expect(new Set(STATEFUL_SERVER_MESSAGE_TYPES)).toEqual(
+      new Set([
+        toGameStartMessage(state).type,
+        toStateUpdateMessage(state).type,
+        toMovementResultMessage({
+          state,
+          movements: [],
+          ordnanceMovements: [],
+          events: [],
+          engineEvents: [],
+        }).type,
+        toCombatResultMessage(state, [combatResult]).type,
+        toCombatSingleResultMessage(state, combatResult).type,
+      ]),
+    );
   });
 
   it('formats combat results for broadcast', () => {

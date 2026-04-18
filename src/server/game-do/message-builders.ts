@@ -53,6 +53,14 @@ type CombatResolution = {
   results?: CombatResult[];
 };
 
+export const STATEFUL_SERVER_MESSAGE_TYPES = [
+  'gameStart',
+  'movementResult',
+  'combatResult',
+  'combatSingleResult',
+  'stateUpdate',
+] as const satisfies readonly StatefulServerMessage['type'][];
+
 export const toMovementResultMessage = ({
   movements,
   ordnanceMovements,
