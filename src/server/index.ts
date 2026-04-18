@@ -1,4 +1,11 @@
 import { asRoomCode } from '../shared/ids';
+import { normalizePlayerKey } from '../shared/player';
+import {
+  extractBearerToken,
+  MissingAgentTokenSecretError,
+  resolveAgentTokenSecret,
+  verifyAgentToken,
+} from './auth';
 import { handleAgentTokenIssue } from './auth/issue-route';
 import type { Env } from './env';
 import { GameDO } from './game-do/game-do';
@@ -10,6 +17,7 @@ import { LiveRegistryDO } from './live-registry-do';
 import { handleMatchesList } from './matches-list';
 import { MatchmakerDO } from './matchmaker-do';
 import { handleMcpHttpRequest } from './mcp/handlers';
+import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
 
 export type { CreateRateLimiterBinding, Env } from './env';
 
@@ -34,6 +42,84 @@ import {
   handleReplayFetch,
   handleWebSocket,
 } from './room-routes';
+
+const buildQuickMatchEnqueueHeaders = async (
+  incoming: Request,
+  bodyText: string,
+  env: Env,
+): Promise<
+  | { ok: true; headers: Record<string, string> }
+  | { ok: false; response: Response }
+> => {
+  const contentType =
+    incoming.headers.get('content-type') ?? 'application/json';
+  const base: Record<string, string> = { 'Content-Type': contentType };
+
+  let parsed: { player?: { playerKey?: unknown } };
+  try {
+    parsed = JSON.parse(bodyText) as { player?: { playerKey?: unknown } };
+  } catch {
+    return { ok: true, headers: base };
+  }
+
+  const pk = normalizePlayerKey(parsed.player?.playerKey);
+  if (!pk?.startsWith('agent_')) {
+    return { ok: true, headers: base };
+  }
+
+  const bearer = extractBearerToken(incoming.headers.get('Authorization'));
+  let secret: string;
+  try {
+    secret = resolveAgentTokenSecret(env);
+  } catch (error) {
+    if (error instanceof MissingAgentTokenSecretError) {
+      return {
+        ok: false,
+        response: Response.json(
+          { ok: false, error: 'server_misconfigured' },
+          { status: 500 },
+        ),
+      };
+    }
+    throw error;
+  }
+
+  if (!bearer) {
+    return {
+      ok: false,
+      response: Response.json(
+        { ok: false, error: 'agent_token_required' },
+        { status: 403 },
+      ),
+    };
+  }
+
+  const verified = await verifyAgentToken(bearer, { secret });
+  if (!verified.ok) {
+    return {
+      ok: false,
+      response: Response.json(
+        { ok: false, error: 'invalid_agent_token' },
+        { status: 401 },
+      ),
+    };
+  }
+
+  if (verified.payload.playerKey !== pk) {
+    return {
+      ok: false,
+      response: Response.json(
+        { ok: false, error: 'agent_token_player_key_mismatch' },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return {
+    ok: true,
+    headers: { ...base, [QUICK_MATCH_VERIFIED_AGENT_HEADER]: '1' },
+  };
+};
 
 export {
   checkWindowedRateLimit,
@@ -116,14 +202,15 @@ export default {
       }
 
       const body = await request.text();
+      const built = await buildQuickMatchEnqueueHeaders(request, body, env);
+      if (!built.ok) {
+        return built.response;
+      }
 
       return env.MATCHMAKER.get(env.MATCHMAKER.idFromName('global')).fetch(
         new Request('https://matchmaker.internal/enqueue', {
           method: 'POST',
-          headers: {
-            'Content-Type':
-              request.headers.get('content-type') ?? 'application/json',
-          },
+          headers: built.headers,
           body,
         }),
       );

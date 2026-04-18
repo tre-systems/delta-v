@@ -9,6 +9,7 @@
 
 import type { QuickMatchResponse } from '../../shared/matchmaking';
 import type { Env } from '../env';
+import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from '../quick-match-internal';
 
 export interface QuickMatchArgs {
   scenario: string;
@@ -16,6 +17,8 @@ export interface QuickMatchArgs {
   playerKey: string;
   pollMs?: number;
   timeoutMs?: number;
+  /** When true, enqueue carries the internal verified-agent header for leaderboard isAgent. */
+  verifiedLeaderboardAgent?: boolean;
 }
 
 export interface QuickMatchResult {
@@ -41,10 +44,17 @@ export const queueRemoteMatch = async (
   }
   const matchmaker = env.MATCHMAKER.get(env.MATCHMAKER.idFromName('global'));
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (args.verifiedLeaderboardAgent && args.playerKey.startsWith('agent_')) {
+    headers[QUICK_MATCH_VERIFIED_AGENT_HEADER] = '1';
+  }
+
   const enqueueResponse = await matchmaker.fetch(
     new Request(`${MATCHMAKER_BASE}/enqueue`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         scenario: args.scenario,
         player: {

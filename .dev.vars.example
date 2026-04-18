@@ -1,0 +1,8 @@
+# Wrangler merges `.dev.vars` over `wrangler.toml` [vars] for `wrangler dev`.
+# Copy to `.dev.vars` (gitignored) for local development.
+#
+# Enables the deterministic dev placeholder when AGENT_TOKEN_SECRET is unset:
+DEV_MODE=1
+#
+# Optional: use a real local secret instead of the placeholder:
+# AGENT_TOKEN_SECRET=your-local-secret-at-least-16-chars

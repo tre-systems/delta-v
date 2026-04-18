@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Env } from '../env';
+import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from '../quick-match-internal';
 import { queueRemoteMatch } from './quick-match';
 
 const buildEnv = (
@@ -106,6 +107,40 @@ describe('queueRemoteMatch', () => {
         timeoutMs: 1_000,
       }),
     ).rejects.toThrow(/expired/);
+  });
+
+  it('sets verified-agent header when verifiedLeaderboardAgent is true', async () => {
+    const { env, calls } = buildEnv((req) => {
+      if (req.url.endsWith('/enqueue')) {
+        return Response.json({
+          status: 'queued',
+          ticket: 'TICKET',
+          scenario: 'duel',
+        });
+      }
+      return Response.json({
+        status: 'matched',
+        ticket: 'TICKET',
+        scenario: 'duel',
+        code: 'ABCDE',
+        playerToken: 'X'.repeat(32),
+      });
+    });
+
+    await queueRemoteMatch(env, {
+      scenario: 'duel',
+      username: 'tester',
+      playerKey: 'agent_verify_hdr',
+      verifiedLeaderboardAgent: true,
+      pollMs: 5,
+      timeoutMs: 2_000,
+    });
+
+    const enqueueReq = calls.find((r) => r.url.endsWith('/enqueue'));
+    expect(enqueueReq).toBeDefined();
+    expect(enqueueReq?.headers.get(QUICK_MATCH_VERIFIED_AGENT_HEADER)).toBe(
+      '1',
+    );
   });
 
   it('throws on enqueue failure', async () => {

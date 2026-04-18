@@ -8,9 +8,9 @@
 // keeps the entire matchToken lifecycle in pure functions.
 //
 // The token binds to the issuing agent via `agentTokenHash` (SHA-256 of the
-// agentToken). A stolen matchToken still requires the matching agentToken
-// to be presented in Authorization, so casual leak via tool args alone
-// can't be replayed by a different agent.
+// agentToken). Hosted MCP requires `Authorization: Bearer <agentToken>` on
+// every matchToken redemption so a leaked blob alone cannot be replayed.
+// (Payload is still signed, not encrypted — see SECURITY.md.)
 
 import {
   type SignedTokenPayload,

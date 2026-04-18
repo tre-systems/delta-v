@@ -13,6 +13,7 @@ import {
 } from '../shared/player';
 import { claimPlayerName } from './leaderboard/player-store';
 import { generatePlayerToken, generateRoomCode } from './protocol';
+import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
 
 type QueueStatus = 'queued' | 'matched';
 
@@ -20,6 +21,8 @@ interface QueueEntry {
   ticket: string;
   scenario: string;
   player: PublicPlayerProfile;
+  /** Set on enqueue when the Worker verified an agent Bearer for this playerKey. */
+  leaderboardAgentVerified?: boolean;
   queuedAt: number;
   lastSeenAt: number;
   status: QueueStatus;
@@ -255,6 +258,7 @@ export class MatchmakerDO extends DurableObject<Env> {
 
   private async ensureLeaderboardProfile(
     player: PublicPlayerProfile,
+    leaderboardAgentVerified: boolean,
   ): Promise<void> {
     const db = this.env.DB;
     if (!db) return;
@@ -272,7 +276,9 @@ export class MatchmakerDO extends DurableObject<Env> {
           db,
           playerKey: player.playerKey,
           username,
-          isAgent: participantKindForKey(player.playerKey) === 'agent',
+          isAgent:
+            leaderboardAgentVerified &&
+            participantKindForKey(player.playerKey) === 'agent',
           now: Date.now(),
         });
         if (outcome.ok) {
@@ -353,8 +359,14 @@ export class MatchmakerDO extends DurableObject<Env> {
 
     this.ctx.waitUntil(
       Promise.all([
-        this.ensureLeaderboardProfile(left.player),
-        this.ensureLeaderboardProfile(right.player),
+        this.ensureLeaderboardProfile(
+          left.player,
+          left.leaderboardAgentVerified ?? false,
+        ),
+        this.ensureLeaderboardProfile(
+          right.player,
+          right.leaderboardAgentVerified ?? false,
+        ),
       ]),
     );
 
@@ -376,6 +388,9 @@ export class MatchmakerDO extends DurableObject<Env> {
       return new Response('Invalid quick match payload', { status: 400 });
     }
 
+    const leaderboardAgentVerified =
+      request.headers.get(QUICK_MATCH_VERIFIED_AGENT_HEADER) === '1';
+
     const now = Date.now();
     let entries = this.pruneQueue(await this.readQueue(), now);
     const existingIndex = entries.findIndex(
@@ -389,6 +404,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       entries[existingIndex] = {
         ...existing,
         player: parsed.player,
+        leaderboardAgentVerified,
         lastSeenAt: now,
       };
       await this.writeQueue(entries);
@@ -427,6 +443,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       ticket,
       scenario: parsed.scenario,
       player: parsed.player,
+      leaderboardAgentVerified,
       queuedAt: now,
       lastSeenAt: now,
       status: 'queued',
