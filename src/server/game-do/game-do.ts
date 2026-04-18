@@ -15,6 +15,7 @@ import {
   resolveSeatAssignment,
 } from '../protocol';
 import {
+  type ActionAcceptedMessage,
   type ActionRejectedMessage,
   IdempotencyKeyCache,
 } from './action-guards';
@@ -567,6 +568,7 @@ export class GameDO extends DurableObject<Env> {
         this.reportEngineError(code, phase, turn, err),
       sendError: (message, code) =>
         this.send(ws, { type: 'error', message, code }),
+      sendActionAccepted: (accepted) => this.send(ws, accepted),
       sendActionRejected: (rejected) => this.send(ws, rejected),
     };
   }
@@ -862,7 +864,10 @@ export class GameDO extends DurableObject<Env> {
       gameState: GameState,
     ) => Success | EngineFailure | Promise<Success | EngineFailure>,
     onSuccess: (result: Success) => Promise<void> | void,
-    preCheck?: (gameState: GameState) => ActionRejectedMessage | null,
+    preCheck?: (gameState: GameState) => {
+      accepted: ActionAcceptedMessage;
+      rejected: ActionRejectedMessage | null;
+    },
   ): Promise<void> {
     await runGameStateAction(
       this.createGameStateActionDeps(ws),

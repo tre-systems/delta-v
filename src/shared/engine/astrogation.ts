@@ -133,12 +133,12 @@ export const processAstrogation = (
 
   const phaseError = validatePhaseAction(state, playerId, 'astrogation');
 
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   const validationError = validateAstrogationOrders(state, playerId, orders);
 
   if (validationError) {
-    return { error: validationError };
+    return engineFailure(validationError.code, validationError.message);
   }
 
   engineEvents.push({
@@ -190,7 +190,7 @@ export const processOrdnance = (
 
   const phaseError = validatePhaseAction(state, playerId, 'ordnance');
 
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   const launchedShips = new Set<string>();
 
@@ -218,7 +218,7 @@ export const processOrdnance = (
       map,
     );
 
-    if (shipError) return { error: shipError };
+    if (shipError) return engineFailure(shipError.code, shipError.message);
 
     if (launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null) {
       if (launch.torpedoAccel < 0 || launch.torpedoAccel > 5) {
@@ -336,7 +336,7 @@ export const skipOrdnance = (
 
   const phaseError = validatePhaseAction(state, playerId, 'ordnance');
 
-  if (phaseError) return { error: phaseError };
+  if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   return resolveMovementPhase(state, playerId, map, rng);
 };

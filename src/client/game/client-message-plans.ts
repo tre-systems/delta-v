@@ -76,6 +76,20 @@ export type ClientMessagePlan =
       code?: import('../../shared/types/domain').ErrorCode;
     }
   | {
+      kind: 'actionAccepted';
+      guardStatus: 'inSync' | 'stalePhaseForgiven';
+      submitterPlayerId?: PlayerId;
+      expected: {
+        turn?: number;
+        phase?: Phase;
+      };
+      actual: {
+        turn: number;
+        phase: Phase;
+        activePlayer: PlayerId;
+      };
+    }
+  | {
       kind: 'actionRejected';
       reason:
         | 'staleTurn'
@@ -198,6 +212,16 @@ export const deriveClientMessagePlan = (
         kind: 'error',
         message: msg.message,
         code: msg.code,
+      };
+    case 'actionAccepted':
+      return {
+        kind: 'actionAccepted',
+        guardStatus: msg.guardStatus,
+        ...(msg.submitterPlayerId !== undefined
+          ? { submitterPlayerId: msg.submitterPlayerId }
+          : {}),
+        expected: msg.expected,
+        actual: msg.actual,
       };
     case 'actionRejected':
       return {
