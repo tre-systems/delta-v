@@ -533,7 +533,7 @@ describe('aiOrdnance', () => {
     enemyShip.position = { q: 3, r: 0 };
     enemyShip.velocity = { dq: 0, dr: 0 };
 
-    expect(aiOrdnance(state, 1, map)).toEqual([
+    expect(aiOrdnance(state, 1, openMap)).toEqual([
       expect.objectContaining({
         shipId: aiShip.id,
         ordnanceType: 'torpedo',
@@ -1726,7 +1726,7 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
     ).toBe(true);
   });
 
-  it('fixture: hard AI still fires a torpedo when open-space drift model shows no intercept', () => {
+  it('does not fire a torpedo when open-space drift model shows no intercept', () => {
     const aiShip = createTestShip({
       id: asShipId('p1-lead'),
       owner: 1,
@@ -1771,11 +1771,10 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
       ships: [enemy, aiShip],
     });
     const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
-    // When vector intercept gating exists, flip this to expect no torpedo.
-    expect(launches.some((l) => l.ordnanceType === 'torpedo')).toBe(true);
+    expect(launches.some((l) => l.ordnanceType === 'torpedo')).toBe(false);
   });
 
-  it('fixture: hard AI still commits a nuke when open-space drift model shows no intercept', () => {
+  it('does not commit a nuke when open-space drift model shows no intercept', () => {
     const lead = createTestShip({
       id: asShipId('p1-lead'),
       owner: 1,
@@ -1816,7 +1815,6 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
       ships: [enemy, wing, lead],
     });
     const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
-    // When vector intercept gating exists, flip this to expect no nuke.
-    expect(launches.some((l) => l.ordnanceType === 'nuke')).toBe(true);
+    expect(launches.some((l) => l.ordnanceType === 'nuke')).toBe(false);
   });
 });

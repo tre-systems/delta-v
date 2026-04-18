@@ -1,17 +1,31 @@
 import { canAttack, getCombatStrength } from '../combat';
 import { SHIP_STATS } from '../constants';
 import { validateOrdnanceLaunch } from '../engine/util';
-import { hexAdd, hexDistance, hexEqual, hexVecLength } from '../hex';
+import {
+  HEX_DIRECTIONS,
+  type HexCoord,
+  type HexVec,
+  hexAdd,
+  hexDistance,
+  hexEqual,
+  hexLineDraw,
+  hexSubtract,
+  hexVecLength,
+} from '../hex';
+import {
+  applyPendingGravityEffects,
+  collectEnteredGravityEffects,
+} from '../movement';
 import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   GameState,
+  GravityEffect,
   OrdnanceLaunch,
   PlayerId,
   Ship,
   SolarSystemMap,
 } from '../types';
 import { maxBy, minBy } from '../util';
-import { findDirectionToward } from './common';
 import { resolveAIConfig } from './config';
 import type { AIDifficulty } from './types';
 
@@ -22,6 +36,118 @@ interface ScoredEnemyTarget {
   predictedPosition: { q: number; r: number };
   score: number;
 }
+
+type InterceptResult = {
+  hasIntercept: boolean;
+  turnsToIntercept: number;
+};
+
+const projectBallisticStep = (
+  position: HexCoord,
+  velocity: HexVec,
+  pendingGravityEffects: GravityEffect[],
+  map: SolarSystemMap,
+): {
+  to: HexCoord;
+  path: HexCoord[];
+  newVelocity: HexVec;
+  pendingGravityEffects: GravityEffect[];
+} => {
+  const rawDest = hexAdd(position, velocity);
+  const destination = applyPendingGravityEffects(
+    rawDest,
+    pendingGravityEffects,
+  );
+  const path = hexLineDraw(position, destination);
+  return {
+    to: destination,
+    path,
+    newVelocity: hexSubtract(destination, position),
+    pendingGravityEffects: collectEnteredGravityEffects(path, map),
+  };
+};
+
+const findBallisticIntercept = (
+  ordnanceStart: HexCoord,
+  ordnanceVelocity: HexVec,
+  enemy: Ship,
+  map: SolarSystemMap,
+  turns = 5,
+): InterceptResult => {
+  let ordPos: HexCoord = { ...ordnanceStart };
+  let ordVel: HexVec = { ...ordnanceVelocity };
+  let ordPending: GravityEffect[] = [];
+  let enemyPos: HexCoord = { ...enemy.position };
+  let enemyVel: HexVec = { ...enemy.velocity };
+  let enemyPending: GravityEffect[] = (enemy.pendingGravityEffects ?? []).map(
+    (e) => ({
+      ...e,
+      hex: { ...e.hex },
+    }),
+  );
+
+  for (let turn = 1; turn <= turns; turn++) {
+    const ordStep = projectBallisticStep(ordPos, ordVel, ordPending, map);
+    const enemyStep = projectBallisticStep(
+      enemyPos,
+      enemyVel,
+      enemyPending,
+      map,
+    );
+
+    const ordPathKeys = new Set(ordStep.path.map((hex) => `${hex.q},${hex.r}`));
+    const intersects = enemyStep.path.some((hex) =>
+      ordPathKeys.has(`${hex.q},${hex.r}`),
+    );
+
+    if (intersects) {
+      return { hasIntercept: true, turnsToIntercept: turn };
+    }
+
+    ordPos = ordStep.to;
+    ordVel = ordStep.newVelocity;
+    ordPending = ordStep.pendingGravityEffects;
+    enemyPos = enemyStep.to;
+    enemyVel = enemyStep.newVelocity;
+    enemyPending = enemyStep.pendingGravityEffects;
+  }
+
+  return { hasIntercept: false, turnsToIntercept: Number.POSITIVE_INFINITY };
+};
+
+const pickTorpedoInterceptVector = (
+  ship: Ship,
+  enemy: Ship,
+  map: SolarSystemMap,
+): { direction: number; steps: 1 | 2 } | null => {
+  let best: { direction: number; steps: 1 | 2; turns: number } | null = null;
+
+  for (let direction = 0; direction < 6; direction++) {
+    const dirVec = HEX_DIRECTIONS[direction];
+    for (const steps of [1, 2] as const) {
+      const velocity = {
+        dq: ship.velocity.dq + dirVec.dq * steps,
+        dr: ship.velocity.dr + dirVec.dr * steps,
+      };
+      const intercept = findBallisticIntercept(
+        ship.position,
+        velocity,
+        enemy,
+        map,
+      );
+      if (!intercept.hasIntercept) continue;
+      if (
+        best === null ||
+        intercept.turnsToIntercept < best.turns ||
+        (intercept.turnsToIntercept === best.turns && steps < best.steps)
+      ) {
+        best = { direction, steps, turns: intercept.turnsToIntercept };
+      }
+    }
+  }
+
+  return best ? { direction: best.direction, steps: best.steps } : null;
+};
 
 const scoreEnemyTarget = (
   ship: Ship,
@@ -141,12 +267,21 @@ export const aiOrdnance = (
     const bestEnemy = bestEnemyTarget.enemy;
     const bestEnemyCurrentDist = bestEnemyTarget.currentDistance;
     const bestEnemyPredictedDist = bestEnemyTarget.predictedDistance;
+    const nukeIntercept = findBallisticIntercept(
+      ship.position,
+      ship.velocity,
+      bestEnemy,
+      map,
+    );
+    const torpedoVector = pickTorpedoInterceptVector(ship, bestEnemy, map);
     const canLaunchNuke =
       validateOrdnanceLaunch(state, ship, 'nuke', map) === null &&
       !hasFriendlyLaunchStack &&
-      (ship.passengersAboard ?? 0) === 0;
+      (ship.passengersAboard ?? 0) === 0 &&
+      nukeIntercept.hasIntercept;
     const canLaunchTorpedo =
-      validateOrdnanceLaunch(state, ship, 'torpedo', map) === null;
+      validateOrdnanceLaunch(state, ship, 'torpedo', map) === null &&
+      torpedoVector !== null;
     const canLaunchMine =
       validateOrdnanceLaunch(state, ship, 'mine', map) === null;
 
@@ -204,18 +339,12 @@ export const aiOrdnance = (
       Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange &&
       canLaunchTorpedo
     ) {
-      const bestDir = findDirectionToward(
-        ship.position,
-        bestEnemyTarget.predictedPosition,
-      );
+      const bestDir = torpedoVector?.direction ?? 0;
       launches.push({
         shipId: ship.id,
         ordnanceType: 'torpedo',
         torpedoAccel: bestDir,
-        torpedoAccelSteps:
-          bestEnemyPredictedDist > 4 || hexVecLength(bestEnemy.velocity) > 1
-            ? 2
-            : 1,
+        torpedoAccelSteps: torpedoVector?.steps ?? 1,
       });
       continue;
     }
