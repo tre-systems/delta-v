@@ -62,9 +62,11 @@ export const checkActionGuards = (
     // seeing spurious turn-1 rejections.
   }
 
-  // wrongActivePlayer is only meaningful for sequential phases; simultaneous
-  // phases (fleetBuilding, astrogation) allow either seat to act in parallel.
+  // wrongActivePlayer applies whenever the engine gates on activePlayer.
+  // Only fleetBuilding is truly simultaneous (both submit before start);
+  // astrogation is sequential in the engine even when the UI feels snappy.
   const isSequential =
+    state.phase === 'astrogation' ||
     state.phase === 'ordnance' ||
     state.phase === 'combat' ||
     state.phase === 'logistics';

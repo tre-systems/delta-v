@@ -294,7 +294,7 @@ export const buildMcpServer = (
     'delta_v_wait_for_turn',
     {
       description:
-        "Block (server-side) until it's the caller's turn (or fleetBuilding/astrogation opens), then return a fresh observation. Default 25 s timeout — issue successive calls for longer waits. Returns { actionable: false, timedOut: true } on timeout instead of throwing.",
+        "Block (server-side) until it's the caller's turn to act (fleetBuilding: both seats; later phases including astrogation: activePlayer must match this seat), then return a fresh observation. Default 25 s timeout — issue successive calls for longer waits. Returns { actionable: false, timedOut: true } on timeout instead of throwing.",
       inputSchema: {
         ...matchTargetSchema,
         timeoutMs: z.number().int().min(1_000).max(25_000).optional(),
