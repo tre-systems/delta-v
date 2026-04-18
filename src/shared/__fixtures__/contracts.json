@@ -114,6 +114,161 @@
         }
       }
     },
+    "combatImplicitShipTarget": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "attackStrength": 3
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "combat",
+          "attacks": [
+            {
+              "attackerIds": ["p0s0"],
+              "targetId": "p1s0",
+              "targetType": "ship",
+              "attackStrength": 3
+            }
+          ]
+        }
+      }
+    },
+    "combatOmittedAttackStrength": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0", "p0s1"],
+            "targetId": "p1s0",
+            "targetType": "ship"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "combat",
+          "attacks": [
+            {
+              "attackerIds": ["p0s0", "p0s1"],
+              "targetId": "p1s0",
+              "targetType": "ship",
+              "attackStrength": null
+            }
+          ]
+        }
+      }
+    },
+    "combatVsOrdnance": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": "nuke-7",
+            "targetType": "ordnance",
+            "attackStrength": 1
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "combat",
+          "attacks": [
+            {
+              "attackerIds": ["p0s0"],
+              "targetId": "nuke-7",
+              "targetType": "ordnance",
+              "attackStrength": 1
+            }
+          ]
+        }
+      }
+    },
+    "combatMultiVolley": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "targetType": "ship",
+            "attackStrength": 2
+          },
+          {
+            "attackerIds": ["p0s2"],
+            "targetId": "torp-9",
+            "targetType": "ordnance",
+            "attackStrength": 1
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "combat",
+          "attacks": [
+            {
+              "attackerIds": ["p0s0"],
+              "targetId": "p1s0",
+              "targetType": "ship",
+              "attackStrength": 2
+            },
+            {
+              "attackerIds": ["p0s2"],
+              "targetId": "torp-9",
+              "targetType": "ordnance",
+              "attackStrength": 1
+            }
+          ]
+        }
+      }
+    },
+    "combatWithGuards": {
+      "raw": {
+        "type": "combat",
+        "guards": {
+          "expectedTurn": 4,
+          "expectedPhase": "combat",
+          "idempotencyKey": "combat-volley-1"
+        },
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "targetType": "ship",
+            "attackStrength": 1
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "combat",
+          "guards": {
+            "expectedTurn": 4,
+            "expectedPhase": "combat",
+            "idempotencyKey": "combat-volley-1"
+          },
+          "attacks": [
+            {
+              "attackerIds": ["p0s0"],
+              "targetId": "p1s0",
+              "targetType": "ship",
+              "attackStrength": 1
+            }
+          ]
+        }
+      }
+    },
     "logistics": {
       "raw": {
         "type": "logistics",
@@ -181,6 +336,83 @@
             "targetId": "p1s0",
             "targetType": "ship",
             "attackStrength": 2
+          }
+        }
+      }
+    },
+    "combatSingleOmittedStrength": {
+      "raw": {
+        "type": "combatSingle",
+        "attack": {
+          "attackerIds": ["p0s0"],
+          "targetId": "p1s0",
+          "targetType": "ship"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "combatSingle",
+          "attack": {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "targetType": "ship",
+            "attackStrength": null
+          }
+        }
+      }
+    },
+    "combatSingleVsOrdnance": {
+      "raw": {
+        "type": "combatSingle",
+        "attack": {
+          "attackerIds": ["p0s0", "p0s1"],
+          "targetId": "torp-9",
+          "targetType": "ordnance"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "combatSingle",
+          "attack": {
+            "attackerIds": ["p0s0", "p0s1"],
+            "targetId": "torp-9",
+            "targetType": "ordnance",
+            "attackStrength": null
+          }
+        }
+      }
+    },
+    "combatSingleWithGuards": {
+      "raw": {
+        "type": "combatSingle",
+        "guards": {
+          "expectedTurn": 2,
+          "expectedPhase": "combat",
+          "idempotencyKey": "single-1"
+        },
+        "attack": {
+          "attackerIds": ["p0s0"],
+          "targetId": "p1s0",
+          "targetType": "ship",
+          "attackStrength": 3
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "type": "combatSingle",
+          "guards": {
+            "expectedTurn": 2,
+            "expectedPhase": "combat",
+            "idempotencyKey": "single-1"
+          },
+          "attack": {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "targetType": "ship",
+            "attackStrength": 3
           }
         }
       }
@@ -263,6 +495,68 @@
     },
     "combatSingleAttackNotObject": {
       "raw": { "type": "combatSingle", "attack": 42 },
+      "expectedOk": false
+    },
+    "combatInvalidTargetType": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "targetType": "base"
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "combatSingleInvalidTargetType": {
+      "raw": {
+        "type": "combatSingle",
+        "attack": {
+          "attackerIds": ["p0s0"],
+          "targetId": "p1s0",
+          "targetType": "shipwreck"
+        }
+      },
+      "expectedOk": false
+    },
+    "combatEmptyAttackers": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": [],
+            "targetId": "p1s0"
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "combatAttackStrengthZero": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "attackStrength": 0
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "combatAttackStrengthTooHigh": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "attackStrength": 100
+          }
+        ]
+      },
       "expectedOk": false
     },
     "pingTimestampMissing": {
