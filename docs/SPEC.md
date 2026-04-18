@@ -14,7 +14,7 @@ Rules and scenarios only. Other concerns live elsewhere:
 
 - **Protocol, state shapes, hex math:** [PROTOCOL.md](./PROTOCOL.md) (authoritative TypeScript in `src/shared/types/`).
 - **Module layout, data flow:** [ARCHITECTURE.md](./ARCHITECTURE.md).
-- **Open work:** [BACKLOG.md](./BACKLOG.md).
+- **Scoped tasks (when any):** [BACKLOG.md](./BACKLOG.md).
 - **Implementation gotchas per pattern:** [`patterns/`](../patterns/README.md).
 
 When prose here disagrees with the code, the code wins — but the rules below are the canonical design reference.
@@ -342,7 +342,7 @@ Dependencies on logistics and extended-economy mechanics push these out of scope
 
 ## Implementation Status
 
-Treat [BACKLOG.md](./BACKLOG.md) as the authoritative open-work list. This section is a snapshot of what exists vs. what diverges from the rulebook.
+Optional scoped tasks sometimes live in [BACKLOG.md](./BACKLOG.md); recurring audits live in [REVIEW_PLAN.md](./REVIEW_PLAN.md). This section is a snapshot of what exists vs. what diverges from the rulebook.
 
 ### Implemented faithfully
 
