@@ -169,7 +169,7 @@ Each ship tracks position, velocity, fuel, cargo/ordnance load, damage state, de
 | --- | --- |
 | Torpedoes | Roll on the Other Damage Table; only one ship can be hit |
 | Mines | Roll on the Other Damage Table against every affected ship |
-| Asteroids | Roll on the Other Damage Table for each asteroid hex entered at speed > 1 |
+| Asteroids | Roll on the Other Damage Table for each asteroid hex entered at speed > 1 (asteroid column: no effect on rolls 1–4, **D1** on rolls 5–6 — 2018 rulebook) |
 | Ramming | Roll on the Other Damage Table for both ships |
 | Nukes | Destroy everything in the detonated hex automatically |
 
