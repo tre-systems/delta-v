@@ -22,7 +22,7 @@ Spot-check any `.menu-content` surfaces off `#menu` and remaining game-over chro
 
 ### Tutorial: deepen task-first flow
 
-Spotlight-driven steps, a repeatable "what do I do now?" affordance, and tighter coupling to HUD hints.
+Spotlight-driven steps and tighter coupling to HUD hints. **Done for this slice:** per-step **Help** opens the overlay and scrolls to the matching rules section.
 
 **Files:** `src/client/tutorial.ts`, `src/client/ui/hud-chrome-view.ts`, `static/index.html`, `static/styles/overlays.css`
 

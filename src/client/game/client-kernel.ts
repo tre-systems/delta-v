@@ -56,7 +56,9 @@ export const createGameClient = () => {
   const ui = createUIManager({
     playerProfile,
   });
-  const tutorial = createTutorial();
+  const tutorial = createTutorial({
+    openHelpSection: (sectionElementId) => ui.openHelpSection(sectionElementId),
+  });
   tutorial.onTelemetry = (evt, props) => track(evt, props);
   const tooltipEl = byId('shipTooltip');
   const transferPanelEl = byId('transferPanel');
