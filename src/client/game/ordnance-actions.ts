@@ -60,7 +60,7 @@ export const queueOrdnanceLaunch = (
   if (ordType === 'torpedo' && !deps.planningState.torpedoAimingActive) {
     deps.planningState.clearTorpedoAcceleration();
     deps.planningState.setTorpedoAimingActive(true);
-    deps.showToast(TOAST.gameplay.torpedoAimingIntro, 'info');
+    deps.logText(TOAST.gameplay.torpedoAimingIntro);
     return;
   }
 

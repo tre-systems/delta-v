@@ -11,10 +11,12 @@ import { validateOrdnanceLaunch } from '../engine/util';
 import {
   HEX_DIRECTIONS,
   type HexCoord,
+  type HexKey,
   type HexVec,
   hexAdd,
   hexDistance,
   hexEqual,
+  hexKey,
   hexLineDraw,
   hexSubtract,
   hexVecLength,
@@ -144,6 +146,28 @@ const clonePendingEffects = (
     hex: { ...e.hex },
   }));
 
+/** Map hexes (and pending asteroid strikes) that would detonate a nuke along
+ *  its ballistic segment before it reaches the intended ship intercept. */
+const buildNukeLaneMapHazardKeys = (
+  map: SolarSystemMap,
+  state: GameState,
+): ReadonlySet<HexKey> => {
+  const keys = new Set<HexKey>();
+  for (const [key, cell] of map.hexes) {
+    if (
+      cell.terrain !== 'space' ||
+      cell.body !== undefined ||
+      cell.base !== undefined
+    ) {
+      keys.add(key);
+    }
+  }
+  for (const hazard of state.pendingAsteroidHazards) {
+    keys.add(hexKey(hazard.hex));
+  }
+  return keys;
+};
+
 /** Same stepping as `findBallisticIntercept`, plus lane risk from friendlies,
  *  other enemy ships, and enemy ordnance in flight (rulebook: nuke detonates
  *  on contact with ships, mines, torpedoes, etc. — not a clean shot at the
@@ -156,6 +180,7 @@ const assessNukeBallisticToEnemy = (
   otherEnemyShips: Ship[],
   enemyOrdnanceInFlight: Ordnance[],
   map: SolarSystemMap,
+  mapLaneHazardKeys: ReadonlySet<HexKey>,
   turns = 5,
 ): {
   hasIntercept: boolean;
@@ -163,6 +188,7 @@ const assessNukeBallisticToEnemy = (
   blockedByFriendly: boolean;
   blockedByOtherEnemy: boolean;
   blockedByEnemyOrdnance: boolean;
+  blockedByMapHazard: boolean;
 } => {
   let ordPos: HexCoord = { ...launcher.position };
   let ordVel: HexVec = { ...launcher.velocity };
@@ -212,6 +238,7 @@ const assessNukeBallisticToEnemy = (
           blockedByFriendly: true,
           blockedByOtherEnemy: false,
           blockedByEnemyOrdnance: false,
+          blockedByMapHazard: false,
         };
       }
     }
@@ -230,6 +257,7 @@ const assessNukeBallisticToEnemy = (
           blockedByFriendly: false,
           blockedByOtherEnemy: true,
           blockedByEnemyOrdnance: false,
+          blockedByMapHazard: false,
         };
       }
     }
@@ -248,8 +276,24 @@ const assessNukeBallisticToEnemy = (
           blockedByFriendly: false,
           blockedByOtherEnemy: false,
           blockedByEnemyOrdnance: true,
+          blockedByMapHazard: false,
         };
       }
+    }
+
+    const laneHexesForMapHazard =
+      ordStep.path.length <= 1 ? ordStep.path : ordStep.path.slice(1);
+    if (
+      laneHexesForMapHazard.some((hex) => mapLaneHazardKeys.has(hexKey(hex)))
+    ) {
+      return {
+        hasIntercept: false,
+        turnsToIntercept: Number.POSITIVE_INFINITY,
+        blockedByFriendly: false,
+        blockedByOtherEnemy: false,
+        blockedByEnemyOrdnance: false,
+        blockedByMapHazard: true,
+      };
     }
 
     const intersectsEnemy = enemyStep.path.some((hex) =>
@@ -263,6 +307,7 @@ const assessNukeBallisticToEnemy = (
         blockedByFriendly: false,
         blockedByOtherEnemy: false,
         blockedByEnemyOrdnance: false,
+        blockedByMapHazard: false,
       };
     }
 
@@ -301,6 +346,7 @@ const assessNukeBallisticToEnemy = (
     blockedByFriendly: false,
     blockedByOtherEnemy: false,
     blockedByEnemyOrdnance: false,
+    blockedByMapHazard: false,
   };
 };
 
@@ -520,6 +566,7 @@ export const aiOrdnance = (
 
   const torpedoRange = cfg.torpedoRange;
   const mineRange = cfg.mineRange;
+  const mapLaneHazardKeys = buildNukeLaneMapHazardKeys(map, state);
 
   for (const ship of state.ships) {
     if (ship.owner !== playerId || ship.lifecycle !== 'active') {
@@ -573,6 +620,7 @@ export const aiOrdnance = (
       otherEnemyLaneShips,
       enemyOrdnanceLane,
       map,
+      mapLaneHazardKeys,
     );
     const torpedoVector = pickTorpedoInterceptVector(ship, bestEnemy, map);
     const canLaunchNuke =
@@ -582,7 +630,8 @@ export const aiOrdnance = (
       nukeIntercept.hasIntercept &&
       !nukeIntercept.blockedByFriendly &&
       !nukeIntercept.blockedByOtherEnemy &&
-      !nukeIntercept.blockedByEnemyOrdnance;
+      !nukeIntercept.blockedByEnemyOrdnance &&
+      !nukeIntercept.blockedByMapHazard;
     const canLaunchTorpedo =
       validateOrdnanceLaunch(state, ship, 'torpedo', map) === null &&
       torpedoVector !== null;
