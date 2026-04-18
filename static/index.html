@@ -245,16 +245,16 @@
       <div id="replayStatus" class="replay-status" hidden></div>
       <div id="replayControls" class="replay-controls overlay-section-panel" hidden>
         <div class="replay-match-selector">
-          <button id="replayMatchPrevBtn" class="btn btn-secondary">&lt;</button>
+          <button type="button" id="replayMatchPrevBtn" class="btn btn-secondary" aria-label="Previous match in archive">&lt;</button>
           <span id="replayMatchLabel" class="replay-match-label"></span>
-          <button id="replayMatchNextBtn" class="btn btn-secondary">&gt;</button>
+          <button type="button" id="replayMatchNextBtn" class="btn btn-secondary" aria-label="Next match in archive">&gt;</button>
         </div>
-        <button id="replayToggleBtn" class="btn btn-secondary">View Replay</button>
+        <button type="button" id="replayToggleBtn" class="btn btn-secondary">View Replay</button>
         <div id="replayNav" class="replay-nav" hidden>
-          <button id="replayStartBtn" class="btn btn-secondary">|&lt;</button>
-          <button id="replayPrevBtn" class="btn btn-secondary">&lt;</button>
-          <button id="replayNextBtn" class="btn btn-secondary">&gt;</button>
-          <button id="replayEndBtn" class="btn btn-secondary">&gt;|</button>
+          <button type="button" id="replayStartBtn" class="btn btn-secondary" aria-label="First turn">|&lt;</button>
+          <button type="button" id="replayPrevBtn" class="btn btn-secondary" aria-label="Previous turn">&lt;</button>
+          <button type="button" id="replayNextBtn" class="btn btn-secondary" aria-label="Next turn">&gt;</button>
+          <button type="button" id="replayEndBtn" class="btn btn-secondary" aria-label="Last turn">&gt;|</button>
         </div>
       </div>
       <div class="game-over-actions">
