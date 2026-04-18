@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { runA11yCheck } from './support/accessibility';
 import {
@@ -17,6 +18,22 @@ test.describe('accessibility smoke checks', () => {
     await openHomePage(page);
     await waitForDisplay(page, '[data-testid="menu"]', 'flex');
     await runA11yCheck(page, ['[data-testid="menu"]']);
+  });
+
+  test('menu surface passes WCAG2AA checks including color contrast', async ({
+    page,
+  }) => {
+    await openHomePage(page);
+    await waitForDisplay(page, '[data-testid="menu"]', 'flex');
+    const results = await new AxeBuilder({ page })
+      .exclude('canvas')
+      .include('[data-testid="menu"]')
+      .withTags(['wcag2aa'])
+      .analyze();
+    const blocking = results.violations.filter(
+      (v) => v.impact === 'critical' || v.impact === 'serious',
+    );
+    expect(blocking).toEqual([]);
   });
 
   test('waiting lobby has no serious/critical DOM accessibility violations', async ({
