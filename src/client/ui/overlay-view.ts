@@ -10,6 +10,15 @@ import {
 import { getPhaseAlertCopy } from './formatters';
 import type { OverlayStateStore } from './overlay-state';
 
+/**
+ * Short-lived feedback routing (avoid stacking the same message twice):
+ *
+ * - Phase changes → `showPhaseAlert` only (brief banner).
+ * - Outcomes, connection, session hints → `showToast`.
+ * - Turn instructions → HUD / chrome; do not duplicate as a toast unless it
+ *   is also an error the player must acknowledge.
+ * - Narrative / history → game log, not toasts.
+ */
 export interface OverlayView {
   showToast: (message: string, type?: 'error' | 'info' | 'success') => void;
   showPhaseAlert: (phase: string, isMyTurn: boolean) => void;
@@ -170,13 +179,65 @@ export const createOverlayView = (
     visible: false,
     countdownText: '',
   });
-  const toastsSignal = signal(
-    [] as Array<{
-      id: number;
-      message: string;
-      type: 'error' | 'info' | 'success';
-    }>,
-  );
+  type ToastRow = {
+    id: number;
+    message: string;
+    type: 'error' | 'info' | 'success';
+  };
+
+  type AutoDismissEntry =
+    | { kind: 'armed'; timerId: ReturnType<typeof setTimeout>; endTime: number }
+    | { kind: 'paused'; remainingMs: number };
+
+  const toastsSignal = signal([] as ToastRow[]);
+  const autoDismissByToastId = new Map<number, AutoDismissEntry>();
+
+  const removeToastById = (id: number): void => {
+    const entry = autoDismissByToastId.get(id);
+    if (entry?.kind === 'armed') {
+      clearTimeout(entry.timerId);
+      toastTimers.delete(entry.timerId);
+    }
+    autoDismissByToastId.delete(id);
+    toastsSignal.update((toasts) => toasts.filter((toast) => toast.id !== id));
+  };
+
+  const pauseAutoDismiss = (id: number): void => {
+    const entry = autoDismissByToastId.get(id);
+    if (!entry || entry.kind !== 'armed') {
+      return;
+    }
+    clearTimeout(entry.timerId);
+    toastTimers.delete(entry.timerId);
+    const remainingMs = Math.max(0, entry.endTime - Date.now());
+    autoDismissByToastId.set(id, { kind: 'paused', remainingMs });
+  };
+
+  const resumeAutoDismiss = (id: number): void => {
+    const entry = autoDismissByToastId.get(id);
+    if (!entry || entry.kind !== 'paused') {
+      return;
+    }
+    const timerId = setTimeout(() => {
+      toastTimers.delete(timerId);
+      removeToastById(id);
+    }, entry.remainingMs);
+    toastTimers.add(timerId);
+    const endTime = Date.now() + entry.remainingMs;
+    autoDismissByToastId.set(id, { kind: 'armed', timerId, endTime });
+  };
+
+  const resumeAutoDismissIfIdle = (id: number, toastEl: HTMLElement): void => {
+    queueMicrotask(() => {
+      if (
+        toastEl.matches(':hover') ||
+        toastEl.contains(document.activeElement)
+      ) {
+        return;
+      }
+      resumeAutoDismiss(id);
+    });
+  };
 
   const clearPhaseAlertTimer = () => {
     if (phaseAlertTimer === null) {
@@ -205,14 +266,17 @@ export const createOverlayView = (
     const id = nextToastId++;
     toastsSignal.update((toasts) => [...toasts, { id, message, type }]);
 
-    const timer = setTimeout(() => {
-      toastTimers.delete(timer);
-      toastsSignal.update((toasts) =>
-        toasts.filter((toast) => toast.id !== id),
-      );
-    }, 3100);
+    if (type === 'error') {
+      return;
+    }
 
-    toastTimers.add(timer);
+    const endTime = Date.now() + 3100;
+    const timerId = setTimeout(() => {
+      toastTimers.delete(timerId);
+      removeToastById(id);
+    }, 3100);
+    toastTimers.add(timerId);
+    autoDismissByToastId.set(id, { kind: 'armed', timerId, endTime });
   };
 
   const showPhaseAlert = (phase: string, isMyTurn: boolean): void => {
@@ -246,6 +310,8 @@ export const createOverlayView = (
     }
 
     toastTimers.clear();
+    autoDismissByToastId.clear();
+    toastsSignal.value = [];
     scope.dispose();
     hide(reconnectOverlayEl);
     hide(opponentDisconnectEl);
@@ -450,10 +516,26 @@ export const createOverlayView = (
 
       clearHTML(toastContainerEl);
       for (const toast of toasts) {
-        const toastEl = el('div', {
-          class: `toast toast-${toast.type}`,
-          text: toast.message,
+        const dismissBtn = el('button', {
+          class: 'toast-dismiss',
+          title: 'Dismiss',
+          text: '\u00d7',
+          onClick: (event) => {
+            event.stopPropagation();
+            removeToastById(toast.id);
+          },
         });
+        dismissBtn.setAttribute('type', 'button');
+        dismissBtn.setAttribute('aria-label', 'Dismiss notification');
+
+        const toastEl = el(
+          'div',
+          {
+            class: `toast toast-${toast.type}`,
+          },
+          el('div', { class: 'toast-body' }, toast.message),
+          dismissBtn,
+        );
         toastEl.setAttribute(
           'role',
           toast.type === 'error' ? 'alert' : 'status',
@@ -463,6 +545,18 @@ export const createOverlayView = (
           toast.type === 'error' ? 'assertive' : 'polite',
         );
         toastEl.setAttribute('aria-atomic', 'true');
+
+        if (toast.type !== 'error') {
+          listen(toastEl, 'mouseenter', () => pauseAutoDismiss(toast.id));
+          listen(toastEl, 'mouseleave', () =>
+            resumeAutoDismissIfIdle(toast.id, toastEl),
+          );
+          listen(toastEl, 'focusin', () => pauseAutoDismiss(toast.id));
+          listen(toastEl, 'focusout', () =>
+            resumeAutoDismissIfIdle(toast.id, toastEl),
+          );
+        }
+
         toastContainerEl.appendChild(toastEl);
       }
     });
