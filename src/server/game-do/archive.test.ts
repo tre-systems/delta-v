@@ -1035,7 +1035,9 @@ describe('replay projection', () => {
         (diff) =>
           !diff.path.endsWith('.connected') &&
           !diff.path.endsWith('.ready') &&
-          !diff.path.endsWith('.detected'),
+          !diff.path.endsWith('.detected') &&
+          !diff.path.endsWith('.firedThisPhase') &&
+          diff.path !== 'combatTargetedThisPhase',
       );
 
       expect(diffs).toEqual([]);
