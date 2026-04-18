@@ -29,13 +29,18 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 | `/join/:code` | GET | Preflight join / reconnect validation |
 | `/replay/:code` | GET | Authenticated replay for a specific match |
 | `/ws/:code` | GET (upgrade) | WebSocket upgrade to the room's `GameDO` |
-| `/api/agent-token` | POST | Issue 24 h HMAC-signed `agentToken` (see [AGENT_SPEC.md](../AGENT_SPEC.md)) |
+| `/api/agent-token` | POST | Issue 24 h HMAC-signed `agentToken`; optional `claim: {username}` binds the agent to a leaderboard row (see [AGENT_SPEC.md](../AGENT_SPEC.md)) |
+| `/api/claim-name` | POST | Bind a human `playerKey` to a leaderboard username (first-call-wins) |
+| `/api/leaderboard` | GET | Public leaderboard query (ordered by Glicko-2 rating; provisional rows hidden by default) |
+| `/api/leaderboard/me` | GET | Per-player rank lookup (`?playerKey=…`) for the home-screen hint |
 | `/mcp` | POST | Remote MCP endpoint (stateless JSON — see [DELTA_V_MCP.md](./DELTA_V_MCP.md)) |
-| `/api/matches` | GET | Public match listing (`?status=live` for in-progress, default for completed) |
+| `/api/matches` | GET | Match listing (`?status=live` for in-progress from `LIVE_REGISTRY`, default for completed from D1) |
 | `/matches` | GET | Public match-history HTML page |
+| `/leaderboard` | GET | Public leaderboard HTML page |
 | `/agents` | GET | Agent landing page |
 | `/.well-known/agent.json` | GET | Machine-readable agent manifest |
 | `/agent-playbook.json` | GET | Phase/action map for agents |
+| `/version.json` | GET | Build-time `{ packageVersion, assetsHash }` for support/cache-bust debugging |
 | `/telemetry`, `/error` | POST | Client-side reporting (JSON, ≤ 4 KB) |
 
 Rate limits for each route: [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture).

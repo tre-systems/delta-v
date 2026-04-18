@@ -14,13 +14,14 @@ What Delta-V emits today and how to use it for incidents and tuning. Complements
 
 ## Sources
 
-| Source                 | What                                                                             | Where to read it                                                       |
-| ---------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Worker + DO logs**   | `console.log` / `console.error` from `src/server/index.ts`, `GameDO`, handlers   | Cloudflare Workers **Logs** (observability enabled in `wrangler.toml`) |
-| **D1 `events`**        | Client telemetry, client errors, DO `engine_error`, `projection_parity_mismatch`, `game_abandoned` | D1 **SQL** in dashboard or `wrangler d1 execute`                       |
-| **D1 `match_archive`** | One row per completed match (metadata index)                                     | Same                                                                   |
-| **R2 `MATCH_ARCHIVE`** | Full JSON per match (`matches/{gameId}.json`)                                    | R2 bucket browser / API                                                |
-| **Client**             | `track()` → `POST /telemetry`, `reportError()` → `POST /error`                   | Implemented in `src/client/telemetry.ts`                               |
+| Source                          | What                                                                             | Where to read it                                                       |
+| ------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Worker + DO logs**            | `console.log` / `console.error` from `src/server/index.ts`, `GameDO`, handlers   | Cloudflare Workers **Logs** (observability enabled in `wrangler.toml`) |
+| **D1 `events`**                 | Client telemetry, client errors, DO `engine_error`, `projection_parity_mismatch`, `game_abandoned`, lifecycle/side-channel rows (30-day rolling window) | D1 **SQL** in dashboard or `wrangler d1 execute`                       |
+| **D1 `match_archive`**          | One row per completed match (metadata index)                                     | Same                                                                   |
+| **D1 `player` / `match_rating`**| Leaderboard identity + per-rated-match Glicko-2 snapshots                        | Same                                                                   |
+| **R2 `MATCH_ARCHIVE`**          | Full JSON per match (`matches/{gameId}.json`)                                    | R2 bucket browser / API                                                |
+| **Client**                      | `track()` → `POST /telemetry`, `reportError()` → `POST /error`                   | Implemented in `src/client/telemetry.ts`                               |
 
 ## D1 `events` schema (summary)
 
@@ -38,7 +39,7 @@ From `migrations/0001_create_events.sql`:
   - `join_game_succeeded` with no additional props
   - `join_game_retried_without_token` with `{ reason }`
   - `join_game_failed` with `{ reason, status?, hasPlayerToken }`
-  - `quick_match_attempted`, `quick_match_queued`, `quick_match_found`, `quick_match_failed`, `quick_match_expired` (props vary by path — see `session-api.ts`)
+  - `quick_match_attempted`, `quick_match_queued`, `quick_match_found`, `quick_match_failed`, `quick_match_expired`, `quick_match_cancelled` (props vary by path — see `session-api.ts`)
   - `spectate_join_succeeded` with no additional props
   - `reconnect_attempt_scheduled` with `{ attempt, delayMs }`
   - `reconnect_succeeded` with `{ attempts }`
@@ -280,4 +281,5 @@ User-facing policy copy is out of scope here; align any public privacy text with
 
 - No built-in **dashboards** or **alerts** — use Cloudflare + D1 exports or third-party tools. Operational D1 queries are documented above.
 - **Rate limits:** canonical table in [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture); optional cross-edge WAF if distributed abuse is observed.
+- **Retention:** `events` rows older than 30 days are deleted daily by `purgeOldEvents` (cron `0 4 * * *` in `wrangler.toml`). Other tables (`match_archive`, `player`, `match_rating`, R2 archives) have no automatic TTL — see [SECURITY.md § Data retention](./SECURITY.md#data-retention-d1-r2-do).
 - **Sampling** or caps can be added in `src/server/index.ts` before `insertEvent` if volume grows.

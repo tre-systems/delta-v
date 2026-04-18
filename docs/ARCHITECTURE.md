@@ -75,7 +75,7 @@ flowchart TB
   M -.->|once paired<br/>idFromName| GAME
   GAME -.->|game_started /<br/>game_ended notifications| L
 
-  D[(D1<br/>events<br/>match_archive)]
+  D[(D1<br/>events<br/>match_archive<br/>player<br/>match_rating)]
   R[(R2<br/>MATCH_ARCHIVE<br/>matches/*.json)]
 
   GAME -->|parity mismatch,<br/>engine errors,<br/>match metadata| D
@@ -304,6 +304,8 @@ The backend leverages Cloudflare's edge network.
 | `game-do/message-builders.ts`| S2C message construction from engine results                                                                     | Game-specific                                             |
 | `game-do/session.ts`         | Disconnect grace period, alarm scheduling                                                                        | **Fully generic**                                         |
 | `game-do/turns.ts`           | Turn timeout auto-advance                                                                                        | Mostly generic                                            |
+| `auth/`                      | Agent/match token signing, `POST /api/agent-token` issuance, HMAC/SHA-256 helpers, `AGENT_TOKEN_SECRET` resolution | **Fully generic**                                         |
+| `leaderboard/`               | Glicko-2 rating writer, claim-name route, `GET /api/leaderboard`, per-player rank lookup, provisional rules       | Game-agnostic rating + identity pattern                   |
 
 #### Key Patterns (pointers)
 
@@ -410,12 +412,18 @@ heavy bundler configuration:
 - **Linting**: Biome runs as a pre-commit hook and in CI.
 - **Cloudflare bindings** (`wrangler.toml`):
 
-  | Binding               | Type           | Purpose                  |
-  | --------------------- | -------------- | ------------------------ |
-  | `GAME`                | Durable Object | Authoritative game rooms |
-  | `DB`                  | D1             | Telemetry database       |
-  | `MATCH_ARCHIVE`       | R2             | Completed match storage  |
-  | `CREATE_RATE_LIMITER` | Rate Limit     | 5 creates/IP/60s         |
+  | Binding                  | Type           | Purpose                                        |
+  | ------------------------ | -------------- | ---------------------------------------------- |
+  | `GAME`                   | Durable Object | Authoritative game rooms                       |
+  | `MATCHMAKER`             | Durable Object | Singleton quick-match queue                    |
+  | `LIVE_REGISTRY`          | Durable Object | Singleton "Live now" registry                  |
+  | `DB`                     | D1             | Telemetry + `match_archive` + `player` tables  |
+  | `MATCH_ARCHIVE`          | R2             | Completed match JSON archives                  |
+  | `ASSETS`                 | Static Assets  | `./dist/` static bundle                        |
+  | `CREATE_RATE_LIMITER`    | Rate Limit     | 5/60s — shared by `/create`, `/api/agent-token`, `/quick-match`, `/api/claim-name` |
+  | `TELEMETRY_RATE_LIMITER` | Rate Limit     | 120/60s — edge fallback for `/telemetry`       |
+  | `ERROR_RATE_LIMITER`     | Rate Limit     | 40/60s — edge fallback for `/error`            |
+  | `MCP_RATE_LIMITER`       | Rate Limit     | 20/60s — per `agentToken` hash or hashed IP    |
 
 ### F. Testing Infrastructure
 
@@ -612,6 +620,7 @@ See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current arch
 - **Generic hex engine extraction**: Designing a framework from N=1 games is premature abstraction. Fork Delta-V when game #2 starts and build the framework from two concrete implementations.
 - **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.
 - **Replay architecture / event sourcing**: Implemented on the authoritative path. Match-scoped event streams with versioned envelopes (`EventEnvelope`: gameId, seq, ts, actor, event), checkpoints, and parity checks are in place. Replay is projected directly from stored events, including spectator-filtered projections and authenticated replay endpoints. **Live** spectating uses the same filtered `GameState` over WebSocket (`?viewer=spectator`, `spectatorWelcome`). Remaining work is mostly spectator UX polish (lobby links, read-only affordances) and optional rate limits/protocol simplification.
+- **Public leaderboard**: Shipped. Glicko-2 (`src/shared/rating/glicko2.ts`) ratings are written after each rated match by `src/server/leaderboard/rating-writer.ts`. `player` (claimed username + current rating) and `match_rating` (per-match rating snapshots) are D1 tables from `migrations/0004_leaderboard.sql`. Humans claim a username via `POST /api/claim-name`; agents claim via `POST /api/agent-token` with an optional `claim` body. Provisional players are hidden from the default view until their RD shrinks and they meet a distinct-opponents threshold (`src/shared/rating/provisional.ts`). The public page is `/leaderboard`; the API is `GET /api/leaderboard[?…]` and `GET /api/leaderboard/me?playerKey=…`.
 - **UI framework adoption**: The DOM UI layer is still small enough to own directly. The current compromise is a tiny local signals layer for view-local state and cleanup, without paying the cost of adopting a full framework (Preact, etc.) across the entire client.
 - **Structural sharing / Immer**: Reconsidered with the event-sourcing shift. Immer is not a prerequisite and should not block current work. Near-term value is in event schema stability, append ordering, explicit RNG facts, and projector correctness, not a wholesale Proxy-based rewrite. Revisit only if projector reducers or future command handlers become materially clearer with Immer; if adopted, start at the projection layer.
 - **Internationalization:** **English-only** product surface for now (inline strings in `src/client/ui`, `src/client/game`, toasts, server errors). No message catalogs, locales, or RTL until localization is prioritized. [SPEC.md](./SPEC.md) remains the canonical English rules reference for scenarios.
@@ -620,14 +629,16 @@ See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current arch
 
 ## 6. Client bundle and release hygiene
 
-**Bundle baseline** (re-measured **2026-04-17** from the current `dist/client.js`; update after large renderer or dependency changes):
+**Bundle baseline** (re-measured **2026-04-18** from the current `dist/client.js`; update after large renderer or dependency changes):
 
 | Artifact         | Raw (approx.) | Gzip (approx.) |
 | ---------------- | ------------- | -------------- |
-| `dist/client.js` | ~704 KB       | ~147 KB        |
+| `dist/client.js` | ~735 KB       | ~155 KB        |
 
 **Supply chain:** run `npm audit` before releases; use `npm run update-deps` judiciously and run `verify` after bumps.
 
-**D1 migrations:** treat as **forward-only** unless Cloudflare backup/restore is used; rollback is **redeploy previous Worker + compatible schema**, not automatic down-migration.
+**D1 migrations:** treat as **forward-only** unless Cloudflare backup/restore is used; rollback is **redeploy previous Worker + compatible schema**, not automatic down-migration. Current migrations live in [`migrations/`](../migrations/): `0001_create_events.sql`, `0002_match_archive.sql`, `0003_match_archive_listing.sql`, `0004_leaderboard.sql`.
+
+**Event retention:** `events` rows older than `EVENTS_RETENTION_MS` (**30 days**) are deleted by the daily `scheduled` cron (`wrangler.toml` `crons = ["0 4 * * *"]` → `purgeOldEvents` in [`src/server/reporting.ts`](../src/server/reporting.ts)).
 
 **CI:** Node **25** is pinned in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), and [`.nvmrc`](../.nvmrc) matches.

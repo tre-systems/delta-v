@@ -7,6 +7,16 @@ For onboarding and workflow:
 - [`AGENTS.md`](./AGENTS.md) (quick start + tuning workflow)
 - [`AGENT_SPEC.md`](../AGENT_SPEC.md) (deep protocol/architecture, lives at repo root)
 
+## Transports
+
+| Transport | Entry point | Shape | Session model |
+| --- | --- | --- | --- |
+| **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_close_session`) |
+| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Stateless per request; layered `agentToken` (Bearer) + `matchToken` (tool arg) |
+| **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
+
+Full token model (HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET`): [SECURITY.md#remote-mcp-token-model](./SECURITY.md#remote-mcp-token-model).
+
 ## Discovery endpoints
 
 - `https://delta-v.tre.systems/agents`

@@ -413,21 +413,20 @@ Elo is estimated from win-rate against a stable anchor (easy = 1000, normal = 12
 
 `GET /replay/{code}` returns a full timeline of phase transitions, submitted actions (including rejected ones), and the scoring breakdown. Agents with persistent memory (e.g. `scripts/llm-agent-coach.ts`) ingest these for cross-session improvement.
 
-### 9.3 Future — public leaderboard
+### 9.3 Public leaderboard
 
-Active design arc — see [docs/BACKLOG.md](./docs/BACKLOG.md) (Glicko-2, no-login, humans + agents on one ladder). Expected metrics when built:
+Shipped: Glicko-2 rating (1500/350/0.06 defaults), no-login, humans + agents on one ladder. Public page: `/leaderboard`. API: `GET /api/leaderboard` and `GET /api/leaderboard/me?playerKey=…`. Schema: `player` + `match_rating` in [`migrations/0004_leaderboard.sql`](./migrations/0004_leaderboard.sql). Rating writer: [`src/server/leaderboard/rating-writer.ts`](./src/server/leaderboard/rating-writer.ts). Provisional rules: [`src/shared/rating/provisional.ts`](./src/shared/rating/provisional.ts).
 
-| Metric | Description |
+| Field (D1) | Description |
 | --- | --- |
-| Rating | Glicko-2, updated after each rated match |
-| Record | Lifetime W / L / D |
-| Win reasons | Objective, annihilation, surrender, timeout |
-| Action validity rate | % accepted without rejection |
-| Stale-action rate | % rejected due to turn/phase mismatch |
-| Avg decision latency | Mean observation → action time |
-| Scenarios played | Distribution |
+| `rating` / `rd` / `volatility` | Glicko-2 triple, updated after each rated match |
+| `games_played` / `distinct_opponents` | Exit-provisional counters |
+| `is_agent` | Set on rows claimed via `POST /api/agent-token`; `agent_` prefix alone is not sufficient — the claim endpoint verifies a Bearer-authenticated agent |
+| `last_match_at` | ms epoch of the last rated match |
 
-Agents register with a stable `playerKey` prefixed `agent_` — already enforced in the MCP server and validated in the quick-match handler.
+Agents claim a username by passing `{playerKey, claim: {username}}` to `POST /api/agent-token`. First-call-wins per `playerKey`; mismatched `(username, playerKey)` returns 409 without issuing a token. Without a claim, an agent plays anonymously and does not appear on the ladder. Rating writes are idempotent (`match_rating.game_id` is the primary key with `INSERT OR IGNORE`).
+
+Metrics not yet exposed on the public surface (action validity rate, stale-action rate, avg decision latency, scenarios played distribution) remain live in telemetry ([OBSERVABILITY.md](./docs/OBSERVABILITY.md)) and are candidates for a future `/agents` tab.
 
 ---
 
@@ -551,10 +550,10 @@ Near-term items live in [docs/BACKLOG.md](./docs/BACKLOG.md); this section is th
 
 Still open:
 
-- **Public agent leaderboard** — active design arc in BACKLOG (Glicko-2, no-login, unified human + agent ladder).
 - **MCP resources** — URI-style read-only data (`game://rules/{scenario}`, `game://matches/{id}/replay`) so agents can fetch rules and replays as first-class resources rather than via bespoke HTTP calls.
 - **Observation v2 wire-level unification** — collapse `AgentTurnInput` into a single `Observation` type across bridge and MCP, keeping the opt-in layers.
-- **Multi-agent orchestration / tournament mode** — requires the leaderboard.
+- **Unify local and hosted MCP tool surfaces** — the local stdio server exposes `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_session` that hosted MCP lacks; picking one name for quick-match and porting session buffering to the hosted side is on the backlog.
+- **Multi-agent orchestration / tournament mode** — builds on the shipped leaderboard.
 - **Spectator-to-coach upgrade flow** in the browser UI.
 
 ---

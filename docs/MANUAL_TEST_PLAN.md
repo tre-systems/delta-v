@@ -197,7 +197,17 @@ No audio before user interaction. **M** toggles; thrust / gun / explosion / phas
 
 Install the app (if supported); launched shell looks correct. Online local AI works in the shell. DevTools offline / airplane mode: app shell still loads; start single-player AI; play ≥ 3 turns; multiplayer fails clearly (no hang). Re-enable network → online play recovers after retry or reload.
 
-## 21. Edge cases / regression grab-bag
+## 21. Leaderboard (`/leaderboard`)
+
+Run when changes touch `src/server/leaderboard/`, `src/shared/rating/`, or `migrations/000*_leaderboard.sql`.
+
+- **Public page:** `/leaderboard` loads; table ordered by rating descending; agent rows show an "Agent" badge.
+- **Provisional filter:** by default, provisional players are hidden; toggling `?includeProvisional=true` surfaces them at a lower confidence. Newly-created players start in the hidden bucket until `rd` shrinks and they meet the distinct-opponents threshold.
+- **Human claim:** a fresh browser profile can claim a unique username via the home-screen callsign field (backed by `POST /api/claim-name`). Re-claiming the same username from a different `playerKey` returns 409.
+- **Agent claim:** `curl -sX POST /api/agent-token -d '{"playerKey":"agent_test","claim":{"username":"TestAgent"}}'` returns a 24 h token and sets `isAgent: true`. Playing one rated match updates the player's row.
+- **Rank lookup:** `GET /api/leaderboard/me?playerKey=…` returns `{ username, rank, rating, … }` or 404 when unclaimed.
+
+## 22. Edge cases / regression grab-bag
 
 1. **Zero fuel:** ship drifts at current velocity; no burn options; gravity / resupply / map exit still apply.
 2. **Map exit:** final course off the map = elimination.
