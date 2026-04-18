@@ -67,14 +67,6 @@ export const TOAST = {
 export const toastJoinInvalidCode = (codeLength: number): string =>
   `Invalid code — must be ${codeLength} characters`;
 
-export const toastCommandUndoAttack = (queuedCount: number): string =>
-  queuedCount > 0
-    ? `Undid last attack (${queuedCount} queued)`
-    : 'Attack queue cleared';
-
-export const toastCommandSelectedShip = (displayName: string): string =>
-  `Selected: ${displayName}`;
-
 export const toastOrdnanceQueued = (
   shipName: string,
   ordType: string,
