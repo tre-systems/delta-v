@@ -2,7 +2,11 @@ import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
 import { byId, cls, hide, listen, setTrustedHTML, show, text } from '../dom';
 import { isClientFeatureEnabled } from '../feature-flags';
-import { fetchPlayerRank, postClaimName } from '../leaderboard/api';
+import {
+  type ClaimNameResult,
+  fetchPlayerRank,
+  postClaimName,
+} from '../leaderboard/api';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { getWebLocalStorage } from '../web-local-storage';
 import type { AIDifficulty, UIEvent } from './events';
@@ -250,12 +254,18 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
     listen(quickMatchBtn, 'click', () => {
       // Ensure quick-match players are claimed for leaderboard/match history
-      // even if they never blur the callsign input first.
+      // even if they never blur the callsign input first. Wait for the claim
+      // before queueing so status and toasts reflect the response.
       const normalised = deps.setPlayerName(playerNameInput.value);
       playerNameInput.value = normalised;
       const postClaim = deps.postClaimName ?? postClaimName;
-      runClaim(postClaim);
-      deps.emit({ type: 'quickMatch' });
+      void (async () => {
+        const result = await requestClaim(postClaim);
+        applyClaimResult(result);
+        if (shouldProceedToQuickMatchAfterClaim(result)) {
+          deps.emit({ type: 'quickMatch' });
+        }
+      })();
     });
 
     listen(singlePlayerBtn, 'click', () => {
@@ -322,42 +332,64 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       });
     };
 
-    const runClaim = (postClaim: typeof postClaimName) => {
+    const requestClaim = async (
+      postClaim: typeof postClaimName,
+    ): Promise<ClaimNameResult> => {
       const username = deps.getPlayerName();
       const playerKey = deps.getPlayerKey();
       setCallsignStatus('Claiming…', 'info');
-      void postClaim({ playerKey, username }).then((result) => {
-        if (result.ok) {
-          setCallsignStatus(`Claimed as ${result.player.username}`, 'success');
-          // Follow up with the player's rank once the claim lands so
-          // the status switches from "Claimed as X" to
-          // "Rating N · rank #K" (or · provisional).
-          refreshRank();
-          return;
-        }
-        if (result.error === 'name_taken') {
-          setCallsignStatus('Callsign is taken — try another.', 'error');
-          return;
-        }
-        if (result.error === 'invalid_name') {
-          setCallsignStatus(
-            'Invalid callsign — use letters, numbers, spaces, _ or -.',
-            'error',
-          );
-          return;
-        }
-        if (result.error === 'rate_limited') {
-          setCallsignStatus(
-            'Too many changes — try again in a minute.',
-            'error',
-          );
-          return;
-        }
-        // network/unavailable/unknown — don't alarm the user on a
-        // best-effort claim path. Clear any prior status.
-        setCallsignStatus('', 'info');
-      });
+      return postClaim({ playerKey, username });
     };
+
+    const applyClaimResult = (result: ClaimNameResult): void => {
+      if (result.ok) {
+        setCallsignStatus(`Claimed as ${result.player.username}`, 'success');
+        // Follow up with the player's rank once the claim lands so
+        // the status switches from "Claimed as X" to
+        // "Rating N · rank #K" (or · provisional).
+        refreshRank();
+        return;
+      }
+      if (result.error === 'name_taken') {
+        setCallsignStatus('Callsign is taken — try another.', 'error');
+        return;
+      }
+      if (result.error === 'invalid_name') {
+        setCallsignStatus(
+          'Invalid callsign — use letters, numbers, spaces, _ or -.',
+          'error',
+        );
+        return;
+      }
+      if (result.error === 'rate_limited') {
+        setCallsignStatus('Too many changes — try again in a minute.', 'error');
+        return;
+      }
+      if (
+        result.error === 'network' ||
+        result.error === 'unavailable' ||
+        result.error === 'unknown'
+      ) {
+        setCallsignStatus('', 'info');
+        deps.showToast(
+          'Could not save callsign online — you can still play.',
+          'info',
+        );
+        return;
+      }
+    };
+
+    const runClaim = (postClaim: typeof postClaimName): void => {
+      void requestClaim(postClaim).then(applyClaimResult);
+    };
+
+    const shouldProceedToQuickMatchAfterClaim = (
+      result: ClaimNameResult,
+    ): boolean =>
+      result.ok ||
+      result.error === 'network' ||
+      result.error === 'unavailable' ||
+      result.error === 'unknown';
 
     // Returning visitors see their "Rating · rank" hint without having
     // to re-claim first. Skipped on URL boots that go straight into a

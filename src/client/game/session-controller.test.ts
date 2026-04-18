@@ -438,7 +438,9 @@ describe('session-controller', () => {
     await beginJoinGameSession(deps, 'FGHIJ');
 
     expect(fallbackSpy).toHaveBeenCalledWith('FGHIJ');
-    expect(deps.calls.showToast).toBeUndefined();
+    expect(deps.calls.showToast).toEqual([
+      ['This room is full — you are joining as a spectator.', 'info'],
+    ]);
     expect(deps.calls.exitToMenu).toBeUndefined();
   });
 

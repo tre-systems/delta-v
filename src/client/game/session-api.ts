@@ -253,7 +253,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           reason: 'server',
           status: res.status,
         });
-        deps.showToast('Server error \u2014 try again in a moment.', 'error');
+        deps.showToast('Server error — try again shortly', 'error');
         deps.setState('menu');
         return;
       }

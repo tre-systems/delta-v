@@ -19,7 +19,6 @@ export const showErrorScreen = (error: unknown): void => {
   overlay.setAttribute('role', 'alertdialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'error-screen-title');
-  overlay.setAttribute('aria-describedby', 'error-screen-desc');
   overlay.tabIndex = -1;
   overlay.style.cssText = [
     'position:fixed',
@@ -57,6 +56,25 @@ export const showErrorScreen = (error: unknown): void => {
   ].join(';');
   body.textContent = 'An unexpected error occurred. Reload to try again.';
 
+  const trimmed = message.trim();
+  let detail: HTMLParagraphElement | null = null;
+  if (trimmed.length > 0) {
+    const maxLen = 200;
+    const snippet =
+      trimmed.length > maxLen ? `${trimmed.slice(0, maxLen)}…` : trimmed;
+    detail = document.createElement('p');
+    detail.id = 'error-screen-detail';
+    detail.style.cssText = [
+      'margin:0',
+      'color:var(--muted,#90a0ba)',
+      'font-size:0.78rem',
+      'max-width:420px',
+      'word-break:break-word',
+      'font-family:var(--font-mono,monospace)',
+    ].join(';');
+    detail.textContent = snippet;
+  }
+
   const button = document.createElement('button');
   button.type = 'button';
   button.style.cssText = [
@@ -77,6 +95,15 @@ export const showErrorScreen = (error: unknown): void => {
 
   overlay.appendChild(heading);
   overlay.appendChild(body);
+  if (detail) {
+    overlay.appendChild(detail);
+    overlay.setAttribute(
+      'aria-describedby',
+      'error-screen-desc error-screen-detail',
+    );
+  } else {
+    overlay.setAttribute('aria-describedby', 'error-screen-desc');
+  }
   overlay.appendChild(button);
   document.body.appendChild(overlay);
 

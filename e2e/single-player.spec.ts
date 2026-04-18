@@ -20,6 +20,15 @@ test.describe('single-player smoke tests', () => {
     await expect(page.locator('[data-testid="tutorialTip"]')).toBeVisible();
   });
 
+  test('first-run tutorial can be skipped from the HUD', async ({ page }) => {
+    await launchSinglePlayerScenario(page, 'biplanetary', {
+      tutorialDone: false,
+    });
+    await expect(page.locator('[data-testid="tutorialTip"]')).toBeVisible();
+    await page.click('[data-testid="tutorialSkipBtn"]');
+    await waitForDisplay(page, '[data-testid="tutorialTip"]', 'none');
+  });
+
   test('can select a ship, queue a burn, and confirm the first turn', async ({
     page,
   }) => {
