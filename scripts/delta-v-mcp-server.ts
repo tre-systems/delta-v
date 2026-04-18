@@ -17,6 +17,7 @@ import {
   queueForMatch,
   withCompactObservationState,
 } from '../src/shared/agent';
+import { patchTransportWithSerializedSends } from '../src/shared/mcp-stdio-serialized-send';
 import type { GameState } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
 
@@ -855,8 +856,10 @@ const readBody = (req: IncomingMessage): Promise<string> =>
 const main = async (): Promise<void> => {
   const httpIdx = process.argv.indexOf('--http');
   if (httpIdx === -1) {
-    // Default: stdio transport (backward compatible)
+    // Default: stdio transport (backward compatible). Serialize outbound
+    // JSON-RPC lines so concurrent tool completions cannot interleave writes.
     const transport = new StdioServerTransport();
+    patchTransportWithSerializedSends(transport);
     await server.connect(transport);
     return;
   }
