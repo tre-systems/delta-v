@@ -7,7 +7,7 @@ import {
   fetchPlayerRank,
   postClaimName,
 } from '../leaderboard/api';
-import { TOAST } from '../messages/toasts';
+import { TOAST, toastJoinInvalidCode } from '../messages/toasts';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { getWebLocalStorage } from '../web-local-storage';
 import type { AIDifficulty, UIEvent } from './events';
@@ -122,12 +122,9 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     if (!parsed) {
       const trimmed = rawValue.trim();
       if (trimmed.length === 0) {
-        deps.showToast('Enter a game code to join', 'error');
+        deps.showToast(TOAST.lobby.joinNeedCode, 'error');
       } else {
-        deps.showToast(
-          `Invalid code \u2014 must be ${CODE_LENGTH} characters`,
-          'error',
-        );
+        deps.showToast(toastJoinInvalidCode(CODE_LENGTH), 'error');
       }
       return;
     }

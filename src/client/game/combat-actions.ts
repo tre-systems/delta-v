@@ -5,6 +5,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { clamp } from '../../shared/util';
+import { TOAST, toastCombatAttackQueued } from '../messages/toasts';
 import { batch } from '../reactive';
 import {
   buildCurrentAttack,
@@ -146,10 +147,7 @@ export const confirmSingleAttack = (deps: CombatActionDeps) => {
       return;
     }
 
-    deps.showToast(
-      'Selected target is blocked or has no legal attackers',
-      'error',
-    );
+    deps.showToast(TOAST.gameplay.combatTargetBlocked, 'error');
     return;
   }
 
@@ -202,7 +200,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
   );
 
   if (!attack) {
-    deps.showToast('Select an enemy ship or nuke to target', 'info');
+    deps.showToast(TOAST.gameplay.combatSelectTarget, 'info');
     return;
   }
 
@@ -210,7 +208,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
     const count = deps.planningState.queueCombatAttack(attack);
     clearCombatSelection(deps);
 
-    deps.showToast(`Attack queued (${count}). Press Enter to fire.`, 'info');
+    deps.showToast(toastCombatAttackQueued(count), 'info');
   });
 };
 

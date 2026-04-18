@@ -1,13 +1,11 @@
 import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
 import type { RoomCode } from '../../shared/ids';
-import {
-  type CombatResult,
-  ErrorCode,
-  type GameState,
-} from '../../shared/types/domain';
+import type { CombatResult, GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
+import { SERVER_ERROR_USER_HINT } from '../messages/server-error-hints';
+import { TOAST } from '../messages/toasts';
 import { batch } from '../reactive';
 import {
   type AuthoritativeUpdate,
@@ -102,7 +100,7 @@ const applyWelcomePlan = (
     deps.trackEvent('reconnect_succeeded', {
       attempts: reconnectAttempts,
     });
-    deps.ui.overlay.showToast('Reconnected!', 'success');
+    deps.ui.overlay.showToast(TOAST.reconnect.client, 'success');
   } else if (currentState === 'connecting') {
     deps.trackEvent(
       plan.kind === 'welcome'
@@ -246,24 +244,6 @@ const applyRematchPendingPlan: ClientMessagePlanHandler<'rematchPending'> = (
   deps.ui.overlay.showRematchPending();
 };
 
-// Maps known error codes to user-friendly display messages.
-// Codes not in this map fall through to the raw server message.
-const ERROR_CODE_DISPLAY: Partial<Record<ErrorCode, string>> = {
-  [ErrorCode.INVALID_PHASE]: 'Action not available in this phase',
-  [ErrorCode.NOT_YOUR_TURN]: "It's not your turn",
-  [ErrorCode.INVALID_INPUT]: 'Invalid action \u2014 please try again',
-  [ErrorCode.STATE_CONFLICT]: 'Action conflicts with current game state',
-  [ErrorCode.RESOURCE_LIMIT]: 'Insufficient resources for this action',
-  [ErrorCode.NOT_ALLOWED]: 'That action is not allowed right now',
-  [ErrorCode.INVALID_SELECTION]: 'Invalid selection \u2014 please try again',
-  [ErrorCode.INVALID_TARGET]: 'Invalid target for this action',
-  [ErrorCode.INVALID_SHIP]: 'Invalid ship for this action',
-  [ErrorCode.INVALID_PLAYER]: 'Invalid player',
-  [ErrorCode.ROOM_NOT_FOUND]: 'No game found with that code',
-  [ErrorCode.ROOM_FULL]: 'That game is already full',
-  [ErrorCode.GAME_IN_PROGRESS]: 'That game has already started',
-};
-
 const applyErrorPlan: ClientMessagePlanHandler<'error'> = (
   deps,
   plan,
@@ -273,7 +253,7 @@ const applyErrorPlan: ClientMessagePlanHandler<'error'> = (
     message: plan.message,
     code: plan.code,
   });
-  const friendlyMessage = plan.code && ERROR_CODE_DISPLAY[plan.code];
+  const friendlyMessage = plan.code && SERVER_ERROR_USER_HINT[plan.code];
   const displayMessage = friendlyMessage
     ? `${friendlyMessage}: ${plan.message}`
     : plan.message;
@@ -297,11 +277,11 @@ const applyActionRejectedPlan: ClientMessagePlanHandler<'actionRejected'> = (
   });
   const hint =
     plan.reason === 'stalePhase' || plan.reason === 'staleTurn'
-      ? 'The game moved on before that action could apply.'
+      ? TOAST.actionRejected.staleGame
       : plan.reason === 'duplicateIdempotencyKey'
-        ? 'Duplicate action key — use a fresh idempotency key if retrying.'
+        ? TOAST.actionRejected.duplicateIdempotencyKey
         : plan.reason === 'wrongActivePlayer'
-          ? 'It is not your turn to act in this phase.'
+          ? TOAST.actionRejected.wrongActivePlayer
           : plan.message;
   deps.ui.overlay.showToast(hint, 'info');
 };
@@ -332,7 +312,7 @@ const applyOpponentStatusPlan: ClientMessagePlanHandler<'opponentStatus'> = (
 
   setOpponentDisconnectDeadlineMs(deps.ctx, null);
   if (plan.status === 'reconnected') {
-    deps.ui.overlay.showToast('Opponent reconnected', 'info');
+    deps.ui.overlay.showToast(TOAST.reconnect.opponent, 'info');
   }
 };
 

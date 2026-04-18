@@ -11,6 +11,7 @@ import type {
   TransferOrder,
 } from '../../shared/types/domain';
 import type { ScenarioDefinition } from '../../shared/types/scenario';
+import { TOAST } from '../messages/toasts';
 import { resolveLocalFleetReady } from './fleet';
 import {
   type LocalResolution,
@@ -255,7 +256,7 @@ const handleLocalEmplacementSuccess = (
 ): void => {
   // Emplacement state has already been applied through the shared
   // local-resolution path; surface the user-facing confirmation only.
-  deps.showToast('Orbital base emplaced!', 'success');
+  deps.showToast(TOAST.gameplay.orbitalBaseEmplaced, 'success');
 };
 
 const handleLocalFleetReady = (

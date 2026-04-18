@@ -31,6 +31,7 @@ export const TOAST = {
   lobby: {
     claimCouldNotSaveOnline:
       'Could not save callsign online — you can still play.',
+    joinNeedCode: 'Enter a game code to join',
   },
   sessionController: {
     joinRoomFullSpectator:
@@ -44,4 +45,42 @@ export const TOAST = {
     urlWatchOnly:
       'Watching as a spectator — you can see both sides but cannot command ships.',
   },
-} as const;
+  reconnect: {
+    client: 'Reconnected!',
+    opponent: 'Opponent reconnected',
+  },
+  actionRejected: {
+    staleGame: 'The game moved on before that action could apply.',
+    duplicateIdempotencyKey:
+      'Duplicate action key — use a fresh idempotency key if retrying.',
+    wrongActivePlayer: 'It is not your turn to act in this phase.',
+  },
+  gameplay: {
+    orbitalBaseEmplaced: 'Orbital base emplaced!',
+    noDetectedEnemies: 'No detected enemies',
+    combatSelectTarget: 'Select an enemy ship or nuke to target',
+    combatTargetBlocked: 'Selected target is blocked or has no legal attackers',
+    torpedoAimingIntro:
+      'Torpedo aiming: choose an adjacent hex for boost, or queue again for a straight shot',
+  },
+};
+
+export const toastJoinInvalidCode = (codeLength: number): string =>
+  `Invalid code — must be ${codeLength} characters`;
+
+export const toastCombatAttackQueued = (count: number): string =>
+  `Attack queued (${count}). Press Enter to fire.`;
+
+export const toastCommandUndoAttack = (queuedCount: number): string =>
+  queuedCount > 0
+    ? `Undid last attack (${queuedCount} queued)`
+    : 'Attack queue cleared';
+
+export const toastCommandSelectedShip = (displayName: string): string =>
+  `Selected: ${displayName}`;
+
+export const toastOrdnanceQueued = (
+  shipName: string,
+  ordType: string,
+  boostHint: string,
+): string => `${shipName}: ${ordType} queued${boostHint}`;

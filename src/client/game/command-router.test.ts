@@ -10,6 +10,7 @@ import type {
   Ship,
 } from '../../shared/types/domain';
 import { setMuted } from '../audio';
+import { toastCommandSelectedShip } from '../messages/toasts';
 import { type CommandRouterDeps, dispatchGameCommand } from './command-router';
 import {
   createLogisticsStoreFromPairs,
@@ -326,7 +327,7 @@ describe('game-command-router', () => {
     expect(deps.ctx.planningState.lastSelectedHex).toBe('0,0');
     expect(renderer.centerOnHex).toHaveBeenCalledWith({ q: 0, r: 0 });
     expect(ui.overlay.showToast).toHaveBeenCalledWith(
-      'Selected: Packet',
+      toastCommandSelectedShip('Packet'),
       'info',
     );
   });

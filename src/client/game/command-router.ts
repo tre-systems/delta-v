@@ -7,6 +7,10 @@ import type {
 } from '../../shared/types/domain';
 import { isMuted, playSelect, setMuted } from '../audio';
 import {
+  toastCommandSelectedShip,
+  toastCommandUndoAttack,
+} from '../messages/toasts';
+import {
   type AstrogationActionDeps,
   clearSelectedBurn,
   confirmOrders,
@@ -95,10 +99,7 @@ const setCombatPlan = (
 const undoQueuedAttack = (deps: CommandRouterDeps): void => {
   const count = deps.ctx.planningState.popQueuedAttack();
 
-  deps.ui.overlay.showToast(
-    count > 0 ? `Undid last attack (${count} queued)` : 'Attack queue cleared',
-    'info',
-  );
+  deps.ui.overlay.showToast(toastCommandUndoAttack(count), 'info');
 };
 
 const getActiveLogisticsContext = (
@@ -166,7 +167,7 @@ const selectShip = (
 
     if (myAlive && myAlive.length > 1) {
       const name = SHIP_STATS[ship.type]?.name ?? ship.type;
-      deps.ui.overlay.showToast(`Selected: ${name}`, 'info');
+      deps.ui.overlay.showToast(toastCommandSelectedShip(name), 'info');
     }
   } else {
     deps.ctx.planningState.setSelectedShipId(shipId);
