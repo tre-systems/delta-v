@@ -379,6 +379,10 @@ export const beginJoinGameSession = async (
       validation.error.code === ErrorCode.ROOM_FULL &&
       deps.fallbackToSpectator
     ) {
+      deps.showToast(
+        'This room is full — you are joining as a spectator.',
+        'info',
+      );
       deps.fallbackToSpectator(code);
       return;
     }
