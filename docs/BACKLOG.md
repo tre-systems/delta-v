@@ -6,43 +6,37 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 ## Gameplay UX & matchmaking integrity
 
-Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Items below are **open** or **partial** (still need follow-up or verification).
+Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Each **###** is **remaining** work only (shipped details live in `git log` and tests).
 
 ### Contrast audit (quantified)
 
-Several surfaces were brightened (e.g. duel queue note, game-over stat labels, chat/menu placeholders, `prefers-contrast: more` hooks). **Partial (2026-04-18):** [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md) now has a **Contrast & readability** section with explicit WCAG AA spot-check steps for help overlay and game-over; [A11Y.md](./A11Y.md) manual checklist links there. Remaining: execute the measurements each release and tune CSS from findings.
+Run WCAG contrast / readability measurements each release using [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md) § **Contrast & readability** and [A11Y.md](./A11Y.md); tune CSS from findings.
 
 **Files:** `static/styles/*.css`, `docs/MANUAL_TEST_PLAN.md`, `docs/A11Y.md`
 
 ### Stronger high-contrast modes
 
-**Partial (2026-04-18):** `prefers-contrast: more` and `forced-colors: active` now use opaque / system fills and drop decorative blur across `.screen`, `.menu-content`, HUD, overlays (game-over, reconnect, toasts, tutorial, help), `#phaseAlert`, and menu chrome (`components.css` / `hud.css` / `overlays.css` / `systems.css`). Game-over hero titles keep author colors via `forced-color-adjust: none`.
-
-**Still open:** spot-check any `.menu-content` surfaces off `#menu` and remaining game-over chrome in strict HC if playtesters report flat contrast.
+Spot-check any `.menu-content` surfaces off `#menu` and remaining game-over chrome in strict **forced-colors** / **prefers-contrast: more** if playtesters report flat contrast.
 
 **Files:** `static/styles/base.css`, `static/styles/components.css`, `static/styles/hud.css`, `static/styles/overlays.css`, `static/styles/systems.css`
 
 ### Tutorial: deepen task-first flow
 
-Welcome copy was shortened; remaining: spotlight-driven steps, a repeatable "what do I do now?" affordance, and tighter coupling to HUD hints.
+Spotlight-driven steps, a repeatable "what do I do now?" affordance, and tighter coupling to HUD hints.
 
 **Files:** `src/client/tutorial.ts`, `src/client/ui/hud-chrome-view.ts`, `static/index.html`, `static/styles/overlays.css`
 
 ### Help overlay: active-section highlighting (optional)
 
-Jump links and TOC styling exist; optional follow-up: highlight the section in view on scroll, or collapse long groups with `<details>`.
+Highlight the section in view on scroll, or collapse long groups with `<details>`.
 
 **Files:** `static/index.html`, `static/styles/overlays.css`, optional small script in `src/client/ui/`
 
 ### Enforce notification channel precedence in code
 
-**Partial (2026-04-18):** `notification-policy.ts` helpers + Vitest; toast dedupe gate and phase-alert suppression of info/success toasts in `overlay-view.ts`; `attachSessionPhaseAlertEffect` drives phase alerts with dedupe on `(phase, turn, activePlayer)`. Ordnance launches log once (no duplicate success toast vs game log — `ordnance-actions.ts`). Batch combat no longer mirrors targeting / queue-count copy as transient toasts; HUD status line shows queued volley count and `showFireButton` passes the queue depth (`combat-actions.ts`, `hud.ts`, `session-planning-effects.ts`).
+Audit remaining toast producers (command router, session/quick-match/replay, logistics, reconnect) for duplicate copy vs HUD / log on the same tick. Connection and reconnect outcomes stay on the toast channel per policy.
 
-**Partial (2026-04-19):** torpedo aiming intro routes to the **game log** instead of a transient toast (`ordnance-actions.ts`).
-
-**Still open:** audit remaining toast producers (command router, session/quick-match/replay, logistics, reconnect) for duplicate copy vs HUD / log on the same tick; connection and reconnect outcomes remain toast channel per policy.
-
-**Files:** `src/client/messages/notification-policy.ts`, `src/client/ui/overlay-view.ts`, `src/client/game/session-ui-effects.ts`, `src/client/game/session-signals.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/game/ordnance-actions.ts`, `src/client/telemetry.ts`
+**Files:** `src/client/messages/notification-policy.ts`, `src/client/ui/overlay-view.ts`, `src/client/game/session-ui-effects.ts`, `src/client/game/session-signals.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/game/command-router.ts`, `src/client/telemetry.ts`
 
 ### Digital-input parity for map selection and targeting
 
@@ -52,7 +46,7 @@ Core map interactions are still pointer-first: selecting combat targets, cycling
 
 ### Burn-arrow tap targets (verification)
 
-Renderer burn/overload **disks** are visual; **astrogation picks still resolve by hex** (`resolveBurnToggle` / `resolveOverloadToggle` in `input.ts` — click targets the neighboring **cell**, not only the painted circle). At default zoom that is typically ≥48px; on very small `hexSize` viewports the cell can shrink — revisit only if playtesting reports misses.
+Revisit burn/overload hit targets only if playtesting reports misses at very small `hexSize` (picks resolve by neighboring hex cell, not only the painted disk — `resolveBurnToggle` / `resolveOverloadToggle` in `input.ts`).
 
 **Files:** `src/client/renderer/course.ts`, `src/client/renderer/vectors.ts`, `src/client/game/input.ts`, `src/client/input-interaction.ts`
 
@@ -60,37 +54,23 @@ Renderer burn/overload **disks** are visual; **astrogation picks still resolve b
 
 ## AI behavior & rules conformance
 
-Findings from a 2026-04-18 deep-research pass against the [2018 Triplanetary rulebook](../Triplanetary2018.pdf) (pp. 5-6) plus the AI ordnance code path. User-visible symptom: AI still over-commits ordnance when marginal shots or economic trade-offs should discourage launches. The rulebook stresses *vector geometry over a 5-turn window* and high cost for nukes — remaining gaps are called out in the items below.
+Further AI ordnance work vs the [2018 Triplanetary rulebook](../Triplanetary2018.pdf) (pp. 5–6): simulation-backed thresholds, EV refinement, and deeper regression fixtures.
 
 ### `recommendedIndex` over-suggests consecutive ordnance launches
 
-**Partial (2026-04-18):** candidate ranking demotes low-confidence consecutive ordnance behind `skipOrdnance` using `evaluateOrdnanceLaunchIntercept` (nukes ≤2-turn fuse, torpedoes ≤3). With `includeCandidateLabels`, `labeledCandidates` append the same short-intercept rationale for agents.
-
-**Still open:** tune thresholds with simulation outcomes (especially scenario-specific target velocities / gravity lanes).
+Tune candidate thresholds with simulation outcomes (especially scenario-specific target velocities / gravity lanes).
 
 **Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/agent/observation.ts`, `src/shared/agent/candidates.ts`, `src/shared/agent/candidate-labels.ts`
 
 ### Tighten Hard-difficulty nuke gates with cost and intercept probability
 
-Hard difficulty historically over-fired nukes on marginal geometry and cost. Rulebook factors: **300 MCr vs 20 MCr** torpedo cost, **2:1** anti-nuke odds with modifiers (p.6), and detonation on contact with **any** ship / base / asteroid / mine / torpedo on the lane.
-
-**Partial (2026-04-18):** `assessNukeBallisticToEnemy` with friendly-path and intercept checks; hard-tier `nukeMinReachProbability` (default **0.22**); grouped anti-nuke EV gating.
-
-**Partial (2026-04-19):** torpedo-viable **nuke score floor** and **2× strength** gate vs cheaper torpedo shots; lane occlusion for **other enemy ships** and **enemy ordnance in flight** (same ballistic stepping as ships); **map lane hazards** from non-space `MapHex` cells (bases, bodies, asteroid/planet/sun surface terrain) plus **pending asteroid hazard** hexes.
-
-**Still open:** expected-damage refinement beyond current gates, and **`simulate:duel-sweep`**-driven tuning of thresholds.
+Expected-damage refinement beyond current gates, and **`simulate:duel-sweep`**-driven tuning of thresholds (rulebook: nuke **300 MCr** vs torpedo **20 MCr**, **2:1** anti-nuke table, detonation on lane contacts).
 
 **Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/engine/combat.ts`
 
 ### Add ordnance AI regression fixtures for impossible-shot launches
 
-**Partial (2026-04-18):** `driftingEnemyWouldBeHitByOpenSpaceBallistic` + `EMPTY_SOLAR_MAP` back “no open-space intercept” fixtures; regression tests also cover friendly-lane nuke suppression and grouped anti-nuke EV gating.
-
-**Partial (2026-04-19):** regression tests for **nuke lane** suppression when the ballistic segment crosses **map terrain** or a **pending asteroid hazard** hex (no third ship / ordnance occluder).
-
-**Partial (2026-04-19):** hard **aiOrdnance** determinism smoke on **biplanetary** + `buildSolarSystemMap()` (real sparse gravity map, not `EMPTY_SOLAR_MAP`).
-
-**Still open:** same-stack edge cases beyond launch-hex stacking, deeper gravity-edge assertions beyond determinism, optional `game-engine.test.ts` integration seeds.
+Same-stack edge cases beyond launch-hex stacking, deeper gravity-edge assertions (beyond open-map determinism smoke), optional `game-engine.test.ts` integration seeds.
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
 
@@ -98,19 +78,17 @@ Hard difficulty historically over-fired nukes on marginal geometry and cost. Rul
 
 ## Agent & MCP ergonomics
 
-Findings from a 2026-04-18 agent/MCP experience review. The contract is strong — AGENT_SPEC.md, pre-computed `candidates[]`, labelled observations, two-token auth, ActionGuards forgiveness — but the MCP surface has grown in two places (local stdio MCP in `scripts/delta-v-mcp-server.ts` and hosted `@delta-v/mcp-adapter`) and a handful of per-turn affordances still cost extra round-trips or external doc reads. Ordered by blast radius on agent experience.
+Gaps in local vs hosted MCP parity, first-class resources, and structured rejection surfaces for autonomous play.
 
 ### Parallel MCP stdio: host tool pipelining + quick-match pairing
 
-**Partial:** local HTTP MCP, stdio outbound send queue, and operator notes live in [DELTA_V_MCP.md](./DELTA_V_MCP.md). **Still open:** a first-class “pair these two tickets” dev hook for automated two-seat stdio without lobby URLs.
+First-class “pair these two tickets” dev hook for automated two-seat stdio without lobby URLs.
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `src/shared/mcp-stdio-serialized-send.ts`, `src/shared/agent/quick-match.ts`, `docs/DELTA_V_MCP.md`
 
 ### Unify local and hosted MCP tool surfaces
 
-**Partial (2026-04-18):** quick-match entry names are aligned (`delta_v_quick_match` ↔ `delta_v_quick_match_connect` on both transports). Local stdio accepts `matchToken` as an alias for `sessionId` on in-match tools and echoes `matchToken` (same value as `sessionId`) in connect/list/get responses so agent code can share identifiers with hosted MCP.
-
-**Still open:** hosted MCP has no `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_session`; remote agents on flaky networks still lack server-side event buffering. Legacy hosted `{ code, playerToken }` args remain a wider union than local until retirement (see below).
+Hosted MCP: add `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_session` parity with local; server-side event buffering for flaky networks.
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `docs/DELTA_V_MCP.md`, `AGENT_SPEC.md`
 
@@ -122,11 +100,7 @@ Findings from a 2026-04-18 agent/MCP experience review. The contract is strong �
 
 ### Structured action-rejection reasons
 
-**Partial (2026-04-19):** `actionRejected` now carries optional **`submitterPlayerId`** (the seat that sent the action) alongside `reason`, `expected`, and `actual`; `validateServerMessage` accepts it; local MCP `delta_v_send_action` echoes it in structured results when `waitForResult` catches a rejection.
-
-`checkActionGuards` in `src/server/game-do/action-guards.ts` still uses a single human `message` string; the smart-forgiveness path (stale `expectedPhase` but action type valid for the real phase) does not emit a rejection at all.
-
-**Still open:** a distinct wire reason when forgiveness applies (vs in-sync), and richer discrimination for engine-level invalidations that still surface as generic `error` today.
+Distinct wire reason when ActionGuards **phase** mismatch is forgiven (action type already valid for the real phase) vs when the client is simply in sync. Richer discrimination for engine-level invalidations that still surface as generic `error` today.
 
 **Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/protocol.ts`, `src/shared/protocol.ts`, `scripts/delta-v-mcp-server.ts`, `src/client/game/client-message-plans.ts`
 
@@ -162,7 +136,7 @@ Make reinforcement and fleet-conversion side effects fully replayable by either 
 
 ### Cached current-state projection
 
-**Still open:** in-memory cache of current state so reads avoid rebuilding from checkpoint + tail on every wake; invalidate on every event append.
+In-memory cache of current state so reads avoid rebuilding from checkpoint + tail on every wake; invalidate on every event append.
 
 **Files:** `src/server/game-do/projection.ts`, `src/server/game-do/game-do.ts`
 
@@ -184,7 +158,7 @@ Hide clone-sensitive engine mutators behind non-exported modules, extend import-
 
 ### Close remaining stringly-typed registries and IDs
 
-Add `isHexKey`, tighten scenario/body registries around closed keys, and brand ship / ordnance identifiers so lookup-heavy paths stop depending on plain `string`.
+Tighten scenario/body registries around closed keys; brand ship / ordnance identifiers so lookup-heavy paths stop depending on plain `string` (wire `isHexKey` coverage exists in Vitest — extend to call sites and registries).
 
 **Files:** `src/shared/hex.ts`, `src/shared/ids.ts`, `src/shared/map-data.ts`, `src/shared/types/domain.ts`, `src/server/room-routes.ts`, `src/server/game-do/http-handlers.ts`, `src/client/game/main-session-network.ts`
 
@@ -206,13 +180,9 @@ Prefer `engineFailure()` everywhere, then surface typed rate-limit / validation 
 
 ### Broaden engine and protocol coverage
 
-**Partial (2026-04-18):** `contracts.json` C2S now covers combat / combatSingle edge shapes (implicit `targetType`, omitted `attackStrength`, ordnance targets, multi-volley `combat`, `guards` passthrough) plus `c2sRejected` rows for invalid `targetType`, empty attackers / blank attacker id / empty `targetId`, non-integer `attackStrength`, and out-of-range strength.
+Optional positive/negative `contracts.json` rows for parameterless phase one-shots (`skipOrdnance`, `endCombat`, …) beyond current coverage. Deeper `transport.json` vs live Durable Object message parity.
 
-**Partial (2026-04-19):** additional `c2sRejected` rows for unknown `type`, **fleetReady** purchase shape errors, **surrender** `shipIds` shape errors; `transport.json` documents **stateUpdate** with **transferEvents** (asserted in `message-builders.test.ts`); Vitest covers surrender list **>64** ids; `publication.test.ts` locks **`runPublicationPipeline`** ordering (**parity → timer → broadcast**).
-
-**Still open:** optional positive/negative rows for parameterless phase messages beyond current coverage; deeper `transport.json` vs live DO parity.
-
-**Files:** `src/shared/__fixtures__/contracts.json`, `src/shared/protocol.test.ts`, `src/server/game-do/__fixtures__/transport.json`
+**Files:** `src/shared/__fixtures__/contracts.json`, `src/shared/protocol.test.ts`, `src/server/game-do/__fixtures__/transport.json`, `src/server/game-do/publication.test.ts`
 
 ---
 
