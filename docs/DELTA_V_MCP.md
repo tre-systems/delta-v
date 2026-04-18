@@ -74,6 +74,16 @@ All tools accept `sessionId` unless otherwise noted.
 | `delta_v_send_chat` | Send chat message | `sessionId`, `text` (alias: `message`) | `{ text }` |
 | `delta_v_close_session` | Close local MCP session | `sessionId` | `{ closed }` |
 
+## Rate limits and body caps
+
+Hosted MCP (`POST …/mcp`) and the HTTP APIs your session uses are throttled at the edge and inside Workers. **Canonical numbers** (per route, window, scope, and what happens on exceed) live in [SECURITY.md §3 — Rate limiting architecture](./SECURITY.md#3-rate-limiting-architecture). Highlights agents should internalize:
+
+- **`POST /mcp`**: 20 requests / 60 s per Bearer token hash (or per hashed IP without Bearer); **16 KB** JSON body cap before dispatch.
+- **`POST /quick-match`** and **`POST /api/agent-token`**: 5 / 60 s per hashed IP (shared bucket with `POST /create` in production).
+- **WebSocket** (after connect): **10** messages / **1 s** per socket; excess closes with code **1008**.
+
+Local stdio MCP inherits the same limits once it opens a browser-facing WebSocket to `SERVER_URL`. Prefer spacing out tool bursts instead of learning limits from **429** responses.
+
 Notes:
 
 - `delta_v_wait_for_turn` throws on timeout and may return/reject when game reaches `gameOver`.
