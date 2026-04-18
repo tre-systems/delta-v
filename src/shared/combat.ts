@@ -57,7 +57,7 @@ const OTHER_DAMAGE_TABLES: Readonly<
 > = {
   torpedo: [0, 1, 1, 1, 2, 3],
   mine: [0, 0, 0, 0, 2, 2],
-  asteroid: [0, 0, 0, 0, 1, 2],
+  asteroid: [0, 0, 0, 0, 1, 1],
   ram: [0, 0, 1, 1, 3, 5],
 };
 

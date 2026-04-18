@@ -95,7 +95,7 @@ describe('ui formatters', () => {
       hex: { q: 1, r: 0 },
       dieRoll: 5,
       damageType: 'disabled',
-      disabledTurns: 2,
+      disabledTurns: 1,
     };
 
     expect(formatMovementEventEntry(capture, ships)).toEqual({
@@ -104,7 +104,7 @@ describe('ui formatters', () => {
     });
 
     expect(formatMovementEventEntry(asteroid, ships)).toEqual({
-      text: 'Corsair struck an asteroid! [Roll: 5] -> Systems disabled for 2T',
+      text: 'Corsair struck an asteroid! [Roll: 5] -> Systems disabled for 1T',
       className: 'log-damage',
     });
   });
@@ -175,15 +175,15 @@ describe('ui formatters', () => {
       velocityMod: 0,
       dieRoll: 6,
       modifiedRoll: 6,
-      damageType: 'eliminated',
-      disabledTurns: 0,
+      damageType: 'disabled',
+      disabledTurns: 1,
       counterattack: null,
     };
 
     expect(formatCombatResultEntries(result, ships, 0)).toEqual([
       {
-        text: 'Packet struck an asteroid: DESTROYED [Roll: 6]',
-        className: 'log-eliminated',
+        text: 'Packet struck an asteroid: DISABLED (1T) [Roll: 6]',
+        className: 'log-damage',
       },
     ]);
   });

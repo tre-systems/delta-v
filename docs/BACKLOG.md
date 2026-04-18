@@ -6,7 +6,7 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 ## Recently shipped (2026-04-18)
 
-Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; stronger placeholders and `prefers-contrast: more` / `forced-colors: active` baselines; HUD default|large text scale (localStorage + lobby controls + `html[data-hud-scale]` CSS); help overlay jump links + TOC styling; quick-match waiting elapsed time; scenario `lobbyMeta` rendered on lobby cards; difficulty `role="radiogroup"` and hint line; wider menu/scenario shell at ≥1024px; ship-list bottom fade when scrollable; larger burn/overload hit targets; chat character counter; reconnect reassurance copy; game-over rematch auto-focus; `#hudBoardSummary` live region for board context; Ko-fi image dimensions; shorter welcome tutorial line; `src/client/messages/notification-policy.ts` as documented channel names (runtime deduplication enforcement still open below). Toasts: dismiss control, hover/focus pause + CSS `animation-play-state` for info/success, errors persist with `role="alert"` until dismissed. Waiting **Cancel** after `cancelQuickMatch` calls `exitToMenu` when still not on `menu` (fixes private-room / join / post-match quick-match teardown); connecting copy shows **Cancel** with clearer titles. Archived replay `fetch` is aborted when leaving to menu or starting another replay (`AbortSignal` + `releaseArchivedReplayFetchAbortIfMatches` guard).
+Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; stronger placeholders and `prefers-contrast: more` / `forced-colors: active` baselines; HUD default|large text scale (localStorage + lobby controls + `html[data-hud-scale]` CSS); help overlay jump links + TOC styling; quick-match waiting elapsed time; scenario `lobbyMeta` rendered on lobby cards; difficulty `role="radiogroup"` and hint line; wider menu/scenario shell at ≥1024px; ship-list bottom fade when scrollable; larger burn/overload hit targets; chat character counter; reconnect reassurance copy; game-over rematch auto-focus; `#hudBoardSummary` live region for board context; Ko-fi image dimensions; shorter welcome tutorial line; `src/client/messages/notification-policy.ts` as documented channel names (runtime deduplication enforcement still open below). Toasts: dismiss control, hover/focus pause + CSS `animation-play-state` for info/success, errors persist with `role="alert"` until dismissed. Waiting **Cancel** after `cancelQuickMatch` calls `exitToMenu` when still not on `menu` (fixes private-room / join / post-match quick-match teardown); connecting copy shows **Cancel** with clearer titles. Archived replay `fetch` is aborted when leaving to menu or starting another replay (`AbortSignal` + `releaseArchivedReplayFetchAbortIfMatches` guard). Asteroid column on the Other Damage table: rolls 5–6 are both D1 per 2018 rulebook (was D2 on 6).
 
 ---
 
@@ -73,6 +73,53 @@ Renderer geometry was enlarged; confirm ≥48px effective targets on narrow phon
 HUD and menu buttons are uppercased via CSS `text-transform`, but scenario titles in `#scenarioList` are authored in mixed case ("Bi-Planetary") and then uppercased inconsistently. Pick one authoring style (prefer sentence case in HTML, CSS-uppercased in presentation) and apply uniformly.
 
 **Files:** `static/index.html`, `src/client/ui/lobby-view.ts`, `static/styles/components.css`
+
+---
+
+## AI behavior & rules conformance
+
+Findings from a 2026-04-18 deep-research pass against the [2018 Triplanetary rulebook](../Triplanetary2018.pdf) (pp. 5-6) plus the AI ordnance code path. User-visible symptom: AI fires ordnance wildly and drops nukes for no apparent reason. The rulebook makes clear that hitting is meant to be hard because of *vector geometry over a 5-turn window*, not the damage table — several AI gates skip that geometry entirely.
+
+### AI ordnance: vector intercept check before launch
+
+AI gates ordnance on range buckets (`torpedoRange` 8-12 hexes) but never verifies the launch vector will intersect a target hex within the 5-turn ordnance lifetime, accounting for gravity. Result: torpedoes and nukes get fired into empty space. Per rulebook p.5-6, ordnance inherits the launcher's vector plus (torpedoes only) a 1-2 hex burn on the launch turn, then is ballistic for 5 turns. Add a short forward simulation that scores candidate launch burns by intersection probability against each enemy's predicted course before committing.
+
+**Files:** `src/shared/ai/ordnance.ts`, `src/shared/engine/ordnance.ts`, `src/shared/engine/resolve-movement.ts`
+
+### Tighten Hard-difficulty nuke gates with cost and intercept probability
+
+Hard difficulty currently fires nukes whenever target score ≥70, OR enemy stronger and ≤6 hexes, OR target carries passengers and ≤6 hexes. Misses three rulebook factors: nukes cost **300 MCr** (15× a torpedo), can be shot down at **2:1 odds** with full range/velocity modifiers (p.6), and detonate on contact with **any** ship / base / asteroid / mine / torpedo (friendly-fire risk). Add an expected-damage estimate that nets out anti-nuke intercept odds and disqualifies launches whose vector passes through friendly hexes.
+
+**Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/engine/combat.ts`
+
+### Audit four subtle ordnance/combat rules for drift from 2018 rulebook
+
+Verify the current engine matches the rulebook on:
+
+- Range = "attacker's *closest approach* to target's final position" (p.5), not range to final position alone.
+- Velocity penalty applies only when the difference **exceeds 2 hexes** — first two hexes are free (p.5).
+- Each ship may release **only one ordnance item per turn** (p.5).
+- **Only warships may launch torpedoes** (p.6); transports / packets / tankers / liners may not.
+
+**Files:** `src/shared/combat.ts`, `src/shared/engine/combat.ts`, `src/shared/engine/ordnance.ts`, `src/shared/ai/ordnance.ts`
+
+### Validate mine launcher actually clears its own hex
+
+Rulebook p.5 requires the launching ship to "execute an immediate course change to insure that it does not remain in the same hex as the mine." AI mine launches are currently gated on "burn declared" without verifying the resulting course leaves the mine's hex — AI mines can self-destruct on the launcher.
+
+**Files:** `src/shared/engine/ordnance.ts`, `src/shared/ai/ordnance.ts`
+
+### Align local and server AI difficulty defaults
+
+Single-player client sessions default to `normal`, while server bot helpers still default to `hard`. That means the same scenario can show materially different ordnance doctrine depending on execution path: `hard` unlocks nuke use, `normal` does not. Pick one default, thread it explicitly through all bot entry points, and update the lobby/help copy if product wants the split to remain intentional instead of accidental.
+
+**Files:** `src/client/game/session-model.ts`, `src/server/game-do/bot.ts`, `src/client/ui/lobby-view.ts`, `src/client/game/ai-flow.ts`
+
+### Add ordnance AI regression fixtures for impossible-shot launches
+
+The research pass produced concrete geometries where `hard` AI still launches despite no credible 5-turn intercept window. Encode those as deterministic tests before retuning heuristics: divergent-vector nuke case, long-range torpedo no-shot case, and friendly-lane exclusion cases for mine / nuke launches. This keeps future sweeps from reintroducing "fires wildly" behavior after tuning changes.
+
+**Files:** `src/shared/ai.test.ts`, `src/shared/engine/game-engine.test.ts`, optional small fixture helpers under `src/shared/test-helpers.ts`
 
 ---
 
