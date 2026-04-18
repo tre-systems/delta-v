@@ -328,93 +328,114 @@ const httpHandlers = new Map<string, (args: any) => Promise<any>>();
   server.registerTool = wrapped;
 }
 
+const QUICK_MATCH_CONNECT_SCHEMA = {
+  serverUrl: z.string().optional(),
+  scenario: z.string().optional(),
+  username: z.string().min(2).max(20).optional(),
+  playerKey: z.string().min(8).max(64).optional(),
+  pollMs: z.number().int().min(200).max(10_000).optional(),
+  timeoutMs: z.number().int().min(5_000).max(600_000).optional(),
+};
+
+const handleQuickMatchConnect = async (args: {
+  serverUrl?: string;
+  scenario?: string;
+  username?: string;
+  playerKey?: string;
+  pollMs?: number;
+  timeoutMs?: number;
+}) => {
+  const serverUrl = normalizeQuickMatchServerUrl(
+    args.serverUrl ?? DEFAULT_SERVER_URL,
+  );
+  const scenario = args.scenario ?? DEFAULT_SCENARIO;
+  const playerKey =
+    args.playerKey ??
+    `agent_mcp_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+  if (!playerKey.startsWith('agent_')) {
+    throw new Error('playerKey must start with "agent_"');
+  }
+
+  const matched = await queueForMatch({
+    serverUrl,
+    scenario,
+    username: args.username ?? 'Agent',
+    playerKey,
+    pollMs: args.pollMs ?? 1000,
+    timeoutMs: args.timeoutMs ?? 120_000,
+  });
+
+  const sessionId = randomUUID();
+  const wsUrl = buildWsUrl(serverUrl, matched.code, matched.playerToken);
+  const ws = new WebSocket(wsUrl);
+  const session: DeltaVSession = {
+    sessionId,
+    createdAt: Date.now(),
+    serverUrl,
+    scenario,
+    code: matched.code,
+    ticket: matched.ticket,
+    playerToken: matched.playerToken,
+    ws,
+    playerId: null,
+    events: [],
+    nextEventId: 1,
+    lastState: null,
+    stateWaiters: [],
+  };
+  sessions.set(sessionId, session);
+  // Attach listeners before awaiting open so early welcome/state messages are not lost.
+  attachSessionListeners(session);
+  await waitForOpen(ws);
+
+  // Ensure we received the initial welcome/playerId before returning. Some
+  // ws close paths happen before welcome; in those cases, subsequent calls
+  // would fail with Unknown sessionId.
+  const welcomeDeadline = Date.now() + WELCOME_TIMEOUT_MS;
+  while (Date.now() < welcomeDeadline && session.playerId === null) {
+    const remaining = welcomeDeadline - Date.now();
+    // Wait for any next state-bearing message (welcome counts).
+    const arrived = await waitForNextState(session, remaining);
+    if (!arrived) break;
+  }
+  if (session.playerId === null) {
+    throw new Error(
+      `Timed out waiting for welcome/playerId on session ${sessionId}`,
+    );
+  }
+
+  return toolOk(
+    `Connected Delta-V session ${sessionId} (code ${matched.code}).`,
+    {
+      sessionId,
+      serverUrl,
+      scenario,
+      code: matched.code,
+      ticket: matched.ticket,
+      playerKey,
+      connected: true,
+    },
+  );
+};
+
 server.registerTool(
   'delta_v_quick_match_connect',
   {
     description:
       'Queue for quick match, wait for match, and connect a player WebSocket session.',
-    inputSchema: {
-      serverUrl: z.string().optional(),
-      scenario: z.string().optional(),
-      username: z.string().min(2).max(20),
-      playerKey: z.string().min(8).max(64).optional(),
-      pollMs: z.number().int().min(200).max(10_000).optional(),
-      timeoutMs: z.number().int().min(5_000).max(600_000).optional(),
-    },
+    inputSchema: QUICK_MATCH_CONNECT_SCHEMA,
   },
-  async (args) => {
-    const serverUrl = normalizeQuickMatchServerUrl(
-      args.serverUrl ?? DEFAULT_SERVER_URL,
-    );
-    const scenario = args.scenario ?? DEFAULT_SCENARIO;
-    const playerKey =
-      args.playerKey ??
-      `agent_mcp_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
-    if (!playerKey.startsWith('agent_')) {
-      throw new Error('playerKey must start with "agent_"');
-    }
+  handleQuickMatchConnect,
+);
 
-    const matched = await queueForMatch({
-      serverUrl,
-      scenario,
-      username: args.username,
-      playerKey,
-      pollMs: args.pollMs ?? 1000,
-      timeoutMs: args.timeoutMs ?? 120_000,
-    });
-
-    const sessionId = randomUUID();
-    const wsUrl = buildWsUrl(serverUrl, matched.code, matched.playerToken);
-    const ws = new WebSocket(wsUrl);
-    const session: DeltaVSession = {
-      sessionId,
-      createdAt: Date.now(),
-      serverUrl,
-      scenario,
-      code: matched.code,
-      ticket: matched.ticket,
-      playerToken: matched.playerToken,
-      ws,
-      playerId: null,
-      events: [],
-      nextEventId: 1,
-      lastState: null,
-      stateWaiters: [],
-    };
-    sessions.set(sessionId, session);
-    // Attach listeners before awaiting open so early welcome/state messages are not lost.
-    attachSessionListeners(session);
-    await waitForOpen(ws);
-
-    // Ensure we received the initial welcome/playerId before returning. Some
-    // ws close paths happen before welcome; in those cases, subsequent calls
-    // would fail with Unknown sessionId.
-    const welcomeDeadline = Date.now() + WELCOME_TIMEOUT_MS;
-    while (Date.now() < welcomeDeadline && session.playerId === null) {
-      const remaining = welcomeDeadline - Date.now();
-      // Wait for any next state-bearing message (welcome counts).
-      const arrived = await waitForNextState(session, remaining);
-      if (!arrived) break;
-    }
-    if (session.playerId === null) {
-      throw new Error(
-        `Timed out waiting for welcome/playerId on session ${sessionId}`,
-      );
-    }
-
-    return toolOk(
-      `Connected Delta-V session ${sessionId} (code ${matched.code}).`,
-      {
-        sessionId,
-        serverUrl,
-        scenario,
-        code: matched.code,
-        ticket: matched.ticket,
-        playerKey,
-        connected: true,
-      },
-    );
+server.registerTool(
+  'delta_v_quick_match',
+  {
+    description:
+      'Alias for delta_v_quick_match_connect so local and hosted MCP share a quick-match entry point name.',
+    inputSchema: QUICK_MATCH_CONNECT_SCHEMA,
   },
+  handleQuickMatchConnect,
 );
 
 server.registerTool(

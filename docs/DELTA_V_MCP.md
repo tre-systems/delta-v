@@ -82,7 +82,8 @@ All tools accept `sessionId` unless otherwise noted.
 
 | Tool | Purpose | Key args | Returns |
 | --- | --- | --- | --- |
-| `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `username`, `playerKey?` | `{ sessionId, code, playerId, playerToken, status }` |
+| `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `username?`, `playerKey?` | `{ sessionId, code, playerId, playerToken, status }` |
+| `delta_v_quick_match` | Local alias of `delta_v_quick_match_connect` (name parity with hosted MCP) | same args as above | same payload as above |
 | `delta_v_list_sessions` | List active local sessions | none | `{ sessions[] }` |
 | `delta_v_get_state` | Raw authoritative state | `sessionId` | `{ state, latestEventId }` |
 | `delta_v_get_observation` | Agent observation payload | `sessionId`, include flags as above, `compactState?` (default **false** — full `state`; set **true** to shrink `state` to phase/turn/activePlayer only) | `AgentTurnInput`-compatible object |

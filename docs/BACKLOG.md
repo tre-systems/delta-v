@@ -116,6 +116,8 @@ Findings from a 2026-04-18 agent/MCP experience review. The contract is strong â
 
 Local stdio exposes `delta_v_quick_match_connect` plus `delta_v_list_sessions`, `delta_v_get_events`, `delta_v_close_session`; hosted MCP exposes `delta_v_quick_match` (matchToken) and lacks the session tools. An agent that learns one surface does not port to the other without rewriting. Pick one name for the quick-match entry point (or have one delegate to the other), and decide whether session/event buffering belongs on the hosted side â€” remote agents on flaky networks benefit from server-side event buffers, so porting `get_events` and `close_session` to hosted is the higher-value direction.
 
+**Partial (2026-04-18):** local stdio now exposes `delta_v_quick_match` as an alias of `delta_v_quick_match_connect`, so agents can use the hosted quick-match entry-point name on both surfaces. Local still returns session-oriented payloads (`sessionId`, `code`, `playerToken`) while hosted returns `matchToken`.
+
 **Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `docs/DELTA_V_MCP.md`, `AGENT_SPEC.md`
 
 ### Pick one astrogation turn contract and derive the surfaces from it
