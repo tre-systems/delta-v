@@ -42,7 +42,7 @@ const createCtx = () => ({
   waitUntil(_promise: Promise<unknown>) {},
 });
 
-const createMatchmaker = () => {
+const createMatchmaker = (options?: { devMode?: string }) => {
   const initFetch = vi.fn<(request: Request) => Promise<Response>>(
     async (_request) => Response.json({ ok: true }, { status: 201 }),
   );
@@ -57,8 +57,10 @@ const createMatchmaker = () => {
         idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
         get: vi.fn(() => gameStub),
       },
+      ...(options?.devMode !== undefined ? { DEV_MODE: options.devMode } : {}),
     } as unknown as {
       GAME: DurableObjectNamespace;
+      DEV_MODE?: string;
     },
   );
 
@@ -371,5 +373,60 @@ describe('MatchmakerDO', () => {
       scenario: 'duel',
     });
     expect(initFetch).not.toHaveBeenCalled();
+  });
+
+  it('fills a lone queue ticket with a dev bot when DEV_MODE=1 after the wait threshold', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000);
+    const { matchmaker, initFetch } = createMatchmaker({ devMode: '1' });
+
+    const queued = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+    const queuedPayload = (await queued.json()) as { ticket: string };
+
+    now.mockReturnValue(11_500);
+    const response = await matchmaker.fetch(
+      new Request(
+        `https://matchmaker.internal/ticket/${queuedPayload.ticket}`,
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: 'matched',
+      ticket: queuedPayload.ticket,
+      scenario: 'duel',
+      code: expect.any(String),
+      playerToken: expect.any(String),
+    });
+    expect(initFetch).toHaveBeenCalledTimes(1);
+    const initRequest = initFetch.mock.calls[0]?.[0];
+    if (!initRequest) throw new Error('Expected init request');
+    await expect(initRequest.json()).resolves.toMatchObject({
+      players: expect.arrayContaining([
+        expect.objectContaining({
+          playerKey: 'playerkey1',
+          kind: 'human',
+        }),
+        expect.objectContaining({
+          playerKey: `agent_devqm_${queuedPayload.ticket}`,
+          username: 'QM Bot',
+          kind: 'agent',
+        }),
+      ]),
+    });
   });
 });

@@ -36,7 +36,8 @@ const hasOwnedPendingAsteroidHazards = (
     return ship?.owner === playerId && ship.lifecycle !== 'destroyed';
   });
 
-export const BOT_THINK_TIME_MS = 900;
+/** Delay before the server autoplayer acts for an `agent_` seat; keep below LLM turn budgets. */
+export const BOT_THINK_TIME_MS = 15_000;
 
 /** Default for server-scheduled agent seats (matches single-player / lobby). */
 export const SERVER_AGENT_AI_DIFFICULTY: AIDifficulty = 'normal';
