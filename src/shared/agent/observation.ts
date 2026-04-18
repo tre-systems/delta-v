@@ -183,3 +183,22 @@ export const buildObservation = (
     coachDirective: options.coachDirective,
   };
 };
+
+/**
+ * Replace `state` with phase / turn / activePlayer only for smaller MCP
+ * payloads. The object still types as {@link AgentTurnInput}; agents that need
+ * the full authoritative state must omit compaction.
+ */
+export const withCompactObservationState = (
+  observation: AgentTurnInput,
+): AgentTurnInput => {
+  const s = observation.state;
+  return {
+    ...observation,
+    state: {
+      phase: s.phase,
+      turnNumber: s.turnNumber,
+      activePlayer: s.activePlayer,
+    } as GameState,
+  };
+};

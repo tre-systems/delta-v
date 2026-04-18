@@ -11,6 +11,7 @@ import {
   buildLegalActionInfo,
   buildObservation,
   buildStateSummary,
+  withCompactObservationState,
 } from './index';
 
 let map: SolarSystemMap;
@@ -209,5 +210,16 @@ describe('buildObservation', () => {
     expect(first?.label).toBeTypeOf('string');
     expect(first?.reasoning).toBeTypeOf('string');
     expect(['low', 'medium', 'high']).toContain(first?.risk);
+  });
+});
+
+describe('withCompactObservationState', () => {
+  it('retains only phase, turnNumber, and activePlayer on state', () => {
+    const obs = buildObservation(state, 0, { gameCode: 'X', map });
+    const compact = withCompactObservationState(obs);
+    expect(Object.keys(compact.state).sort()).toEqual(
+      ['activePlayer', 'phase', 'turnNumber'].sort(),
+    );
+    expect(compact.candidates).toEqual(obs.candidates);
   });
 });

@@ -87,6 +87,7 @@ const buildObservationParams = (args: {
   includeTactical?: boolean;
   includeSpatialGrid?: boolean;
   includeCandidateLabels?: boolean;
+  compactState?: boolean;
 }): URLSearchParams => {
   const params = new URLSearchParams();
   if (args.includeSummary) params.set('includeSummary', 'true');
@@ -94,6 +95,7 @@ const buildObservationParams = (args: {
   if (args.includeTactical) params.set('includeTactical', 'true');
   if (args.includeSpatialGrid) params.set('includeSpatialGrid', 'true');
   if (args.includeCandidateLabels) params.set('includeCandidateLabels', 'true');
+  if (args.compactState) params.set('compactState', 'true');
   return params;
 };
 
@@ -103,6 +105,7 @@ const includeOptionsSchema = {
   includeTactical: z.boolean().optional(),
   includeSpatialGrid: z.boolean().optional(),
   includeCandidateLabels: z.boolean().optional(),
+  compactState: z.boolean().optional(),
 };
 
 // Identifier schema for in-match tools: accept EITHER a matchToken (opaque,
@@ -311,6 +314,7 @@ export const buildMcpServer = (
           includeTactical: args.includeTactical,
           includeSpatialGrid: args.includeSpatialGrid,
           includeCandidateLabels: args.includeCandidateLabels,
+          compactState: args.compactState,
         }),
       });
       const body = (await response.json()) as JsonRecord;
@@ -351,6 +355,7 @@ export const buildMcpServer = (
           includeTactical: args.includeTactical,
           includeSpatialGrid: args.includeSpatialGrid,
           includeCandidateLabels: args.includeCandidateLabels,
+          compactState: args.compactState,
         }),
       });
       const body = (await response.json()) as JsonRecord;

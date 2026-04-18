@@ -12,7 +12,7 @@ For onboarding and workflow:
 | Transport | Entry point | Shape | Session model |
 | --- | --- | --- | --- |
 | **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_close_session`). Many MCP hosts invoke tools **serially** (next call starts after the prior returns); use **local HTTP** (`npm run mcp:delta-v:http`) when you need concurrent tool requests from separate processes. |
-| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Stateless per request; layered `agentToken` (Bearer) + `matchToken` (tool arg) |
+| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Stateless per request; layered `agentToken` (Bearer) + `matchToken` (tool arg). `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
 | **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
 
 Full token model (HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET`): [SECURITY.md#remote-mcp-token-model](./SECURITY.md#remote-mcp-token-model).
@@ -97,6 +97,7 @@ Local stdio MCP inherits the same limits once it opens a browser-facing WebSocke
 Notes:
 
 - **Solo quick match (local Worker):** with `DEV_MODE=1` (see `.dev.vars.example`), the matchmaker may pair a lone quick-match ticket with a synthetic dev bot after ~10s so one MCP client can reach `matched` without a second player. Production (`DEV_MODE=0`) still waits for a real opponent.
+- **Hosted MCP** forwards optional `compactState` on `delta_v_get_observation` (query string), `delta_v_wait_for_turn`, and `delta_v_send_action` (JSON body) to the GAME DO — same semantics as local stdio.
 - `delta_v_wait_for_turn` throws on timeout and may return/reject when game reaches `gameOver`.
 - `delta_v_get_events`, `delta_v_list_sessions`, and `delta_v_close_session` are local-session helpers (stdio MCP ownership model).
 - `delta_v_get_observation` is the preferred read surface for most agents; `delta_v_get_state` is lower-level.
