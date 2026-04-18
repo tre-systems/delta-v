@@ -22,6 +22,17 @@ describe('buildSolarSystemMap', () => {
     expect(map.bounds.minQ).toBeLessThan(map.bounds.maxQ);
     expect(map.bounds.minR).toBeLessThan(map.bounds.maxR);
   });
+  it('derives bounds from body placement instead of a hardcoded rectangle', () => {
+    const qCenters = map.bodies.map((body) => body.center.q);
+    const rCenters = map.bodies.map((body) => body.center.r);
+
+    expect(map.bounds).toEqual({
+      minQ: Math.min(...qCenters) - 7,
+      maxQ: Math.max(...qCenters) + 7,
+      minR: Math.min(...rCenters) - 7,
+      maxR: Math.max(...rCenters) + 3,
+    });
+  });
   it('includes all expected celestial bodies', () => {
     const names = map.bodies.map((b) => b.name);
     expect(names).toContain('Sol');

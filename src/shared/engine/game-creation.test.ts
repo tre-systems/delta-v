@@ -168,7 +168,7 @@ describe('createGame', () => {
           ships: [
             {
               type: 'corvette',
-              position: { q: 99, r: 99 },
+              position: { q: 0, r: 0 },
               velocity: { dq: 0, dr: 0 },
             },
           ],
@@ -180,7 +180,7 @@ describe('createGame', () => {
           ships: [
             {
               type: 'corvette',
-              position: { q: -99, r: -99 },
+              position: { q: 1, r: 1 },
               velocity: { dq: 0, dr: 0 },
             },
           ],
@@ -224,6 +224,168 @@ describe('createGame', () => {
     if (!result.ok) {
       expect(result.error.message).toContain('targetBody');
       expect(result.error.message).toContain('NotARealBody');
+    }
+  });
+  it('rejects scenarios whose sharedBases body has no matching base hexes', () => {
+    const invalidScenario: ScenarioDefinition = {
+      ...SCENARIOS.biplanetary,
+      rules: {
+        sharedBases: ['Jupiter'],
+      },
+    };
+    const result = createGame(
+      invalidScenario,
+      map,
+      asGameId('BADSHR'),
+      findBaseHex,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('shares bases on "Jupiter"');
+    }
+  });
+  it('rejects scenarios that require passengers without passenger rescue enabled', () => {
+    const invalidScenario: ScenarioDefinition = {
+      ...SCENARIOS.convoy,
+      rules: {
+        targetWinRequiresPassengers: true,
+      },
+    };
+    const result = createGame(
+      invalidScenario,
+      map,
+      asGameId('BADPSG'),
+      findBaseHex,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('targetWinRequiresPassengers');
+    }
+  });
+  it('rejects scenarios that enable hidden-identity inspection without hidden ships', () => {
+    const invalidScenario: ScenarioDefinition = {
+      ...SCENARIOS.biplanetary,
+      rules: {
+        hiddenIdentityInspection: true,
+      },
+    };
+    const result = createGame(
+      invalidScenario,
+      map,
+      asGameId('BADHID'),
+      findBaseHex,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('hiddenIdentityInspection');
+    }
+  });
+  it('rejects explicit player bases that are not actual base hexes', () => {
+    const invalidScenario: ScenarioDefinition = {
+      ...SCENARIOS.biplanetary,
+      players: [
+        {
+          ...SCENARIOS.biplanetary.players[0],
+          bases: [{ q: 0, r: 0 }],
+        },
+        SCENARIOS.biplanetary.players[1],
+      ],
+    };
+    const result = createGame(
+      invalidScenario,
+      map,
+      asGameId('BADBSE'),
+      findBaseHex,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('non-base hex');
+    }
+  });
+  it('rejects active ship spawns outside map bounds', () => {
+    const invalidScenario: ScenarioDefinition = {
+      ...SCENARIOS.biplanetary,
+      players: [
+        {
+          ...SCENARIOS.biplanetary.players[0],
+          ships: [
+            {
+              ...SCENARIOS.biplanetary.players[0].ships[0],
+              position: { q: 99, r: 99 },
+              startLanded: false,
+            },
+          ],
+        },
+        SCENARIOS.biplanetary.players[1],
+      ],
+    };
+    const result = createGame(
+      invalidScenario,
+      map,
+      asGameId('BADPOS'),
+      findBaseHex,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('outside map bounds');
+    }
+  });
+  it('rejects active ship spawns on body surfaces', () => {
+    const invalidScenario: ScenarioDefinition = {
+      ...SCENARIOS.biplanetary,
+      players: [
+        {
+          ...SCENARIOS.biplanetary.players[0],
+          ships: [
+            {
+              ...SCENARIOS.biplanetary.players[0].ships[0],
+              position: { ...map.bodies[0].center },
+              startLanded: false,
+            },
+          ],
+        },
+        SCENARIOS.biplanetary.players[1],
+      ],
+    };
+    const result = createGame(
+      invalidScenario,
+      map,
+      asGameId('BADSUR'),
+      findBaseHex,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('body surface');
+    }
+  });
+  it('rejects custom maps with overlapping body definitions', () => {
+    const overlappingMap: SolarSystemMap = {
+      ...map,
+      bodies: [
+        ...map.bodies,
+        {
+          ...map.bodies[1],
+          name: 'Twin Mercury',
+          center: { ...map.bodies[0].center },
+        },
+      ],
+    };
+    const result = createGame(
+      SCENARIOS.biplanetary,
+      overlappingMap,
+      asGameId('BADMAP'),
+      findBaseHex,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('overlap');
     }
   });
 });
