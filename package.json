@@ -2,6 +2,9 @@
   "name": "delta-v",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build:client": "node esbuild.client.mjs",
     "build": "npm run build:client",
@@ -18,12 +21,12 @@
     "test:e2e:headed": "playwright test --headed",
     "test:watch": "vitest",
     "verify": "npm run lint && npm run typecheck:all && npm run test:coverage && npm run build && npm run test:e2e && npm run test:e2e:a11y && npm run simulate all 40 -- --ci",
-    "lint": "biome check src scripts e2e vitest.config.ts playwright.config.ts esbuild.client.mjs esbuild.watch.mjs scripts/bundle-style-css.mjs",
+    "lint": "biome check src packages scripts e2e vitest.config.ts playwright.config.ts esbuild.client.mjs esbuild.watch.mjs scripts/bundle-style-css.mjs",
     "check:doc-links": "node scripts/check-doc-links.mjs",
     "docs:book": "node scripts/build-doc-book.mjs",
     "docs:book:audio": "node scripts/build-audio-doc-book.mjs",
-    "lint:fix": "biome check --write src scripts e2e vitest.config.ts playwright.config.ts esbuild.client.mjs esbuild.watch.mjs scripts/bundle-style-css.mjs",
-    "format": "biome format --write src scripts e2e vitest.config.ts playwright.config.ts esbuild.client.mjs esbuild.watch.mjs scripts/bundle-style-css.mjs",
+    "lint:fix": "biome check --write src packages scripts e2e vitest.config.ts playwright.config.ts esbuild.client.mjs esbuild.watch.mjs scripts/bundle-style-css.mjs",
+    "format": "biome format --write src packages scripts e2e vitest.config.ts playwright.config.ts esbuild.client.mjs esbuild.watch.mjs scripts/bundle-style-css.mjs",
     "simulate": "tsx scripts/simulate-ai.ts",
     "simulate:duel-sweep": "tsx scripts/duel-seed-sweep.ts",
     "llm:player": "tsx scripts/llm-player.ts",
@@ -62,7 +65,6 @@
     "ws": "^8.19.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "zod": "^4.3.6"
+    "@delta-v/mcp-adapter": "workspace:*"
   }
 }

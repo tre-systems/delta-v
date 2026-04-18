@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Env } from '../env';
-import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from '../quick-match-internal';
+import type { Env } from '../../../src/server/env';
+import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from '../../../src/server/quick-match-internal';
 import { queueRemoteMatch } from './quick-match';
 
 const buildEnv = (
