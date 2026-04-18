@@ -121,11 +121,13 @@ The research pass produced concrete geometries where `hard` AI still launches de
 
 Findings from a 2026-04-18 agent/MCP experience review. The contract is strong — AGENT_SPEC.md, pre-computed `candidates[]`, labelled observations, two-token auth, ActionGuards forgiveness — but the MCP surface has grown in two places (local stdio MCP in `scripts/delta-v-mcp-server.ts` and hosted `@delta-v/mcp-adapter`) and a handful of per-turn affordances still cost extra round-trips or external doc reads. Ordered by blast radius on agent experience.
 
-### Parallel MCP stdio tool calls actually serialize
+### Parallel MCP stdio: host tool pipelining + quick-match pairing
 
-**Partial mitigation:** local `npm run mcp:delta-v:http` allows concurrent tool requests from separate processes; [DELTA_V_MCP.md](./DELTA_V_MCP.md) documents host serialization. **Still open:** true parallel long-polls over a single stdio connection when the host serializes tools. Exploratory pass (2026-04-18): two `delta_v_quick_match_connect` calls sent in a single Claude message do not run in parallel — PlayerA's blocking quick-match poll runs to timeout first, then PlayerB queues and pairs with PlayerA's orphan ticket. Because both seats carry `kind: 'agent'`, the autoplayer fills both sides and the game self-plays in ~7 s. Blocks legitimate two-client MCP exploration and masks any turn-sync / interleave bugs an operator could otherwise surface. Make the stdio handler kick off non-blocking work per tool call before awaiting, or move long-poll waits off the stdio critical path so a second call can interleave.
+**Mitigations shipped:** local HTTP MCP for multi-process concurrency; stdio outbound **send queue** so concurrent tool *completions* cannot interleave JSON-RPC lines on stdout ([DELTA_V_MCP.md](./DELTA_V_MCP.md)); inbound requests are already dispatched concurrently by the MCP SDK (handlers are not awaited before reading the next stdin line).
 
-**Files:** `scripts/delta-v-mcp-server.ts`, `src/shared/agent/quick-match.ts`, `docs/DELTA_V_MCP.md`
+**Still open:** many MCP hosts only issue one in-flight `tools/call` at a time, so two `delta_v_quick_match_connect` probes from the same assistant turn may still run strictly back-to-back. When they do interleave, two `agent_` seats can still orphan-pair and autoplay — document operational workarounds (staggered keys, explicit room join) or add a dedicated “pair these two tickets” dev hook if product wants first-class two-client stdio ergonomics.
+
+**Files:** `scripts/delta-v-mcp-server.ts`, `src/shared/mcp-stdio-serialized-send.ts`, `src/shared/agent/quick-match.ts`, `docs/DELTA_V_MCP.md`
 
 ### Unify local and hosted MCP tool surfaces
 
