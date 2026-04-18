@@ -11,7 +11,7 @@ For onboarding and workflow:
 
 | Transport | Entry point | Shape | Session model |
 | --- | --- | --- | --- |
-| **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_close_session`). Many MCP hosts invoke tools **serially** (next call starts after the prior returns); use **local HTTP** (`npm run mcp:delta-v:http`) when you need concurrent tool requests from separate processes. |
+| **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_close_session`). Outbound responses are **queued** so concurrent tool completions cannot corrupt stdout framing. Many MCP hosts still invoke tools **serially** (next call starts after the prior returns); use **local HTTP** (`npm run mcp:delta-v:http`) when you need concurrent tool requests from **separate processes** or hosts that pipeline multiple `tools/call` before prior responses return. |
 | **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Stateless per request; layered `agentToken` (Bearer) + `matchToken` (tool arg). `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
 | **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
 
