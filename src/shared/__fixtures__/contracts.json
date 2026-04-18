@@ -673,6 +673,140 @@
       },
       "expectedOk": false
     },
+    "ordnanceLaunchesNotArray": {
+      "raw": { "type": "ordnance", "launches": {} },
+      "expectedOk": false
+    },
+    "ordnanceLaunchNotObject": {
+      "raw": {
+        "type": "ordnance",
+        "launches": [null]
+      },
+      "expectedOk": false
+    },
+    "ordnanceEmptyShipId": {
+      "raw": {
+        "type": "ordnance",
+        "launches": [
+          {
+            "shipId": "",
+            "ordnanceType": "mine"
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "ordnanceInvalidOrdnanceType": {
+      "raw": {
+        "type": "ordnance",
+        "launches": [
+          {
+            "shipId": "p0s0",
+            "ordnanceType": "laser"
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "ordnanceTorpedoAccelOutOfRange": {
+      "raw": {
+        "type": "ordnance",
+        "launches": [
+          {
+            "shipId": "p0s0",
+            "ordnanceType": "torpedo",
+            "torpedoAccel": 6,
+            "torpedoAccelSteps": 1
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "ordnanceTorpedoAccelNonInteger": {
+      "raw": {
+        "type": "ordnance",
+        "launches": [
+          {
+            "shipId": "p0s0",
+            "ordnanceType": "torpedo",
+            "torpedoAccel": 2.5,
+            "torpedoAccelSteps": 1
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "ordnanceTorpedoAccelStepsInvalid": {
+      "raw": {
+        "type": "ordnance",
+        "launches": [
+          {
+            "shipId": "p0s0",
+            "ordnanceType": "torpedo",
+            "torpedoAccel": 2,
+            "torpedoAccelSteps": 3
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "logisticsTransfersMissing": {
+      "raw": { "type": "logistics" },
+      "expectedOk": false
+    },
+    "logisticsTransfersNotArray": {
+      "raw": { "type": "logistics", "transfers": {} },
+      "expectedOk": false
+    },
+    "logisticsTransferWrongType": {
+      "raw": {
+        "type": "logistics",
+        "transfers": [
+          {
+            "sourceShipId": "p0s0",
+            "targetShipId": "p0s1",
+            "transferType": "credits",
+            "amount": 1
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "logisticsAmountZero": {
+      "raw": {
+        "type": "logistics",
+        "transfers": [
+          {
+            "sourceShipId": "p0s0",
+            "targetShipId": "p0s1",
+            "transferType": "fuel",
+            "amount": 0
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "emplaceBaseEmplacementsMissing": {
+      "raw": { "type": "emplaceBase" },
+      "expectedOk": false
+    },
+    "emplaceBaseNotArray": {
+      "raw": { "type": "emplaceBase", "emplacements": "no" },
+      "expectedOk": false
+    },
+    "astrogationBurnOutOfRange": {
+      "raw": {
+        "type": "astrogation",
+        "orders": [
+          {
+            "shipId": "p0s0",
+            "burn": 6,
+            "overload": null
+          }
+        ]
+      },
+      "expectedOk": false
+    },
     "pingTimestampMissing": {
       "raw": { "type": "ping" },
       "expectedOk": false
