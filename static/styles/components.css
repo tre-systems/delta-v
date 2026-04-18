@@ -184,6 +184,9 @@
 
 .menu-profile-input:focus {
   outline: none;
+}
+
+.menu-profile-input:focus-visible {
   border-color: rgba(122, 215, 255, 0.52);
   box-shadow: 0 0 0 3px rgba(122, 215, 255, 0.14);
 }
@@ -654,6 +657,9 @@
 
 .code-input:focus {
   outline: none;
+}
+
+.code-input:focus-visible {
   border-color: var(--border-strong);
   box-shadow: 0 0 0 3px rgba(122, 215, 255, 0.12);
 }
@@ -747,7 +753,8 @@
   color: var(--text);
   font-size: 0.94rem;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .scenario-desc {
