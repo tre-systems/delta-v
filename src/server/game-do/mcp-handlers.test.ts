@@ -64,6 +64,7 @@ const buildDeps = (
   touchInactivity: vi.fn().mockResolvedValue(undefined),
   storage: buildStorageStub(),
   initGameIfReady: vi.fn().mockResolvedValue(undefined),
+  consumeLastTurnAutoPlayNotice: vi.fn().mockReturnValue(null),
   ...overrides,
 });
 
@@ -448,6 +449,28 @@ describe('handleMcpRequest', () => {
       }),
     );
     expect(res?.status).toBe(200);
+  });
+
+  it('observation route attaches lastTurnAutoPlayed when pending for seat', async () => {
+    const stateRef = { current: buildDuelState() };
+    const consume = vi
+      .fn()
+      .mockReturnValueOnce({ index: 2, reason: 'timeout' as const })
+      .mockReturnValue(null);
+    const deps = buildDeps({
+      getCurrentGameState: async () => stateRef.current,
+      consumeLastTurnAutoPlayNotice: consume,
+    });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/observation', { playerToken: TOKEN_B }), {
+        method: 'GET',
+      }),
+    );
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as Record<string, unknown>;
+    expect(body.lastTurnAutoPlayed).toEqual({ index: 2, reason: 'timeout' });
+    expect(consume).toHaveBeenCalledWith(1);
   });
 
   it('observation route returns full structured observation', async () => {

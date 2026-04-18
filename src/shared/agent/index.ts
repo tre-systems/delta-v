@@ -54,6 +54,7 @@ export type {
   AgentTurnInput,
   AgentTurnResponse,
   CoachDirective,
+  LastTurnAutoPlayed,
   LegalActionEnemyInfo,
   LegalActionInfo,
   LegalActionShipInfo,

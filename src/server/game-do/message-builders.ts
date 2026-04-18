@@ -12,7 +12,11 @@ import {
   type StateUpdateResult,
 } from '../../shared/engine/game-engine';
 import { filterLogisticsTransferLogEvents } from '../../shared/engine/transfer-log-events';
-import type { CombatResult, GameState } from '../../shared/types/domain';
+import type {
+  CombatResult,
+  GameState,
+  PlayerId,
+} from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 
 export type StatefulServerMessage = Extract<
@@ -21,6 +25,19 @@ export type StatefulServerMessage = Extract<
     state: GameState;
   }
 >;
+
+/** Third argument to `GameDO.publishStateChange` and action-handler publish. */
+export type PublishStateChangeOptions = {
+  actor?: PlayerId | null;
+  restartTurnTimer?: boolean;
+  events?: EngineEvent[];
+  /** MCP-only one-shot notice: seat whose turn was advanced by the turn timer. */
+  lastTurnAutoPlayed?: {
+    seat: PlayerId;
+    index: number;
+    reason: 'timeout';
+  };
+};
 
 type GameStartMessage = Extract<
   S2C,

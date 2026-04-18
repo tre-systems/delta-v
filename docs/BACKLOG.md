@@ -139,12 +139,6 @@ Local stdio exposes `delta_v_quick_match_connect` plus `delta_v_list_sessions`, 
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `src/server/game-do/mcp-handlers.ts`, `src/server/game-do/action-guards.ts`, `src/shared/engine/util.ts`, `static/agent-playbook.json`, `AGENT_SPEC.md`, `.claude/skills/play/SKILL.md`, `docs/DELTA_V_MCP.md`
 
-### Scrimmage should exercise the verified agent identity path
-
-`scripts/quick-match-scrimmage.ts` currently generates `scrim_...` player keys, so hosted evaluation runs exercise the human quick-match path instead of the `agent_...` + Bearer verified-agent flow that production agents use. Switch scrimmage defaults to agent-prefixed identities and token issuance, and keep any non-agent path as an explicit opt-out for local/private debugging only. That keeps leaderboard / analytics separation intact and makes the main evaluation harness representative of real agent participation.
-
-**Files:** `scripts/quick-match-scrimmage.ts`, `src/shared/agent/quick-match.ts`, `docs/AGENTS.md`, `docs/MANUAL_TEST_PLAN.md`
-
 ### Ship MCP resources: rules, match log, replay
 
 [AGENT_SPEC.md lines 91–96](../AGENT_SPEC.md) lists `game://rules/current`, `game://rules/{scenario}`, `game://matches/{id}/observation`, `game://matches/{id}/log`, `game://matches/{id}/replay`, `game://leaderboard/agents` as first-class MCP resources; none are served yet. The rules resource has the highest payoff — agents currently either bake rules into the skill body (`/play`) or re-read `/.well-known/agent.json` + `/agent-playbook.json` every session. Serving the same content as a listable MCP resource lets hosts cache it and skip repeated fetches.
@@ -156,12 +150,6 @@ Local stdio exposes `delta_v_quick_match_connect` plus `delta_v_list_sessions`, 
 `checkActionGuards` in `src/server/game-do/action-guards.ts` rejects with a `reason` + human `message`, but the surface seen by agents mixes several causes (`expectedTurn` vs `expectedPhase` vs `wrongActivePlayer`, plus engine-level invalidations). Return a discriminated `{ reason, expected, actual }` so agents can branch without parsing strings. The smart-forgiveness path (phase stale but action type valid for the current phase) should also surface as a distinct reason when it fires, so agents can tell "you got lucky" from "you are in sync."
 
 **Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/domain.ts`, `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts`
-
-### Surface decision-timeout fallback in the next observation
-
-AGENT_SPEC §5.3 defines the 30-s decision fallback where the server plays `recommendedIndex` on behalf of a silent agent, but the agent is never told. For LLM agents with extended thinking budgets this is a silent footgun. Add a one-shot `lastTurnAutoPlayed: { index, reason: 'timeout' }` field on the next observation so agents notice the missed turn and can shrink their thinking budget next cycle.
-
-**Files:** `src/shared/agent/types.ts`, `src/shared/agent/observation.ts`, `src/server/game-do/mcp-handlers.ts`, `docs/AGENTS.md`
 
 ### Retire legacy `{code, playerToken}` tool args once leaderboard stabilises
 

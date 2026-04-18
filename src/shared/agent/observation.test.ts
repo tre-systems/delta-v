@@ -139,6 +139,15 @@ describe('buildObservation', () => {
     expect(obs.legalActionInfo).toBeDefined();
   });
 
+  it('includes lastTurnAutoPlayed when provided in options', () => {
+    const obs = buildObservation(state, 0, {
+      gameCode: 'ABCDE',
+      map,
+      lastTurnAutoPlayed: { index: 3, reason: 'timeout' },
+    });
+    expect(obs.lastTurnAutoPlayed).toEqual({ index: 3, reason: 'timeout' });
+  });
+
   it('omits summary when includeSummary is false', () => {
     const obs = buildObservation(state, 0, {
       gameCode: 'ABCDE',
@@ -221,5 +230,15 @@ describe('withCompactObservationState', () => {
       ['activePlayer', 'phase', 'turnNumber'].sort(),
     );
     expect(compact.candidates).toEqual(obs.candidates);
+  });
+
+  it('preserves lastTurnAutoPlayed when present', () => {
+    const obs = buildObservation(state, 0, {
+      gameCode: 'X',
+      map,
+      lastTurnAutoPlayed: { index: 1, reason: 'timeout' },
+    });
+    const compact = withCompactObservationState(obs);
+    expect(compact.lastTurnAutoPlayed).toEqual({ index: 1, reason: 'timeout' });
   });
 });

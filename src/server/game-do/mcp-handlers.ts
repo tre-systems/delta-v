@@ -13,6 +13,7 @@ import {
   computeActionEffects,
   withCompactObservationState,
 } from '../../shared/agent';
+import type { LastTurnAutoPlayed } from '../../shared/agent/types';
 import { filterStateForPlayer } from '../../shared/engine/game-engine';
 import { isPlayerToken, type PlayerToken } from '../../shared/ids';
 import { validateClientMessage } from '../../shared/protocol';
@@ -62,6 +63,10 @@ export interface McpRequestDeps {
   // We call initGame() ourselves when both player tokens are filled and
   // there is no game state yet — same end state as a WS join would produce.
   initGameIfReady: () => Promise<void>;
+  /** Returns and clears a one-shot turn-timeout notice for MCP observations. */
+  consumeLastTurnAutoPlayNotice: (
+    playerId: PlayerId,
+  ) => LastTurnAutoPlayed | null;
 }
 
 const MAX_WAIT_TIMEOUT_MS = 25_000;
@@ -255,6 +260,8 @@ const handleObservationRequest = async (
     opts.gameCode = roomConfig.code;
     opts.coachDirective =
       (await getCoachDirective(deps.storage, playerId)) ?? undefined;
+    const autoNotice = deps.consumeLastTurnAutoPlayNotice(playerId);
+    if (autoNotice) opts.lastTurnAutoPlayed = autoNotice;
     const observation = finalizeObservation(
       buildObservation(view.filtered, playerId, opts),
       compactState,
@@ -346,6 +353,8 @@ const handleWaitRequest = async (
       if (isActionable(view.state, playerId)) {
         opts.coachDirective =
           (await getCoachDirective(deps.storage, playerId)) ?? undefined;
+        const autoNotice = deps.consumeLastTurnAutoPlayNotice(playerId);
+        if (autoNotice) opts.lastTurnAutoPlayed = autoNotice;
         const observation = finalizeObservation(
           buildObservation(view.filtered, playerId, opts),
           compactState,
@@ -475,6 +484,7 @@ const buildActionPayload = (
 };
 
 const buildOptionalObservation = async (
+  deps: McpRequestDeps,
   body: ActionRequestBody,
   view: PlayerStateView,
   playerId: PlayerId,
@@ -487,6 +497,8 @@ const buildOptionalObservation = async (
   opts.gameCode = gameCode;
   opts.coachDirective =
     (await getCoachDirective(storage, playerId)) ?? undefined;
+  const autoNotice = deps.consumeLastTurnAutoPlayNotice(playerId);
+  if (autoNotice) opts.lastTurnAutoPlayed = autoNotice;
   return {
     ...finalizeObservation(
       buildObservation(view.filtered, playerId, opts),
@@ -617,6 +629,7 @@ const handleActionRequest = async (
         phaseChanged,
         effects,
         nextObservation: await buildOptionalObservation(
+          deps,
           body,
           after,
           playerId,

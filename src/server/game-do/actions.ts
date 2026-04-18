@@ -31,6 +31,7 @@ import {
   type IdempotencyKeyCache,
 } from './action-guards';
 import {
+  type PublishStateChangeOptions,
   resolveCombatBroadcast,
   resolveMovementBroadcast,
   type StatefulServerMessage,
@@ -97,11 +98,7 @@ interface ActionDeps {
   publishStateChange: (
     state: GameState,
     primaryMessage?: StatefulServerMessage,
-    options?: {
-      actor?: PlayerId | null;
-      restartTurnTimer?: boolean;
-      events?: EngineEvent[];
-    },
+    options?: PublishStateChangeOptions,
   ) => Promise<void>;
 }
 
