@@ -10,7 +10,6 @@ import type {
   Ship,
 } from '../../shared/types/domain';
 import { setMuted } from '../audio';
-import { toastCommandSelectedShip } from '../messages/toasts';
 import { type CommandRouterDeps, dispatchGameCommand } from './command-router';
 import {
   createLogisticsStoreFromPairs,
@@ -244,7 +243,7 @@ describe('game-command-router', () => {
     expect(deps.ctx.planningState.overloads.get('ship-0')).toBe(3);
   });
 
-  it('undoes queued attacks and updates the combat toast', () => {
+  it('undoes queued attacks without a toast (HUD shows queue depth)', () => {
     const { deps, ui } = createDeps();
     deps.ctx.planningState.queuedAttacks = [
       {
@@ -264,10 +263,7 @@ describe('game-command-router', () => {
     dispatchGameCommand(deps, { type: 'undoQueuedAttack' });
 
     expect(deps.ctx.planningState.queuedAttacks).toHaveLength(1);
-    expect(ui.overlay.showToast).toHaveBeenCalledWith(
-      'Undid last attack (1 queued)',
-      'info',
-    );
+    expect(ui.overlay.showToast).not.toHaveBeenCalled();
   });
 
   it('guards skipLogistics by client state', () => {
@@ -315,7 +311,7 @@ describe('game-command-router', () => {
     expect(transport.calls.skipLogistics).toHaveLength(1);
   });
 
-  it('selects ships, centers the camera, and shows a toast for multiple ships', () => {
+  it('selects ships and centers the camera without a selection toast', () => {
     const { deps, renderer, ui } = createDeps();
 
     dispatchGameCommand(deps, {
@@ -326,10 +322,7 @@ describe('game-command-router', () => {
     expect(deps.ctx.planningState.selectedShipId).toBe('ship-1');
     expect(deps.ctx.planningState.lastSelectedHex).toBe('0,0');
     expect(renderer.centerOnHex).toHaveBeenCalledWith({ q: 0, r: 0 });
-    expect(ui.overlay.showToast).toHaveBeenCalledWith(
-      toastCommandSelectedShip('Packet'),
-      'info',
-    );
+    expect(ui.overlay.showToast).not.toHaveBeenCalled();
   });
 
   it('clears torpedo acceleration', () => {
