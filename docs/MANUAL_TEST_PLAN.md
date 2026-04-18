@@ -15,6 +15,13 @@ Any of these is a blocker:
 
 When a test fails, record browser, device, scenario, seat, steps, and whether the failure is correctness, clarity, performance, or recovery.
 
+## Contrast & readability (WCAG AA spot-check)
+
+Use the browser accessibility / color picker or an external contrast checker on translucent panels (not only solid menu backgrounds):
+
+- **Help overlay** (`#helpOverlay`): stacked `.help-group` body copy on semi-transparent panels — aim for **≥ 4.5 : 1** for normal-sized text against the effective background (stacked layers + `backdrop-filter` change perceived luminance).
+- **Game-over** stat pills and any queue / status strips that use muted text on glassy fills.
+
 ## Recommended matrix
 
 - Desktop Chromium, mouse + keyboard
