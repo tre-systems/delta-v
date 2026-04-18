@@ -6,143 +6,75 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 ## Recently shipped (2026-04-18)
 
-Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; stronger placeholders and `prefers-contrast: more` / `forced-colors: active` baselines; HUD default|large text scale (localStorage + lobby controls + `html[data-hud-scale]` CSS); help overlay jump links + TOC styling; quick-match waiting elapsed time; scenario `lobbyMeta` rendered on lobby cards; difficulty `role="radiogroup"` and hint line; wider menu/scenario shell at ≥1024px; ship-list bottom fade when scrollable; larger burn/overload hit targets; chat character counter; reconnect reassurance copy; game-over rematch auto-focus; `#hudBoardSummary` live region for board context; Ko-fi image dimensions; shorter welcome tutorial line; `src/client/messages/notification-policy.ts` as documented channel names (runtime deduplication enforcement still open below).
+Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; stronger placeholders and `prefers-contrast: more` / `forced-colors: active` baselines; HUD default|large text scale (localStorage + lobby controls + `html[data-hud-scale]` CSS); help overlay jump links + TOC styling; quick-match waiting elapsed time; scenario `lobbyMeta` rendered on lobby cards; difficulty `role="radiogroup"` and hint line; wider menu/scenario shell at ≥1024px; ship-list bottom fade when scrollable; larger burn/overload hit targets; chat character counter; reconnect reassurance copy; game-over rematch auto-focus; `#hudBoardSummary` live region for board context; Ko-fi image dimensions; shorter welcome tutorial line; `src/client/messages/notification-policy.ts` as documented channel names (runtime deduplication enforcement still open below). Toasts: dismiss control, hover/focus pause + CSS `animation-play-state` for info/success, errors persist with `role="alert"` until dismissed.
 
 ---
 
 ## Gameplay UX & matchmaking integrity
 
-Findings from exploratory live-session testing on 2026-04-17 using paired quick-match queues, MCP sessions, and browser-driven player flows, plus a UX/UI and a11y review on 2026-04-18. Ordered by user impact and regression risk.
+Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Many original bullets shipped in **[Recently shipped](#recently-shipped-2026-04-18)**; the list below is **still open** or needs a verification pass.
 
-### Add `:focus-visible` indicator for buttons and the canvas
+### Refine `:focus` vs `:focus-visible` on form controls
 
-No global `:focus-visible` rule exists for `.btn` or `#gameCanvas`. Inputs have `outline: none` without a keyboard-focus ring replacement (only a `box-shadow` on `:focus`, which also fires on mouse click). Once a keyboard user tabs off an input they lose the focus indicator entirely — WCAG 2.4.7 (AA). Add a single tokenized rule using `var(--accent)` with 2px offset, then separate mouse-focus from keyboard-focus styling on inputs.
+Global `:focus-visible` outlines exist in `base.css`. Some inputs still pair `outline: none` with `:focus` box-shadow in a way that also fires on mouse click. Prefer splitting keyboard vs pointer affordances where it still feels noisy.
 
-**Files:** `static/styles/components.css`, `static/styles/base.css`, `static/styles/hud.css`
+**Files:** `static/styles/components.css`, `static/styles/hud.css`
 
-### Raise low-contrast text and input placeholders to WCAG AA
+### Contrast audit (quantified)
 
-Spot failures on translucent backgrounds:
+Several surfaces were brightened (e.g. duel queue note, game-over stat labels, chat/menu placeholders, `prefers-contrast: more` hooks). Remaining: measure against WCAG AA on every translucent panel, especially stacked `.help-group` copy; add explicit ratio checks to the release manual-test plan.
 
-- `.menu-surface-note` (11.84px `rgba(206, 220, 242, 0.68)`) — below 4.5:1
-- `.code-input::placeholder` (`rgba(199, 212, 234, 0.3)`) — below 3:1 for UI component non-text contrast (WCAG 1.4.11)
-- `.menu-profile-input::placeholder` (`rgba(199, 212, 234, 0.38)`) — same
-- `.fate-card-detail` (0.58rem, muted) and `.go-stat-label` (0.56rem, muted) — sub-10px body text
-- `.help-row` copy stacked on `.help-group` translucency
+**Files:** `static/styles/*.css`, `docs/MANUAL_TEST_PLAN.md`, `docs/A11Y.md`
 
-The axe suite already excludes `color-contrast`; add explicit ratio checks to the release manual-test plan, then tighten the token values or darken the surface behind them.
+### Stronger high-contrast modes
 
-**Files:** `static/styles/components.css`, `static/styles/overlays.css`, `static/styles/base.css`, `docs/MANUAL_TEST_PLAN.md`, `docs/A11Y.md`
-
-### Support `prefers-contrast` and `forced-colors`
-
-No matches for either media query anywhere in `static/styles/`. Users on Windows High Contrast or macOS Increase Contrast get the full translucent-surface treatment with no fallback. Add a `@media (prefers-contrast: more)` block that drops backdrop-blur, opaques surfaces, thickens borders, and pushes text to full white/accent; add a `@media (forced-colors: active)` block that uses system colors for buttons and focus rings.
+Current `prefers-contrast: more` / `forced-colors: active` improve borders, placeholders, and key labels. Still open: opaque panel fills, reducing `backdrop-filter` where it hurts legibility, and broader `CanvasText` / `Canvas` usage under `forced-colors`.
 
 **Files:** `static/styles/base.css`, `static/styles/components.css`, `static/styles/hud.css`, `static/styles/overlays.css`
 
-### Add player-facing large-text / HUD-scale presets
+### Tutorial: deepen task-first flow
 
-Live play depends on compact mono text across the HUD, ship list, latest-log bar, and help overlay, but there is no player-facing way to scale it up. Add at least `default` / `large` display presets that increase HUD copy, log text, utility-button hit areas, and any glyph-adjacent labels together, persist the choice in local storage, and cover the largest preset in the manual test plan.
-
-**Files:** `static/index.html`, `static/styles/base.css`, `static/styles/hud.css`, `static/styles/overlays.css`, `src/client/ui/`, `src/client/web-local-storage.ts`, `docs/MANUAL_TEST_PLAN.md`
-
-### Dismissible, pause-on-hover toasts
-
-`.toast` animations are pure timers (`animation: toastIn 0.3s, toastOut 0.3s ease-in 2.7s forwards`). No close control, no `animation-play-state` pause on hover/focus, and errors share the same auto-dismiss as info. NN/g guidance: errors should persist until acknowledged; informational toasts should pause for hover/focus. Add a close affordance, pause semantics, and route errors through `role="alert"`.
-
-**Files:** `static/styles/overlays.css`, `src/client/ui/` (toast view code), `static/index.html`
-
-### Help overlay navigation
-
-The help content is a single 560-px column with ten sections totaling ~4000 words. Candidates: sticky in-page ToC, tab strip across the top, or collapsible `<details>` per section (the DOM is already grouped by `.help-group`). Keep current content order; add jump affordance.
-
-**Files:** `static/index.html` (help overlay markup), `static/styles/overlays.css`, optional JS for active-section highlighting
-
-### First-session onboarding should be task-first, not prose-first
-
-The current tutorial copy explains the system well, but first-time players still have to read and remember too much before acting. Rework onboarding around the next required action: spotlight the selected ship, burn arrows, and confirm control; keep each step to one short instruction plus one concept; reserve the deeper vector-movement explanation for later steps or the help reference. Add a repeatable "what do I do now?" affordance after the first-turn flow.
+Welcome copy was shortened; remaining: spotlight-driven steps, a repeatable "what do I do now?" affordance, and tighter coupling to HUD hints.
 
 **Files:** `src/client/tutorial.ts`, `src/client/ui/hud-chrome-view.ts`, `static/index.html`, `static/styles/overlays.css`
 
-### Consolidate notification channels with a precedence policy
+### Help overlay: active-section highlighting (optional)
 
-Four overlapping surfaces can fire in the same turn: `#phaseAlert`, `#toastContainer`, `#logLatestBar`, and the HUD status text inside `#topBar`. Define a precedence — e.g. *phase change → phase-alert only; action outcome → toast; historical → log; dynamic instruction → HUD status* — and enforce in code so signals don't stack. Document which surface each engine event targets.
+Jump links and TOC styling exist; optional follow-up: highlight the section in view on scroll, or collapse long groups with `<details>`.
 
-**Files:** `src/client/ui/overlay-view.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/telemetry.ts`, `docs/MANUAL_TEST_PLAN.md`
+**Files:** `static/index.html`, `static/styles/overlays.css`, optional small script in `src/client/ui/`
 
-### Difficulty selector as `role="radiogroup"` + inline hint
+### Enforce notification channel precedence in code
 
-Three buttons with an `.active` class that is mutually exclusive should announce as a radio group. Also add a one-line description under the active button so players know what changes between Easy/Normal/Hard (search depth, heuristics, or other). Applies to any similarly structured segmented controls.
+`notification-policy.ts` documents channel names and order; routing is still by callsite convention. Add deduplication or guardrails when adding new player-visible messages.
 
-**Files:** `static/index.html`, `src/client/ui/lobby-view.ts`, `static/styles/components.css`
+**Files:** `src/client/ui/overlay-view.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/telemetry.ts`
 
-### Quick Match queue state feedback
+### Waiting room: cancel during private-room "Connecting…"
 
-`#waitingStatus` currently pulses "Waiting for opponent…" with no elapsed time, no queue position, and `#cancelWaitingBtn` is hidden for the first N seconds. Add an elapsed counter and a visible "cancel search" button from the start so players can tell whether the queue is active.
+Quick match shows cancel + elapsed time; host "Connecting…" still omits cancel — evaluate safe teardown if players should abort that window too.
 
-**Files:** `static/index.html`, `src/client/game/session-controller.ts`, `src/client/ui/lobby-view.ts`
+**Files:** `src/client/ui/screens.ts`, `src/client/game/session-controller.ts`, `src/client/ui/lobby-view.ts`
 
-### Desktop menu layout and scenario picker
-
-`.menu-content { width: min(430px, 100%) }` applies at every breakpoint — on ≥1024px the menu is a narrow phone column in a 1000-px dark void. Options: widen to ~640px at `min-width: 1024px`, or split into a two-column hero+form layout, or surface the scenario grid inline (bypass the scenario-select screen entirely for Quick Match / Play vs AI).
-
-**Files:** `static/styles/components.css`, `static/styles/base.css`, `static/index.html`, `src/client/ui/lobby-view.ts`
-
-### Add richer scenario comparison metadata
-
-Scenario cards currently show name, tags, and a short description only. Add structured metadata so players can compare at a glance: recommended-for-new-players state, estimated length, complexity, and key mechanics such as fleet building, logistics, hidden information, or no combat. This should come from the scenario definition layer rather than hardcoded UI copy.
-
-**Files:** `src/shared/scenario-definitions.ts`, `src/shared/types/scenario.ts`, `src/client/ui/lobby-view.ts`, `static/styles/components.css`
-
-### Ship list overflow affordance
-
-`.ship-list { scrollbar-width: none }` hides scrollbars and there is no fade mask at the top/bottom. In Fleet Action / Interplanetary War scenarios the list overflows its max-height with no visual cue. Add a top/bottom linear-gradient mask that fades when the list is scrollable.
-
-**Files:** `static/styles/hud.css`, `src/client/ui/ship-list-view.ts`
-
-### Verify burn-arrow tap target size on small devices
-
-Manual review of the 375×812 mobile view shows burn arrows at roughly 40–44px, below Material 48dp and at the Apple HIG 44pt floor when packed in a cluster. Measure exact sizes in the renderer, then bump to ≥48px or add invisible padding to the hit region.
-
-**Files:** `src/client/renderer/course.ts`, `src/client/renderer/vectors.ts`, `src/client/input-interaction.ts`
-
-### Add digital-input parity for map selection and targeting
+### Digital-input parity for map selection and targeting
 
 Core map interactions are still pointer-first: selecting combat targets, cycling mixed-hex attackers, and resolving some tactical choices depend on click/tap hex input. Add keyboard-first targeting and selection flows that expose the current focus in the HUD, and structure them so gamepad support can reuse the same command path instead of bolting on a second interaction model later.
 
 **Files:** `src/client/game/keyboard.ts`, `src/client/game/input-events.ts`, `src/client/game/input.ts`, `src/client/game/combat.ts`, `src/client/ui/hud-chrome-view.ts`
 
-### Game over polish: auto-focus Rematch, unify replay transports
+### Replay transport: one visual language
 
-Two distinct replay UIs exist: the `#replayNav` cluster inside `#gameOver` (First / Prev / Next / Last) and the bottom `#replayBar` (Prev / Play/Pause / Next with icons). Transport controls should align. Separately, auto-focus `#rematchBtn` on game-over so Enter starts the next match; keep `#exitBtn` reachable via Tab. Consider demoting Exit to a text link.
+`#replayNav` (glyph buttons) and `#replayBar` (icons) are never shown together, but markup and styling diverge. Unify appearance, spacing, and disabled rules, or retire the inline cluster if the bottom bar becomes the single transport surface.
 
 **Files:** `static/index.html`, `src/client/game/replay-controller.ts`, `src/client/ui/overlay-view.ts`, `static/styles/overlays.css`
 
-### Reconnect overlay reassurance copy
+### Burn-arrow tap targets (verification)
 
-`#reconnectOverlay` shows a spinner and "Reconnecting…". Add a reassuring line ("Your fleet and plotted burns are saved — we're restoring the match state"). Reduces panic during network wobble.
+Renderer geometry was enlarged; confirm ≥48px effective targets on narrow phones and extend hit slop in `input-interaction` if needed.
 
-**Files:** `static/index.html`, `src/client/ui/overlay-view.ts`
+**Files:** `src/client/renderer/course.ts`, `src/client/renderer/vectors.ts`, `src/client/input-interaction.ts`
 
-### Layout stability for external Kofi image
-
-`<img src="https://storage.ko-fi.com/…" height="32">` is missing an explicit `width`, plus it's an external CDN fetch. Causes CLS on slow connections. Add a `width` attribute matching the asset's intrinsic aspect ratio.
-
-**Files:** `static/index.html`
-
-### Chat character counter
-
-`#chatInput` has `maxlength="200"` but silently rejects keystrokes at the cap. Add a subtle character counter visible at ≤ 20 remaining; announce through `aria-live="polite"` when the threshold is crossed.
-
-**Files:** `static/index.html`, `static/styles/hud.css`, `src/client/ui/game-log-view.ts`
-
-### Reconsider canvas `role="application"` semantics
-
-`#gameCanvas` has `role="application"`, which drops NVDA out of browse mode. The current `aria-label` is descriptive but not authoritative. Evaluate: keep `application` but expose a hidden live region that narrates phase and selected-ship state, or switch to `role="img"` with `aria-describedby` pointing at a continuously updated summary. Product decision — document rationale either way in `docs/A11Y.md`.
-
-**Files:** `static/index.html`, `src/client/ui/hud-chrome-view.ts` (live region updates), `docs/A11Y.md`
-
-### Standardize button-label casing
+### Standardize scenario / label casing
 
 HUD and menu buttons are uppercased via CSS `text-transform`, but scenario titles in `#scenarioList` are authored in mixed case ("Bi-Planetary") and then uppercased inconsistently. Pick one authoring style (prefer sentence case in HTML, CSS-uppercased in presentation) and apply uniformly.
 
