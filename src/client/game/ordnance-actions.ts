@@ -5,7 +5,7 @@ import type {
   PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
-import { TOAST, toastOrdnanceQueued } from '../messages/toasts';
+import { TOAST } from '../messages/toasts';
 import {
   getFirstUnacknowledgedOrdnanceActionableShipId,
   getOrdnanceActionableShipIds,
@@ -83,14 +83,8 @@ export const queueOrdnanceLaunch = (
   deps.planningState.acknowledgeOrdnanceShip(launch.shipId);
   deps.planningState.setTorpedoAimingActive(false);
 
-  const boostHint =
-    ordType === 'torpedo' && launch.torpedoAccel !== null
-      ? ` with \u00d7${launch.torpedoAccelSteps ?? 1} boost`
-      : '';
-  deps.showToast(
-    toastOrdnanceQueued(plan.shipName, ordType, boostHint),
-    'success',
-  );
+  // Launches are already logged to the game log; avoid duplicating the same
+  // event as a toast in the same tick.
   deps.logText(`${plan.shipName} launched ${ordType}`);
   advanceToNextOrdnanceShip(deps);
 
