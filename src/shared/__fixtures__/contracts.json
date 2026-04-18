@@ -807,6 +807,37 @@
       },
       "expectedOk": false
     },
+    "unknownClientMessageType": {
+      "raw": { "type": "godMode" },
+      "expectedOk": false
+    },
+    "fleetReadyPurchasesMissing": {
+      "raw": { "type": "fleetReady" },
+      "expectedOk": false
+    },
+    "fleetReadyPurchasesNotArray": {
+      "raw": { "type": "fleetReady", "purchases": {} },
+      "expectedOk": false
+    },
+    "fleetReadyInvalidShipType": {
+      "raw": {
+        "type": "fleetReady",
+        "purchases": [{ "kind": "ship", "shipType": "battlestar" }]
+      },
+      "expectedOk": false
+    },
+    "surrenderShipIdsNotArray": {
+      "raw": { "type": "surrender", "shipIds": "p0s0" },
+      "expectedOk": false
+    },
+    "surrenderShipIdsEmptyArray": {
+      "raw": { "type": "surrender", "shipIds": [] },
+      "expectedOk": false
+    },
+    "surrenderShipIdBlank": {
+      "raw": { "type": "surrender", "shipIds": ["p0s0", ""] },
+      "expectedOk": false
+    },
     "pingTimestampMissing": {
       "raw": { "type": "ping" },
       "expectedOk": false
