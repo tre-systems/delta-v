@@ -89,7 +89,6 @@ export const createGameClient = () => {
   };
 
   const turnTimer = createTurnTimerManager({
-    showToast,
     playWarning,
   });
   ui.bindTurnTimerSignal(turnTimer.viewSignal);
@@ -119,7 +118,7 @@ export const createGameClient = () => {
     getPlayerId: () => ctx.playerId as PlayerId,
     getPlanningState: () => ctx.planningState,
     renderer,
-    overlay: ui.overlay,
+    logText: (text, cssClass) => ui.log.logText(text, cssClass),
   });
 
   const actionDeps = createActionDeps({

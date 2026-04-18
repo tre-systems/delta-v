@@ -1,5 +1,4 @@
 import { TURN_TIMEOUT_MS } from '../../shared/constants';
-import { TOAST } from '../messages/toasts';
 import { type ReadonlySignal, signal } from '../reactive';
 
 export interface TurnTimerViewModel {
@@ -38,7 +37,6 @@ export const deriveTurnTimer = (
 };
 
 export interface TurnTimerDeps {
-  showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   playWarning: () => void;
 }
 
@@ -88,7 +86,6 @@ export const createTurnTimerManager = (
       if (timer.shouldWarn && !timerWarningPlayed) {
         timerWarningPlayed = true;
         deps.playWarning();
-        deps.showToast(TOAST.timer.thirtySecondsRemaining, 'info');
       }
     }, 1000);
   };
