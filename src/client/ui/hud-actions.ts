@@ -4,7 +4,7 @@ import type { HUDInput } from './hud';
 type CreateHudActionsInput = {
   update: (input: Omit<HUDInput, 'isMobile'>) => void;
   updateLatency: (latencyMs: number | null) => void;
-  updateFleetStatus: (status: string) => void;
+  updateFleetStatus: (status: string, ariaLabel?: string) => void;
   updateShipList: (
     ships: Ship[],
     selectedId: string | null,

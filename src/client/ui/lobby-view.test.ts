@@ -249,6 +249,9 @@ describe('LobbyView', () => {
     expect(document.getElementById('gameCode')?.dataset.variant).toBe(
       'roomCode',
     );
+    expect(
+      document.getElementById('gameCode')?.getAttribute('aria-label'),
+    ).toBe('Game code: A B C D E');
     expect(document.getElementById('waitingStatus')?.textContent).toBe(
       'Waiting for opponent...',
     );
@@ -264,6 +267,9 @@ describe('LobbyView', () => {
     expect(document.getElementById('gameCode')?.dataset.variant).toBe(
       'statusWord',
     );
+    expect(
+      document.getElementById('gameCode')?.getAttribute('aria-label'),
+    ).toBe('Searching for an opponent');
     expect(document.getElementById('waitingStatus')?.textContent).toBe(
       'Searching for an opponent...',
     );

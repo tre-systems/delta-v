@@ -49,6 +49,8 @@ export interface HudViewModel {
   canOverload: boolean;
   emplaceBaseState: OrdnanceActionState;
   fleetStatus: string;
+  /** Plain-language summary for `#fleetStatus` (visible text uses compact M/T/N). */
+  fleetStatusAriaLabel: string;
   selectedShipLanded: boolean;
   selectedShipDisabled: boolean;
   selectedShipHasBurn: boolean;

@@ -16,7 +16,7 @@ export type SessionHudConsumer = {
 };
 
 export type SessionFleetPanelUI = {
-  updateFleetStatus: (status: string) => void;
+  updateFleetStatus: (status: string, ariaLabel?: string) => void;
   updateShipList: (
     ships: GameState['ships'],
     selectedId: string | null,
@@ -129,7 +129,7 @@ export const attachSessionFleetPanelEffect = (
 
     const hud = deriveHudViewModel(gameState, playerId, session.planningState);
 
-    ui.updateFleetStatus(hud.fleetStatus);
+    ui.updateFleetStatus(hud.fleetStatus, hud.fleetStatusAriaLabel);
     ui.updateShipList(hud.myShips, hud.selectedId, session.planningState.burns);
   });
 

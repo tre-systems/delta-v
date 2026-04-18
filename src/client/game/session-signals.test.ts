@@ -352,7 +352,7 @@ describe('session-signals', () => {
       findBaseHex,
     );
 
-    expect(updateFleetStatus).toHaveBeenLastCalledWith('');
+    expect(updateFleetStatus).toHaveBeenLastCalledWith('', '');
     expect(updateShipList).toHaveBeenLastCalledWith(
       expect.arrayContaining([expect.objectContaining({ owner: 0 })]),
       expect.any(String),
