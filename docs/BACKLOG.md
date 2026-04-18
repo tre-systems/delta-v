@@ -6,7 +6,7 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 ## Recently shipped (2026-04-18)
 
-Follow-up on `main`: hosted MCP moved to workspace package `@delta-v/mcp-adapter`; server agent-seat bot AI now defaults to **normal** (same as single-player / lobby) via `SERVER_AGENT_AI_DIFFICULTY` instead of a hard-coded `hard` path in `game-do`.
+Follow-up on `main`: hosted MCP moved to workspace package `@delta-v/mcp-adapter`; server agent-seat bot AI now defaults to **normal** (same as single-player / lobby) via `SERVER_AGENT_AI_DIFFICULTY` instead of a hard-coded `hard` path in `game-do`. UX/docs: scenario list titles CSS-uppercased; menu/join/chat focus rings on `:focus-visible` only; notification-channel precedence helpers + tests; manual test plan contrast spot-check section.
 
 Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; stronger placeholders and `prefers-contrast: more` / `forced-colors: active` baselines; HUD default|large text scale (localStorage + lobby controls + `html[data-hud-scale]` CSS); help overlay jump links + TOC styling; quick-match waiting elapsed time; scenario `lobbyMeta` rendered on lobby cards; difficulty `role="radiogroup"` and hint line; wider menu/scenario shell at ≥1024px; ship-list bottom fade when scrollable; larger burn/overload hit targets; chat character counter; reconnect reassurance copy; game-over rematch auto-focus; `#hudBoardSummary` live region for board context; Ko-fi image dimensions; shorter welcome tutorial line; `src/client/messages/notification-policy.ts` as documented channel names (runtime deduplication enforcement still open below). Toasts: dismiss control, hover/focus pause + CSS `animation-play-state` for info/success, errors persist with `role="alert"` until dismissed. Waiting **Cancel** after `cancelQuickMatch` calls `exitToMenu` when still not on `menu` (fixes private-room / join / post-match quick-match teardown); connecting copy shows **Cancel** with clearer titles. Archived replay `fetch` is aborted when leaving to menu or starting another replay (`AbortSignal` + `releaseArchivedReplayFetchAbortIfMatches` guard). Asteroid column on the Other Damage table: rolls 5–6 are both D1 per 2018 rulebook (was D2 on 6). Security hardening: MCP JSON body cap 16 KB; committed `DEV_MODE=0` with local dev via `.dev.vars` (`DEV_MODE=1`, see `.dev.vars.example`); hosted MCP `matchToken` redemption requires `Authorization: Bearer`; `POST /quick-match` with `agent_…` `playerKey` requires a verified agent Bearer (shared `queueForMatch` mints via `/api/agent-token` first) so leaderboard `is_agent` is not prefix-spoofable; MCP enqueue sets an internal verified-agent header when the tool caller is authenticated.
 
@@ -18,13 +18,13 @@ Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Ma
 
 ### Refine `:focus` vs `:focus-visible` on form controls
 
-Global `:focus-visible` outlines exist in `base.css`. Some inputs still pair `outline: none` with `:focus` box-shadow in a way that also fires on mouse click. Prefer splitting keyboard vs pointer affordances where it still feels noisy.
+**Partial (2026-04-18):** menu profile field, room **code** input, and HUD **chat** input now apply border/box-shadow rings on `:focus-visible` only (outline still cleared on `:focus` so mouse clicks do not flash the keyboard ring).
 
 **Files:** `static/styles/components.css`, `static/styles/hud.css`
 
 ### Contrast audit (quantified)
 
-Several surfaces were brightened (e.g. duel queue note, game-over stat labels, chat/menu placeholders, `prefers-contrast: more` hooks). Remaining: measure against WCAG AA on every translucent panel, especially stacked `.help-group` copy; add explicit ratio checks to the release manual-test plan.
+Several surfaces were brightened (e.g. duel queue note, game-over stat labels, chat/menu placeholders, `prefers-contrast: more` hooks). **Partial (2026-04-18):** [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md) now has a **Contrast & readability** section with explicit WCAG AA spot-check steps for help overlay and game-over; [A11Y.md](./A11Y.md) manual checklist links there. Remaining: execute the measurements each release and tune CSS from findings.
 
 **Files:** `static/styles/*.css`, `docs/MANUAL_TEST_PLAN.md`, `docs/A11Y.md`
 
@@ -48,9 +48,9 @@ Jump links and TOC styling exist; optional follow-up: highlight the section in v
 
 ### Enforce notification channel precedence in code
 
-`notification-policy.ts` documents channel names and order; routing is still by callsite convention. Add deduplication or guardrails when adding new player-visible messages.
+**Partial (2026-04-18):** `notification-policy.ts` exports `NOTIFICATION_CHANNEL_PRECEDENCE`, `notificationChannelPrecedenceIndex`, and `preferNotificationChannel` so call sites can resolve conflicts without duplicating ordering; Vitest covers ordering and ties. **Still open:** wire `preferNotificationChannel` into overlay/HUD routing where two channels could fire together, and dedupe identical copy in the same tick.
 
-**Files:** `src/client/ui/overlay-view.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/telemetry.ts`
+**Files:** `src/client/messages/notification-policy.ts`, `src/client/ui/overlay-view.ts`, `src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`, `src/client/telemetry.ts`
 
 ### Digital-input parity for map selection and targeting
 
@@ -72,9 +72,9 @@ Renderer geometry was enlarged; confirm ≥48px effective targets on narrow phon
 
 ### Standardize scenario / label casing
 
-HUD and menu buttons are uppercased via CSS `text-transform`, but scenario titles in `#scenarioList` are authored in mixed case ("Bi-Planetary") and then uppercased inconsistently. Pick one authoring style (prefer sentence case in HTML, CSS-uppercased in presentation) and apply uniformly.
+**Done (2026-04-18):** `.scenario-name` now uses `text-transform: uppercase` (and slightly wider letter-spacing) so scenario buttons match other menu chrome that is CSS-uppercased, regardless of mixed-case authoring in `SCENARIOS`.
 
-**Files:** `static/index.html`, `src/client/ui/lobby-view.ts`, `static/styles/components.css`
+**Files:** `static/styles/components.css`, `src/client/ui/lobby-view.ts`, `src/shared/scenario-definitions.ts`
 
 ---
 

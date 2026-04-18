@@ -19,7 +19,8 @@ import type { OverlayStateStore } from './overlay-state';
  *   is also an error the player must acknowledge.
  * - Narrative / history → game log, not toasts.
  *
- * Precedence names and ordering: `src/client/messages/notification-policy.ts`.
+ * Precedence helpers: `NOTIFICATION_CHANNEL_PRECEDENCE` and
+ * `preferNotificationChannel` in `src/client/messages/notification-policy.ts`.
  */
 export interface OverlayView {
   showToast: (message: string, type?: 'error' | 'info' | 'success') => void;

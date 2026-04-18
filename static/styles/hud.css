@@ -304,7 +304,7 @@
   color: rgba(160, 176, 202, 0.52);
 }
 
-.chat-input:focus {
+.chat-input:focus-visible {
   border-color: rgba(122, 215, 255, 0.3);
 }
 
