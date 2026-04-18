@@ -66,13 +66,17 @@ Tune candidate thresholds with simulation outcomes (especially scenario-specific
 
 ### Tighten Hard-difficulty nuke gates with cost and intercept probability
 
-Expected-damage refinement beyond current gates, and **`simulate:duel-sweep`**-driven tuning of thresholds (rulebook: nuke **300 MCr** vs torpedo **20 MCr**, **2:1** anti-nuke table, detonation on lane contacts).
+**Done for this slice:** raised hard `nukeMinReachProbability` and the nuke score floor when a torpedo is also viable so marginal lanes prefer the cheaper weapon; duel-sweep remains the harness for follow-up EV tuning.
+
+**Remaining:** expected-damage refinement beyond current gates, and **`simulate:duel-sweep`**-driven threshold tables tied to measurement runs (rulebook: nuke **300 MCr** vs torpedo **20 MCr**, **2:1** anti-nuke table, detonation on lane contacts).
 
 **Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/engine/combat.ts`
 
 ### Add ordnance AI regression fixtures for impossible-shot launches
 
-Same-stack edge cases beyond launch-hex stacking, deeper gravity-edge assertions (beyond open-map determinism smoke), optional `game-engine.test.ts` integration seeds.
+**Done for this slice:** `evaluateOrdnanceLaunchIntercept` wired to the same open-map drift geometry as the existing impossible-shot ordnance fixtures.
+
+**Remaining:** same-stack edge cases beyond launch-hex stacking, deeper gravity-edge assertions (beyond open-map determinism smoke), optional `game-engine.test.ts` integration seeds.
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
 
@@ -126,7 +130,9 @@ Findings from a 2026-04-17 cost-surface review. Baseline controls are documented
 
 ### Deterministic initial publication path
 
-Route `initGameSession` through `runPublicationPipeline`, then remove the remaining `getActionRng()` fallbacks to `Math.random` in paths that should already have persistent match identity.
+**Done for this slice:** `initGameSession` already publishes via the same `GameDO.publishStateChange` → `runPublicationPipeline` path as post-init actions; `getActionRng()` breach fallbacks now use fixed-seed `mulberry32` streams instead of `Math.random` so any accidental call stays replayable while warnings surface the bug.
+
+**Remaining:** optional further deduplication if `match.ts` should call `runPublicationPipeline` without the `publishStateChange` indirection.
 
 **Files:** `src/server/game-do/match.ts`, `src/server/game-do/publication.ts`, `src/server/game-do/game-do.ts`, `src/shared/prng.ts`
 
@@ -166,7 +172,9 @@ Tighten scenario/body registries around closed keys; brand ship / ordnance ident
 
 ### Scenario and map validation
 
-Validate scenario definitions and map data at load/game-creation time: conflicting rule combinations, unknown bodies, invalid spawn hexes, overlapping bodies, unreachable bases, and bounds that should be derived from body placement instead of hardcoded constants.
+**Done for this slice:** `createGame` rejects unknown `player.targetBody` names when the map declares bodies (same policy as `homeBody`).
+
+**Remaining:** conflicting rule combinations, invalid spawn hexes, overlapping bodies, unreachable bases, and bounds that should be derived from body placement instead of hardcoded constants.
 
 **Files:** `src/shared/map-data.ts`, `src/shared/map-layout.ts`, `src/shared/engine/game-creation.ts`, `src/shared/types/domain.ts`
 

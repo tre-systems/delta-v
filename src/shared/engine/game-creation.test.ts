@@ -202,4 +202,28 @@ describe('createGame', () => {
       expect(result.error.message).toContain('No valid landed starting hex');
     }
   });
+  it('rejects scenarios whose targetBody is not on the map', () => {
+    const invalidScenario: ScenarioDefinition = {
+      ...SCENARIOS.biplanetary,
+      players: [
+        {
+          ...SCENARIOS.biplanetary.players[0],
+          targetBody: 'NotARealBody',
+        },
+        SCENARIOS.biplanetary.players[1],
+      ],
+    };
+    const result = createGame(
+      invalidScenario,
+      map,
+      asGameId('BADTGT'),
+      findBaseHex,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('targetBody');
+      expect(result.error.message).toContain('NotARealBody');
+    }
+  });
 });

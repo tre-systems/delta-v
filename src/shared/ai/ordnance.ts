@@ -56,7 +56,7 @@ type InterceptResult = {
 // torpedo 20 MCr. When both are geometrically viable, the AI should not spend
 // the nuke premium for marginal target value.
 const NUKE_SCORE_FLOOR = 70;
-const NUKE_SCORE_FLOOR_WHEN_TORPEDO_VIABLE = 115;
+const NUKE_SCORE_FLOOR_WHEN_TORPEDO_VIABLE = 122;
 const NUKE_STRENGTH_RATIO_WHEN_TORPEDO_VIABLE = 2;
 
 export type LaunchInterceptAssessment = {

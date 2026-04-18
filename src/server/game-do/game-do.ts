@@ -6,7 +6,7 @@ import {
   isValidScenario,
   SCENARIOS,
 } from '../../shared/map-data';
-import { deriveActionRng } from '../../shared/prng';
+import { deriveActionRng, mulberry32 } from '../../shared/prng';
 import type { GameState, PlayerId, Result } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import {
@@ -305,10 +305,12 @@ export class GameDO extends DurableObject<Env> {
 
     if (!gameId) {
       // Pre-init action: no match identity has been allocated yet.
-      // Math.random is the only option, but this should not happen on
-      // any action path that runs after initGame. Log for diagnosis.
-      console.warn('[getActionRng] fallback to Math.random — no latest gameId');
-      return Math.random;
+      // Use a fixed-seed PRNG so any stray path stays replayable in CI;
+      // this should not happen on any action path that runs after initGame.
+      console.warn(
+        '[getActionRng] fallback to deterministic PRNG — no latest gameId',
+      );
+      return mulberry32(0x7e1110cf);
     }
 
     const [seed, seq] = await Promise.all([
@@ -322,9 +324,9 @@ export class GameDO extends DurableObject<Env> {
       // legitimate match should always have its seed. Warn loudly so
       // production deploys catch the regression.
       console.warn(
-        `[getActionRng] fallback to Math.random — matchSeed missing for ${gameId}`,
+        `[getActionRng] fallback to deterministic PRNG — matchSeed missing for ${gameId}`,
       );
-      return Math.random;
+      return mulberry32(0x7eed10cf);
     }
 
     return deriveActionRng(seed, seq);

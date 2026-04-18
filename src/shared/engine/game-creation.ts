@@ -112,6 +112,13 @@ const validateScenarioBodyReferences = (
           `"${player.homeBody}" in player.homeBody`,
       );
     }
+    if (player.targetBody && !knownBodyNames.has(player.targetBody)) {
+      return engineError(
+        ErrorCode.INVALID_INPUT,
+        `Scenario ${scenario.name} references unknown body ` +
+          `"${player.targetBody}" in player.targetBody`,
+      );
+    }
   }
   return null;
 };
