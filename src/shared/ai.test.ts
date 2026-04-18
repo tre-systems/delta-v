@@ -1431,6 +1431,32 @@ describe('aiOrdnance — nuke launch conditions', () => {
       expect(['nuke', 'torpedo']).toContain(launches[0].ordnanceType);
     }
   });
+  it('hard AI prefers torpedo when a torpedo can reach the target but nuke payoff is marginal', () => {
+    // Rulebook nuke is 15× torpedo cost; dreadnaught outguns a frigate but not
+    // by 2× combat strength, and the target score stays below the elevated floor.
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('TNVN'),
+      findBaseHex,
+    );
+    state.turnNumber = 4;
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemy = must(state.ships.find((s) => s.owner === 0));
+    aiShip.type = 'frigate';
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: 0, r: 0 };
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.cargoUsed = 0;
+    enemy.type = 'dreadnaught';
+    enemy.lifecycle = 'active';
+    enemy.position = { q: 4, r: 0 };
+    enemy.velocity = { dq: 0, dr: 0 };
+    const launches = aiOrdnance(state, 1, openMap, 'hard');
+    expect(launches.length).toBeGreaterThan(0);
+    expect(launches[0].ordnanceType).toBe('torpedo');
+  });
+
   it('hard AI does not open with a nuke when enemy is out of point-blank range', () => {
     // Regression for the early-turn nuke guard ported from the coach policy.
     // On turn 1–2 we want the AI to reach for a torpedo rather than immediately
