@@ -111,9 +111,9 @@ Rulebook p.5 requires the launching ship to "execute an immediate course change 
 
 ### Align local and server AI difficulty defaults
 
-Single-player client sessions default to `normal`, while server bot helpers still default to `hard`. That means the same scenario can show materially different ordnance doctrine depending on execution path: `hard` unlocks nuke use, `normal` does not. Pick one default, thread it explicitly through all bot entry points, and update the lobby/help copy if product wants the split to remain intentional instead of accidental.
+**Done (2026-04-18):** server-scheduled agent seats now use `SERVER_AGENT_AI_DIFFICULTY` (`normal`), matching the client single-player default and lobby `aiDifficulty` default. `buildBotAction` defaults to the same constant.
 
-**Files:** `src/client/game/session-model.ts`, `src/server/game-do/bot.ts`, `src/client/ui/lobby-view.ts`, `src/client/game/ai-flow.ts`
+**Files:** `src/server/game-do/bot.ts`, `src/server/game-do/game-do.ts`, `src/client/game/session-model.ts`, `src/client/ui/lobby-view.ts`, `src/client/game/ai-flow.ts`
 
 ### Add ordnance AI regression fixtures for impossible-shot launches
 
