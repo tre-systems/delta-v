@@ -3,6 +3,7 @@ import {
   type QuickMatchResponse,
 } from '../../shared/matchmaking';
 import { ErrorCode, type Result } from '../../shared/types/domain';
+import { TOAST } from '../messages/toasts';
 import type { WaitingScreenState } from '../ui/screens';
 import type { ClientState } from './phase';
 import type { PlayerProfileService } from './player-profile-service';
@@ -212,7 +213,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
             scenario: payload.scenario,
             reason: payload.reason,
           });
-          deps.showToast('Quick Match expired. Try again.', 'error');
+          deps.showToast(TOAST.session.quickMatchExpired, 'error');
           deps.setState('menu');
           return;
         }
@@ -228,7 +229,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           scenario: QUICK_MATCH_SCENARIO,
           reason: failureKind,
         });
-        deps.showToast('Quick Match lost connection. Try again.', 'error');
+        deps.showToast(TOAST.session.quickMatchLostConnection, 'error');
         deps.setState('menu');
         return;
       }
@@ -253,7 +254,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           reason: 'server',
           status: res.status,
         });
-        deps.showToast('Server error — try again shortly', 'error');
+        deps.showToast(TOAST.connection.serverErrorRetryShortly, 'error');
         deps.setState('menu');
         return;
       }
@@ -284,11 +285,11 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       });
 
       if (failureKind === 'timeout') {
-        deps.showToast('Game creation timed out. Try again.', 'error');
+        deps.showToast(TOAST.session.gameCreateTimeout, 'error');
       } else if (failureKind === 'network') {
-        deps.showToast('Network error \u2014 check your connection.', 'error');
+        deps.showToast(TOAST.session.gameCreateNetwork, 'error');
       } else {
-        deps.showToast('Failed to create game. Try again.', 'error');
+        deps.showToast(TOAST.session.gameCreateFailed, 'error');
       }
       console.error('Failed to create game:', err);
       deps.setState('menu');
@@ -313,10 +314,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           scenario: QUICK_MATCH_SCENARIO,
           reason: 'active_in_other_tab',
         });
-        deps.showToast(
-          'Quick Match is already active in another tab. Use a private window to join as a second local player.',
-          'error',
-        );
+        deps.showToast(TOAST.session.quickMatchOtherTab, 'error');
         deps.setState('menu');
         return;
       }
@@ -339,7 +337,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           reason: 'server',
           status: response.status,
         });
-        deps.showToast('Quick Match is unavailable right now.', 'error');
+        deps.showToast(TOAST.session.quickMatchUnavailable, 'error');
         deps.setState('menu');
         return;
       }
@@ -357,7 +355,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           scenario: payload.scenario,
           reason: payload.reason,
         });
-        deps.showToast('Quick Match expired. Try again.', 'error');
+        deps.showToast(TOAST.session.quickMatchExpired, 'error');
         deps.setState('menu');
         return;
       }
@@ -380,7 +378,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         scenario: QUICK_MATCH_SCENARIO,
         reason: failureKind,
       });
-      deps.showToast('Failed to enter Quick Match. Try again.', 'error');
+      deps.showToast(TOAST.session.quickMatchEnterFailed, 'error');
       deps.setState('menu');
     } finally {
       deps.setMenuLoading(false);

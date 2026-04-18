@@ -1,5 +1,6 @@
 import type { ReplayTimeline } from '../../shared/replay';
 import type { GameState } from '../../shared/types/domain';
+import { TOAST } from '../messages/toasts';
 import { type ReadonlySignal, signal } from '../reactive';
 import {
   createHiddenReplayControls,
@@ -252,10 +253,7 @@ export const createReplayController = (
       const ctx = deps.getClientContext();
 
       if (ctx.isLocalGame) {
-        deps.showToast(
-          'Replay is only available for multiplayer matches right now.',
-          'info',
-        );
+        deps.showToast(TOAST.sessionController.replayLocalOnly, 'info');
         return;
       }
 
@@ -288,7 +286,7 @@ export const createReplayController = (
       );
 
       if (!timeline || timeline.entries.length === 0) {
-        deps.showToast('Replay unavailable for this match.', 'error');
+        deps.showToast(TOAST.sessionController.replayUnavailable, 'error');
         updateOverlay();
         return;
       }
@@ -347,7 +345,7 @@ export const createReplayController = (
     },
     startArchivedReplay: (timeline) => {
       if (timeline.entries.length === 0) {
-        deps.showToast('Replay has no entries.', 'error');
+        deps.showToast(TOAST.sessionController.replayNoEntries, 'error');
         return;
       }
 

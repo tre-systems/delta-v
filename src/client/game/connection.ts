@@ -2,6 +2,7 @@ import { must } from '../../shared/assert';
 import { validateServerMessage } from '../../shared/protocol';
 import type { GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
+import { TOAST } from '../messages/toasts';
 import {
   deriveDisconnectHandling,
   deriveReconnectAttemptPlan,
@@ -154,7 +155,7 @@ export const createConnectionManager = (
         attempts: reconnectAttempts,
       });
       clearReconnectFlow();
-      deps.showToast('Could not reconnect to game', 'error');
+      deps.showToast(TOAST.connection.couldNotReconnect, 'error');
       deps.exitToMenu();
       return;
     }
@@ -188,22 +189,22 @@ export const createConnectionManager = (
       reasonLen: close?.reason?.length ?? 0,
     });
     if (!close || close.code === 1000) {
-      deps.showToast('Could not connect to game', 'error');
+      deps.showToast(TOAST.connection.couldNotConnect, 'error');
       return;
     }
     if (close.code === 1006) {
-      deps.showToast('Could not reach game server', 'error');
+      deps.showToast(TOAST.connection.couldNotReachServer, 'error');
       return;
     }
     if (close.code === 1008) {
-      deps.showToast('Connection rejected by server', 'error');
+      deps.showToast(TOAST.connection.connectionRejected, 'error');
       return;
     }
     if (close.code === 1011) {
-      deps.showToast('Server error — try again shortly', 'error');
+      deps.showToast(TOAST.connection.serverErrorRetryShortly, 'error');
       return;
     }
-    deps.showToast('Could not connect to game', 'error');
+    deps.showToast(TOAST.connection.couldNotConnect, 'error');
   };
 
   const handleDisconnect = () => {

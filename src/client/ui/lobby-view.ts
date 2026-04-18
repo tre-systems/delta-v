@@ -7,6 +7,7 @@ import {
   fetchPlayerRank,
   postClaimName,
 } from '../leaderboard/api';
+import { TOAST } from '../messages/toasts';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { getWebLocalStorage } from '../web-local-storage';
 import type { AIDifficulty, UIEvent } from './events';
@@ -371,10 +372,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         result.error === 'unknown'
       ) {
         setCallsignStatus('', 'info');
-        deps.showToast(
-          'Could not save callsign online — you can still play.',
-          'info',
-        );
+        deps.showToast(TOAST.lobby.claimCouldNotSaveOnline, 'info');
         return;
       }
     };

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-
 import type { GameId } from '../../shared/ids';
 import { asGameId } from '../../shared/ids';
 import type { ReplayTimeline } from '../../shared/replay';
 import type { GameState } from '../../shared/types/domain';
+import { TOAST } from '../messages/toasts';
 import { createReplayController } from './replay-controller';
 
 const createState = (gameId: GameId): GameState => ({
@@ -202,6 +202,7 @@ describe('replay-controller', () => {
 
     expect(toastCalls).toHaveLength(1);
     expect(toastCalls[0].type).toBe('error');
+    expect(toastCalls[0].message).toBe(TOAST.sessionController.replayNoEntries);
     expect(applied).toHaveLength(0);
   });
 });

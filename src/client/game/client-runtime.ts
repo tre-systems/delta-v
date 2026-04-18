@@ -10,6 +10,7 @@ import {
   bindServiceWorkerControllerReload,
 } from '../game-client-browser';
 import type { InputHandler } from '../input';
+import { TOAST } from '../messages/toasts';
 import type { Renderer } from '../renderer/renderer';
 import type { UIEvent } from '../ui/events';
 import type { UIManager } from '../ui/ui';
@@ -90,9 +91,8 @@ const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
     },
     onTooltipMove: (clientX, clientY) => deps.updateTooltip(clientX, clientY),
     onTooltipLeave: () => hide(deps.tooltipEl),
-    onOffline: () =>
-      deps.showToast("You're offline — check your connection", 'error'),
-    onOnline: () => deps.showToast('Back online', 'success'),
+    onOffline: () => deps.showToast(TOAST.clientRuntime.offline, 'error'),
+    onOnline: () => deps.showToast(TOAST.clientRuntime.backOnline, 'success'),
   });
 
 // Light sanity check on archived-replay URL params. The server's /replay
@@ -226,7 +226,10 @@ export const setupClientRuntime = ({
   renderer.start();
   autoJoinFromUrl(
     (code, playerToken) => interactions.joinGame(code, playerToken),
-    (code) => interactions.spectateGame(code),
+    (code) => {
+      interactions.spectateGame(code);
+      interactions.showToast(TOAST.spectator.urlWatchOnly, 'info');
+    },
     (code, gameId) => interactions.viewArchivedReplay(code, gameId),
     setMenuState,
   );

@@ -29,4 +29,23 @@ test.describe('live spectator fallback', () => {
       await session.close();
     }
   });
+
+  test('spectator URL shows a watch-only toast', async ({ browser }) => {
+    const session = await createMultiplayerSession(browser);
+    const viewer = await browser.newPage();
+
+    try {
+      await openHomePage(viewer, { tutorialDone: true });
+      await viewer.goto(`/?code=${session.roomCode}&viewer=spectator`, {
+        waitUntil: 'domcontentloaded',
+      });
+      await waitForDisplay(viewer, '[data-testid="hud"]', 'block', 15_000);
+      await expect(
+        viewer.locator('[data-testid="toastContainer"]'),
+      ).toContainText('spectator');
+    } finally {
+      await closePages(viewer);
+      await session.close();
+    }
+  });
 });

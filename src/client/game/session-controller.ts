@@ -6,6 +6,7 @@ import {
   type PlayerId,
   type Result,
 } from '../../shared/types/domain';
+import { TOAST } from '../messages/toasts';
 import {
   resetReconnectAttempts,
   setGameCode,
@@ -345,7 +346,7 @@ export const beginArchivedReplaySession = async (
   const timeline = await deps.fetchArchivedReplay(code, gameId);
 
   if (!timeline || timeline.entries.length === 0) {
-    deps.showToast('Replay unavailable for this match.', 'error');
+    deps.showToast(TOAST.sessionController.replayUnavailable, 'error');
     deps.exitToMenu();
     return;
   }
@@ -379,10 +380,7 @@ export const beginJoinGameSession = async (
       validation.error.code === ErrorCode.ROOM_FULL &&
       deps.fallbackToSpectator
     ) {
-      deps.showToast(
-        'This room is full — you are joining as a spectator.',
-        'info',
-      );
+      deps.showToast(TOAST.sessionController.joinRoomFullSpectator, 'info');
       deps.fallbackToSpectator(code);
       return;
     }

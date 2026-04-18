@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
 import { createGameOrThrow } from '../../shared/engine/game-engine';
 import { asGameId } from '../../shared/ids';
 import {
@@ -10,6 +9,7 @@ import {
 } from '../../shared/map-data';
 import type { ReplayTimeline } from '../../shared/replay';
 import { ErrorCode, type GameState } from '../../shared/types/domain';
+import { TOAST } from '../messages/toasts';
 import {
   type ArchivedReplaySessionDeps,
   beginArchivedReplaySession,
@@ -439,7 +439,7 @@ describe('session-controller', () => {
 
     expect(fallbackSpy).toHaveBeenCalledWith('FGHIJ');
     expect(deps.calls.showToast).toEqual([
-      ['This room is full — you are joining as a spectator.', 'info'],
+      [TOAST.sessionController.joinRoomFullSpectator, 'info'],
     ]);
     expect(deps.calls.exitToMenu).toBeUndefined();
   });
@@ -543,7 +543,7 @@ describe('session-controller', () => {
     await beginArchivedReplaySession(deps, 'MISSG', 'MISSG-m1');
 
     expect(deps.calls.showToast).toEqual([
-      ['Replay unavailable for this match.', 'error'],
+      [TOAST.sessionController.replayUnavailable, 'error'],
     ]);
     expect(deps.calls.exitToMenu).toHaveLength(1);
     expect(deps.calls.startArchivedReplay).toBeUndefined();
