@@ -8,13 +8,13 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 Follow-up on `main`: hosted MCP moved to workspace package `@delta-v/mcp-adapter`; server agent-seat bot AI now defaults to **normal** (same as single-player / lobby) via `SERVER_AGENT_AI_DIFFICULTY` instead of a hard-coded `hard` path in `game-do`. UX/docs: scenario list titles CSS-uppercased; menu/join/chat focus rings on `:focus-visible` only (HUD chat ring matches menu strength; lobby HUD scale buttons 48px min height); notification-channel precedence helpers + tests; **phase banner** driven by `attachSessionPhaseAlertEffect` (`session-ui-effects.ts`) on aligned `playing_*` ↔ `gameState.phase` transitions (re-shows after `playing_movementAnim`); **toast dedupe** (`createToastDedupeGate` in `notification-policy.ts`, wired in `overlay-view.ts` `showToast`); **`preferNotificationChannel`** in `showToast` so **non-error toasts yield to an active phase alert**; `prefers-contrast: more` / `forced-colors: active` pass on full-screen `.screen`, menu shell, **`#menu` / `.menu-surface` / inputs** in `components.css`, game-over `.overlay-panel` (plus **forced-colors** outcome hues on `h2` / divider via `forced-color-adjust: none`), reconnect, toasts, tutorial tip, help/sound FABs, help TOC/groups, `#phaseAlert`, and **HUD** (`.hud-bar`, ship list / log, latest log bar, ship tooltip); manual test plan contrast spot-check section; game-over replay nav matches bottom replay bar (`replay-btn` + SVGs). Help overlay a11y: `show()` clears `aria-hidden` when an element is shown; lobby **How to Play** calls `hudChromeView.toggleHelpOverlay()` so overlay open/close matches the HUD (single handler on `#helpCloseBtn`). HUD **`#fleetStatus`**: `deriveHudViewModel` supplies `fleetStatusAriaLabel` (plain-language ordnance + fleet counts); `updateFleetStatus` passes it to `aria-label` on the span. Waiting **`#gameCode`**: `aria-live="polite"` / `aria-atomic="true"` in markup; lobby sets `aria-label` (spelled game code, quick-match status, or connecting placeholder). **Local stdio MCP:** `delta_v_send_action` with `waitForResult` resolves on S2C **`error`** with `{ accepted: false, reason, message }` (protocol errors wake the same waiters as state updates). **`queueForMatch`:** `normalizeQuickMatchServerUrl` maps `ws://` / `wss://` to `http://` / `https://` for REST; quick-match timeout error text suggests starting a second client or raising `timeoutMs`. **Docs:** [AGENTS.md](./AGENTS.md) adds hosted two-token walkthrough + `scripts/benchmark.ts` JSON field guide; [DELTA_V_MCP.md](./DELTA_V_MCP.md) links rate limits to [SECURITY.md](./SECURITY.md) §3; [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md) adds optional agent/MCP smoke checks.
 
-Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; stronger placeholders and `prefers-contrast: more` / `forced-colors: active` baselines; HUD default|large text scale (localStorage + lobby controls + `html[data-hud-scale]` CSS); help overlay jump links + TOC styling; quick-match waiting elapsed time; scenario `lobbyMeta` rendered on lobby cards; difficulty `role="radiogroup"` and hint line; wider menu/scenario shell at ≥1024px; ship-list bottom fade when scrollable; larger burn/overload hit targets; chat character counter; reconnect reassurance copy; game-over rematch auto-focus; `#hudBoardSummary` live region for board context; Ko-fi image dimensions; shorter welcome tutorial line; `src/client/messages/notification-policy.ts` as documented channel names (later: toast dedupe + `preferNotificationChannel` wiring per backlog). Toasts: dismiss control, hover/focus pause + CSS `animation-play-state` for info/success, errors persist with `role="alert"` until dismissed. Waiting **Cancel** after `cancelQuickMatch` calls `exitToMenu` when still not on `menu` (fixes private-room / join / post-match quick-match teardown); connecting copy shows **Cancel** with clearer titles. Archived replay `fetch` is aborted when leaving to menu or starting another replay (`AbortSignal` + `releaseArchivedReplayFetchAbortIfMatches` guard). Asteroid column on the Other Damage table: rolls 5–6 are both D1 per 2018 rulebook (was D2 on 6). Security hardening: MCP JSON body cap 16 KB; committed `DEV_MODE=0` with local dev via `.dev.vars` (`DEV_MODE=1`, see `.dev.vars.example`); hosted MCP `matchToken` redemption requires `Authorization: Bearer`; `POST /quick-match` with `agent_…` `playerKey` requires a verified agent Bearer (shared `queueForMatch` mints via `/api/agent-token` first) so leaderboard `is_agent` is not prefix-spoofable; MCP enqueue sets an internal verified-agent header when the tool caller is authenticated.
+Single release batch on `main`: global `:focus-visible` and `.visually-hidden`; stronger placeholders and `prefers-contrast: more` / `forced-colors: active` baselines; HUD default|large text scale (localStorage + lobby controls + `html[data-hud-scale]` CSS); help overlay jump links + TOC styling; quick-match waiting elapsed time; scenario `lobbyMeta` rendered on lobby cards; difficulty `role="radiogroup"` and hint line; wider menu/scenario shell at ≥1024px; ship-list bottom fade when scrollable; larger burn/overload hit targets; chat character counter; reconnect reassurance copy; game-over rematch auto-focus; `#hudBoardSummary` live region for board context; Ko-fi image dimensions; shorter welcome tutorial line; `src/client/messages/notification-policy.ts` as documented channel names. Toasts: dismiss control, hover/focus pause + CSS `animation-play-state` for info/success, errors persist with `role="alert"` until dismissed. Waiting **Cancel** after `cancelQuickMatch` calls `exitToMenu` when still not on `menu` (fixes private-room / join / post-match quick-match teardown); connecting copy shows **Cancel** with clearer titles. Archived replay `fetch` is aborted when leaving to menu or starting another replay (`AbortSignal` + `releaseArchivedReplayFetchAbortIfMatches` guard). Asteroid column on the Other Damage table: rolls 5–6 are both D1 per 2018 rulebook (was D2 on 6). Security hardening: MCP JSON body cap 16 KB; committed `DEV_MODE=0` with local dev via `.dev.vars` (`DEV_MODE=1`, see `.dev.vars.example`); hosted MCP `matchToken` redemption requires `Authorization: Bearer`; `POST /quick-match` with `agent_…` `playerKey` requires a verified agent Bearer (shared `queueForMatch` mints via `/api/agent-token` first) so leaderboard `is_agent` is not prefix-spoofable; MCP enqueue sets an internal verified-agent header when the tool caller is authenticated.
 
 ---
 
 ## Gameplay UX & matchmaking integrity
 
-Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Many original bullets shipped in **[Recently shipped](#recently-shipped-2026-04-18)**; the list below is **still open** or needs a verification pass.
+Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Shipped work is summarized in **[Recently shipped](#recently-shipped-2026-04-18)** only — the sections below are **open** (including “partial” items that still need follow-up or verification).
 
 ### Refine `:focus` vs `:focus-visible` on form controls
 
@@ -70,23 +70,11 @@ Core map interactions are still pointer-first: selecting combat targets, cycling
 
 **Files:** `src/client/game/keyboard.ts`, `src/client/game/input-events.ts`, `src/client/game/input.ts`, `src/client/game/combat.ts`, `src/client/ui/hud-chrome-view.ts`
 
-### Replay transport: one visual language
-
-**Done (2026-04-18):** game-over `#replayNav` now reuses `replay-bar-nav` + `replay-btn` and the same SVG icons as `#replayBar`, so spacing, hover, and disabled chrome match the active-replay bar.
-
-**Files:** `static/index.html`, `src/client/game/replay-controller.ts`, `src/client/ui/overlay-view.ts`, `static/styles/overlays.css`
-
 ### Burn-arrow tap targets (verification)
 
 Renderer burn/overload **disks** are visual; **astrogation picks still resolve by hex** (`resolveBurnToggle` / `resolveOverloadToggle` in `input.ts` — click targets the neighboring **cell**, not only the painted circle). At default zoom that is typically ≥48px; on very small `hexSize` viewports the cell can shrink — revisit only if playtesting reports misses.
 
 **Files:** `src/client/renderer/course.ts`, `src/client/renderer/vectors.ts`, `src/client/game/input.ts`, `src/client/input-interaction.ts`
-
-### Standardize scenario / label casing
-
-**Done (2026-04-18):** `.scenario-name` now uses `text-transform: uppercase` (and slightly wider letter-spacing) so scenario buttons match other menu chrome that is CSS-uppercased, regardless of mixed-case authoring in `SCENARIOS`.
-
-**Files:** `static/styles/components.css`, `src/client/ui/lobby-view.ts`, `src/shared/scenario-definitions.ts`
 
 ---
 
@@ -128,12 +116,6 @@ Verify the current engine matches the rulebook on:
 Rulebook p.5 requires the launching ship to "execute an immediate course change to insure that it does not remain in the same hex as the mine." AI mine launches are currently gated on "burn declared" without verifying the resulting course leaves the mine's hex — AI mines can self-destruct on the launcher.
 
 **Files:** `src/shared/engine/ordnance.ts`, `src/shared/ai/ordnance.ts`
-
-### Align local and server AI difficulty defaults
-
-**Done (2026-04-18):** server-scheduled agent seats now use `SERVER_AGENT_AI_DIFFICULTY` (`normal`), matching the client single-player default and lobby `aiDifficulty` default. `buildBotAction` defaults to the same constant.
-
-**Files:** `src/server/game-do/bot.ts`, `src/server/game-do/game-do.ts`, `src/client/game/session-model.ts`, `src/client/ui/lobby-view.ts`, `src/client/game/ai-flow.ts`
 
 ### Add ordnance AI regression fixtures for impossible-shot launches
 
@@ -232,12 +214,6 @@ Findings from a 2026-04-17 cost-surface review. Ordered by expected blast radius
 ---
 
 ## Architecture & correctness
-
-### Extract MCP adapter into a dedicated subpackage
-
-**Done (2026-04-17):** hosted MCP (`handleMcpHttpRequest`, `queueRemoteMatch`) lives in `packages/mcp-adapter/` with its own `package.json`; the root app depends on `@delta-v/mcp-adapter` so `@modelcontextprotocol/sdk` and `zod` are not top-level dependencies. Local stdio MCP (`scripts/delta-v-mcp-server.ts`) imports the SDK via `@delta-v/mcp-adapter/runtime`.
-
-**Files:** `packages/mcp-adapter/`, `scripts/delta-v-mcp-server.ts`, `src/server/index.ts`, root `package.json` workspaces, MCP docs
 
 ### Deterministic initial publication path
 
