@@ -42,6 +42,12 @@ type InterceptResult = {
   turnsToIntercept: number;
 };
 
+export type LaunchInterceptAssessment = {
+  hasIntercept: boolean;
+  turnsToIntercept: number;
+  targetShipId: Ship['id'] | null;
+};
+
 const projectBallisticStep = (
   position: HexCoord,
   velocity: HexVec,
@@ -147,6 +153,59 @@ const pickTorpedoInterceptVector = (
   }
 
   return best ? { direction: best.direction, steps: best.steps } : null;
+};
+
+export const evaluateOrdnanceLaunchIntercept = (
+  state: GameState,
+  playerId: PlayerId,
+  launch: OrdnanceLaunch,
+  map: SolarSystemMap,
+): LaunchInterceptAssessment => {
+  const ship = state.ships.find(
+    (candidate) =>
+      candidate.id === launch.shipId &&
+      candidate.owner === playerId &&
+      candidate.lifecycle === 'active',
+  );
+  if (!ship) {
+    return {
+      hasIntercept: false,
+      turnsToIntercept: Number.POSITIVE_INFINITY,
+      targetShipId: null,
+    };
+  }
+  const ordnanceVelocity =
+    launch.ordnanceType === 'torpedo' && launch.torpedoAccel != null
+      ? (() => {
+          const dir = HEX_DIRECTIONS[launch.torpedoAccel];
+          const steps = launch.torpedoAccelSteps === 2 ? 2 : 1;
+          return {
+            dq: ship.velocity.dq + dir.dq * steps,
+            dr: ship.velocity.dr + dir.dr * steps,
+          };
+        })()
+      : { ...ship.velocity };
+  let bestTurns = Number.POSITIVE_INFINITY;
+  let bestTarget: Ship['id'] | null = null;
+  for (const enemy of state.ships) {
+    if (enemy.owner === ship.owner || enemy.lifecycle === 'destroyed') continue;
+    const intercept = findBallisticIntercept(
+      ship.position,
+      ordnanceVelocity,
+      enemy,
+      map,
+    );
+    if (!intercept.hasIntercept) continue;
+    if (intercept.turnsToIntercept < bestTurns) {
+      bestTurns = intercept.turnsToIntercept;
+      bestTarget = enemy.id;
+    }
+  }
+  return {
+    hasIntercept: Number.isFinite(bestTurns),
+    turnsToIntercept: bestTurns,
+    targetShipId: bestTarget,
+  };
 };
 
 const scoreEnemyTarget = (

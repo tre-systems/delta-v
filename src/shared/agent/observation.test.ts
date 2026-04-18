@@ -1,8 +1,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { createGameOrThrow } from '../engine/game-engine';
-import { asGameId } from '../ids';
+import { asGameId, asOrdnanceId, asShipId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
+import {
+  createTestOrdnance,
+  createTestShip,
+  createTestState,
+  EMPTY_SOLAR_MAP,
+} from '../test-helpers';
 import type { GameState, SolarSystemMap } from '../types/domain';
 
 import {
@@ -76,6 +82,48 @@ describe('buildCandidates', () => {
   it('works without a pre-supplied map (builds internally)', () => {
     const candidates = buildCandidates(state, 0);
     expect(candidates.length).toBeGreaterThan(0);
+  });
+
+  it('demotes consecutive low-confidence ordnance recommendations behind skip', () => {
+    const consecutiveState = createTestState({
+      phase: 'ordnance',
+      activePlayer: 0,
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['torpedo'] },
+      ships: [
+        createTestShip({
+          id: asShipId('p0-frig'),
+          owner: 0,
+          type: 'frigate',
+          position: { q: 0, r: 0 },
+          velocity: { dq: 0, dr: 0 },
+          lifecycle: 'active',
+        }),
+        createTestShip({
+          id: asShipId('p1-dread'),
+          owner: 1,
+          type: 'packet',
+          position: { q: 7, r: 0 },
+          velocity: { dq: 0, dr: 0 },
+          lifecycle: 'active',
+        }),
+      ],
+      ordnance: [
+        createTestOrdnance({
+          id: asOrdnanceId('ord-prev'),
+          owner: 0,
+          sourceShipId: asShipId('p0-frig'),
+          turnsRemaining: 4,
+          lifecycle: 'active',
+        }),
+      ],
+    });
+
+    const candidates = buildCandidates(consecutiveState, 0, EMPTY_SOLAR_MAP);
+    expect(candidates.some((candidate) => candidate.type === 'ordnance')).toBe(
+      true,
+    );
+    expect(candidates[0].type).toBe('skipOrdnance');
   });
 });
 

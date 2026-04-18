@@ -82,7 +82,9 @@ Findings from a 2026-04-18 deep-research pass against the [2018 Triplanetary rul
 
 ### `recommendedIndex` over-suggests consecutive ordnance launches
 
-Exploratory duel session (2026-04-18): after launching a torpedo on turn 2, the ordnance-phase `recommendedIndex` on turn 3 pointed at a **nuke** with the enemy still ~3 hexes from Mercury and no immediate threat — wasting a 300 MCr nuke with little expected value. LLM agents that lean on the recommended index will blow their nuke budget early. Complements "Tighten Hard-difficulty nuke gates..." below, but targets the index exposed to agents specifically: consider penalizing consecutive same-turn-after-turn ordnance launches unless expected intercept probability justifies the cost.
+**Partial (2026-04-18):** candidate ranking now checks for consecutive-turn ordnance pressure (own active ordnance at `turnsRemaining === 4`) and demotes low-confidence follow-up ordnance recommendations behind `skipOrdnance`. Confidence is based on per-launch intercept projection (`evaluateOrdnanceLaunchIntercept`): nukes must have short-fuse intercepts (≤2 turns), torpedoes ≤3 turns. This keeps `recommendedIndex` from reflexively chaining weak follow-up launches while still allowing high-quality opportunities.
+
+**Still open:** tune thresholds with simulation outcomes (especially scenario-specific target velocities / gravity lanes) and decide whether confidence weighting should also appear in `labeledCandidates` reasoning text.
 
 **Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/agent/observation.ts`, `src/shared/agent/candidates.ts`
 
