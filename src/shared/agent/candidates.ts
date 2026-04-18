@@ -149,7 +149,8 @@ const dedupeCandidates = (candidates: C2S[]): C2S[] => {
   return result;
 };
 
-const hasRecentOwnOrdnanceLaunch = (
+/** True when this player already has ordnance in flight from last turn's launch. */
+export const hasRecentOwnOrdnanceLaunch = (
   state: GameState,
   playerId: PlayerId,
 ): boolean =>
@@ -160,7 +161,7 @@ const hasRecentOwnOrdnanceLaunch = (
       ord.turnsRemaining === 4,
   );
 
-const isHighConfidenceConsecutiveOrdnanceAction = (
+export const isHighConfidenceConsecutiveOrdnanceAction = (
   state: GameState,
   playerId: PlayerId,
   candidate: Extract<C2S, { type: 'ordnance' }>,

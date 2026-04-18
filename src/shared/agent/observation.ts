@@ -187,7 +187,7 @@ export const buildObservation = (
       ? renderSpatialGrid(state, playerId, map)
       : undefined,
     labeledCandidates: options.includeCandidateLabels
-      ? labelCandidates(candidates, state, playerId)
+      ? labelCandidates(candidates, state, playerId, map)
       : undefined,
     coachDirective: options.coachDirective,
   };
