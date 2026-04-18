@@ -28,6 +28,17 @@ export interface QuickMatchResult {
 const DEFAULT_POLL_MS = 1000;
 const DEFAULT_TIMEOUT_MS = 120_000;
 
+/** Strip trailing slashes and map WebSocket URLs to HTTP for REST calls. */
+export const normalizeQuickMatchServerUrl = (raw: string): string => {
+  let u = raw.trim().replace(/\/+$/, '');
+  if (u.startsWith('ws://')) {
+    u = `http://${u.slice(5)}`;
+  } else if (u.startsWith('wss://')) {
+    u = `https://${u.slice(6)}`;
+  }
+  return u;
+};
+
 const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(url, init);
   const raw = await response.text();
@@ -44,6 +55,7 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
 export const queueForMatch = async (
   args: QuickMatchArgs,
 ): Promise<QuickMatchResult> => {
+  const serverUrl = normalizeQuickMatchServerUrl(args.serverUrl);
   const pollMs = args.pollMs ?? DEFAULT_POLL_MS;
   const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
@@ -53,7 +65,7 @@ export const queueForMatch = async (
       ok: boolean;
       token?: string;
       error?: string;
-    }>(`${args.serverUrl}/api/agent-token`, {
+    }>(`${serverUrl}/api/agent-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerKey: args.playerKey }),
@@ -74,7 +86,7 @@ export const queueForMatch = async (
   }
 
   const enqueue = await fetchJson<QuickMatchResponse>(
-    `${args.serverUrl}/quick-match`,
+    `${serverUrl}/quick-match`,
     {
       method: 'POST',
       headers,
@@ -103,11 +115,13 @@ export const queueForMatch = async (
   const startedAt = Date.now();
   while (true) {
     if (Date.now() - startedAt > timeoutMs) {
-      throw new Error(`Quick-match timed out after ${timeoutMs}ms`);
+      throw new Error(
+        `Quick-match timed out after ${timeoutMs}ms (no opponent joined in time; start a second client or MCP session, or raise timeoutMs).`,
+      );
     }
     await new Promise<void>((resolve) => setTimeout(resolve, pollMs));
     const poll = await fetchJson<QuickMatchResponse>(
-      `${args.serverUrl}/quick-match/${enqueue.ticket}`,
+      `${serverUrl}/quick-match/${enqueue.ticket}`,
     );
     if (poll.status === 'matched') {
       return {
