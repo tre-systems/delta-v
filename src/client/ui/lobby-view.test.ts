@@ -26,13 +26,13 @@ const installFixture = () => {
     <button id="menuHowToPlayBtn">How to Play</button>
     <div id="helpOverlay"></div>
     <button id="helpCloseBtn">Close</button>
+    <div id="callsignStatus"></div>
   `;
 };
 
 describe('LobbyView', () => {
   beforeEach(() => {
     installFixture();
-    vi.useFakeTimers();
     (
       globalThis as typeof globalThis & {
         __DELTA_V_FEATURE_FLAGS?: unknown;
@@ -170,6 +170,7 @@ describe('LobbyView', () => {
   });
 
   it('updates waiting copy, menu loading, and copy-link feedback', async () => {
+    vi.useFakeTimers();
     const copyText = vi
       .fn<(text: string) => Promise<void>>()
       .mockResolvedValue();
@@ -248,6 +249,7 @@ describe('LobbyView', () => {
 
     vi.advanceTimersByTime(2000);
     expect(document.getElementById('copyBtn')?.textContent).toBe('Copy Link');
+    vi.useRealTimers();
   });
 
   it('shows spectator link controls when feature is enabled and a private room is waiting', () => {
@@ -414,13 +416,60 @@ describe('LobbyView', () => {
     playerNameInput.value = '  Pilot 1  ';
 
     document.getElementById('quickMatchBtn')?.click();
-    await Promise.resolve();
+
+    await expect.poll(() => emit.mock.calls.length).toBeGreaterThan(0);
 
     expect(setPlayerName).toHaveBeenCalledWith('  Pilot 1  ');
     expect(postClaimName).toHaveBeenCalledWith({
       playerKey: 'humankey12345678',
       username: 'Pilot 1',
     });
+    expect(emit).toHaveBeenCalledWith({ type: 'quickMatch' });
+  });
+
+  it('does not queue quick match when callsign is taken', async () => {
+    const emit = vi.fn();
+    createLobbyView({
+      emit,
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name.trim(),
+      getPlayerKey: () => 'humankey12345678',
+      postClaimName: async () => ({ ok: false as const, error: 'name_taken' }),
+    });
+
+    document.getElementById('quickMatchBtn')?.click();
+    await expect
+      .poll(
+        () => document.querySelector('.menu-profile-status')?.textContent ?? '',
+      )
+      .toContain('taken');
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('shows an info toast when claim fails online but still queues quick match', async () => {
+    const emit = vi.fn();
+    const showToast = vi.fn();
+    createLobbyView({
+      emit,
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast,
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name.trim(),
+      getPlayerKey: () => 'humankey12345678',
+      postClaimName: async () => ({ ok: false as const, error: 'network' }),
+    });
+
+    document.getElementById('quickMatchBtn')?.click();
+
+    await expect.poll(() => emit.mock.calls.length).toBeGreaterThan(0);
+    expect(showToast).toHaveBeenCalledWith(
+      'Could not save callsign online — you can still play.',
+      'info',
+    );
     expect(emit).toHaveBeenCalledWith({ type: 'quickMatch' });
   });
 });

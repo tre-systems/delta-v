@@ -32,6 +32,11 @@ export const renderTransferPanel = (
   existing?.dispose();
   clearHTML(container);
 
+  container.setAttribute('role', 'region');
+  container.setAttribute('aria-label', 'Cargo and fuel transfers');
+  container.setAttribute('aria-live', 'polite');
+  container.setAttribute('aria-relevant', 'additions text');
+
   if (logisticsStore.pairs.length === 0) {
     container.appendChild(
       el('div', {

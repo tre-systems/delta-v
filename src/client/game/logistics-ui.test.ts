@@ -66,6 +66,9 @@ describe('logistics-ui', () => {
 
     renderTransferPanel(container, state, onChanged);
 
+    expect(container.getAttribute('aria-live')).toBe('polite');
+    expect(container.getAttribute('role')).toBe('region');
+
     const pairEl = container.querySelector('.transfer-pair') as HTMLElement;
     const fuelRow = pairEl.querySelector('.transfer-row') as HTMLElement;
     const buttons = fuelRow.querySelectorAll('button');
