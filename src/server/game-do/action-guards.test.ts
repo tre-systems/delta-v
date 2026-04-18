@@ -27,16 +27,19 @@ beforeAll(() => {
 });
 
 describe('checkActionGuards', () => {
-  it('returns null when no guards are supplied', () => {
+  it('returns null when guards are omitted', () => {
     expect(checkActionGuards(undefined, state, 0)).toBeNull();
-    expect(checkActionGuards({}, state, 0)).toBeNull();
+  });
+
+  it('returns null for empty guards when caller is the active player', () => {
+    expect(checkActionGuards({}, state, state.activePlayer)).toBeNull();
   });
 
   it('returns null when expectedTurn matches', () => {
     const result = checkActionGuards(
       { expectedTurn: state.turnNumber },
       state,
-      0,
+      state.activePlayer,
     );
     expect(result).toBeNull();
   });
@@ -51,7 +54,11 @@ describe('checkActionGuards', () => {
   });
 
   it('returns null when expectedPhase matches', () => {
-    const result = checkActionGuards({ expectedPhase: state.phase }, state, 0);
+    const result = checkActionGuards(
+      { expectedPhase: state.phase },
+      state,
+      state.activePlayer,
+    );
     expect(result).toBeNull();
   });
 
@@ -69,10 +76,15 @@ describe('checkActionGuards', () => {
     // skipped because the action type is valid for the real phase anyway.
     const other = state.phase === 'astrogation' ? 'combat' : 'astrogation';
     expect(state.phase).toBe('astrogation');
-    const result = checkActionGuards({ expectedPhase: other }, state, 0, {
-      type: 'astrogation',
-      orders: [],
-    });
+    const result = checkActionGuards(
+      { expectedPhase: other },
+      state,
+      state.activePlayer,
+      {
+        type: 'astrogation',
+        orders: [],
+      },
+    );
     expect(result).toBeNull();
   });
 
@@ -88,10 +100,16 @@ describe('checkActionGuards', () => {
     expect(result?.reason).toBe('stalePhase');
   });
 
-  it('does not reject on wrongActivePlayer during simultaneous phases', () => {
-    // duel scenario starts in astrogation (simultaneous). Both seats may act.
+  it('rejects wrongActivePlayer during astrogation when caller is not activePlayer', () => {
     const inactive = state.activePlayer === 0 ? 1 : 0;
-    expect(checkActionGuards({}, state, inactive)).toBeNull();
+    const result = checkActionGuards({}, state, inactive);
+    expect(result?.reason).toBe('wrongActivePlayer');
+  });
+
+  it('does not reject wrongActivePlayer during fleetBuilding for either seat', () => {
+    const fleetState = { ...state, phase: 'fleetBuilding' as const };
+    const inactive = fleetState.activePlayer === 0 ? 1 : 0;
+    expect(checkActionGuards({}, fleetState, inactive)).toBeNull();
   });
 });
 

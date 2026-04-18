@@ -188,7 +188,7 @@ Scenario keys are camelCase. Unknown keys fall back to `biplanetary` in `normali
 | Phase | Legal C2S types | Simultaneous? |
 | --- | --- | --- |
 | `fleetBuilding` | `fleetReady` | Yes (both players) |
-| `astrogation` | `astrogation`, `surrender` | Yes (simultaneous resolution) |
+| `astrogation` | `astrogation`, `surrender` | No (sequential by `activePlayer`) |
 | `ordnance` | `ordnance`, `skipOrdnance`, `emplaceBase` | No (sequential by `activePlayer`) |
 | `combat` | `beginCombat`, `combat`, `skipCombat` | No (sequential) |
 | `logistics` | `logistics`, `skipLogistics` | No (sequential) |
