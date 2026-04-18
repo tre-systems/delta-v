@@ -559,6 +559,53 @@
       },
       "expectedOk": false
     },
+    "combatEmptyTargetId": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": ""
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "combatBlankAttackerId": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0", ""],
+            "targetId": "p1s0"
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "combatAttackStrengthNonInteger": {
+      "raw": {
+        "type": "combat",
+        "attacks": [
+          {
+            "attackerIds": ["p0s0"],
+            "targetId": "p1s0",
+            "attackStrength": 2.5
+          }
+        ]
+      },
+      "expectedOk": false
+    },
+    "combatSingleEmptyTargetId": {
+      "raw": {
+        "type": "combatSingle",
+        "attack": {
+          "attackerIds": ["p0s0"],
+          "targetId": ""
+        }
+      },
+      "expectedOk": false
+    },
     "pingTimestampMissing": {
       "raw": { "type": "ping" },
       "expectedOk": false

@@ -190,7 +190,7 @@ Prefer `engineFailure()` everywhere, then surface typed rate-limit / validation 
 
 ### Broaden engine and protocol coverage
 
-**Partial (2026-04-18):** `contracts.json` C2S now covers combat / combatSingle edge shapes (implicit `targetType`, omitted `attackStrength`, ordnance targets, multi-volley `combat`, `guards` passthrough) plus extra `c2sRejected` rows (invalid `targetType`, empty attackers, out-of-range `attackStrength`).
+**Partial (2026-04-18):** `contracts.json` C2S now covers combat / combatSingle edge shapes (implicit `targetType`, omitted `attackStrength`, ordnance targets, multi-volley `combat`, `guards` passthrough) plus `c2sRejected` rows for invalid `targetType`, empty attackers / blank attacker id / empty `targetId`, non-integer `attackStrength`, and out-of-range strength.
 
 **Still open:** more positive/negative C2S rows for other message types; `src/server/game-do/__fixtures__/transport.json` transport coverage.
 
