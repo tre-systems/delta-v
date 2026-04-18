@@ -257,6 +257,8 @@ export interface HUDInput {
   speed: number;
   fuelToStop: number;
   statusOverrideText?: string | null;
+  /** Combat-only: label for keyboard-selected target (see `deriveHudViewModel`). */
+  combatHudHint?: string | null;
   suppressActionButtons?: boolean;
   isMobile: boolean;
 }
@@ -288,6 +290,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     speed,
     fuelToStop,
     isMobile,
+    combatHudHint,
   } = input;
 
   const showOrdnance = isMyTurn && phase === 'ordnance';
@@ -327,13 +330,15 @@ export const buildHUDView = (input: HUDInput): HUDView => {
                       ? ` \u00b7 ${q} queued`
                       : ` \u00b7 ${q} attack${q === 1 ? '' : 's'} queued`
                     : '';
+                const hintPrefix = combatHudHint ? `${combatHudHint} · ` : '';
+                const kbCycle = isMobile ? '' : ' · [ ] Cycle targets';
                 return isMobile
                   ? astrogationCtx.hasSelection
-                    ? `Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done${queueSuffix}`
-                    : `Select a ship or tap a highlighted enemy${queueSuffix}`
+                    ? `${hintPrefix}Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done${queueSuffix}`
+                    : `${hintPrefix}Select a ship or tap a highlighted enemy${queueSuffix}`
                   : astrogationCtx.hasSelection
-                    ? `Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done${queueSuffix}`
-                    : `Select a ship or click a highlighted enemy${queueSuffix}`;
+                    ? `${hintPrefix}Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done${queueSuffix}${kbCycle}`
+                    : `${hintPrefix}Select a ship or click a highlighted enemy${queueSuffix}${kbCycle}`;
               })()
             : phase === 'logistics'
               ? isMobile

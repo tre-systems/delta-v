@@ -18,6 +18,7 @@ import {
   type CombatActionDeps,
   clearCombatSelection,
   confirmSingleAttack,
+  cycleCombatTarget,
   endCombatPhase,
   fireAllAttacks,
   queueAttack,
@@ -219,6 +220,10 @@ const combatHandlers = {
   setCombatPlan: (deps, cmd) => setCombatPlan(deps.ctx.planningState, cmd),
   clearCombatSelection: (deps) => clearCombatSelection(deps.combatDeps),
   undoQueuedAttack,
+  cycleCombatTarget: (deps, cmd) =>
+    cycleCombatTarget(deps.combatDeps, cmd.direction, (hex) =>
+      deps.renderer.centerOnHex(hex),
+    ),
 } satisfies PartialCommandHandlerMap<
   | 'queueAttack'
   | 'fireAllAttacks'
@@ -230,6 +235,7 @@ const combatHandlers = {
   | 'setCombatPlan'
   | 'clearCombatSelection'
   | 'undoQueuedAttack'
+  | 'cycleCombatTarget'
 >;
 
 const logisticsHandlers = {

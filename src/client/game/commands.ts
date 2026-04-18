@@ -31,6 +31,7 @@ export type GameCommand =
   | { type: 'setCombatPlan'; plan: CombatTargetPlan; selectedShipId?: string }
   | { type: 'clearCombatSelection' }
   | { type: 'undoQueuedAttack' }
+  | { type: 'cycleCombatTarget'; direction: 1 | -1 }
   // Logistics
   | { type: 'skipLogistics' }
   | { type: 'confirmTransfers' }
@@ -124,6 +125,11 @@ export const keyboardActionToCommand = (
       return { type: 'toggleHelp' };
     case 'toggleMute':
       return { type: 'toggleMute' };
+    case 'cycleCombatTarget':
+      return {
+        type: 'cycleCombatTarget',
+        direction: action.direction,
+      };
     default: {
       const _exhaustive: never = action;
       return _exhaustive;

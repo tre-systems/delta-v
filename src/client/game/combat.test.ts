@@ -14,6 +14,7 @@ import {
   countRemainingCombatAttackers,
   createClearedCombatPlan,
   createCombatTargetPlan,
+  cycleCombatTargetPlan,
   findPreferredTarget,
   getAttackStrengthForSelection,
   getCombatAttackerIdAtHex,
@@ -22,6 +23,7 @@ import {
   getReusableCombatGroup,
   hasSplitFireOptions,
   hasVisibleCombatTargets,
+  listCycleableCombatTargets,
   toggleCombatAttackerSelection,
 } from './combat';
 
@@ -458,6 +460,51 @@ describe('game client combat helpers', () => {
       combatAttackerIds: ['a'],
       combatAttackStrength: 4,
     });
+  });
+
+  it('cycles keyboard combat targets in stable order', () => {
+    const state = createState();
+    const targets = listCycleableCombatTargets(state, 0, [], map);
+    expect(targets.map((entry) => entry.targetId)).toEqual([
+      asShipId('x'),
+      asShipId('y'),
+    ]);
+
+    const basePlanning = {
+      selectedShipId: asShipId('a'),
+      combatTargetId: null as string | null,
+      combatTargetType: null as 'ship' | 'ordnance' | null,
+      combatAttackerIds: [] as string[],
+      combatAttackStrength: null as number | null,
+      queuedAttacks: [] as CombatAttack[],
+    };
+
+    const first = cycleCombatTargetPlan(state, 0, basePlanning, map, 1);
+    expect(first?.combatTargetId).toBe(asShipId('x'));
+    if (!first) {
+      throw new Error('expected combat plan');
+    }
+
+    const second = cycleCombatTargetPlan(
+      state,
+      0,
+      { ...basePlanning, ...first },
+      map,
+      1,
+    );
+    expect(second?.combatTargetId).toBe(asShipId('y'));
+    if (!second) {
+      throw new Error('expected combat plan');
+    }
+
+    const wrap = cycleCombatTargetPlan(
+      state,
+      0,
+      { ...basePlanning, ...second },
+      map,
+      1,
+    );
+    expect(wrap?.combatTargetId).toBe(asShipId('x'));
   });
 
   it('shares target visibility logic for preferred-target and combat-visible checks', () => {

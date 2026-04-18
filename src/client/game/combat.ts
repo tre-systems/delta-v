@@ -187,6 +187,117 @@ const getVisibleTargets = (
   );
 };
 
+/**
+ * Enemy ships and nukes that at least one of the player's available attackers
+ * can currently acquire, excluding targets already queued or resolved this phase.
+ * Sorted for stable keyboard cycling: ships first, then ordnance, by id.
+ */
+export const listCycleableCombatTargets = (
+  state: GameState,
+  playerId: PlayerId,
+  queuedAttacks: CombatAttack[],
+  map: SolarSystemMap,
+): CombatTargetSelection[] => {
+  const committedAttackers = getCommittedAttackers(queuedAttacks);
+  const availableAttackers = getAvailableCombatAttackers(
+    state,
+    playerId,
+    committedAttackers,
+  ).sort((left, right) => left.id.localeCompare(right.id));
+
+  const excludedKeys = getTargetedKeys(queuedAttacks);
+  for (const key of state.combatTargetedThisPhase ?? []) {
+    excludedKeys.add(key);
+  }
+
+  const byKey = new Map<string, CombatTargetSelection>();
+
+  for (const attacker of availableAttackers) {
+    for (const targetType of ['ship', 'ordnance'] as const) {
+      for (const target of getVisibleTargets(
+        state,
+        playerId,
+        attacker,
+        map,
+        targetType,
+        excludedKeys,
+      )) {
+        const key = `${targetType}:${target.id}`;
+        if (!byKey.has(key)) {
+          byKey.set(key, {
+            targetId: target.id as ShipId | OrdnanceId,
+            targetType,
+          });
+        }
+      }
+    }
+  }
+
+  const ordered = [...byKey.values()];
+  ordered.sort((left, right) => {
+    if (left.targetType !== right.targetType) {
+      return left.targetType === 'ship' ? -1 : 1;
+    }
+    return left.targetId.localeCompare(right.targetId);
+  });
+
+  return ordered;
+};
+
+export const cycleCombatTargetPlan = (
+  state: GameState,
+  playerId: PlayerId,
+  planning: CombatPlanningSnapshot,
+  map: SolarSystemMap,
+  direction: -1 | 1,
+): CombatTargetPlan | null => {
+  const targets = listCycleableCombatTargets(
+    state,
+    playerId,
+    planning.queuedAttacks,
+    map,
+  );
+
+  if (targets.length === 0) {
+    return null;
+  }
+
+  const idx = targets.findIndex(
+    (candidate) =>
+      candidate.targetId === planning.combatTargetId &&
+      candidate.targetType === planning.combatTargetType,
+  );
+
+  if (idx < 0) {
+    const pick = direction > 0 ? targets[0] : targets[targets.length - 1];
+    if (!pick) {
+      return null;
+    }
+    return createCombatTargetPlan(
+      state,
+      playerId,
+      planning,
+      pick.targetId,
+      pick.targetType,
+      map,
+    );
+  }
+
+  const nextIdx = (idx + direction + targets.length) % targets.length;
+  const pick = targets[nextIdx];
+  if (!pick) {
+    return null;
+  }
+  return createCombatTargetPlan(
+    state,
+    playerId,
+    planning,
+    pick.targetId,
+    pick.targetType,
+    map,
+  );
+};
+
 const getLegalAttackersForTarget = (
   availableAttackers: Ship[],
   target: CombatTarget,

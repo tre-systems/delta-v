@@ -269,6 +269,22 @@ export const deriveHudViewModel = (
 
   const fleetStatusLine = getFleetStatus(state, playerId);
 
+  const combatTargetLabel =
+    state.phase === 'combat' &&
+    planning.combatTargetId &&
+    planning.combatTargetType
+      ? planning.combatTargetType === 'ship'
+        ? (() => {
+            const targetShip = state.ships.find(
+              (ship) => ship.id === planning.combatTargetId,
+            );
+            return targetShip
+              ? `Target: ${SHIP_STATS[targetShip.type].name}`
+              : null;
+          })()
+        : 'Target: Enemy nuke'
+      : null;
+
   return {
     turn: state.turnNumber,
     phase: state.phase,
@@ -333,6 +349,7 @@ export const deriveHudViewModel = (
       : null,
     queuedLaunchCount: planning.queuedOrdnanceLaunches.length,
     queuedCombatAttackCount: planning.queuedAttacks.length,
+    combatTargetLabel,
     multipleShipsAlive: myShips.filter(isOrderableShip).length > 1,
     speed: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
     fuelToStop: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
