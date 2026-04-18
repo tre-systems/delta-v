@@ -4,6 +4,8 @@ import {
   createTestOrdnance,
   createTestShip,
   createTestState,
+  driftingEnemyWouldBeHitByOpenSpaceBallistic,
+  EMPTY_SOLAR_MAP,
 } from './test-helpers';
 
 describe('createTestShip', () => {
@@ -104,5 +106,31 @@ describe('createTestState', () => {
     const state = createTestState();
     expect(state.players[0].targetBody).toBe('Mars');
     expect(state.players[1].targetBody).toBe('Venus');
+  });
+});
+
+describe('driftingEnemyWouldBeHitByOpenSpaceBallistic', () => {
+  it('returns true when the shot line crosses a stationary target', () => {
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        map: EMPTY_SOLAR_MAP,
+        ordnanceStart: { q: 0, r: 0 },
+        ordnanceVelocity: { dq: 1, dr: 0 },
+        enemyStart: { q: 3, r: 0 },
+        enemyVelocity: { dq: 0, dr: 0 },
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false when the target steps off the line each turn', () => {
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        map: EMPTY_SOLAR_MAP,
+        ordnanceStart: { q: 0, r: 0 },
+        ordnanceVelocity: { dq: 3, dr: 0 },
+        enemyStart: { q: 5, r: 0 },
+        enemyVelocity: { dq: 0, dr: 3 },
+      }),
+    ).toBe(false);
   });
 });
