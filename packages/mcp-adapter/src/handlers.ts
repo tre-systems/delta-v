@@ -185,70 +185,87 @@ export const buildMcpServer = (
     },
   );
 
+  const quickMatchInputSchema = {
+    scenario: z.string().optional(),
+    username: z.string().min(2).max(20).optional(),
+    playerKey: z.string().min(8).max(64).optional(),
+    pollMs: z.number().int().min(200).max(5_000).optional(),
+    timeoutMs: z.number().int().min(5_000).max(120_000).optional(),
+  };
+
+  const quickMatchHandler = async (args: {
+    scenario?: string;
+    username?: string;
+    playerKey?: string;
+    pollMs?: number;
+    timeoutMs?: number;
+  }) => {
+    const playerKey =
+      args.playerKey ??
+      agentIdentity?.payload.playerKey ??
+      `agent_remote_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+    const username =
+      args.username ?? agentIdentity?.payload.playerKey ?? 'agent';
+    const verifiedLeaderboardAgent = Boolean(
+      agentIdentity &&
+        playerKey.startsWith('agent_') &&
+        agentIdentity.payload.playerKey === playerKey,
+    );
+    const matched = await queueRemoteMatch(env, {
+      scenario: args.scenario ?? 'duel',
+      username,
+      playerKey,
+      pollMs: args.pollMs,
+      timeoutMs: args.timeoutMs,
+      verifiedLeaderboardAgent,
+    });
+
+    if (agentIdentity) {
+      const secret = resolveAgentTokenSecret(env);
+      const { token: matchToken, expiresAt } = await issueMatchToken({
+        secret,
+        code: matched.code,
+        playerToken: matched.playerToken,
+        agentToken: agentIdentity.rawAgentToken,
+      });
+      return ok(`Matched into a new game (scenario ${matched.scenario}).`, {
+        matchToken,
+        matchTokenExpiresAt: expiresAt,
+        scenario: matched.scenario,
+        ticket: matched.ticket,
+        playerKey,
+      });
+    }
+
+    // Legacy path: no agentToken → return raw credentials so the existing
+    // {code, playerToken} tool args still work.
+    return ok(`Matched into ${matched.code} (scenario ${matched.scenario}).`, {
+      code: matched.code,
+      playerToken: matched.playerToken,
+      ticket: matched.ticket,
+      scenario: matched.scenario,
+      playerKey,
+    });
+  };
+
   server.registerTool(
     'delta_v_quick_match',
     {
       description:
         'Queue for public matchmaking and block until paired. With agentToken auth (Authorization: Bearer header) returns { matchToken, scenario } — the matchToken is opaque and replaces code+playerToken in subsequent tool calls. Without auth, returns the legacy { code, playerToken, scenario } pair. username/playerKey are inferred from the agentToken when present.',
-      inputSchema: {
-        scenario: z.string().optional(),
-        username: z.string().min(2).max(20).optional(),
-        playerKey: z.string().min(8).max(64).optional(),
-        pollMs: z.number().int().min(200).max(5_000).optional(),
-        timeoutMs: z.number().int().min(5_000).max(120_000).optional(),
-      },
+      inputSchema: quickMatchInputSchema,
     },
-    async (args) => {
-      const playerKey =
-        args.playerKey ??
-        agentIdentity?.payload.playerKey ??
-        `agent_remote_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
-      const username =
-        args.username ?? agentIdentity?.payload.playerKey ?? 'agent';
-      const verifiedLeaderboardAgent = Boolean(
-        agentIdentity &&
-          playerKey.startsWith('agent_') &&
-          agentIdentity.payload.playerKey === playerKey,
-      );
-      const matched = await queueRemoteMatch(env, {
-        scenario: args.scenario ?? 'duel',
-        username,
-        playerKey,
-        pollMs: args.pollMs,
-        timeoutMs: args.timeoutMs,
-        verifiedLeaderboardAgent,
-      });
+    quickMatchHandler,
+  );
 
-      if (agentIdentity) {
-        const secret = resolveAgentTokenSecret(env);
-        const { token: matchToken, expiresAt } = await issueMatchToken({
-          secret,
-          code: matched.code,
-          playerToken: matched.playerToken,
-          agentToken: agentIdentity.rawAgentToken,
-        });
-        return ok(`Matched into a new game (scenario ${matched.scenario}).`, {
-          matchToken,
-          matchTokenExpiresAt: expiresAt,
-          scenario: matched.scenario,
-          ticket: matched.ticket,
-          playerKey,
-        });
-      }
-
-      // Legacy path: no agentToken → return raw credentials so the existing
-      // {code, playerToken} tool args still work.
-      return ok(
-        `Matched into ${matched.code} (scenario ${matched.scenario}).`,
-        {
-          code: matched.code,
-          playerToken: matched.playerToken,
-          ticket: matched.ticket,
-          scenario: matched.scenario,
-          playerKey,
-        },
-      );
+  server.registerTool(
+    'delta_v_quick_match_connect',
+    {
+      description:
+        'Alias for delta_v_quick_match so local and hosted MCP can share one quick-match entry point name.',
+      inputSchema: quickMatchInputSchema,
     },
+    quickMatchHandler,
   );
 
   server.registerTool(
