@@ -52,7 +52,7 @@
   },
   "overrides": [
     {
-      "includes": ["src/server/**/*.ts"],
+      "includes": ["src/server/**/*.ts", "packages/mcp-adapter/**/*.ts"],
       "linter": {
         "rules": {
           "correctness": {
@@ -102,6 +102,13 @@
     }
   ],
   "files": {
-    "includes": ["src/**/*.ts", "scripts/**/*.ts", "e2e/**/*.ts", "*.ts", "*.mjs"]
+    "includes": [
+      "src/**/*.ts",
+      "packages/**/*.ts",
+      "scripts/**/*.ts",
+      "e2e/**/*.ts",
+      "*.ts",
+      "*.mjs"
+    ]
   }
 }
