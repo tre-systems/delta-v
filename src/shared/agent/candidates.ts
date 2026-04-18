@@ -10,6 +10,7 @@ import {
   aiOrdnance,
   buildAIFleetPurchases,
 } from '../ai';
+import { evaluateOrdnanceLaunchIntercept } from '../ai/ordnance';
 import { buildSolarSystemMap } from '../map-data';
 import type {
   AstrogationOrder,
@@ -148,6 +149,83 @@ const dedupeCandidates = (candidates: C2S[]): C2S[] => {
   return result;
 };
 
+const hasRecentOwnOrdnanceLaunch = (
+  state: GameState,
+  playerId: PlayerId,
+): boolean =>
+  state.ordnance.some(
+    (ord) =>
+      ord.owner === playerId &&
+      ord.lifecycle !== 'destroyed' &&
+      ord.turnsRemaining === 4,
+  );
+
+const isHighConfidenceConsecutiveOrdnanceAction = (
+  state: GameState,
+  playerId: PlayerId,
+  candidate: Extract<C2S, { type: 'ordnance' }>,
+  map: SolarSystemMap,
+): boolean => {
+  if (candidate.launches.length === 0) {
+    return false;
+  }
+  return candidate.launches.every((launch) => {
+    if (launch.ordnanceType === 'mine') {
+      return true;
+    }
+    const intercept = evaluateOrdnanceLaunchIntercept(
+      state,
+      playerId,
+      launch,
+      map,
+    );
+    if (!intercept.hasIntercept) {
+      return false;
+    }
+    // For consecutive-turn recommendations, demand short fuse intercepts,
+    // especially for expensive nukes.
+    if (launch.ordnanceType === 'nuke') {
+      return intercept.turnsToIntercept <= 2;
+    }
+    return intercept.turnsToIntercept <= 3;
+  });
+};
+
+const prioritizeOrdnanceCandidates = (
+  state: GameState,
+  playerId: PlayerId,
+  candidates: C2S[],
+  map: SolarSystemMap,
+): C2S[] => {
+  if (
+    state.phase !== 'ordnance' ||
+    !hasRecentOwnOrdnanceLaunch(state, playerId)
+  ) {
+    return candidates;
+  }
+  return [...candidates]
+    .map((candidate, index) => {
+      if (candidate.type === 'emplaceBase') {
+        return { candidate, index, priority: 0 };
+      }
+      if (candidate.type === 'skipOrdnance') {
+        return { candidate, index, priority: 1 };
+      }
+      if (candidate.type === 'ordnance') {
+        const highConfidence = isHighConfidenceConsecutiveOrdnanceAction(
+          state,
+          playerId,
+          candidate,
+          map,
+        );
+        return { candidate, index, priority: highConfidence ? 2 : 4 };
+      }
+      return { candidate, index, priority: 3 };
+    })
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)
+    .map((entry) => entry.candidate);
+};
+
 // Generate the canonical candidate list for a given state/player.
 // Returns C2S[] where index 0 is the hard-difficulty "recommended" choice.
 export const buildCandidates = (
@@ -176,5 +254,10 @@ export const buildCandidates = (
     });
   }
 
-  return dedupeCandidates(seeds);
+  return prioritizeOrdnanceCandidates(
+    state,
+    playerId,
+    dedupeCandidates(seeds),
+    map,
+  );
 };
