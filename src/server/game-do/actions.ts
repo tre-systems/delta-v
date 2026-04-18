@@ -453,7 +453,8 @@ export const dispatchGameStateAction = async (
 
   const preCheck = (gameState: GameState): ActionRejectedMessage | null => {
     const rejection = checkActionGuards(guards, gameState, playerId, message);
-    if (rejection) return buildActionRejected(rejection, gameState, guards);
+    if (rejection)
+      return buildActionRejected(rejection, gameState, guards, playerId);
 
     const key = guards?.idempotencyKey;
     if (key && idempotencyCache?.has(playerId, key)) {
@@ -464,6 +465,7 @@ export const dispatchGameStateAction = async (
         },
         gameState,
         guards,
+        playerId,
       );
     }
     return null;

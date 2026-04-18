@@ -622,6 +622,12 @@ export const validateServerMessage = (raw: unknown): Result<S2C> => {
       if (!isString(msg.reason) || !isString(msg.message)) {
         return invalid('Invalid actionRejected payload');
       }
+      if (
+        msg.submitterPlayerId !== undefined &&
+        !isPlayerId(msg.submitterPlayerId)
+      ) {
+        return invalid('Invalid actionRejected payload');
+      }
       if (!isObject(msg.actual) || !isObject(msg.expected)) {
         return invalid('Invalid actionRejected payload');
       }

@@ -163,9 +163,11 @@ describe('buildActionRejected', () => {
       { reason: 'staleTurn', message: 'turn drift' },
       state,
       { expectedTurn: 99, idempotencyKey: 'abc' },
+      1,
     );
     expect(msg.type).toBe('actionRejected');
     expect(msg.reason).toBe('staleTurn');
+    expect(msg.submitterPlayerId).toBe(1);
     expect(msg.expected.turn).toBe(99);
     expect(msg.actual.turn).toBe(state.turnNumber);
     expect(msg.actual.phase).toBe(state.phase);

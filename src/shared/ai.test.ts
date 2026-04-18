@@ -1739,6 +1739,23 @@ describe('aiCombat — multiple targets', () => {
   });
 });
 
+describe('aiOrdnance with full solar system map', () => {
+  it('is deterministic for hard AI on biplanetary + buildSolarSystemMap', () => {
+    const realMap = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      realMap,
+      asGameId('MAPDUEL'),
+      findBaseHex,
+    );
+    state.turnNumber = 4;
+    const rng = () => 0.6;
+    const first = rawAiOrdnance(state, 1, realMap, 'hard', rng);
+    const second = rawAiOrdnance(state, 1, realMap, 'hard', rng);
+    expect(second).toEqual(first);
+  });
+});
+
 describe('aiOrdnance — impossible-shot regression fixtures', () => {
   it('open-space ballistic helper sees a stationary intercept', () => {
     expect(

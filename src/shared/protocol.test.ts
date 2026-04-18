@@ -1590,6 +1590,43 @@ describe('validateServerMessage', () => {
     });
   });
 
+  describe('actionRejected', () => {
+    const minimalRejected = {
+      type: 'actionRejected' as const,
+      reason: 'staleTurn' as const,
+      message: 'turn mismatch',
+      expected: {},
+      actual: {
+        turn: 2,
+        phase: 'astrogation' as const,
+        activePlayer: 0 as const,
+      },
+      state: { gameId: asGameId('G1') },
+    };
+
+    it('accepts optional submitterPlayerId for seats 0 and 1', () => {
+      for (const submitterPlayerId of [0, 1] as const) {
+        const result = validateServerMessage({
+          ...minimalRejected,
+          submitterPlayerId,
+        });
+        expect(result.ok).toBe(true);
+      }
+    });
+
+    it('rejects invalid submitterPlayerId', () => {
+      expect(
+        validateServerMessage({
+          ...minimalRejected,
+          submitterPlayerId: 2,
+        }),
+      ).toEqual({
+        ok: false,
+        error: 'Invalid actionRejected payload',
+      });
+    });
+  });
+
   describe('spectatorWelcome', () => {
     it('accepts valid spectatorWelcome', () => {
       const result = validateServerMessage({
