@@ -206,6 +206,15 @@ describe('game-client-keyboard', () => {
     });
   });
 
+  it('maps E and H to fleet focus targets while waiting on opponent turn', () => {
+    expect(
+      actionFor('e', { state: 'playing_opponentTurn', hasGameState: true }),
+    ).toEqual({ kind: 'focusNearestEnemy', preventDefault: false });
+    expect(
+      actionFor('h', { state: 'playing_opponentTurn', hasGameState: true }),
+    ).toEqual({ kind: 'focusOwnFleet', preventDefault: false });
+  });
+
   it('keeps movement, zoom, help, and mute shortcuts available globally', () => {
     expect(actionFor('w')).toEqual({
       kind: 'panCamera',
