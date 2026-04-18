@@ -150,6 +150,9 @@ export const createOverlayView = (
   const replayBarEndBtn = byId<HTMLButtonElement>('replayBarEndBtn');
   const reconnectOverlayEl = byId('reconnectOverlay');
   const reconnectTextEl = byId('reconnectText');
+  const reconnectReassureEl = document.getElementById(
+    'reconnectReassure',
+  ) as HTMLElement | null;
   const reconnectAttemptEl = byId('reconnectAttempt');
   const reconnectCancelBtn = byId('reconnectCancelBtn');
   const opponentDisconnectEl = byId('opponentDisconnectOverlay');
@@ -388,6 +391,11 @@ export const createOverlayView = (
         show(gameOverEl, 'flex');
         void gameOverEl.offsetWidth;
         gameOverEl.classList.add('game-over-enter');
+        if (!gameOverView.rematchDisabled) {
+          queueMicrotask(() => {
+            rematchBtn.focus({ preventScroll: true });
+          });
+        }
       } else if (!shellVisible) {
         gameOverEl.classList.remove('game-over-enter');
       }
@@ -461,6 +469,9 @@ export const createOverlayView = (
       visible(reconnectOverlayEl, reconnectView.visible, 'flex');
       text(reconnectTextEl, reconnectView.reconnectText);
       text(reconnectAttemptEl, reconnectView.attemptText);
+      if (reconnectReassureEl) {
+        visible(reconnectReassureEl, reconnectView.visible, 'block');
+      }
     });
 
     effect(() => {

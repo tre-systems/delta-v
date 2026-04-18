@@ -8,7 +8,13 @@ import {
   postClaimName,
 } from '../leaderboard/api';
 import { TOAST, toastJoinInvalidCode } from '../messages/toasts';
-import { createDisposalScope, effect, signal, withScope } from '../reactive';
+import {
+  createDisposalScope,
+  effect,
+  registerDisposer,
+  signal,
+  withScope,
+} from '../reactive';
 import { getWebLocalStorage } from '../web-local-storage';
 import type { AIDifficulty, UIEvent } from './events';
 import { parseJoinInput } from './formatters';
@@ -61,9 +67,11 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     scenarioText: null,
     showCopyActions: false,
     cancelActionLabel: null,
+    quickMatchQueuedAtMs: null,
   });
   const copyButtonTextSignal = signal('Copy Link');
   const copySpectateTextSignal = signal('Copy Observer Link (view-only)');
+  const queueElapsedTick = signal(0);
 
   const createBtn = byId<HTMLButtonElement>('createBtn');
   const quickMatchBtn = byId<HTMLButtonElement>('quickMatchBtn');
@@ -88,6 +96,9 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const waitingScenarioEl = byId('waitingScenario');
   const waitingShareHintEl = document.getElementById(
     'waitingShareHint',
+  ) as HTMLElement | null;
+  const difficultyHintEl = document.getElementById(
+    'difficultyHint',
   ) as HTMLElement | null;
 
   let copyResetTimer: number | null = null;
@@ -146,10 +157,41 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         .map((tag) => `<span class="scenario-tag">${tag}</span>`)
         .join('');
 
+      const lobbyMeta = def.lobbyMeta;
+      const metaBits: string[] = [];
+      if (lobbyMeta?.beginnerFriendly) {
+        metaBits.push('Beginner-friendly');
+      }
+      if (lobbyMeta?.length) {
+        metaBits.push(
+          lobbyMeta.length === 'short'
+            ? 'Short match'
+            : lobbyMeta.length === 'medium'
+              ? 'Medium length'
+              : 'Long match',
+        );
+      }
+      if (lobbyMeta?.complexity) {
+        metaBits.push(
+          lobbyMeta.complexity === 'low'
+            ? 'Low complexity'
+            : lobbyMeta.complexity === 'high'
+              ? 'High complexity'
+              : 'Moderate complexity',
+        );
+      }
+      if (lobbyMeta?.mechanics?.length) {
+        metaBits.push(lobbyMeta.mechanics.join(', '));
+      }
+      const metaHtml =
+        metaBits.length > 0
+          ? `<div class="scenario-meta">${metaBits.join(' · ')}</div>`
+          : '';
+
       setTrustedHTML(
         btn,
         `<div class="scenario-name">${def.name}${tags}</div>` +
-          `<div class="scenario-desc">${def.description}</div>`,
+          `<div class="scenario-desc">${def.description}</div>${metaHtml}`,
       );
 
       scenarioListEl.appendChild(btn);
@@ -193,6 +235,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     scenarioText: null,
     showCopyActions: false,
     cancelActionLabel: null,
+    quickMatchQueuedAtMs: null,
   });
 
   const setWaitingState = (state: WaitingScreenState | null): void => {
@@ -483,8 +526,30 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       const diff = aiDifficultySignal.value;
 
       for (const btn of difficultyButtons) {
-        cls(btn, 'active', btn.dataset.difficulty === diff);
+        const on = btn.dataset.difficulty === diff;
+        cls(btn, 'active', on);
+        btn.setAttribute('aria-checked', on ? 'true' : 'false');
       }
+
+      if (difficultyHintEl) {
+        const lines: Record<AIDifficulty, string> = {
+          easy: 'AI uses a lighter search — good for learning openings.',
+          normal: 'Balanced AI search depth for most players.',
+          hard: 'Deeper search and sharper heuristics — expect punishing punts.',
+        };
+        text(difficultyHintEl, lines[diff]);
+      }
+    });
+
+    effect(() => {
+      const q = waitingCopySignal.value.quickMatchQueuedAtMs;
+      if (q == null) {
+        return;
+      }
+      const id = window.setInterval(() => {
+        queueElapsedTick.update((n) => n + 1);
+      }, 1000);
+      registerDisposer(() => window.clearInterval(id));
     });
 
     effect(() => {
@@ -493,7 +558,14 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       text(waitingTitleEl, copy.titleText);
       text(gameCodeEl, copy.codeText);
       gameCodeEl.dataset.variant = copy.codeVariant;
-      text(waitingStatusEl, copy.statusText);
+      const queuedAt = copy.quickMatchQueuedAtMs;
+      queueElapsedTick.value;
+      if (queuedAt != null) {
+        const elapsed = Math.max(0, Math.floor((Date.now() - queuedAt) / 1000));
+        text(waitingStatusEl, `${copy.statusText} · ${elapsed}s`);
+      } else {
+        text(waitingStatusEl, copy.statusText);
+      }
 
       if (copy.scenarioText) {
         text(waitingScenarioEl, copy.scenarioText);
@@ -528,6 +600,34 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         hide(cancelWaitingBtn);
       }
     });
+
+    const hudDefaultBtn = document.getElementById(
+      'hudScaleDefaultBtn',
+    ) as HTMLButtonElement | null;
+    const hudLargeBtn = document.getElementById(
+      'hudScaleLargeBtn',
+    ) as HTMLButtonElement | null;
+
+    const applyHudScale = (mode: 'default' | 'large'): void => {
+      document.documentElement.dataset.hudScale = mode;
+      ls?.setItem('deltav_hud_scale', mode);
+      hudDefaultBtn?.classList.toggle(
+        'hud-scale-btn--active',
+        mode === 'default',
+      );
+      hudLargeBtn?.classList.toggle('hud-scale-btn--active', mode === 'large');
+    };
+
+    const initialHud =
+      ls?.getItem('deltav_hud_scale') === 'large' ? 'large' : 'default';
+    applyHudScale(initialHud);
+
+    if (hudDefaultBtn) {
+      listen(hudDefaultBtn, 'click', () => applyHudScale('default'));
+    }
+    if (hudLargeBtn) {
+      listen(hudLargeBtn, 'click', () => applyHudScale('large'));
+    }
 
     listen(cancelWaitingBtn, 'click', () => {
       deps.emit({ type: 'cancelQuickMatch' });

@@ -38,7 +38,7 @@ const STEPS: TutorialStep[] = [
   {
     id: 'welcome',
     phase: 'astrogation',
-    text: 'Welcome to Delta-V! Your ship starts landed on a planet. Each turn you choose a burn direction to accelerate. Your ship keeps its velocity between turns — this is vector movement.',
+    text: 'Welcome! Your ship is on a planet — pick a burn direction next turn so you do not drift wrong-way. (You keep velocity between turns; details live in Help.)',
   },
   {
     id: 'select-ship',
