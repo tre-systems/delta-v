@@ -1,10 +1,8 @@
-import type { EngineEvent } from '../../shared/engine/engine-events';
+import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import type {
-  GameState,
-  PlayerId,
-  SolarSystemMap,
-} from '../../shared/types/domain';
-import type { StatefulServerMessage } from './message-builders';
+  PublishStateChangeOptions,
+  StatefulServerMessage,
+} from './message-builders';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 import { resolveTurnTimeoutOutcome } from './turns';
 
@@ -23,11 +21,7 @@ export type GameDoTurnTimeoutDeps = {
   publishStateChange: (
     state: GameState,
     primaryMessage?: StatefulServerMessage,
-    options?: {
-      actor?: PlayerId | null;
-      restartTurnTimer?: boolean;
-      events?: EngineEvent[];
-    },
+    options?: PublishStateChangeOptions,
   ) => Promise<void>;
   rescheduleAlarm: () => Promise<void>;
 };
@@ -65,5 +59,6 @@ export const runGameDoTurnTimeout = async (
   await deps.publishStateChange(outcome.state, outcome.primaryMessage, {
     actor: null,
     events: outcome.events,
+    lastTurnAutoPlayed: outcome.lastTurnAutoPlayed,
   });
 };

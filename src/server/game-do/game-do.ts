@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
+import type { LastTurnAutoPlayed } from '../../shared/agent/types';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../../shared/constants';
-import type { EngineEvent } from '../../shared/engine/engine-events';
 import {
   buildSolarSystemMap,
   isValidScenario,
@@ -59,7 +59,10 @@ import {
   initGameSession,
 } from './match';
 import { handleMcpRequest, type McpRequestDeps } from './mcp-handlers';
-import type { StatefulServerMessage } from './message-builders';
+import type {
+  PublishStateChangeOptions,
+  StatefulServerMessage,
+} from './message-builders';
 import { type PublicationDeps, runPublicationPipeline } from './publication';
 import {
   createDisconnectMarker,
@@ -102,6 +105,11 @@ export class GameDO extends DurableObject<Env> {
   // In-memory pending /mcp/wait + /mcp/action waiters, keyed by seat. Cleared
   // on DO eviction; HTTP clients retry, same recovery as WebSocket reconnect.
   private readonly stateWaiters = new StateWaiters();
+  /** One-shot MCP observation hint per seat after a turn timer auto-advance. */
+  private readonly lastTurnAutoPlayNoticeBySeat: [
+    LastTurnAutoPlayed | null,
+    LastTurnAutoPlayed | null,
+  ] = [null, null];
   private readonly msgRates = new WeakMap<
     WebSocket,
     { count: number; windowStart: number }
@@ -706,24 +714,36 @@ export class GameDO extends DurableObject<Env> {
     await this.rescheduleAlarm();
   }
 
+  private consumeLastTurnAutoPlayNotice(
+    playerId: PlayerId,
+  ): LastTurnAutoPlayed | null {
+    const current = this.lastTurnAutoPlayNoticeBySeat[playerId];
+    this.lastTurnAutoPlayNoticeBySeat[playerId] = null;
+    return current;
+  }
+
   private async publishStateChange(
     state: GameState,
     primaryMessage?: StatefulServerMessage,
-    options?: {
-      actor?: PlayerId | null;
-      restartTurnTimer?: boolean;
-      events?: EngineEvent[];
-    },
+    options?: PublishStateChangeOptions,
   ) {
+    const notice = options?.lastTurnAutoPlayed;
+    if (notice) {
+      this.lastTurnAutoPlayNoticeBySeat[notice.seat] = {
+        index: notice.index,
+        reason: notice.reason,
+      };
+    }
     // Each accepted action advances the state; agent idempotency keys are
     // scoped per action, so clear the cache here rather than tracking phase
     // transitions. Re-submits after this point target a newer state anyway.
     this.idempotencyCache.clear();
+    const { lastTurnAutoPlayed: _drop, ...publicationOpts } = options ?? {};
     await runPublicationPipeline(
       this.createPublicationDeps(),
       state,
       primaryMessage,
-      options,
+      publicationOpts,
     );
     // Wake every HTTP /mcp/wait or /mcp/action long-poller — mirror of the
     // WebSocket broadcast. Either seat may be waiting (simultaneous phases,
@@ -858,6 +878,8 @@ export class GameDO extends DurableObject<Env> {
       touchInactivity: () => this.touchInactivity(),
       storage: this.storage,
       initGameIfReady: () => this.maybeInitGameForMcp(),
+      consumeLastTurnAutoPlayNotice: (playerId) =>
+        this.consumeLastTurnAutoPlayNotice(playerId),
     };
   }
 

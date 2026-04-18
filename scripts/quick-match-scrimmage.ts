@@ -27,6 +27,8 @@ interface Config {
   labelB: string;
   live: boolean;
   jsonOutPath: string | null;
+  /** Use `scrim_…` keys + human quick-match path instead of default `agent_…` + Bearer. */
+  humanQuickMatchKeys: boolean;
 }
 
 interface QueuePlayer {
@@ -161,7 +163,11 @@ const SCRIMMAGE_VALUE_FLAGS = new Set([
   '--json-out',
 ]);
 
-const SCRIMMAGE_BOOL_FLAGS = new Set(['--live', '--help']);
+const SCRIMMAGE_BOOL_FLAGS = new Set([
+  '--live',
+  '--help',
+  '--human-quick-match-keys',
+]);
 
 const findUnknownScrimmageFlags = (argv: string[]): string[] => {
   const unknown: string[] = [];
@@ -205,6 +211,7 @@ Flags:
   --label-b                Display label for player B (default: Kepler)
   --live                   Stream concise per-turn/chat/result updates
   --json-out               Write structured JSON summary to file
+  --human-quick-match-keys Use scrim_* playerKeys (human queue path). Default is agent_* + /api/agent-token (production-like).
 `);
     process.exit(0);
   }
@@ -240,6 +247,7 @@ Flags:
     labelB: getFlag('--label-b') ?? 'Kepler',
     live: args.includes('--live'),
     jsonOutPath: getFlag('--json-out') ?? null,
+    humanQuickMatchKeys: args.includes('--human-quick-match-keys'),
   };
 };
 
@@ -256,9 +264,11 @@ const buildAgentCommand = (base: string, profile: string): string =>
 const createQueuePlayer = (
   label: string,
   agentCommandBase: string,
+  humanQuickMatchKeys: boolean,
 ): QueuePlayer => {
   const profile = slugify(label);
   const suffix = randomUUID().replace(/-/g, '').slice(0, 8);
+  const prefix = humanQuickMatchKeys ? 'scrim' : 'agent';
   return {
     label,
     profile,
@@ -267,7 +277,7 @@ const createQueuePlayer = (
         .replace(/[^A-Za-z0-9 _-]/g, ' ')
         .trim()
         .slice(0, 20) || label,
-    playerKey: `scrim_${profile}_${suffix}`.slice(0, 64),
+    playerKey: `${prefix}_${profile}_${suffix}`.slice(0, 64),
     agentCommand: buildAgentCommand(agentCommandBase, profile),
     ticket: null,
     matched: null,
@@ -638,8 +648,16 @@ const pairPlayersInSameRoom = async (
   let lastMismatch: { leftCode: string; rightCode: string } | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const left = createQueuePlayer(config.labelA, config.agentCommandBase);
-    const right = createQueuePlayer(config.labelB, config.agentCommandBase);
+    const left = createQueuePlayer(
+      config.labelA,
+      config.agentCommandBase,
+      config.humanQuickMatchKeys,
+    );
+    const right = createQueuePlayer(
+      config.labelB,
+      config.agentCommandBase,
+      config.humanQuickMatchKeys,
+    );
     console.log(
       `Queueing ${left.label} and ${right.label} on ${config.serverUrl} quick match...`,
     );

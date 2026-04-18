@@ -109,6 +109,11 @@ describe('game-do-turns', () => {
     expect(outcome).not.toBeNull();
     expect(outcome?.primaryMessage?.type).toBe('movementResult');
     expect(outcome?.state.activePlayer).toBe(1);
+    expect(outcome?.lastTurnAutoPlayed).toMatchObject({
+      seat: state.activePlayer,
+      reason: 'timeout',
+    });
+    expect(typeof outcome?.lastTurnAutoPlayed?.index).toBe('number');
   });
 
   it('resolves timed-out ordnance turns with the appropriate broadcast', () => {

@@ -1,12 +1,10 @@
-import type { EngineEvent } from '../../shared/engine/engine-events';
 import { applyDisconnectForfeit } from '../../shared/engine/util';
-import type {
-  GameState,
-  PlayerId,
-  SolarSystemMap,
-} from '../../shared/types/domain';
+import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import { scheduleArchiveCompletedMatch } from './match-archive';
-import type { StatefulServerMessage } from './message-builders';
+import type {
+  PublishStateChangeOptions,
+  StatefulServerMessage,
+} from './message-builders';
 import {
   readAlarmDeadlines,
   readDisconnectedPlayer,
@@ -35,11 +33,7 @@ export type GameDoAlarmDeps = {
   publishStateChange: (
     state: GameState,
     primaryMessage?: StatefulServerMessage,
-    options?: {
-      actor?: PlayerId | null;
-      restartTurnTimer?: boolean;
-      events?: EngineEvent[];
-    },
+    options?: PublishStateChangeOptions,
   ) => Promise<void>;
   reportEngineError: (
     code: string,

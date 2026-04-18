@@ -226,7 +226,9 @@ The bridge auto-stamps guards on every outgoing action and re-schedules its deci
 
 ### 5.3 Fallback
 
-On agent timeout (default 30 s per turn), the server applies `recommendedIndex` — games keep progressing when an LLM call hangs. Configurable per session.
+On agent timeout (default 30 s per turn), the server advances the timed-out seat with the same automated resolution the engine uses for silent players (idle astrogation burns, skip ordnance/combat when applicable) — games keep progressing when an LLM call hangs. Configurable per session.
+
+On the **next** hosted MCP observation for that seat, the server includes a one-shot `lastTurnAutoPlayed: { index, reason: 'timeout' }` field on the `AgentTurnInput`, where `index` is the candidate list position matching the action the server applied. Absent on later observations. Local stdio MCP does not receive this field until the bridge forwards it.
 
 ---
 
