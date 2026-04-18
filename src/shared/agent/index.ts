@@ -37,6 +37,7 @@ export {
   type BuildObservationOptions,
   buildObservation,
   buildStateSummary,
+  withCompactObservationState,
 } from './observation';
 export {
   normalizeQuickMatchServerUrl,

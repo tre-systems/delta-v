@@ -10,10 +10,12 @@ import {
 import WebSocket from 'ws';
 
 import {
+  type AgentTurnInput,
   buildObservation,
   computeActionEffects,
   normalizeQuickMatchServerUrl,
   queueForMatch,
+  withCompactObservationState,
 } from '../src/shared/agent';
 import type { GameState } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
@@ -92,32 +94,12 @@ const toolOk = <T extends Record<string, unknown>>(
   };
 };
 
-const stripStateForLLM = <T extends { state?: unknown }>(
-  obs: T,
-): Omit<T, 'state'> & {
-  state?: { phase?: unknown; turnNumber?: unknown; activePlayer?: unknown };
-} => {
-  // Observations can include a full `state` object, which is large. Keep a
-  // tiny subset needed when callers opt in via `compactState: true`.
-  const { state, ...rest } = obs;
-  if (!state) return rest;
-  const safeState = state as Record<string, unknown>;
-  return {
-    ...rest,
-    state: {
-      phase: safeState.phase,
-      turnNumber: safeState.turnNumber,
-      activePlayer: safeState.activePlayer,
-    },
-  };
-};
-
-const shapeObservationForTool = <T extends { state?: unknown }>(
-  observation: T,
+const shapeObservationForTool = (
+  observation: AgentTurnInput,
   compactState: boolean | undefined,
-): T | ReturnType<typeof stripStateForLLM<T>> =>
+): AgentTurnInput =>
   compactState === true
-    ? (stripStateForLLM(observation) as ReturnType<typeof stripStateForLLM<T>>)
+    ? withCompactObservationState(observation)
     : observation;
 
 const buildWsUrl = (
@@ -530,7 +512,7 @@ server.registerTool(
 
     return toolOk(
       `Observation for session ${sessionId} (turn ${session.lastState.turnNumber}, phase ${session.lastState.phase}).`,
-      out as Record<string, unknown>,
+      out as unknown as Record<string, unknown>,
     );
   },
 );
@@ -585,7 +567,7 @@ server.registerTool(
           const out = shapeObservationForTool(observation, compactState);
           return toolOk(
             `Actionable observation for session ${sessionId} (turn ${state.turnNumber}, phase ${state.phase}).`,
-            out as Record<string, unknown>,
+            out as unknown as Record<string, unknown>,
           );
         }
       }
@@ -718,10 +700,10 @@ server.registerTool(
         includeSpatialGrid,
         includeCandidateLabels,
       });
-      return shapeObservationForTool(observation, compactState) as Record<
-        string,
-        unknown
-      >;
+      return shapeObservationForTool(
+        observation,
+        compactState,
+      ) as unknown as Record<string, unknown>;
     };
 
     while (Date.now() < deadline) {

@@ -473,6 +473,39 @@ describe('handleMcpRequest', () => {
     expect(typeof body.summary).toBe('string');
   });
 
+  it('observation route respects compactState query param', async () => {
+    const stateRef = { current: buildDuelState() };
+    const deps = buildDeps({
+      getCurrentGameState: async () => stateRef.current,
+    });
+    const full = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/observation', { playerToken: TOKEN_B }), {
+        method: 'GET',
+      }),
+    );
+    const compact = await handleMcpRequest(
+      deps,
+      new Request(
+        url('/mcp/observation', {
+          playerToken: TOKEN_B,
+          compactState: 'true',
+        }),
+        { method: 'GET' },
+      ),
+    );
+    expect(full?.status).toBe(200);
+    expect(compact?.status).toBe(200);
+    const fullBody = (await full?.json()) as { state: Record<string, unknown> };
+    const compactBody = (await compact?.json()) as {
+      state: Record<string, unknown>;
+    };
+    expect(Object.keys(fullBody.state).length).toBeGreaterThan(5);
+    expect(Object.keys(compactBody.state).sort()).toEqual(
+      ['activePlayer', 'phase', 'turnNumber'].sort(),
+    );
+  });
+
   it('wait route returns observation immediately when actionable', async () => {
     const stateRef = { current: buildDuelState() };
     const deps = buildDeps({

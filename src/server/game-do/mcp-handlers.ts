@@ -11,6 +11,7 @@ import {
   type BuildObservationOptions,
   buildObservation,
   computeActionEffects,
+  withCompactObservationState,
 } from '../../shared/agent';
 import { filterStateForPlayer } from '../../shared/engine/game-engine';
 import { isPlayerToken, type PlayerToken } from '../../shared/ids';
@@ -168,9 +169,13 @@ const authorizeRequest = async (
   };
 };
 
+type ParsedObservationOptions = BuildObservationOptions & {
+  compactState?: boolean;
+};
+
 const parseObservationOptions = (
   source: URLSearchParams | Record<string, unknown>,
-): BuildObservationOptions => {
+): ParsedObservationOptions => {
   const get = (key: string): unknown =>
     source instanceof URLSearchParams ? source.get(key) : source[key];
 
@@ -187,8 +192,17 @@ const parseObservationOptions = (
       truthy(get('spatialGrid')) || truthy(get('includeSpatialGrid')),
     includeCandidateLabels:
       truthy(get('candidateLabels')) || truthy(get('includeCandidateLabels')),
+    compactState: truthy(get('compactState')),
   };
 };
+
+const finalizeObservation = (
+  observation: ReturnType<typeof buildObservation>,
+  compactState: boolean | undefined,
+): ReturnType<typeof buildObservation> =>
+  compactState === true
+    ? withCompactObservationState(observation)
+    : observation;
 
 interface PlayerStateView {
   state: GameState;
@@ -236,11 +250,15 @@ const handleObservationRequest = async (
     if (!view) {
       return { kind: 'no-state' as const };
     }
-    const opts = parseObservationOptions(url.searchParams);
+    const parsed = parseObservationOptions(url.searchParams);
+    const { compactState, ...opts } = parsed;
     opts.gameCode = roomConfig.code;
     opts.coachDirective =
       (await getCoachDirective(deps.storage, playerId)) ?? undefined;
-    const observation = buildObservation(view.filtered, playerId, opts);
+    const observation = finalizeObservation(
+      buildObservation(view.filtered, playerId, opts),
+      compactState,
+    );
     await deps.touchInactivity();
     return { kind: 'ok' as const, observation };
   });
@@ -308,7 +326,8 @@ const handleWaitRequest = async (
     MAX_WAIT_TIMEOUT_MS,
     DEFAULT_WAIT_TIMEOUT_MS,
   );
-  const opts = parseObservationOptions(body);
+  const parsed = parseObservationOptions(body);
+  const { compactState, ...opts } = parsed;
   opts.gameCode = roomConfig.code;
 
   const deadline = Date.now() + timeoutMs;
@@ -327,7 +346,10 @@ const handleWaitRequest = async (
       if (isActionable(view.state, playerId)) {
         opts.coachDirective =
           (await getCoachDirective(deps.storage, playerId)) ?? undefined;
-        const observation = buildObservation(view.filtered, playerId, opts);
+        const observation = finalizeObservation(
+          buildObservation(view.filtered, playerId, opts),
+          compactState,
+        );
         await deps.touchInactivity();
         return json({
           ok: true,
@@ -378,6 +400,7 @@ interface ActionRequestBody {
   includeTactical?: unknown;
   includeSpatialGrid?: unknown;
   includeCandidateLabels?: unknown;
+  compactState?: unknown;
 }
 
 const inferSurrenderShipIds = (
@@ -459,11 +482,17 @@ const buildOptionalObservation = async (
   storage: DurableObjectStorage,
 ): Promise<Record<string, unknown> | undefined> => {
   if (body.includeNextObservation !== true) return undefined;
-  const opts = parseObservationOptions(body as Record<string, unknown>);
+  const parsed = parseObservationOptions(body as Record<string, unknown>);
+  const { compactState, ...opts } = parsed;
   opts.gameCode = gameCode;
   opts.coachDirective =
     (await getCoachDirective(storage, playerId)) ?? undefined;
-  return { ...buildObservation(view.filtered, playerId, opts) };
+  return {
+    ...finalizeObservation(
+      buildObservation(view.filtered, playerId, opts),
+      compactState,
+    ),
+  };
 };
 
 const handleActionRequest = async (
