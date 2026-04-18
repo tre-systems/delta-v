@@ -272,6 +272,8 @@ describe('game client helpers', () => {
         title: '',
       },
       fleetStatus: '⚔ 1 vs 0 1M/1N',
+      fleetStatusAriaLabel:
+        '1 of your ships alive versus 0 enemy ships alive. Ordnance: 1 mine in flight, 1 nuclear weapon in flight.',
       launchMineState: {
         visible: true,
         disabled: false,
@@ -478,6 +480,8 @@ describe('game client helpers', () => {
     expect(deriveHudViewModel(state, -1, planning)).toMatchObject({
       objective: '⬡ Spectating',
       fleetStatus: '👁 Spectating · 1 vs 1',
+      fleetStatusAriaLabel:
+        'Spectating: player one has 1 active ship, player two has 1 active ship.',
       myShips: [
         expect.objectContaining({ id: 'p0s0' }),
         expect.objectContaining({ id: 'p0s1' }),

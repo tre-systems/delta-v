@@ -225,7 +225,8 @@ export const createUIManager = (deps: UIManagerDeps) => {
   const hudActions = createHudActions({
     update: (input) => hudChromeView.update(input),
     updateLatency: (latencyMs) => hudChromeView.updateLatency(latencyMs),
-    updateFleetStatus: (status) => hudChromeView.updateFleetStatus(status),
+    updateFleetStatus: (status, ariaLabel) =>
+      hudChromeView.updateFleetStatus(status, ariaLabel),
     updateShipList: (ships, selectedId, burns) =>
       shipListView.update(ships, selectedId, burns),
     toggleHelpOverlay: () => hudChromeView.toggleHelpOverlay(),
