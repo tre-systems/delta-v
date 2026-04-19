@@ -74,6 +74,7 @@ export enum ErrorCode {
   ROOM_NOT_FOUND = 'ROOM_NOT_FOUND',
   ROOM_FULL = 'ROOM_FULL',
   GAME_IN_PROGRESS = 'GAME_IN_PROGRESS',
+  GAME_COMPLETED = 'GAME_COMPLETED',
 }
 
 export interface EngineError {
