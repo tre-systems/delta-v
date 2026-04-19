@@ -42,6 +42,8 @@ export {
 } from './observation';
 export {
   normalizeQuickMatchServerUrl,
+  type PollQuickMatchTicketArgs,
+  pollQuickMatchTicket,
   type QuickMatchArgs,
   type QuickMatchResult,
   queueForMatch,

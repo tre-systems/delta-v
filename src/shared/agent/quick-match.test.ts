@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { normalizeQuickMatchServerUrl, queueForMatch } from './quick-match';
+import {
+  normalizeQuickMatchServerUrl,
+  pollQuickMatchTicket,
+  queueForMatch,
+} from './quick-match';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -64,5 +68,44 @@ describe('normalizeQuickMatchServerUrl', () => {
     });
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('polls a queued ticket until it matches', async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          status: 'queued',
+          ticket: 'TICKET',
+          scenario: 'duel',
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          status: 'matched',
+          ticket: 'TICKET',
+          scenario: 'duel',
+          code: 'ABCDE',
+          playerToken: 'X'.repeat(32),
+        }),
+      );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(
+      pollQuickMatchTicket({
+        serverUrl: 'https://delta-v.example',
+        ticket: 'TICKET',
+        pollMs: 0,
+        timeoutMs: 5_000,
+      }),
+    ).resolves.toEqual({
+      status: 'matched',
+      ticket: 'TICKET',
+      scenario: 'duel',
+      code: 'ABCDE',
+      playerToken: 'X'.repeat(32),
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });

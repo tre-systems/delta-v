@@ -21,6 +21,13 @@ export interface QuickMatchArgs {
   authorizationBearer?: string;
 }
 
+export interface PollQuickMatchTicketArgs {
+  serverUrl: string;
+  ticket: string;
+  pollMs?: number;
+  timeoutMs?: number;
+}
+
 export type QuickMatchResult =
   | {
       status: 'queued';
@@ -67,6 +74,39 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
     throw new Error(`HTTP ${response.status}: ${raw || 'request failed'}`);
   }
   return JSON.parse(raw) as T;
+};
+
+export const pollQuickMatchTicket = async (
+  args: PollQuickMatchTicketArgs,
+): Promise<Extract<QuickMatchResult, { status: 'matched' }>> => {
+  const serverUrl = normalizeQuickMatchServerUrl(args.serverUrl);
+  const pollMs = args.pollMs ?? DEFAULT_POLL_MS;
+  const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const startedAt = Date.now();
+
+  while (true) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error(
+        `Quick-match ticket ${args.ticket} timed out after ${timeoutMs}ms (no opponent joined in time).`,
+      );
+    }
+    const poll = await fetchJson<QuickMatchResponse>(
+      `${serverUrl}/quick-match/${args.ticket}`,
+    );
+    if (poll.status === 'matched') {
+      return {
+        status: 'matched',
+        code: poll.code,
+        playerToken: poll.playerToken,
+        ticket: poll.ticket,
+        scenario: poll.scenario,
+      };
+    }
+    if (poll.status === 'expired') {
+      throw new Error(`Quick-match expired: ${poll.reason}`);
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, pollMs));
+  }
 };
 
 // Enqueue the player into the public quick-match queue and poll until matched,
@@ -147,28 +187,10 @@ export const queueForMatch = async (
     };
   }
 
-  const startedAt = Date.now();
-  while (true) {
-    if (Date.now() - startedAt > timeoutMs) {
-      throw new Error(
-        `Quick-match timed out after ${timeoutMs}ms (no opponent joined in time; start a second client or MCP session, or raise timeoutMs).`,
-      );
-    }
-    await new Promise<void>((resolve) => setTimeout(resolve, pollMs));
-    const poll = await fetchJson<QuickMatchResponse>(
-      `${serverUrl}/quick-match/${enqueue.ticket}`,
-    );
-    if (poll.status === 'matched') {
-      return {
-        status: 'matched',
-        code: poll.code,
-        playerToken: poll.playerToken,
-        ticket: poll.ticket,
-        scenario: poll.scenario,
-      };
-    }
-    if (poll.status === 'expired') {
-      throw new Error(`Quick-match expired: ${poll.reason}`);
-    }
-  }
+  return pollQuickMatchTicket({
+    serverUrl,
+    ticket: enqueue.ticket,
+    pollMs,
+    timeoutMs,
+  });
 };

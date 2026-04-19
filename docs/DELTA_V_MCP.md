@@ -17,7 +17,7 @@ For onboarding and workflow:
 
 ### Stdio quick match: operational notes
 
-Many MCP hosts invoke tools **one at a time** (the next `tools/call` starts after the previous returns). Two `delta_v_quick_match_connect` probes issued in the same assistant step therefore run **sequentially**, not truly in parallel — fine for a single agent, awkward for “race two tickets” experiments. Prefer **`npm run mcp:delta-v:http`** when you need concurrent ticket issuance from **separate OS processes**.
+Many MCP hosts invoke tools **one at a time** (the next `tools/call` starts after the previous returns). Two `delta_v_quick_match_connect` probes issued in the same assistant step therefore run **sequentially**, not truly in parallel. For two-seat stdio automation, queue both seats with `waitForOpponent: false`, then call `delta_v_pair_quick_match_tickets` with the returned tickets. Prefer **`npm run mcp:delta-v:http`** when you need truly concurrent ticket issuance from **separate OS processes**.
 
 - Use **distinct `playerKey` values** per automated client so queue / pairing telemetry stays unambiguous when multiple scripts hit dev quick match.
 - If a session lands in an unintended **`DEV_MODE` bot seat**, call `delta_v_close_session` and queue again; for reproducible human-vs-human tests, join via normal lobby / share links instead of racing two anonymous quick-match tickets.
@@ -99,6 +99,7 @@ All tools accept `sessionId` unless otherwise noted.
 | --- | --- | --- | --- |
 | `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `username?`, `playerKey?`, `waitForOpponent?` | matched: `{ sessionId, code, playerId, playerToken, status }`; queued mode: `{ status: "queued", ticket }` |
 | `delta_v_quick_match` | Local alias of `delta_v_quick_match_connect` (name parity with hosted MCP) | same args as above | same payload as above |
+| `delta_v_pair_quick_match_tickets` | Local dev helper: resolve two queued tickets into one match and connect both seats | `leftTicket`, `rightTicket`, `serverUrl?` | `{ code, scenario, left: { sessionId }, right: { sessionId } }` |
 | `delta_v_list_sessions` | List active local sessions | none | `{ sessions[] }` |
 | `delta_v_reconnect` | Reopen a dropped local WebSocket using the stored seat | `sessionId` | `{ reconnected, connectionStatus }` |
 | `delta_v_get_state` | Raw authoritative state | `sessionId` | `{ state, latestEventId }` |
@@ -132,6 +133,7 @@ Notes:
 - `delta_v_get_observation` is the preferred read surface for most agents; `delta_v_get_state` is lower-level.
 - During `fleetBuilding`, always send `fleetReady` explicitly if `state.phase === 'fleetBuilding'`. That phase is simultaneous, but it does not auto-submit on connect; `wait_for_turn` may legitimately return a fleet-building observation until both seats have sent `fleetReady`.
 - `delta_v_quick_match` / `delta_v_quick_match_connect` accept `waitForOpponent: false` to enqueue and return the ticket immediately instead of blocking for a full match.
+- `delta_v_pair_quick_match_tickets` is local-only; use it after two queued ticket responses when you need reproducible two-seat stdio automation without lobby URLs.
 
 ## `delta_v_send_action` payload examples
 
