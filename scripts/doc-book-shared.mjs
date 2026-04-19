@@ -40,6 +40,7 @@ export const parts = [
     files: [
       "docs/SIMULATION_TESTING.md",
       "docs/MANUAL_TEST_PLAN.md",
+      "docs/EXPLORATORY_TESTING.md",
       "docs/A11Y.md",
       "docs/OBSERVABILITY.md",
       "docs/SECURITY.md",

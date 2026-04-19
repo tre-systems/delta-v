@@ -99,6 +99,15 @@ Doc index by purpose, grouped by theme:
 | [AGENT_SPEC.md](./AGENT_SPEC.md) | Deep agent protocol and design reference |
 | [LORE.md](./docs/LORE.md) | Ship aesthetics and visual direction |
 
+### Compiled book editions
+
+Both editions compile every doc in this index into a single consolidated PDF with a cover, parts-break, and table of contents. They are rebuilt with `npm run docs:book` and `npm run docs:book:audio`.
+
+| Edition | File | Purpose |
+| --- | --- | --- |
+| **Main** | [`docs/delta-v-documentation-book.pdf`](./docs/delta-v-documentation-book.pdf) | Full book: every canonical Markdown doc, the visual concept boards under `docs/assets/`, and the appended 2018 *Triplanetary* rulebook as a single 25 MB PDF. Use for reading, printing, or archiving. |
+| **Audio** | [`docs/delta-v-documentation-book.audio.pdf`](./docs/delta-v-documentation-book.audio.pdf) | Listener-friendly rewrite of the same content (~52,000 words, 165 pages, 1.3 MB). Code blocks, tables, and file paths replaced with plain-English prose for text-to-speech narration (e.g. Speechify). |
+
 ### Glossary
 
 | Term | Meaning |
