@@ -29,4 +29,9 @@ export interface Env {
   // placeholder secret when AGENT_TOKEN_SECRET is unset. Unset in
   // production so missing secrets fail closed.
   DEV_MODE?: string;
+  // Optional Cloudflare deployment metadata. When present, /healthz
+  // reports the current deployment id as `sha`.
+  CF_VERSION_METADATA?: {
+    id?: string;
+  };
 }
