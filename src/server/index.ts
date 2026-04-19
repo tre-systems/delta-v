@@ -19,6 +19,8 @@ import { handleMatchesList } from './matches-list';
 import { MatchmakerDO } from './matchmaker-do';
 import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
 
+const WORKER_BOOTED_AT = new Date().toISOString();
+
 export type { CreateRateLimiterBinding, Env } from './env';
 
 import {
@@ -166,6 +168,19 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
+
+    if (
+      (url.pathname === '/healthz' ||
+        url.pathname === '/health' ||
+        url.pathname === '/status') &&
+      request.method === 'GET'
+    ) {
+      return Response.json({
+        ok: true,
+        sha: env.CF_VERSION_METADATA?.id ?? null,
+        bootedAt: WORKER_BOOTED_AT,
+      });
+    }
 
     // CORS preflight for reporting endpoints
     if (

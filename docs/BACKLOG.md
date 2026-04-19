@@ -123,20 +123,6 @@ Four papercuts hit while pairing a local MCP agent against a human browser seat 
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/shared/agent/`, `src/shared/types/protocol.ts`, `.claude/skills/play/SKILL.md`
 
-### Local MCP: reconnect-by-matchToken, survive wait_for_turn timeouts
-
-A 2026-04-18 exploratory pass found that `wait_for_turn` timing out **destroys the local MCP session**: subsequent `get_state` returns `Unknown sessionId` and `list_sessions` is empty, while the match continues on the server and the browser client surfaces *"Your fleet and plotted burns are saved — we're restoring the match state."* Local MCP has no tool to rejoin an in-flight match by `matchToken` / `sessionId`. This forces agents to redo matchmaking after every transient timeout and cedes the seat to server-side fallback behaviour (implicit coast / auto-confirm), which is a serious footgun for long-running autonomous play.
-
-Minimum fixes: keep the session handle alive across `wait_for_turn` timeouts (timeout = "not actionable yet", not "tear down"), and add a `delta_v_reconnect` (or let `quick_match_connect` accept an existing `matchToken` as a resume path) so agents can recover from dropped WebSockets the way the browser already does.
-
-**Files:** `scripts/delta-v-mcp-server.ts`, `src/shared/mcp-stdio-serialized-send.ts`, `src/shared/agent/quick-match.ts`, `packages/mcp-adapter/src/handlers.ts`, `docs/DELTA_V_MCP.md`
-
-### Queue-time scenario validation
-
-`quick_match_connect({ scenario: "not-a-real-scenario" })` is accepted silently by the server and only surfaces as an opponent-timeout after the full wait. Validate the scenario against the published list in `/.well-known/agent.json` at enqueue time and return a structured 4xx-style error ("unknown scenario"), so agents fail fast instead of burning their default timeout.
-
-**Files:** `src/server/`, `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts`, `static/.well-known/agent.json`
-
 ### Liveness endpoint
 
 No `/healthz` (or `/health` / `/status`) — probes currently must scrape the SPA home page. Add a small JSON endpoint returning `{ ok: true, sha, bootedAt }` for uptime monitors and release gates.

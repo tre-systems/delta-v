@@ -45,6 +45,9 @@ type MockEnv = {
   DB: MockDb;
   AGENT_TOKEN_SECRET?: string;
   DEV_MODE?: string;
+  CF_VERSION_METADATA?: {
+    id?: string;
+  };
   CREATE_RATE_LIMITER?: {
     limit: ReturnType<
       typeof vi.fn<(options: { key: string }) => Promise<{ success: boolean }>>
@@ -187,6 +190,25 @@ describe('server index worker', () => {
         url: 'https://matchmaker.internal/enqueue',
       }),
     );
+  });
+
+  it('serves a health endpoint with boot timestamp and optional sha', async () => {
+    const { env } = createEnv(undefined, {
+      CF_VERSION_METADATA: { id: 'deploy-sha-123' },
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/healthz', { method: 'GET' }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      sha: 'deploy-sha-123',
+      bootedAt: expect.any(String),
+    });
   });
 
   it('returns 403 when quick-match uses agent_ playerKey without Bearer', async () => {
