@@ -96,6 +96,22 @@ Worker entrypoint observability also records two abuse-focused signals:
 - `server_create_request` in the D1 `events` table for every `POST /create`, with `{ route, outcome, scenario, payloadBytes, status, error? }`. This covers direct script traffic that never emits first-party client telemetry.
 - sampled `console.log` lines under `[auth-failure]` and `[rate-limit]` for invalid MCP / quick-match Bearers, malformed `POST /api/agent-token` payloads, and create-class / MCP rate-limit hits. Sampling is deterministic per hashed IP so repeated abuse from the same source still leaves a tail signal without flooding logs.
 
+## Orphan rooms and inactivity cleanup
+
+`POST /create` allocates a `GameDO` immediately, even before a second player joins. If nobody ever connects, that room is considered an orphaned private room. There is currently no public or operator HTTP endpoint that lists orphan room counts.
+
+The cleanup policy is:
+
+- every room touch refreshes `inactivityAt` to `Date.now() + 5 minutes` (`INACTIVITY_TIMEOUT_MS` in [src/shared/constants.ts](/Users/robertgilks/Source/delta-v/src/shared/constants.ts:263))
+- when the alarm reaches that deadline, `GameDO` closes any sockets, marks the room archived, clears disconnect/turn/rematch/MCP session markers, and purges match-scoped event/checkpoint residue from DO storage
+- if a game state exists at cleanup time, the alarm path also schedules the archival mirror to R2 + D1 before the local DO storage is scrubbed
+- orphan rooms never appear in `GET /api/matches?status=live`; that surface only reports seated live matches from `LIVE_REGISTRY`
+
+Operationally, the two signals to watch are:
+
+- `server_create_request` rows with `outcome: "created"` but no corresponding `game_started` / `game_ended` lifecycle for the same room within a few minutes
+- Workers Logs entries mentioning `Inactivity timeout` or `game_abandoned` when diagnosing cost from abandoned rooms
+
 ## Incident triage quickstart
 
 Use this when someone reports "game is broken" or metrics look wrong.
