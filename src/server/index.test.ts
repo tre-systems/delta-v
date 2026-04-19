@@ -12,7 +12,9 @@ vi.mock('./live-registry-do', () => ({
   LiveRegistryDO: class LiveRegistryDO {},
 }));
 
+import { asGameId } from '../shared/ids';
 import { issueAgentToken } from './auth';
+import type { MatchArchive } from './game-do/match-archive';
 import worker, {
   createRateMap,
   type Env,
@@ -54,6 +56,13 @@ type MockEnv = {
   CREATE_RATE_LIMITER?: {
     limit: ReturnType<
       typeof vi.fn<(options: { key: string }) => Promise<{ success: boolean }>>
+    >;
+  };
+  MATCH_ARCHIVE?: {
+    get: ReturnType<
+      typeof vi.fn<
+        (key: string) => Promise<{ json: () => Promise<unknown> } | null>
+      >
     >;
   };
 };
@@ -730,6 +739,79 @@ describe('server index worker', () => {
         url: 'https://room.internal/replay?gameId=ABCDE-m2&viewer=spectator',
       }),
     );
+  });
+
+  it('falls back to the R2 archive for spectator replay links after room eviction', async () => {
+    const archive: MatchArchive = {
+      gameId: asGameId('ABCDE-m2'),
+      roomCode: 'ABCDE',
+      scenario: 'duel',
+      winner: 0,
+      winReason: 'Fleet eliminated!',
+      turnCount: 1,
+      createdAt: 1234,
+      completedAt: 5678,
+      checkpoint: null,
+      matchSeed: null,
+      eventStream: [
+        {
+          seq: 1,
+          gameId: asGameId('ABCDE-m2'),
+          actor: null,
+          ts: 1234,
+          event: {
+            type: 'gameCreated',
+            scenario: 'Duel',
+            turn: 1,
+            phase: 'astrogation',
+            matchSeed: 0,
+          },
+        },
+      ],
+    };
+    const archiveGet = vi.fn(async () => ({
+      json: async () => archive,
+    }));
+    const { env, initFetch } = createEnv(
+      async () => new Response('Replay not found', { status: 404 }),
+      {
+        MATCH_ARCHIVE: {
+          get: archiveGet,
+        },
+      },
+    );
+
+    const response = await worker.fetch(
+      new Request(
+        'https://delta-v.test/replay/ABCDE?viewer=spectator&gameId=ABCDE-m2',
+        {
+          method: 'GET',
+        },
+      ),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(initFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        url: 'https://room.internal/replay?gameId=ABCDE-m2&viewer=spectator',
+      }),
+    );
+    expect(archiveGet).toHaveBeenCalledWith('matches/ABCDE-m2.json');
+    expect(response.headers.get('Cache-Control')).toBe(
+      'public, max-age=60, s-maxage=3600',
+    );
+    const body = (await response.json()) as {
+      gameId: string;
+      scenario: string;
+      entries: Array<{ message: { state: { phase: string } } }>;
+    };
+    expect(body.gameId).toBe('ABCDE-m2');
+    expect(body.scenario).toBe('Duel');
+    expect(body.entries).toHaveLength(1);
+    expect(body.entries[0]?.message.state.phase).toBe('astrogation');
   });
 
   it('proxies spectator websocket requests to the room durable object', async () => {

@@ -1,6 +1,8 @@
-import type { RoomCode } from '../shared/ids';
+import { asGameId, type RoomCode } from '../shared/ids';
 import { SCENARIOS } from '../shared/map-data';
 import type { Env } from './env';
+import { projectReplayTimeline } from './game-do/archive';
+import { fetchArchivedMatch } from './game-do/match-archive';
 import {
   generatePlayerToken,
   generateRoomCode,
@@ -40,9 +42,9 @@ export const handleJoinCheck = (
 
 export const handleReplayFetch = (
   request: Request,
-  env: Pick<Env, 'GAME'>,
+  env: Pick<Env, 'GAME' | 'MATCH_ARCHIVE'>,
   code: RoomCode,
-): Promise<Response> => {
+): Promise<Response> | Response => {
   const url = new URL(request.url);
   const internalUrl = new URL('https://room.internal/replay');
   const playerToken = url.searchParams.get('playerToken');
@@ -61,11 +63,48 @@ export const handleReplayFetch = (
     internalUrl.searchParams.set('viewer', viewer);
   }
 
-  return getRoomStub(env, code).fetch(
-    new Request(internalUrl.toString(), {
-      method: 'GET',
-    }),
-  );
+  return (async (): Promise<Response> => {
+    const roomResponse = await getRoomStub(env, code).fetch(
+      new Request(internalUrl.toString(), {
+        method: 'GET',
+      }),
+    );
+
+    if (
+      roomResponse.status !== 404 ||
+      viewer !== 'spectator' ||
+      !gameId ||
+      !env.MATCH_ARCHIVE
+    ) {
+      return roomResponse;
+    }
+
+    const archivedMatch = await fetchArchivedMatch(
+      env.MATCH_ARCHIVE,
+      asGameId(gameId),
+    );
+
+    if (!archivedMatch) {
+      return roomResponse;
+    }
+
+    const timeline = projectReplayTimeline(
+      archivedMatch.checkpoint,
+      archivedMatch.eventStream,
+      'spectator',
+      archivedMatch.createdAt,
+    );
+
+    if (!timeline) {
+      return roomResponse;
+    }
+
+    return Response.json(timeline, {
+      headers: {
+        'Cache-Control': 'public, max-age=60, s-maxage=3600',
+      },
+    });
+  })();
 };
 
 export const handleCreate = async (
