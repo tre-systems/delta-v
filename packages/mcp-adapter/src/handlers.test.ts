@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { issueAgentToken, issueMatchToken } from '../../../src/server/auth';
 import type { Env } from '../../../src/server/env';
 import {
+  hashIp,
+  shouldSampleOperationalLog,
+} from '../../../src/server/reporting';
+import {
   LEADERBOARD_AGENTS_URI,
   RULES_CURRENT_URI,
 } from '../../../src/shared/agent';
@@ -75,6 +79,16 @@ const post = (body: unknown): Request =>
     },
     body: JSON.stringify(body),
   });
+
+const findSampledIp = async (): Promise<string> => {
+  for (let index = 1; index < 256; index++) {
+    const candidate = `10.0.1.${index}`;
+    if (shouldSampleOperationalLog(await hashIp(candidate))) {
+      return candidate;
+    }
+  }
+  throw new Error('failed to find sampled IP');
+};
 
 describe('handleMcpHttpRequest abuse protections', () => {
   it('returns 500 when AGENT_TOKEN_SECRET is missing in production mode', async () => {
@@ -528,6 +542,35 @@ describe('handleMcpHttpRequest', () => {
     );
     expect(res.status).toBe(401);
     expect(res.headers.get('WWW-Authenticate')).toContain('Bearer');
+  });
+
+  it('logs invalid Bearer failures on a sampled path', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const ip = await findSampledIp();
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const res = await handleMcpHttpRequest(
+      new Request('https://w.test/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json,text/event-stream',
+          Authorization: 'Bearer not.a.valid.token',
+          'cf-connecting-ip': ip,
+        },
+        body: JSON.stringify(initializeBody),
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(401);
+    expect(log).toHaveBeenCalledWith(
+      '[auth-failure]',
+      expect.objectContaining({
+        route: '/mcp',
+        reason: 'invalid_agent_token',
+      }),
+    );
+    log.mockRestore();
   });
 
   it('accepts a valid Bearer token and routes initialize', async () => {

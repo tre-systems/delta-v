@@ -235,23 +235,11 @@ Two actions: (1) document the shipped two-layer behavior accurately (`agent.json
 
 **Files:** `static/.well-known/agent.json`, `wrangler.toml`, `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`
 
-### Server-side `/create` produces no D1 audit trail
-
-Walking `events` after a 50-burst confirmed that **no row is written for `/create` attempts** — only client-emitted telemetry events (`create_game_attempted`, `game_created`, …) reach D1. An attacker hitting `/create` directly from a script bypasses analytics entirely; the only forensic trail is Cloudflare's Worker logs (1 day retention by default for free tier; 7 days persisted with `[observability]`). For incident reconstruction and abuse detection this is a real gap. Insert a server-side `events` row at the rate-limit decision point (with the hashed IP, scenario, success / `rate_limited`) so the analytics pipeline matches the request volume.
-
-**Files:** `src/server/index.ts`, `src/server/reporting.ts`, `docs/OBSERVABILITY.md`
-
 ### Orphan room cleanup invisible to operators
 
 A `POST /create` from an unauthenticated client creates a Durable Object that never gets joined. These rooms do not appear in `/api/matches?status=live` (which only counts pairs with a connected second player) and there is no public surface that exposes or counts them. After my probes I had ~24 orphan DOs that I had no way to enumerate or explicitly clean up — the alarm-driven cleanup in `GameDO` is the only sweep. Either expose an admin-only `/api/rooms?status=orphaned` count for monitoring, or document the alarm timer and orphan-eviction policy in [OBSERVABILITY.md](./OBSERVABILITY.md) so operators know what cost they're carrying.
 
 **Files:** `src/server/game-do/`, `src/server/live-registry-do.ts`, `docs/OBSERVABILITY.md`, `docs/SECURITY.md`
-
-### Worker logs no entry on auth-failure paths
-
-`POST /mcp` with a bad `Authorization: Bearer …` header and `POST /api/agent-token` with malformed JSON both return helpful structured error bodies but emit **zero `console.log` lines** (verified with `wrangler tail --format json`). Brute-force attempts on token verification or sustained malformed-payload probes would leave no observability trail unless someone happens to look at the Cloudflare request log per-IP. Add a `console.log` (gated behind a sample rate to avoid log spam) on the four-eyes authentication failure paths: invalid agent token, malformed JSON to token endpoints, and rate-limited rejections. These map directly to the abuse signals operators most want to see.
-
-**Files:** `src/server/index.ts`, `src/server/auth/`, `src/server/reporting.ts`, `docs/OBSERVABILITY.md`
 
 ### Leaderboard pollution from exploratory test traffic
 

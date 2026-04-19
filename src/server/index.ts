@@ -35,6 +35,7 @@ import {
   isReplayProbeRateLimited,
   isTelemetryReportRateLimited,
   isWsConnectRateLimited,
+  logSampledOperationalEvent,
   purgeOldEvents,
   tooManyRequests,
 } from './reporting';
@@ -56,6 +57,9 @@ const buildQuickMatchEnqueueHeaders = async (
   const contentType =
     incoming.headers.get('content-type') ?? 'application/json';
   const base: Record<string, string> = { 'Content-Type': contentType };
+  const ipHash = await hashIp(
+    incoming.headers.get('cf-connecting-ip') ?? 'unknown',
+  );
 
   let parsed: { player?: { playerKey?: unknown } };
   try {
@@ -75,6 +79,10 @@ const buildQuickMatchEnqueueHeaders = async (
     secret = resolveAgentTokenSecret(env);
   } catch (error) {
     if (error instanceof MissingAgentTokenSecretError) {
+      logSampledOperationalEvent('auth-failure', ipHash, {
+        route: '/quick-match',
+        reason: 'server_misconfigured',
+      });
       return {
         ok: false,
         response: Response.json(
@@ -87,6 +95,11 @@ const buildQuickMatchEnqueueHeaders = async (
   }
 
   if (!bearer) {
+    logSampledOperationalEvent('auth-failure', ipHash, {
+      route: '/quick-match',
+      reason: 'agent_token_required',
+      playerKey: pk,
+    });
     return {
       ok: false,
       response: Response.json(
@@ -98,6 +111,12 @@ const buildQuickMatchEnqueueHeaders = async (
 
   const verified = await verifyAgentToken(bearer, { secret });
   if (!verified.ok) {
+    logSampledOperationalEvent('auth-failure', ipHash, {
+      route: '/quick-match',
+      reason: 'invalid_agent_token',
+      detail: verified.reason,
+      playerKey: pk,
+    });
     return {
       ok: false,
       response: Response.json(
@@ -108,6 +127,12 @@ const buildQuickMatchEnqueueHeaders = async (
   }
 
   if (verified.payload.playerKey !== pk) {
+    logSampledOperationalEvent('auth-failure', ipHash, {
+      route: '/quick-match',
+      reason: 'agent_token_player_key_mismatch',
+      tokenPlayerKey: verified.payload.playerKey,
+      bodyPlayerKey: pk,
+    });
     return {
       ok: false,
       response: Response.json(
@@ -133,7 +158,9 @@ export {
   isErrorReportRateLimitedInMemory,
   isTelemetryReportRateLimitedInMemory,
   joinProbeRateMap,
+  logSampledOperationalEvent,
   replayProbeRateMap,
+  shouldSampleOperationalLog,
   telemetryReportRateMap,
   wsConnectRateMap,
 } from './reporting';
@@ -173,6 +200,52 @@ const resolveWorkerSha = (env: Env): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const readResponseErrorCode = async (
+  response: Response,
+): Promise<string | null> => {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    return null;
+  }
+  try {
+    const body = (await response.clone().json()) as { error?: unknown };
+    return typeof body.error === 'string' ? body.error : null;
+  } catch {
+    return null;
+  }
+};
+
+const inspectCreateRequest = async (
+  request: Request,
+): Promise<{ scenario: string | null; payloadBytes: number }> => {
+  const rawBody = await request.clone().text();
+  if (rawBody.length === 0) {
+    return { scenario: null, payloadBytes: 0 };
+  }
+  try {
+    const parsed = JSON.parse(rawBody) as { scenario?: unknown };
+    return {
+      scenario: typeof parsed.scenario === 'string' ? parsed.scenario : null,
+      payloadBytes: rawBody.length,
+    };
+  } catch {
+    return { scenario: null, payloadBytes: rawBody.length };
+  }
+};
+
+const scheduleServerAuditEvent = (
+  ctx: ExecutionContext,
+  db: D1Database | undefined,
+  ipHash: string,
+  ua: string | null,
+  payload: Record<string, unknown>,
+): void => {
+  if (!db) {
+    return;
+  }
+  ctx.waitUntil(insertEvent(db, payload, ipHash, ua));
+};
+
 export default {
   async fetch(
     request: Request,
@@ -207,15 +280,42 @@ export default {
 
     // Create a new game
     if (url.pathname === '/create' && request.method === 'POST') {
-      if (!isLoopbackRequest(request)) {
-        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-        const ipHash = await hashIp(ip);
+      const ua = request.headers.get('user-agent');
+      const ipHash = await hashIp(
+        request.headers.get('cf-connecting-ip') ?? 'unknown',
+      );
+      const audit = await inspectCreateRequest(request);
 
-        if (await isCreateRateLimited(env, ipHash)) {
-          return tooManyRequests();
-        }
+      if (
+        !isLoopbackRequest(request) &&
+        (await isCreateRateLimited(env, ipHash))
+      ) {
+        logSampledOperationalEvent('rate-limit', ipHash, {
+          route: '/create',
+          reason: 'create_bucket',
+          scenario: audit.scenario,
+        });
+        scheduleServerAuditEvent(ctx, env.DB, ipHash, ua, {
+          event: 'server_create_request',
+          route: '/create',
+          outcome: 'rate_limited',
+          scenario: audit.scenario,
+          payloadBytes: audit.payloadBytes,
+          status: 429,
+        });
+        return tooManyRequests();
       }
-      return handleCreate(request, env);
+      const response = await handleCreate(request, env);
+      scheduleServerAuditEvent(ctx, env.DB, ipHash, ua, {
+        event: 'server_create_request',
+        route: '/create',
+        outcome: response.ok ? 'created' : 'rejected',
+        scenario: audit.scenario,
+        payloadBytes: audit.payloadBytes,
+        status: response.status,
+        error: await readResponseErrorCode(response),
+      });
+      return response;
     }
 
     if (url.pathname === '/quick-match' && request.method === 'POST') {
@@ -362,14 +462,30 @@ export default {
     // on /mcp calls so playerKey + per-agent rate limiting work without
     // exposing match credentials in tool arguments.
     if (url.pathname === '/api/agent-token') {
+      const ipHash = await hashIp(
+        request.headers.get('cf-connecting-ip') ?? 'unknown',
+      );
       if (!isLoopbackRequest(request)) {
-        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-        const ipHash = await hashIp(ip);
         if (await isCreateRateLimited(env, ipHash)) {
+          logSampledOperationalEvent('auth-failure', ipHash, {
+            route: '/api/agent-token',
+            reason: 'rate_limited',
+          });
           return tooManyRequests();
         }
       }
-      return handleAgentTokenIssue(request, env);
+      const response = await handleAgentTokenIssue(request, env);
+      if (!response.ok) {
+        const error = await readResponseErrorCode(response);
+        if (error === 'Invalid JSON body' || error === 'server_misconfigured') {
+          logSampledOperationalEvent('auth-failure', ipHash, {
+            route: '/api/agent-token',
+            reason: error === 'Invalid JSON body' ? 'invalid_json' : error,
+            status: response.status,
+          });
+        }
+      }
+      return response;
     }
 
     // POST /api/claim-name — bind a human playerKey to a username
