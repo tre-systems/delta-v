@@ -249,20 +249,9 @@ Two actions: (1) document the shipped two-layer behavior accurately (`agent.json
 
 Confirmed 2026-04-19: `POST /create` returns a 5-char code from a 32-char alphabet (~33.6M codes); `WebSocket(/ws/<code>)` with no `playerToken` auto-seats the connecting client as player 1 and issues a fresh playerToken. Brute-forcing the 5-char code is theoretically feasible (~3 h to find a random active room from a populated server, multi-IP).
 
-**Decision (2026-04-19, product):** this is *not* a launch-blocker. Frictionless start (no login, share-and-join) outweighs private-room hijack defence. Document the trade-off and skip auth/captcha/invite-token work; revisit only if real-world griefing is observed post-launch. The actually-actionable bits live in the next two entries (spectator misadvertisement; bare 1006 close shape).
+**Decision (2026-04-19, product):** this is *not* a launch-blocker. Frictionless start (no login, share-and-join) outweighs private-room hijack defence. Document the trade-off and skip auth/captcha/invite-token work; revisit only if real-world griefing is observed post-launch. The actually-actionable bit that remains is the bare 1006 close shape on a full room when no player token or spectator flag is provided.
 
 **Files:** —
-
-### Spectator mode advertised but unimplemented
-
-`/.well-known/agent.json` `endpoints[].description` for `WS /ws/{code}` says "...omit to spe…" (truncated, almost certainly "to spectate"). Empirically:
-
-- Empty room + no token → seated as player 1.
-- Full room + no token → WebSocket closes immediately with code 1006, no message, no welcome frame, no structured rejection.
-
-There is no actual spectator code path. Either ship spectator mode (read-only stream of S2C state messages, no `playerId`, drop any C2S writes) or rewrite the documentation to remove the spectator hint and return a structured `{type:"error", code:"room_full"}` close message instead of bare 1006.
-
-**Files:** `src/server/game-do/socket.ts`, `src/server/game-do/ws.ts`, `static/.well-known/agent.json`, `static/agents.html`
 
 ### Local Play-vs-AI games lose progress on tab reload
 

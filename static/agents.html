@@ -586,7 +586,7 @@ npm run llm:player -- \
 }</code></pre>
 
     <h3>WebSocket /ws/{code}</h3>
-    <p>Connect with the 5-char game code. Add <code>?playerToken=...</code> to reconnect after a disconnect. The server upgrades the connection and starts sending <a href="#websocket">S2C messages</a>.</p>
+    <p>Connect with the 5-char game code. Add <code>?playerToken=...</code> to reconnect as a player after a disconnect, or <code>?viewer=spectator</code> for the read-only live spectator stream. The server upgrades the connection and starts sending <a href="#websocket">S2C messages</a>.</p>
   </section>
 
   <!-- Rate Limits -->
@@ -619,10 +619,10 @@ Retry-After: 60</code></pre>
   <!-- Spectator Mode -->
   <section class="section section-anchor" id="spectator">
     <h2><span class="section-num">05</span> Spectator Mode</h2>
-    <p>Any WebSocket connection to <code>/ws/{code}</code> that does <em>not</em> supply a valid <code>playerToken</code> joins as a spectator. Spectators receive all state broadcasts but cannot send game actions.</p>
+    <p>Use <code>/ws/{code}?viewer=spectator</code> for a read-only spectator session. Spectators receive the filtered state stream for both sides but cannot send game actions.</p>
 
-    <pre><code>// Connect as spectator — omit playerToken
-const ws = new WebSocket('wss://delta-v.tre.systems/ws/ABCDE');
+    <pre><code>// Connect as spectator
+const ws = new WebSocket('wss://delta-v.tre.systems/ws/ABCDE?viewer=spectator');
 
 // First message you receive
 { "type": "spectatorWelcome", "code": "ABCDE" }
@@ -637,7 +637,7 @@ const ws = new WebSocket('wss://delta-v.tre.systems/ws/ABCDE');
       <li>Verifying your agent's moves without interfering</li>
     </ul>
 
-    <p>To spectate a running game programmatically, open the game URL in a browser: <code>https://delta-v.tre.systems/game/ABCDE</code>. No token needed.</p>
+    <p>To spectate a running game programmatically, open <code>https://delta-v.tre.systems/?code=ABCDE&amp;viewer=spectator</code> or connect directly to <code>wss://delta-v.tre.systems/ws/ABCDE?viewer=spectator</code>.</p>
   </section>
 
   <!-- 6. WebSocket Messages -->

@@ -120,10 +120,11 @@
       "id": "websocket",
       "method": "WS",
       "path": "/ws/{code}",
-      "description": "WebSocket game connection. Add ?playerToken=... to join as a player; omit to spectate.",
+      "description": "WebSocket game connection. Add ?playerToken=... to join as a player, or ?viewer=spectator for a read-only spectator stream.",
       "rateLimit": "20 connections per 60 s per IP",
       "queryParams": {
-        "playerToken": "string (optional) — obtained from /create or /quick-match"
+        "playerToken": "string (optional) — obtained from /create or /quick-match",
+        "viewer": "\"spectator\" (optional) — read-only live spectator stream"
       }
     }
   ],
