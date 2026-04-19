@@ -118,7 +118,6 @@ Four papercuts hit while pairing a local MCP agent against a human browser seat 
 
 - **Misleading `nextPhase` in `send_action` response.** After `skipOrdnance` the close-loop response reported `nextPhase: combat, nextActivePlayer: 1`, but the combat phase auto-resolved (no attackers in range) and the opponent's astrogation slipped in before the agent's follow-up `skipCombat` arrived, producing a `wrongActivePlayer` rejection. Consider flagging likely auto-skip phases in the response (`autoSkipLikely: true`) or surfacing the post-auto-resolution phase so agents can `wait_for_turn` instead of firing a doomed skip.
 - **Thin candidate set.** Turn-1 astrogation labelled candidates only offered NE / NE+overload / coast; other directions and fuel-vs-overload trade-offs were invisible without hand-rolling actions. Widen `labeledCandidates` coverage for opening turns.
-- **Verbose observations by default.** Local MCP returns the full state blob unless `compactState: true` is passed; flipping the default (or surfacing recommended defaults in the skill) would cut tokens across a full game.
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/shared/agent/`, `src/shared/types/protocol.ts`, `.claude/skills/play/SKILL.md`
 
@@ -253,13 +252,26 @@ TypeError: The Durable Object's code has been updated, this version can no longe
   at async handleGameDoWebSocketClose (index.js:45582:21)
 ```
 
-When a Worker version rolls out while long-lived `GameDO` instances are still alive, Cloudflare evicts the old DO and any storage access from old code throws. The exception fires inside the **WebSocket close handler** — the same handler that's responsible for triggering match-archive writes when a player disconnects. Concretely: any match where one or both players disconnect during a deploy window risks losing its `match_archive` row, R2 archive object, and `match_rating` rows. Result: rated outcomes silently dropped during deploy windows.
+When a Worker version rolls out while long-lived `GameDO` instances are still alive, Cloudflare evicts the old DO and any storage access from old code throws. With **continuous delivery** in effect, this exposure is permanent — every deploy can lose any in-flight match. Confirmed during the 2026-04-19 paired match (real production deploy, not a synthetic test).
 
-Fix options: (a) wrap close-handler storage calls in try/catch with a structured `console.error` and a fallback re-route to a fresh DO instance via `state.storage.fetch` or a sibling DO; (b) gate code deploys on zero in-flight games (use the live-registry count); (c) document the deploy-window hazard in [OBSERVABILITY.md](./OBSERVABILITY.md) and accept lossy archives as the trade-off.
+**Scope** — three DO entry methods are exposed, all unguarded at [src/server/game-do/game-do.ts:712-729](src/server/game-do/game-do.ts:712):
 
-This is the highest-priority finding from the 2026-04-19 pass — it directly threatens leaderboard integrity. Found via R8.
+- `webSocketClose(ws)` — calls `getCurrentGameState` → `setDisconnectMarker` → `broadcast(opponentStatus:disconnected)`. **Surfaced bug:** when this throws, the surviving player gets no disconnect notification until grace timeout, AND the match-archive trigger in the cascading cleanup never fires.
+- `webSocketMessage(ws, msg)` — drives all in-flight C2S actions; an evicted instance receiving an action mid-turn drops it silently.
+- `alarm()` — runs grace-timeout cleanup, archive triggering, and rescheduling. An evicted instance loses its alarm-driven side effects until the new instance reschedules.
 
-**Files:** `src/server/game-do/game-do.ts`, `src/server/game-do/archive.ts`, `src/server/game-do/ws.ts`, `docs/OBSERVABILITY.md`
+Match outcomes can be lost (no archive, no `match_rating` row, no R2 object) and Glicko-2 ratings will diverge from observed results. Rated leaderboard integrity is at risk on every deploy.
+
+**Concrete fix path** (in order of impact):
+
+1. Wrap each of the three methods in `try { ... } catch (err) { … }`. On `instanceof TypeError && /code has been updated/.test(err.message)`, structured-`console.error` the event with `gameId`, `code`, `phase`, `playerId` so operators can reconcile, then return rather than throw — the next interaction with the new instance hits the alarm path which re-derives state from storage.
+2. Add a regression test in `ws.test.ts` and `alarm.test.ts` mocking the storage to throw `TypeError("The Durable Object's code has been updated, this version can no longer access storage.")` — assert the handler returns instead of propagating, and that the next alarm/incoming-message reconciles correctly.
+3. (Optional, defence in depth) Add a `bootedAt` to each DO instance and refuse to write derived state from a handler whose `bootedAt` predates the latest projected state — catches a class of split-brain bugs beyond the eviction-throw shape.
+4. Document the residual loss surface (the action that triggered the throw is gone) in [OBSERVABILITY.md](./OBSERVABILITY.md) so operators know what to look for in `wrangler tail`.
+
+This is the **launch-blocker** finding from the 2026-04-19 pass. Found via R8.
+
+**Files:** `src/server/game-do/game-do.ts` (lines 712-729 — wrap the three handlers), `src/server/game-do/ws.ts`, `src/server/game-do/alarm.ts`, `src/server/game-do/archive.ts`, `src/server/game-do/ws.test.ts`, `src/server/game-do/alarm.test.ts`, `docs/OBSERVABILITY.md`
 
 ### Surrender silently disabled in `duel`; misleading "Logistics not enabled" error
 
