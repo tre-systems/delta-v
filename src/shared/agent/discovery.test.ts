@@ -124,6 +124,10 @@ describe('.well-known/agent.json', () => {
     expect(manifest.mcp?.tools).toContain('delta_v_wait_for_turn');
   });
 
+  it('advertises the local quick-match pairing helper', () => {
+    expect(manifest.mcp?.tools).toContain('delta_v_pair_quick_match_tickets');
+  });
+
   it('advertises the shipped MCP rules resources', () => {
     expect(manifest.mcp?.resources).toContain('game://rules/current');
     expect(manifest.mcp?.resources).toContain('game://rules/{scenario}');

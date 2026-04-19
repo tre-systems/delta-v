@@ -118,12 +118,6 @@ Tune candidate thresholds with simulation outcomes (especially scenario-specific
 
 Gaps in local vs hosted MCP parity, first-class resources, and structured rejection surfaces for autonomous play.
 
-### Parallel MCP stdio: host tool pipelining + quick-match pairing
-
-First-class “pair these two tickets” dev hook for automated two-seat stdio without lobby URLs.
-
-**Files:** `scripts/delta-v-mcp-server.ts`, `src/shared/mcp-stdio-serialized-send.ts`, `src/shared/agent/quick-match.ts`, `docs/DELTA_V_MCP.md`
-
 ### Unify local and hosted MCP tool surfaces
 
 Hosted MCP: add `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_session` parity with local; server-side event buffering for flaky networks.
