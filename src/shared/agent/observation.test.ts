@@ -17,6 +17,7 @@ import {
   buildLegalActionInfo,
   buildObservation,
   buildStateSummary,
+  shapeObservationState,
   withCompactObservationState,
 } from './index';
 
@@ -334,5 +335,43 @@ describe('withCompactObservationState', () => {
     });
     const compact = withCompactObservationState(obs);
     expect(compact.lastTurnAutoPlayed).toEqual({ index: 1, reason: 'timeout' });
+  });
+});
+
+describe('shapeObservationState', () => {
+  it('keeps the full state by default', () => {
+    const obs = buildObservation(state, 0, { gameCode: 'ABCDE' });
+
+    const shaped = shapeObservationState(obs, undefined);
+
+    expect(shaped.state).toBe(obs.state);
+    expect(shaped.state).toHaveProperty('ships');
+  });
+
+  it('uses compact state when explicitly requested', () => {
+    const obs = buildObservation(state, 0, { gameCode: 'ABCDE' });
+
+    const shaped = shapeObservationState(obs, true);
+
+    expect(shaped.state).toEqual({
+      phase: obs.state.phase,
+      turnNumber: obs.state.turnNumber,
+      activePlayer: obs.state.activePlayer,
+    });
+  });
+
+  it('supports compact-by-default callers with explicit full-state override', () => {
+    const obs = buildObservation(state, 0, { gameCode: 'ABCDE' });
+
+    const compactDefault = shapeObservationState(obs, undefined, true);
+    const fullOverride = shapeObservationState(obs, false, true);
+
+    expect(compactDefault.state).toEqual({
+      phase: obs.state.phase,
+      turnNumber: obs.state.turnNumber,
+      activePlayer: obs.state.activePlayer,
+    });
+    expect(fullOverride.state).toBe(obs.state);
+    expect(fullOverride.state).toHaveProperty('ships');
   });
 });
