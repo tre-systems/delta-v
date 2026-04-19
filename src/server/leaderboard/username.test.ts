@@ -84,6 +84,10 @@ describe('validateUsername', () => {
       ok: false,
       error: 'reserved',
     });
+    expect(validateUsername('owner')).toEqual({
+      ok: false,
+      error: 'reserved',
+    });
     expect(validateUsername('Delta-V')).toEqual({
       ok: false,
       error: 'reserved',
