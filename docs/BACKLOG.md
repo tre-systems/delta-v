@@ -277,6 +277,8 @@ Tighten scenario/body registries around closed keys; brand ship / ordnance ident
 
 **Done for this slice:** the server create/init protocol path now preserves validated `ScenarioKey` values through `parseCreatePayload`, `parseInitPayload`, `RoomConfig`, and the public room/http handlers instead of widening them back to plain `string` immediately after validation.
 
+**Done for this slice:** combat payload parsing now brands `targetId` as `ShipId` or `OrdnanceId` at validation time based on `targetType`, instead of pushing an untyped string through the shared combat path until later casts.
+
 **Files:** `src/shared/hex.ts`, `src/shared/ids.ts`, `src/shared/map-data.ts`, `src/shared/types/domain.ts`, `src/server/room-routes.ts`, `src/server/game-do/http-handlers.ts`, `src/client/game/main-session-network.ts`
 
 ---

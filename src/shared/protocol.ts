@@ -1,6 +1,6 @@
 import { SHIP_STATS, type ShipType } from './constants';
 import type { HexKey } from './hex';
-import { asShipId, type OrdnanceId, type ShipId } from './ids';
+import { asOrdnanceId, asShipId, type OrdnanceId, type ShipId } from './ids';
 import type {
   ActionGuards,
   AstrogationOrder,
@@ -218,6 +218,17 @@ const parseBaseEmplacements = (
   return emplacements;
 };
 
+const parseCombatTargetId = (
+  raw: unknown,
+  targetType: 'ship' | 'ordnance',
+): ShipId | OrdnanceId | null => {
+  if (!isString(raw) || raw.length === 0) {
+    return null;
+  }
+
+  return targetType === 'ordnance' ? asOrdnanceId(raw) : asShipId(raw);
+};
+
 const parseCombatAttacks = (raw: unknown): CombatAttack[] | null => {
   if (!Array.isArray(raw) || raw.length > MAX_COMBAT_ATTACKS) {
     return null;
@@ -229,8 +240,7 @@ const parseCombatAttacks = (raw: unknown): CombatAttack[] | null => {
     if (
       !isObject(item) ||
       !Array.isArray(item.attackerIds) ||
-      !isString(item.targetId) ||
-      item.targetId.length === 0
+      item.targetId === undefined
     ) {
       return null;
     }
@@ -260,6 +270,12 @@ const parseCombatAttacks = (raw: unknown): CombatAttack[] | null => {
       return null;
     }
 
+    const targetType = item.targetType ?? 'ship';
+    const targetId = parseCombatTargetId(item.targetId, targetType);
+    if (!targetId) {
+      return null;
+    }
+
     const { attackStrength: rawAttackStrength } = item;
     let attackStrength: number | null = null;
 
@@ -278,8 +294,8 @@ const parseCombatAttacks = (raw: unknown): CombatAttack[] | null => {
 
     attacks.push({
       attackerIds,
-      targetId: item.targetId as string as ShipId | OrdnanceId,
-      targetType: item.targetType ?? 'ship',
+      targetId,
+      targetType,
       attackStrength,
     });
   }

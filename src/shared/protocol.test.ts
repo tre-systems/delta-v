@@ -1257,6 +1257,35 @@ describe('validateClientMessage', () => {
       expect(max.ok).toBe(true);
     });
   });
+
+  it('brands ordnance combat targets as ordnance ids', () => {
+    const result = validateClientMessage({
+      type: 'combat',
+      attacks: [
+        {
+          attackerIds: [asShipId('p0s0')],
+          targetId: 'nuke-7',
+          targetType: 'ordnance',
+          attackStrength: 1,
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        type: 'combat',
+        attacks: [
+          {
+            attackerIds: [asShipId('p0s0')],
+            targetId: asOrdnanceId('nuke-7'),
+            targetType: 'ordnance',
+            attackStrength: 1,
+          },
+        ],
+      },
+    });
+  });
 });
 
 describe('C2S contract fixtures', () => {
