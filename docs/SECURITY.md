@@ -8,25 +8,25 @@ Related docs: [ARCHITECTURE](./ARCHITECTURE.md), [BACKLOG](./BACKLOG.md) (open a
 
 ## Current Protections
 
-Delta-V now has a materially stronger authoritative-server boundary than the original prototype:
+The authoritative-server boundary enforces these invariants on every match:
 
-- WebSocket actions are still resolved server-side against the authoritative game engine.
+- WebSocket actions resolve server-side against the authoritative game engine.
 - Hidden-identity state is filtered per player before broadcast, so the fugitive flag itself is not sent to the opponent.
-- Room creation is now authoritative: `/create` initializes the room, locks the scenario up front, and rejects room-code collisions.
+- Room creation is authoritative: `/create` initialises the room, locks the scenario up front, and rejects room-code collisions.
 - The room creator receives a reserved player token for seat 0.
 - The guest seat is shared by room code or copied room link — anyone with the 5-character code can claim the open seat.
-- Reconnects require the stored player token, and seat reclamation is keyed to player identity even if the previous WebSocket has not finished closing yet.
-- Client-to-server WebSocket messages are runtime-validated before any engine handler executes, and malformed payloads are rejected instead of being trusted structurally.
-- After a WebSocket is accepted, **per-socket message rate limiting** (10 messages per second, then close with code 1008) caps garbage traffic to the Durable Object. Chat is also throttled in-memory (minimum 500ms between accepted chat messages per player).
+- Reconnects require the stored player token, and seat reclamation is keyed to player identity even if the previous WebSocket has not finished closing.
+- Client-to-server WebSocket messages are runtime-validated before any engine handler executes; malformed payloads are rejected rather than trusted structurally.
+- After a WebSocket is accepted, **per-socket message rate limiting** (10 messages per second, then close with code 1008) caps garbage traffic to the Durable Object. Chat is also throttled in-memory (minimum 500 ms between accepted chat messages per player).
 - Room codes are generated from a cryptographically strong RNG rather than `Math.random()` (see `generateRoomCode` in `src/server/protocol.ts`).
-- `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches`, `GET /api/leaderboard`, and `GET /api/leaderboard/me` share a **join-style** hashed-IP probe throttle in the Worker (**100** GETs / 60s, per isolate). `GET /replay/:code` uses a **separate** replay probe bucket (**250** GETs / 60s, per isolate) so replay traffic cannot exhaust the join budget.
-- `GET /ws/:code` WebSocket upgrades have a hashed-IP in-memory cap (20 upgrades / 60s, per isolate), reducing repeated socket-churn abuse in lower environments.
+- `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches`, `GET /api/leaderboard`, and `GET /api/leaderboard/me` share a **join-style** hashed-IP probe throttle in the Worker (**100** GETs / 60 s, per isolate). `GET /replay/:code` uses a **separate** replay probe bucket (**250** GETs / 60 s, per isolate) so replay traffic cannot exhaust the join budget.
+- `GET /ws/:code` WebSocket upgrades have a hashed-IP in-memory cap (20 upgrades / 60 s, per isolate), reducing repeated socket-churn abuse in lower environments.
 - `POST /telemetry` and `POST /error` are JSON-only with a 4 KB cap and hashed-IP window limits, limiting abuse and D1 write amplification in the default path. A daily cron (`purgeOldEvents`) deletes `events` rows older than **30 days**.
 - `POST /mcp` uses Cloudflare's edge `MCP_RATE_LIMITER` binding (20 RPM keyed on `agentToken` hash or hashed IP) with a **16 KB body cap** checked before JSON-RPC dispatch ([`packages/mcp-adapter/src/handlers.ts`](../packages/mcp-adapter/src/handlers.ts)).
-- Worker responses now apply a shared hardening baseline: `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: geolocation=(), microphone=(), camera=()`.
-- Public read endpoints (`/healthz`, `/api/matches`, `/api/leaderboard`, `/api/leaderboard/me`, `/replay/:code`, and `/.well-known/agent.json`) now return explicit wildcard CORS headers so browser-hosted embeds and third-party tools can consume those read-only surfaces without a same-origin proxy.
+- Worker responses apply a shared hardening baseline: `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: geolocation=(), microphone=(), camera=()`.
+- Public read endpoints (`/healthz`, `/api/matches`, `/api/leaderboard`, `/api/leaderboard/me`, `/replay/:code`, and `/.well-known/agent.json`) return explicit wildcard CORS headers so browser-hosted embeds and third-party tools can consume those read-only surfaces without a same-origin proxy.
 
-These changes make private multiplayer substantially safer than before, especially for host-seat integrity, reconnect safety, and server authority.
+Together these cover host-seat integrity, reconnect safety, and server authority for private multiplayer.
 
 ## Remote MCP token model
 
@@ -105,21 +105,13 @@ Constants live in [`src/server/reporting.ts`](../src/server/reporting.ts) (per-I
 - **In-memory per-isolate** covers WebSocket upgrades, join/replay/match-list/leaderboard GET probes, and now also acts as the strict first line for `/create`, `/api/agent-token`, `/quick-match`, and `/api/claim-name`. A distributed attacker spraying many edges could still exceed the per-isolate buckets, so WAF or a DO/D1 counter remains the escalation path if observed.
 - **Per-socket DO layer** (the "WebSocket messages" and "Chat messages" rows) is enforced after the socket upgrade, inside the `GameDO`; it does not scale with IPs.
 
-**Deployment recommendation:**
-Treat the checked-in `wrangler.toml` as the production
-baseline. If the `delta-v-match-archive` bucket does not
-exist yet, `wrangler deploy` should fail until it is
-created rather than silently shipping without replay
-storage. Lower environments may still choose local
-simulation or intentionally omit remote resources, but
-public-facing production should keep the rate-limit and
-archive bindings enabled. **Cloudflare WAF** (or extra `[[ratelimits]]` namespaces) can still cap
-`POST /telemetry`, `POST /error`, join/replay probes, and WebSocket upgrades **across all edge
-isolates** if per-isolate limits are not enough. Add a **Turnstile** challenge
-on `/create` if automated room creation becomes a problem. WebSocket **upgrades** already have a
-per-isolate hashed-IP window in application code, but they are not globally
-message-throttled at the edge; abuse is further mitigated by two seats per room and by
-**per-socket message** limits once connected.
+**Deployment recommendation.** Treat the checked-in `wrangler.toml` as the production baseline. If the `delta-v-match-archive` bucket does not exist yet, `wrangler deploy` should fail until it is created rather than silently shipping without replay storage. Lower environments may choose local simulation or intentionally omit remote resources; public-facing production should keep the rate-limit and archive bindings enabled.
+
+**Escalation levers** (not wired today) if per-isolate limits prove insufficient:
+
+- **Cloudflare WAF** or extra `[[ratelimits]]` namespaces can cap `POST /telemetry`, `POST /error`, join/replay probes, and WebSocket upgrades *across all edge isolates*.
+- **Turnstile** on `/create` if automated room creation becomes a problem (integration surface described in §5 below).
+- WebSocket **upgrades** have a per-isolate hashed-IP window in application code but are not globally message-throttled at the edge. Two-seats-per-room plus per-socket post-upgrade message limits further blunt the abuse shape.
 
 ### 4. Cost-abuse surface (current gaps)
 
@@ -129,7 +121,7 @@ Distinct from competitive integrity — these are paths where a motivated attack
 - `POST /mcp` rate limit and body cap are enforced, but a distributed attacker cycling POPs still sees the per-isolate fallback when the `MCP_RATE_LIMITER` binding is absent (e.g. `wrangler dev`). Also: `delta_v_quick_match` polling storms and `/mcp/wait` long-polls can hold GAME DOs warm within the cap.
 - `MatchmakerDO` serializes the full quick-match queue under one legacy-KV key (128 KB ceiling). Sustained distributed heartbeats can push the queue past that limit — enqueue then throws and quick-match stops working globally.
 - Abandoned `/create` rooms still consume a `GameDO` for up to the 5-minute inactivity window, but `archiveRoomState()` now purges match-scoped event/checkpoint residue on timeout. See [OBSERVABILITY.md](./OBSERVABILITY.md#orphan-rooms-and-inactivity-cleanup) for the exact lifecycle and operator signals.
-- `GET /replay/{code}` re-projects the full event stream on every hit with no `Cache-Control`, even for terminal states.
+- `GET /replay/{code}` re-projects the full event stream on every uncached hit. Terminal-state responses are cached (`public, max-age=60, s-maxage=3600` — 1 h at the CDN, 1 min in-browser) so repeated scrapes of finished matches don't hit the DO; mid-match timelines remain `no-store` and still pay the projection cost per request.
 
 Stores **without** automatic application-level retention: D1 `match_archive`, D1 `player` (one row per unique playerKey with a claimed username), D1 `match_rating` (one row per rated match), R2 `matches/{gameId}.json`, and per-room DO storage. D1 `events` is the only table with a scheduled purge today (see the "Data retention" section below for operational levers on the rest).
 
