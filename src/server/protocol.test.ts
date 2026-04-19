@@ -93,37 +93,51 @@ describe('parseCreatePayload', () => {
 
   it('parses valid scenario', () => {
     expect(parseCreatePayload({ scenario: 'escape' }, keys)).toEqual({
-      scenario: 'escape',
+      ok: true,
+      value: { scenario: 'escape' },
     });
   });
 
-  it('defaults unknown scenario to biplanetary', () => {
+  it('rejects unknown scenarios', () => {
     expect(parseCreatePayload({ scenario: 'fake' }, keys)).toEqual({
-      scenario: 'biplanetary',
+      ok: false,
+      error: 'Invalid scenario',
     });
   });
 
-  it('defaults non-object payloads to biplanetary', () => {
+  it('rejects non-object payloads', () => {
     expect(parseCreatePayload(null, keys)).toEqual({
-      scenario: 'biplanetary',
+      ok: false,
+      error: 'Invalid create payload',
     });
 
     expect(parseCreatePayload(undefined, keys)).toEqual({
-      scenario: 'biplanetary',
+      ok: false,
+      error: 'Invalid create payload',
     });
 
     expect(parseCreatePayload('string', keys)).toEqual({
-      scenario: 'biplanetary',
+      ok: false,
+      error: 'Invalid create payload',
     });
 
     expect(parseCreatePayload(42, keys)).toEqual({
-      scenario: 'biplanetary',
+      ok: false,
+      error: 'Invalid create payload',
     });
   });
 
-  it('defaults arrays to biplanetary (arrays are not plain objects)', () => {
+  it('rejects arrays and extra fields', () => {
     expect(parseCreatePayload([], keys)).toEqual({
-      scenario: 'biplanetary',
+      ok: false,
+      error: 'Invalid create payload',
+    });
+
+    expect(
+      parseCreatePayload({ scenario: 'escape', extra: true }, keys),
+    ).toEqual({
+      ok: false,
+      error: 'Create payload only supports scenario',
     });
   });
 });

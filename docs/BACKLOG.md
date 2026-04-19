@@ -174,18 +174,6 @@ Two actions: (1) bring the docs (`agent.json`, `/agents` page, `wrangler.toml` c
 
 **Files:** `static/.well-known/agent.json`, `wrangler.toml`, `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`
 
-### `POST /create` accepts unknown scenarios and arbitrary payloads
-
-Same gap that was just fixed for the MCP path (`26e6820`) is still wide open on the public Worker handler:
-
-- `{"scenario":"fake_scenario"}` → 200 + valid 5-char code (room is created with engine fall-through behaviour).
-- Empty body → 200 + valid code.
-- 5 KB scenario string → 200 + valid code.
-
-Combined with the rate-limit gap above, an anonymous client can burn through Durable-Object-create operations rapidly with junk payloads. Wire the same `isValidScenario` check used by the MCP path into `handleCreate`, and add a JSON schema or zod parse to fail closed on missing/oversize bodies (cap at, say, 1 KB). Found via R2.
-
-**Files:** `src/server/index.ts`, `src/server/room-routes.ts`, `src/shared/map-data.ts`
-
 ### Server-side `/create` produces no D1 audit trail
 
 Walking `events` after a 50-burst confirmed that **no row is written for `/create` attempts** — only client-emitted telemetry events (`create_game_attempted`, `game_created`, …) reach D1. An attacker hitting `/create` directly from a script bypasses analytics entirely; the only forensic trail is Cloudflare's Worker logs (1 day retention by default for free tier; 7 days persisted with `[observability]`). For incident reconstruction and abuse detection this is a real gap. Insert a server-side `events` row at the rate-limit decision point (with the hashed IP, scenario, success / `rate_limited`) so the analytics pipeline matches the request volume.

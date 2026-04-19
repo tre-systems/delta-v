@@ -72,15 +72,33 @@ export const handleCreate = async (
   request: Request,
   env: Pick<Env, 'GAME'>,
 ): Promise<Response> => {
-  let payload: unknown = null;
-
-  try {
-    payload = await request.json();
-  } catch {
-    // Default scenario if no body.
+  const rawBody = await request.text();
+  if (rawBody.length === 0) {
+    return Response.json(
+      { error: 'Create payload must include a scenario' },
+      { status: 400 },
+    );
+  }
+  if (rawBody.length > 1024) {
+    return Response.json(
+      { error: 'Create payload exceeds 1024 bytes' },
+      { status: 413 },
+    );
   }
 
-  const { scenario } = parseCreatePayload(payload, Object.keys(SCENARIOS));
+  let payload: unknown;
+
+  try {
+    payload = JSON.parse(rawBody) as unknown;
+  } catch {
+    return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const parsed = parseCreatePayload(payload, Object.keys(SCENARIOS));
+  if (!parsed.ok) {
+    return Response.json({ error: parsed.error }, { status: 400 });
+  }
+  const { scenario } = parsed.value;
 
   for (let attempt = 0; attempt < 12; attempt++) {
     const code = generateRoomCode();
