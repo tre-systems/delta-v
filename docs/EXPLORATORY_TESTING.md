@@ -359,3 +359,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | 2026-04-19 | agent (Opus 4.7) | Spectator/join-flow security probe — surfaced unauthenticated seat-hijack, missing spectator mode, local-game reload-loss, partial filter validation | 4 |
 | 2026-04-19 | agent (Opus 4.7) | Combat/ordnance rules conformance + simulation balance sweep — surfaced evacuation 96-3 P1 dominance, duel/biplanetary first-player edge, grandTour/fleetAction timeout rates | 4 |
 | 2026-04-19 | agent (Opus 4.7) | AI difficulty stratification sweep, matchmaker seat-assignment code read, reserved-name blocklist gap, re-verification of shipped P1 fixes | 3 |
+| 2026-04-19 | agent (Opus 4.7) | Post-fix sweep confirmed evacuation rebalanced + seat shuffle shipped; security-header + CORS audit | 2 |
