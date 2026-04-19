@@ -338,6 +338,41 @@ describe('server index worker', () => {
     });
   });
 
+  it('falls back to /version.json assetsHash when deploy metadata is unavailable', async () => {
+    const assetsFetch = vi.fn(async (request: Request) => {
+      const url = new URL(request.url);
+      if (url.pathname === '/version.json') {
+        return Response.json({
+          packageVersion: '0.1.0',
+          assetsHash: 'asset-sha-789',
+        });
+      }
+      return new Response('asset ok');
+    });
+    const { env } = createEnv(undefined, {
+      ASSETS: { fetch: assetsFetch },
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/healthz', { method: 'GET' }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      sha: 'asset-sha-789',
+      bootedAt: expect.any(String),
+    });
+    expect(assetsFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        url: 'https://delta-v.test/version.json',
+      }),
+    );
+  });
+
   it('adds explicit wildcard CORS to public read APIs and handles OPTIONS preflight', async () => {
     const { env } = createEnv();
 
