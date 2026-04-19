@@ -303,6 +303,29 @@ The 2026-04-19 paired test left three rows in the public `player` table (`QA_Pro
 
 **Files:** `src/server/leaderboard/`, `src/server/auth/issue-route.ts`, `docs/EXPLORATORY_TESTING.md`
 
+### Missing `/favicon.ico` and `/apple-touch-icon.png`
+
+Both return 404. Every browser request for the favicon (which is automatic on every page load) generates a 404 in the Worker logs and a network error in the user's DevTools console. iOS PWA "Add to Home Screen" falls back to a generic icon without `/apple-touch-icon.png`. Either:
+
+- ship a 32×32 favicon at `/favicon.ico` and a 180×180 PNG at `/apple-touch-icon.png` (one-line each in `static/`), or
+- have the Worker serve both as 200 redirects to the existing `/icons/icon-192.png`.
+
+Found via R1 (path sweep) + browser DevTools inspection.
+
+**Files:** `static/`, `esbuild.client.mjs` (asset bundling), `src/server/index.ts` (or wherever asset routing happens)
+
+### `delta-v:tokens` localStorage accumulates without cleanup
+
+After ~6 matches my browser's `localStorage['delta-v:tokens']` had stored 6 distinct game-code → playerToken pairs (`QUGQF`, `CTD4V`, `9M7YA`, `VX6SS`, `T8CHP`, `E65LY`). None of the corresponding matches are joinable any more (long since completed or abandoned), so the entries are just dead weight. Beyond storage growth, each entry is an active credential — anyone with access to the device's localStorage could theoretically replay any of these matches if the Worker would still accept the token. Bound the cache: drop entries older than 24h or whose match has reached `gameOver`, and confirm the server invalidates `playerToken` on game-archive write.
+
+**Files:** `src/client/game/session-api.ts`, `src/client/game/client-kernel.ts`, `src/server/game-do/archive.ts` (token invalidation), tests
+
+### Player profile in localStorage stores user-typed callsign verbatim
+
+`localStorage['delta-v:player-profile']` shape: `{playerKey, username, updatedAt}`. The `username` is whatever the user typed at the lobby callsign field, persisted indefinitely on-device. Combined with the existing finding that the matches API publishes the same string in `winnerUsername`/`loserUsername`, a user who once typed their real name has both a public match log entry AND a permanent on-device profile they may not realise exists. Add a "Forget my callsign" control in the lobby (clears `delta-v:player-profile` and `delta-v:tokens`), and confirm the [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) doc mentions on-device persistence.
+
+**Files:** `src/client/game/session-api.ts`, `src/client/ui/`, `static/index.html` (Forget control), `docs/PRIVACY_TECHNICAL.md`
+
 ---
 
 ## Architecture & correctness
