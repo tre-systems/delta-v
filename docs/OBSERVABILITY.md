@@ -85,6 +85,7 @@ Emitted from `src/server/game-do/telemetry.ts` (`reportLifecycleEvent`, `reportS
 - `live_registry_deregister_failed` — `{ code, status?, error? }` (stale "Live now" entry)
 - `mcp_observation_timeout` — `{ handler, timeoutMs }` (10 s hard ceiling; future async paths could hang requests otherwise)
 - `matchmaker_pairing_split` — `{ code?, reason, conflicts?, status?, attempts? }` (`reason` ∈ `room_code_collision` / `allocation_failed` / `max_retries_exceeded`)
+- `game_do_code_update_evicted` — `{ entrypoint, code, gameId, turn, phase, playerId, actionType, message }` (old Durable Object instance handled a post-deploy callback and hit the Cloudflare storage-eviction TypeError; the triggering interaction is lost, but the room can recover on the next callback against the fresh instance)
 
 Static **`GET /version.json`** (built into `dist/` at bundle time) exposes `{ packageVersion, assetsHash }` for support — it is not written to D1.
 

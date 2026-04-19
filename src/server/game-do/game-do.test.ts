@@ -695,6 +695,130 @@ describe('GameDO', () => {
     expect(ctx.storage.alarmAt).toBe(30000);
   });
 
+  it('swallows Durable Object code-update errors on websocket close and logs context', async () => {
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+    const ws = { send() {} };
+    ctx.acceptWebSocket(ws, ['player:1']);
+
+    (
+      game as unknown as {
+        currentStateCache: {
+          gameId: ReturnType<typeof asGameId>;
+          state: GameState;
+        };
+        gameCodeCache: string;
+      }
+    ).currentStateCache = {
+      gameId: asGameId('EVICT1-m1'),
+      state: {
+        ...createGameOrThrow(
+          SCENARIOS.biplanetary,
+          buildSolarSystemMap(),
+          asGameId('EVICT1-m1'),
+          findBaseHex,
+        ),
+        phase: 'astrogation',
+        turnNumber: 3,
+      },
+    };
+    (
+      game as unknown as {
+        gameCodeCache: string;
+      }
+    ).gameCodeCache = 'EVICT1';
+
+    vi.spyOn(
+      game as unknown as {
+        getCurrentGameState: () => Promise<GameState | null>;
+      },
+      'getCurrentGameState',
+    ).mockRejectedValue(
+      new TypeError(
+        "The Durable Object's code has been updated, this version can no longer access storage.",
+      ),
+    );
+
+    await expect(
+      game.webSocketClose(ws as unknown as WebSocket),
+    ).resolves.toBeUndefined();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      '[game_do_code_update_evicted]',
+      expect.objectContaining({
+        entrypoint: 'webSocketClose',
+        code: 'EVICT1',
+        gameId: 'EVICT1-m1',
+        phase: 'astrogation',
+        turn: 3,
+        playerId: 1,
+      }),
+    );
+  });
+
+  it('swallows Durable Object code-update errors on alarm and logs context', async () => {
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+    (
+      game as unknown as {
+        currentStateCache: {
+          gameId: ReturnType<typeof asGameId>;
+          state: GameState;
+        };
+        gameCodeCache: string;
+      }
+    ).currentStateCache = {
+      gameId: asGameId('EVICT2-m1'),
+      state: {
+        ...createGameOrThrow(
+          SCENARIOS.biplanetary,
+          buildSolarSystemMap(),
+          asGameId('EVICT2-m1'),
+          findBaseHex,
+        ),
+        phase: 'astrogation',
+        turnNumber: 4,
+      },
+    };
+    (
+      game as unknown as {
+        gameCodeCache: string;
+      }
+    ).gameCodeCache = 'EVICT2';
+
+    vi.spyOn(
+      game as unknown as {
+        getCurrentGameState: () => Promise<GameState | null>;
+      },
+      'getCurrentGameState',
+    ).mockRejectedValue(
+      new TypeError(
+        "The Durable Object's code has been updated, this version can no longer access storage.",
+      ),
+    );
+    await ctx.storage.put('disconnectedPlayer', 0);
+    await ctx.storage.put('disconnectAt', 9000);
+
+    await expect(game.alarm()).resolves.toBeUndefined();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      '[game_do_code_update_evicted]',
+      expect.objectContaining({
+        entrypoint: 'alarm',
+        code: 'EVICT2',
+        gameId: 'EVICT2-m1',
+        phase: 'astrogation',
+        turn: 4,
+      }),
+    );
+  });
+
   it('persists state before broadcasting it to clients', async () => {
     const ctx = createCtx();
     const trace: string[] = [];

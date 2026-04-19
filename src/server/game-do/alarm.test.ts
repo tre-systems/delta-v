@@ -173,6 +173,27 @@ describe('runGameDoAlarm', () => {
   });
 
   describe('error handling', () => {
+    it('rethrows Durable Object code-update errors instead of rescheduling', async () => {
+      const d = minimalAlarmDeps();
+      d.get.mockImplementation(async (key: string) => {
+        if (key === 'disconnectedPlayer') return 0;
+        if (key === 'disconnectAt') return 1000;
+        return undefined;
+      });
+      d.getCurrentGameState = vi
+        .fn()
+        .mockRejectedValue(
+          new TypeError(
+            "The Durable Object's code has been updated, this version can no longer access storage.",
+          ),
+        );
+
+      await expect(runAlarm(d, { now: 50_000 })).rejects.toThrow(
+        /code has been updated/i,
+      );
+      expect(d.rescheduleAlarm).not.toHaveBeenCalled();
+    });
+
     it('reschedules when publishStateChange throws during disconnectExpired', async () => {
       const d = minimalAlarmDeps();
       d.get.mockImplementation(async (key: string) => {

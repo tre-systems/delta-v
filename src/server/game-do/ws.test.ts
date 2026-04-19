@@ -180,4 +180,34 @@ describe('handleGameDoWebSocketMessage', () => {
     expect(send).not.toHaveBeenCalled();
     expect(dispatchAuxMessage).not.toHaveBeenCalled();
   });
+
+  it('rethrows Durable Object code-update errors so the entrypoint can log and swallow them', async () => {
+    const send = vi.fn();
+
+    await expect(
+      handleGameDoWebSocketMessage(
+        {
+          msgRates: new WeakMap(),
+          getPlayerId: () => 0,
+          isSpectatorSocket: () => false,
+          touchInactivity: vi.fn().mockResolvedValue(undefined),
+          send,
+          isGameStateActionMessage: (msg): msg is GameStateActionMessage =>
+            msg.type === 'skipCombat',
+          dispatchGameStateAction: vi
+            .fn()
+            .mockRejectedValue(
+              new TypeError(
+                "The Durable Object's code has been updated, this version can no longer access storage.",
+              ),
+            ),
+          dispatchAuxMessage: vi.fn(),
+        },
+        {} as WebSocket,
+        JSON.stringify({ type: 'skipCombat' }),
+      ),
+    ).rejects.toThrow(/code has been updated/i);
+
+    expect(send).not.toHaveBeenCalled();
+  });
 });
