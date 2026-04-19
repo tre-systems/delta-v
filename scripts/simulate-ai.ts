@@ -7,6 +7,7 @@ import {
   aiOrdnance,
   buildAIFleetPurchases,
 } from '../src/shared/ai';
+import { estimateRemainingCheckpointTourCost } from '../src/shared/ai/common';
 import {
   beginCombatPhase,
   createGame,
@@ -90,6 +91,80 @@ const parseDifficulty = (value: string): AIDifficulty => {
 
 const deriveGameSeed = (baseSeed: number, gameIndex: number): number =>
   (baseSeed + Math.imul(gameIndex + 1, 0x9e3779b9)) | 0;
+
+const resolveCheckpointRaceTimeout = (
+  state: GameState,
+  map: ReturnType<typeof buildSolarSystemMap>,
+): { winner: PlayerId | null; reason: string } => {
+  const checkpoints = state.scenarioRules.checkpointBodies;
+
+  if (!checkpoints || checkpoints.length === 0) {
+    return { winner: null, reason: 'timeout' };
+  }
+
+  const standings = ([0, 1] as const).map((playerId) => {
+    const player = state.players[playerId];
+    const aliveShips = state.ships.filter(
+      (ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed',
+    );
+    const visitedCount = checkpoints.filter((body) =>
+      player.visitedBodies?.includes(body),
+    ).length;
+    const remainingTourCost =
+      aliveShips.length === 0
+        ? Number.POSITIVE_INFINITY
+        : Math.min(
+            ...aliveShips.map((ship) =>
+              estimateRemainingCheckpointTourCost(
+                player,
+                checkpoints,
+                map,
+                ship.position,
+              ),
+            ),
+          );
+
+    return {
+      playerId,
+      visitedCount,
+      remainingTourCost,
+      totalFuelSpent: player.totalFuelSpent ?? 0,
+      aliveShips: aliveShips.length,
+    };
+  });
+
+  standings.sort((a, b) => {
+    if (a.visitedCount !== b.visitedCount) {
+      return b.visitedCount - a.visitedCount;
+    }
+    if (a.aliveShips !== b.aliveShips) {
+      return b.aliveShips - a.aliveShips;
+    }
+    if (a.remainingTourCost !== b.remainingTourCost) {
+      return a.remainingTourCost - b.remainingTourCost;
+    }
+    if (a.totalFuelSpent !== b.totalFuelSpent) {
+      return a.totalFuelSpent - b.totalFuelSpent;
+    }
+    return a.playerId - b.playerId;
+  });
+
+  const [leader, runnerUp] = standings;
+
+  if (
+    leader.visitedCount === runnerUp.visitedCount &&
+    leader.aliveShips === runnerUp.aliveShips &&
+    leader.remainingTourCost === runnerUp.remainingTourCost &&
+    leader.totalFuelSpent === runnerUp.totalFuelSpent
+  ) {
+    return { winner: null, reason: 'timeout' };
+  }
+
+  return {
+    winner: leader.playerId,
+    reason: `Checkpoint race timeout — progress tiebreak (${leader.visitedCount}/${checkpoints.length} checkpoints, ${leader.remainingTourCost} estimated hexes remaining).`,
+  };
+};
 
 const runSingleGame = async (
   scenarioName: ScenarioKey,
@@ -241,7 +316,12 @@ const runSingleGame = async (
   }
 
   if (phaseLimit <= 0) {
-    return { winner: null, turns: state.turnNumber, reason: 'timeout' };
+    const timeoutResolution = resolveCheckpointRaceTimeout(state, map);
+    return {
+      winner: timeoutResolution.winner,
+      turns: state.turnNumber,
+      reason: timeoutResolution.reason,
+    };
   }
 
   return {

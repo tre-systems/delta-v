@@ -6,7 +6,11 @@ import {
   hasLineOfSightToTarget,
   lookupGunCombat,
 } from '../combat';
-import { ANTI_NUKE_ODDS, SHIP_STATS } from '../constants';
+import {
+  ANTI_NUKE_ODDS,
+  DAMAGE_ELIMINATION_THRESHOLD,
+  SHIP_STATS,
+} from '../constants';
 import { validateOrdnanceLaunch } from '../engine/util';
 import {
   HEX_DIRECTIONS,
@@ -58,6 +62,10 @@ type InterceptResult = {
 const NUKE_SCORE_FLOOR = 70;
 const NUKE_SCORE_FLOOR_WHEN_TORPEDO_VIABLE = 122;
 const NUKE_STRENGTH_RATIO_WHEN_TORPEDO_VIABLE = 2;
+const NUKE_COST_MCR = 300;
+const TORPEDO_COST_MCR = 20;
+const TORPEDO_EXPECTED_DISABLE_FRACTION =
+  (0 + 1 + 1 + 1 + 2 + 3) / 6 / DAMAGE_ELIMINATION_THRESHOLD;
 
 export type LaunchInterceptAssessment = {
   hasIntercept: boolean;
@@ -559,6 +567,20 @@ const scoreEnemyTarget = (
   };
 };
 
+const estimateStrategicTargetValue = (
+  target: Ship,
+  targetScore: number,
+): number => {
+  const stats = SHIP_STATS[target.type];
+
+  return (
+    stats.cost +
+    stats.combat * 25 +
+    (target.passengersAboard ?? 0) * 3 +
+    targetScore * 2
+  );
+};
+
 export const aiOrdnance = (
   state: GameState,
   playerId: PlayerId,
@@ -695,12 +717,31 @@ export const aiOrdnance = (
     ) {
       const enemyStrength = getCombatStrength([bestEnemy]);
       const myStrength = getCombatStrength([ship]);
+      const nukeReachSurvival =
+        cfg.nukeMinReachProbability > 0
+          ? estimateNukeReachSurvival(
+              ship,
+              state,
+              playerId,
+              map,
+              nukeIntercept.turnsToIntercept,
+            )
+          : 1;
       const torpedoAlsoViable =
         canLaunchTorpedo &&
         Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange;
       const nukeScoreFloor = torpedoAlsoViable
         ? NUKE_SCORE_FLOOR_WHEN_TORPEDO_VIABLE
         : NUKE_SCORE_FLOOR;
+      const targetStrategicValue = estimateStrategicTargetValue(
+        bestEnemy,
+        bestEnemyTarget.score,
+      );
+      const nukeExpectedNetValue =
+        targetStrategicValue * nukeReachSurvival - NUKE_COST_MCR;
+      const torpedoExpectedNetValue =
+        targetStrategicValue * TORPEDO_EXPECTED_DISABLE_FRACTION -
+        TORPEDO_COST_MCR;
       const strengthOutgunsForNuke =
         enemyStrength >= myStrength &&
         (!torpedoAlsoViable ||
@@ -712,25 +753,17 @@ export const aiOrdnance = (
           bestEnemyCurrentDist <= cfg.nukeStrengthRange) ||
         ((bestEnemy.passengersAboard ?? 0) > 0 &&
           bestEnemyCurrentDist <= cfg.nukeStrengthRange);
-
-      const nukeReachSurvival =
-        cfg.nukeMinReachProbability > 0
-          ? estimateNukeReachSurvival(
-              ship,
-              state,
-              playerId,
-              map,
-              nukeIntercept.turnsToIntercept,
-            )
-          : 1;
       const antiNukeGateOk =
         cfg.nukeMinReachProbability <= 0 ||
         nukeReachSurvival >= cfg.nukeMinReachProbability;
+      const expectedDamageGateOk =
+        !torpedoAlsoViable || nukeExpectedNetValue >= torpedoExpectedNetValue;
 
       if (
         shouldUseNuke &&
         bestEnemyCurrentDist <= cfg.nukeStrengthRange &&
-        antiNukeGateOk
+        antiNukeGateOk &&
+        expectedDamageGateOk
       ) {
         launches.push({
           shipId: ship.id,
