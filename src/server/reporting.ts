@@ -143,6 +143,37 @@ export const tooManyRequests = (): Response =>
     },
   });
 
+const sampleKeyToBucket = (sampleKey: string): number => {
+  let hash = 2166136261;
+  for (let index = 0; index < sampleKey.length; index++) {
+    hash ^= sampleKey.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+export const shouldSampleOperationalLog = (
+  sampleKey: string,
+  oneIn = 8,
+): boolean => {
+  if (oneIn <= 1) {
+    return true;
+  }
+  return sampleKeyToBucket(sampleKey) % oneIn === 0;
+};
+
+export const logSampledOperationalEvent = (
+  label: string,
+  sampleKey: string,
+  payload: Record<string, unknown>,
+  oneIn = 8,
+): void => {
+  if (!shouldSampleOperationalLog(sampleKey, oneIn)) {
+    return;
+  }
+  console.log(`[${label}]`, payload);
+};
+
 export const isCreateRateLimitedInMemory = (ipHash: string): boolean =>
   checkWindowedRateLimit(
     createRateMap,

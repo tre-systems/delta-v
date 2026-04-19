@@ -35,7 +35,10 @@ import {
 import type { Env } from '../../../src/server/env';
 import { handleLeaderboardQuery } from '../../../src/server/leaderboard/query-route';
 import { handleLiveMatchesList } from '../../../src/server/live-matches-list';
-import { hashIp } from '../../../src/server/reporting';
+import {
+  hashIp,
+  logSampledOperationalEvent,
+} from '../../../src/server/reporting';
 import {
   buildLeaderboardAgentsResourceDocument,
   LEADERBOARD_AGENTS_URI,
@@ -657,6 +660,14 @@ const resolveAgentIdentity = async (
     secret: resolveAgentTokenSecret(env),
   });
   if (!verified.ok) {
+    const ipHash = await hashIp(
+      request.headers.get('cf-connecting-ip') ?? 'unknown',
+    );
+    logSampledOperationalEvent('auth-failure', ipHash, {
+      route: '/mcp',
+      reason: 'invalid_agent_token',
+      detail: verified.reason,
+    });
     return {
       ok: false,
       response: Response.json(
@@ -770,6 +781,13 @@ export const handleMcpHttpRequest = async (
   // secret returns 500 rather than signing / verifying with a placeholder
   // that is readable from the repo.
   if (!isAgentTokenSecretSet(env) && env.DEV_MODE !== '1') {
+    const ipHash = await hashIp(
+      request.headers.get('cf-connecting-ip') ?? 'unknown',
+    );
+    logSampledOperationalEvent('auth-failure', ipHash, {
+      route: '/mcp',
+      reason: 'server_misconfigured',
+    });
     return missingAgentTokenSecretResponse();
   }
 
@@ -783,7 +801,16 @@ export const handleMcpHttpRequest = async (
   // for up to 60s) and repeat /mcp/wait long-polls that would otherwise
   // pin the GAME DO warm. Configured in wrangler.toml [[ratelimits]].
   const rateLimited = await enforceMcpRateLimit(env, request);
-  if (rateLimited) return rateLimited;
+  if (rateLimited) {
+    const ipHash = await hashIp(
+      request.headers.get('cf-connecting-ip') ?? 'unknown',
+    );
+    logSampledOperationalEvent('rate-limit', ipHash, {
+      route: '/mcp',
+      reason: 'mcp_bucket',
+    });
+    return rateLimited;
+  }
 
   const auth = await resolveAgentIdentity(request, env);
   if (!auth.ok) return auth.response;

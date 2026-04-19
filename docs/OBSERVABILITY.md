@@ -91,6 +91,11 @@ Static **`GET /version.json`** (built into `dist/` at bundle time) exposes `{ pa
 
 Health probes live on **`GET /healthz`** with supported aliases **`/health`** and **`/status`**. The payload is `{ ok, sha, bootedAt }`, where `sha` resolves from Worker deploy metadata (`CF_VERSION_METADATA.id`, then `CF_PAGES_COMMIT_SHA`, then `GIT_COMMIT_SHA`) and `bootedAt` is stamped once at Worker module load.
 
+Worker entrypoint observability also records two abuse-focused signals:
+
+- `server_create_request` in the D1 `events` table for every `POST /create`, with `{ route, outcome, scenario, payloadBytes, status, error? }`. This covers direct script traffic that never emits first-party client telemetry.
+- sampled `console.log` lines under `[auth-failure]` and `[rate-limit]` for invalid MCP / quick-match Bearers, malformed `POST /api/agent-token` payloads, and create-class / MCP rate-limit hits. Sampling is deterministic per hashed IP so repeated abuse from the same source still leaves a tail signal without flooding logs.
+
 ## Incident triage quickstart
 
 Use this when someone reports "game is broken" or metrics look wrong.

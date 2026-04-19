@@ -20,6 +20,7 @@ import worker, {
   hashIp,
   joinProbeRateMap,
   replayProbeRateMap,
+  shouldSampleOperationalLog,
   telemetryReportRateMap,
 } from './index';
 import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
@@ -76,6 +77,16 @@ const mockCtx = (): MockExecutionContext => ({
   passThroughOnException: vi.fn(),
   props: {},
 });
+
+const findSampledIp = async (): Promise<string> => {
+  for (let index = 1; index < 256; index++) {
+    const candidate = `10.0.0.${index}`;
+    if (shouldSampleOperationalLog(await hashIp(candidate))) {
+      return candidate;
+    }
+  }
+  throw new Error('failed to find sampled IP');
+};
 
 const createEnv = (
   initHandler?: (request: Request) => Promise<Response> | Response,
@@ -484,6 +495,90 @@ describe('server index worker', () => {
     expect(response.status).toBe(500);
     expect(initFetch).toHaveBeenCalledTimes(1);
     expect(await response.text()).toContain('Failed to create game');
+  });
+
+  it('writes a server-side audit event for create requests', async () => {
+    let initPayload: Record<string, unknown> | null = null;
+    const { env } = createEnv(async (request) => {
+      initPayload = (await request.json()) as Record<string, unknown>;
+      return Response.json({ ok: true }, { status: 201 });
+    });
+    const ctx = mockCtx();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-connecting-ip': '1.2.3.4',
+          'user-agent': 'audit-test',
+        },
+        body: JSON.stringify({ scenario: 'escape' }),
+      }),
+      env as unknown as Env,
+      ctx,
+    );
+
+    expect(response.status).toBe(200);
+    expect(initPayload).toMatchObject({ scenario: 'escape' });
+    expect(ctx.waitUntil).toHaveBeenCalledOnce();
+    await ctx.waitUntil.mock.calls[0][0];
+
+    const bindArgs = env.DB.bind.mock.calls[0] as unknown[];
+    expect(bindArgs[2]).toBe('server_create_request');
+    expect(JSON.parse(bindArgs[3] as string)).toMatchObject({
+      route: '/create',
+      outcome: 'created',
+      scenario: 'escape',
+      status: 200,
+    });
+    expect(bindArgs[5]).toBe('audit-test');
+  });
+
+  it('writes a rate-limited audit event for blocked create requests', async () => {
+    const { env } = createEnv();
+    const ctx = mockCtx();
+
+    for (let i = 0; i < 5; i++) {
+      await worker.fetch(
+        new Request('https://delta-v.test/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'cf-connecting-ip': '1.2.3.4',
+          },
+          body: JSON.stringify({ scenario: 'escape' }),
+        }),
+        env as unknown as Env,
+        ctx,
+      );
+    }
+
+    const blocked = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-connecting-ip': '1.2.3.4',
+        },
+        body: JSON.stringify({ scenario: 'escape' }),
+      }),
+      env as unknown as Env,
+      ctx,
+    );
+
+    expect(blocked.status).toBe(429);
+    const lastWait = ctx.waitUntil.mock.calls.at(-1)?.[0];
+    expect(lastWait).toBeDefined();
+    await lastWait;
+    const bindArgs = env.DB.bind.mock.calls.at(-1) as unknown[];
+    expect(bindArgs[2]).toBe('server_create_request');
+    expect(JSON.parse(bindArgs[3] as string)).toMatchObject({
+      route: '/create',
+      outcome: 'rate_limited',
+      scenario: 'escape',
+      status: 429,
+    });
   });
 
   it('proxies websocket requests to the room durable object', async () => {
@@ -1186,6 +1281,36 @@ describe('/api/agent-token rate limiting', () => {
     expect(blocked.status).toBe(429);
     expect(blocked.headers.get('Retry-After')).toBe('60');
     expect(limiter.limit).toHaveBeenCalledTimes(6);
+  });
+
+  it('logs malformed token-issue payloads on a sampled path', async () => {
+    const { env } = createEnv();
+    const ip = await findSampledIp();
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/api/agent-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-connecting-ip': ip,
+        },
+        body: '{not json',
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(400);
+    expect(log).toHaveBeenCalledWith(
+      '[auth-failure]',
+      expect.objectContaining({
+        route: '/api/agent-token',
+        reason: 'invalid_json',
+        status: 400,
+      }),
+    );
+    log.mockRestore();
   });
 });
 
