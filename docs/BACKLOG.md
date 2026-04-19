@@ -159,7 +159,9 @@ Further AI ordnance work vs the [2018 Triplanetary rulebook](../Triplanetary2018
 
 **Done for this slice:** `evaluateOrdnanceLaunchIntercept` wired to the same open-map drift geometry as the existing impossible-shot ordnance fixtures.
 
-**Remaining:** same-stack edge cases beyond launch-hex stacking, deeper gravity-edge assertions (beyond open-map determinism smoke), optional `game-engine.test.ts` integration seeds.
+**Done for this slice:** same-stack blocker regressions are now covered directly in the nuke-lane assessor, so enemies or enemy ordnance stacked on the intended target hex no longer count as premature blockers.
+
+**Remaining:** deeper gravity-edge assertions (beyond open-map determinism smoke), optional `game-engine.test.ts` integration seeds.
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
 

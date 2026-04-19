@@ -98,6 +98,20 @@ const projectBallisticStep = (
   };
 };
 
+const firstSharedPathIndex = (
+  path: readonly HexCoord[],
+  otherPath: readonly HexCoord[],
+): { index: number; hex: HexCoord } | null => {
+  for (let index = 0; index < path.length; index++) {
+    const candidate = path[index];
+    if (otherPath.some((hex) => hexEqual(hex, candidate))) {
+      return { index, hex: candidate };
+    }
+  }
+
+  return null;
+};
+
 const findBallisticIntercept = (
   ordnanceStart: HexCoord,
   ordnanceVelocity: HexVec,
@@ -181,7 +195,7 @@ const buildNukeLaneMapHazardKeys = (
  *  on contact with ships, mines, torpedoes, etc. — not a clean shot at the
  *  intended target if something else occupies the ballistic hexes first).
  */
-const assessNukeBallisticToEnemy = (
+export const assessNukeBallisticToEnemy = (
   launcher: Ship,
   enemy: Ship,
   allyBlockers: Ship[],
@@ -233,6 +247,7 @@ const assessNukeBallisticToEnemy = (
       projectBallisticStep(a.pos, a.vel, a.pending, map),
     );
 
+    const enemyIntercept = firstSharedPathIndex(ordStep.path, enemyStep.path);
     const ordPathKeys = new Set(ordStep.path.map((hex) => `${hex.q},${hex.r}`));
 
     for (const allyStep of allySteps) {
@@ -255,10 +270,19 @@ const assessNukeBallisticToEnemy = (
       projectBallisticStep(s.pos, s.vel, s.pending, map),
     );
     for (const otherStep of otherEnemySteps) {
-      const crossesOtherEnemy = otherStep.path.some((hex) =>
-        ordPathKeys.has(`${hex.q},${hex.r}`),
+      const otherEnemyIntercept = firstSharedPathIndex(
+        ordStep.path,
+        otherStep.path,
       );
+      const crossesOtherEnemy = otherEnemyIntercept !== null;
       if (crossesOtherEnemy) {
+        const sharesTargetIntercept =
+          enemyIntercept !== null &&
+          otherEnemyIntercept.index === enemyIntercept.index &&
+          hexEqual(otherEnemyIntercept.hex, enemyIntercept.hex);
+        if (sharesTargetIntercept) {
+          continue;
+        }
         return {
           hasIntercept: false,
           turnsToIntercept: Number.POSITIVE_INFINITY,
@@ -274,10 +298,19 @@ const assessNukeBallisticToEnemy = (
       projectBallisticStep(s.pos, s.vel, s.pending, map),
     );
     for (const ordStepBlock of enemyOrdSteps) {
-      const crossesEnemyOrd = ordStepBlock.path.some((hex) =>
-        ordPathKeys.has(`${hex.q},${hex.r}`),
+      const enemyOrdnanceIntercept = firstSharedPathIndex(
+        ordStep.path,
+        ordStepBlock.path,
       );
+      const crossesEnemyOrd = enemyOrdnanceIntercept !== null;
       if (crossesEnemyOrd) {
+        const sharesTargetIntercept =
+          enemyIntercept !== null &&
+          enemyOrdnanceIntercept.index === enemyIntercept.index &&
+          hexEqual(enemyOrdnanceIntercept.hex, enemyIntercept.hex);
+        if (sharesTargetIntercept) {
+          continue;
+        }
         return {
           hasIntercept: false,
           turnsToIntercept: Number.POSITIVE_INFINITY,
@@ -304,9 +337,7 @@ const assessNukeBallisticToEnemy = (
       };
     }
 
-    const intersectsEnemy = enemyStep.path.some((hex) =>
-      ordPathKeys.has(`${hex.q},${hex.r}`),
-    );
+    const intersectsEnemy = enemyIntercept !== null;
 
     if (intersectsEnemy) {
       return {
