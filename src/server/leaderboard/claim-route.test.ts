@@ -138,7 +138,7 @@ describe('handleClaimName', () => {
   it('rejects reserved usernames with a conflict status', async () => {
     const { db, byKey } = buildMockDb();
     const res = await handleClaimName(
-      post({ playerKey: 'human_alpha-v1', username: 'admin' }),
+      post({ playerKey: 'human_alpha-v1', username: 'owner' }),
       env(db),
     );
     expect(res.status).toBe(409);

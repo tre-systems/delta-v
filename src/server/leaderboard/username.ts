@@ -27,6 +27,7 @@ const BLOCKED_SUBSTRINGS: readonly string[] = [
 const RESERVED_USERNAMES: readonly string[] = [
   'admin',
   'administrator',
+  'owner',
   'system',
   'root',
   'moderator',
