@@ -45,6 +45,7 @@ export interface MatchListingResponse {
 }
 
 type MatchWinnerFilter = 0 | 1 | 'draw';
+type MatchStatusFilter = 'archived';
 type MatchesQueryError = {
   status: 400;
   body: {
@@ -54,9 +55,31 @@ type MatchesQueryError = {
 };
 
 const isQueryError = (
-  value: number | MatchWinnerFilter | ScenarioKey | null | MatchesQueryError,
+  value:
+    | number
+    | MatchStatusFilter
+    | MatchWinnerFilter
+    | ScenarioKey
+    | null
+    | MatchesQueryError,
 ): value is MatchesQueryError =>
   typeof value === 'object' && value !== null && 'status' in value;
+
+const isMatchesQueryError = (
+  value:
+    | {
+        limit: number;
+        before: number | null;
+        scenario: ScenarioKey | null;
+        status: MatchStatusFilter | null;
+        winner: MatchWinnerFilter | null;
+      }
+    | MatchesQueryError,
+): value is MatchesQueryError =>
+  typeof value === 'object' &&
+  value !== null &&
+  'body' in value &&
+  'status' in value;
 
 const parseLimit = (raw: string | null): number | MatchesQueryError => {
   if (!raw) return DEFAULT_LIMIT;
@@ -82,11 +105,33 @@ const parseLimit = (raw: string | null): number | MatchesQueryError => {
   return parsed;
 };
 
-const parseBefore = (raw: string | null): number | null => {
-  if (!raw) return null;
+const parseBefore = (raw: string | null): number | null | MatchesQueryError => {
+  if (raw === null) return null;
   const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return {
+      status: 400,
+      body: {
+        error: 'invalid_query',
+        message: `Invalid before cursor: ${raw}. Expected a positive integer.`,
+      },
+    };
+  }
   return parsed;
+};
+
+const parseStatus = (
+  raw: string | null,
+): MatchStatusFilter | null | MatchesQueryError => {
+  if (raw === null) return null;
+  if (raw === 'archived') return 'archived';
+  return {
+    status: 400,
+    body: {
+      error: 'invalid_query',
+      message: `Invalid status filter: ${raw}. Expected archived or live.`,
+    },
+  };
 };
 
 const parseScenario = (
@@ -129,8 +174,29 @@ const parseFilters = (
       before: number | null;
       scenario: ScenarioKey | null;
       winner: MatchWinnerFilter | null;
+      status: MatchStatusFilter | null;
     }
   | MatchesQueryError => {
+  const allowedParams = new Set([
+    'before',
+    'limit',
+    'offset',
+    'scenario',
+    'status',
+    'winner',
+  ]);
+  for (const key of url.searchParams.keys()) {
+    if (!allowedParams.has(key)) {
+      return {
+        status: 400,
+        body: {
+          error: 'invalid_query',
+          message: `Unsupported query parameter: ${key}.`,
+        },
+      };
+    }
+  }
+
   if (url.searchParams.has('offset')) {
     return {
       status: 400,
@@ -147,13 +213,20 @@ const parseFilters = (
   const winner = parseWinner(url.searchParams.get('winner'));
   if (isQueryError(winner)) return winner;
 
+  const status = parseStatus(url.searchParams.get('status'));
+  if (isQueryError(status)) return status;
+
   const limit = parseLimit(url.searchParams.get('limit'));
   if (isQueryError(limit)) return limit;
 
+  const before = parseBefore(url.searchParams.get('before'));
+  if (isQueryError(before)) return before;
+
   return {
     limit,
-    before: parseBefore(url.searchParams.get('before')),
+    before,
     scenario,
+    status,
     winner,
   };
 };
@@ -203,10 +276,14 @@ export const handleMatchesList = async (
 
   const url = new URL(request.url);
   const filters = parseFilters(url);
-  if ('status' in filters) {
+  if (isMatchesQueryError(filters)) {
     return Response.json(filters.body, { status: filters.status });
   }
-  const { limit, before, scenario, winner } = filters;
+  const { limit, before, scenario, status, winner } = filters;
+  if (status === 'archived' && url.searchParams.size === 1) {
+    // `/api/matches` already defaults to archived history. Accept the
+    // explicit alias so callers can be symmetric with `status=live`.
+  }
 
   // Fetch `limit + 1` rows so we can tell whether there's another page
   // without a separate COUNT query.

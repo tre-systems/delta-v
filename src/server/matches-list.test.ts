@@ -164,13 +164,32 @@ describe('handleMatchesList', () => {
     expect(bind).toHaveBeenCalledWith(1234, 'duel', 0, 51);
   });
 
-  it('ignores non-positive or malformed before values', async () => {
+  it('rejects malformed before values', async () => {
     const { db, prepare } = mockDb([]);
-    await handleMatchesList(
+    const response = await handleMatchesList(
       new Request('https://example/api/matches?before=garbage'),
       buildEnv(db),
     );
-    expect(prepare.mock.calls[0][0] as string).not.toContain('completed_at <');
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'invalid_query',
+      message: 'Invalid before cursor: garbage. Expected a positive integer.',
+    });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid status filters instead of ignoring them', async () => {
+    const { db, prepare } = mockDb([]);
+    const response = await handleMatchesList(
+      new Request('https://example/api/matches?status=paused'),
+      buildEnv(db),
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'invalid_query',
+      message: 'Invalid status filter: paused. Expected archived or live.',
+    });
+    expect(prepare).not.toHaveBeenCalled();
   });
 
   it('rejects unknown scenarios instead of ignoring them', async () => {
@@ -211,6 +230,20 @@ describe('handleMatchesList', () => {
     await expect(response.json()).resolves.toEqual({
       error: 'invalid_query',
       message: 'Unsupported query parameter: offset. Use before pagination.',
+    });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported query parameters instead of ignoring them', async () => {
+    const { db, prepare } = mockDb([]);
+    const response = await handleMatchesList(
+      new Request('https://example/api/matches?foo=bar'),
+      buildEnv(db),
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'invalid_query',
+      message: 'Unsupported query parameter: foo.',
     });
     expect(prepare).not.toHaveBeenCalled();
   });
