@@ -37,6 +37,8 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 - `delta-v:tokens` localStorage is now bounded (was 6 entries, now 0 — cleanup appears to be shipped).
 - `/api/matches` filter validation complete across all five params (`scenario`, `winner`, `limit`, `status`, `before`).
 - `/api/matches` response no longer leaks user-typed usernames: `winnerUsername` and `loserUsername` return `null` — matches the [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) contract.
+- Security headers deployed 2026-04-19: CSP, HSTS (1 y + preload), X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy geolocation=(), microphone=(), camera=(). Public read endpoints return wildcard CORS for browser embeds.
+- Reserved-name partial: some operator-facing names now 409 with `name_taken`, but `root` is still claimable on a fresh playerKey. Extend the blocklist to cover the full operator set (`root`, `moderator`, `delta-v`, `deltav`, `owner`, etc.) before public launch traffic.
 
 **Confirmed working** (do not regress):
 
