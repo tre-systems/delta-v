@@ -59,8 +59,8 @@ import type { AIDifficulty } from './types';
 // `let` so the sweep script can mutate in-process without a rebuild.
 export let LOOKAHEAD_BIAS_BY_DIFFICULTY: Record<AIDifficulty, number> = {
   easy: 0.4,
-  normal: 0.5,
-  hard: 0.6,
+  normal: 0.45,
+  hard: 0.7,
 };
 
 // Test/sweep-only override. Production callers never touch this.
