@@ -110,9 +110,10 @@ export const handleAgentTokenIssue = async (
   if (rawUsername !== undefined) {
     const check = validateUsername(rawUsername);
     if (!check.ok) {
+      const status = check.error === 'reserved' ? 409 : 400;
       return Response.json(
         { ok: false, error: `username_${check.error}` },
-        { status: 400 },
+        { status },
       );
     }
     if (!env.DB) {

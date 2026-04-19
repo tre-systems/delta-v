@@ -223,6 +223,22 @@ describe('handleAgentTokenIssue', () => {
     expect(byKey.size).toBe(0);
   });
 
+  it('rejects reserved usernames with a conflict status', async () => {
+    const { db, byKey } = buildMockDb();
+    const res = await handleAgentTokenIssue(
+      post({
+        playerKey: 'agent_alpha-v1',
+        claim: { username: 'administrator' },
+      }),
+      env(db),
+    );
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { ok: boolean; error: string };
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('username_reserved');
+    expect(byKey.size).toBe(0);
+  });
+
   it('returns 409 when the name is already owned by another key', async () => {
     const { db } = buildMockDb();
     await handleAgentTokenIssue(
