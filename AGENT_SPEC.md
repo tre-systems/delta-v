@@ -85,18 +85,23 @@ delta_v_quick_match_connect  →  delta_v_wait_for_turn  →  pick candidate  �
 
 ### 3.2 Resources
 
-Resources (URI-style read-only data) are planned — not yet served over MCP:
+Resources (URI-style read-only data) are partially shipped over MCP:
 
 ```
 game://rules/current                  # Full ruleset as structured data
 game://rules/{scenario}               # Scenario-specific rules
+```
+
+Still planned:
+
+```
 game://matches/{id}/observation       # Current observation
 game://matches/{id}/log               # Append-only event log
 game://matches/{id}/replay            # Full replay timeline
 game://leaderboard/agents             # Public rankings (depends on leaderboard arc)
 ```
 
-Until resources ship, agents should fetch `/.well-known/agent.json` and `/agent-playbook.json` at startup and use `delta_v_get_observation` / `GET /replay/{code}` at runtime.
+Use the shipped rules resources for cached rules discovery; for live match data keep using `delta_v_get_observation` and `GET /replay/{code}` until the remaining match/log/replay resources land.
 
 ---
 

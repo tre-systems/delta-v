@@ -32,6 +32,20 @@ Full token model (HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET`): [SECURITY.md#r
 - `https://delta-v.tre.systems/.well-known/agent.json`
 - `https://delta-v.tre.systems/agent-playbook.json`
 
+## Resource catalog
+
+Shipped now:
+
+- `game://rules/current` — full structured ruleset payload (`application/json`)
+- `game://rules/{scenario}` — scenario-specific structured rules payload (`application/json`)
+
+Still pending:
+
+- `game://matches/{id}/observation`
+- `game://matches/{id}/log`
+- `game://matches/{id}/replay`
+- `game://leaderboard/agents`
+
 ## Running the local MCP server
 
 ```bash

@@ -13,8 +13,11 @@ import {
   type AgentTurnInput,
   buildObservation,
   computeActionEffects,
+  listRulesResources,
   normalizeQuickMatchServerUrl,
   queueForMatch,
+  RULES_RESOURCE_MIME_TYPE,
+  readRulesResourceText,
   withCompactObservationState,
 } from '../src/shared/agent';
 import { patchTransportWithSerializedSends } from '../src/shared/mcp-stdio-serialized-send';
@@ -387,6 +390,27 @@ const server = new McpServer(
       'Use this server to play Delta-V via quick match. Create a session, inspect state/events, send actions, and chat.',
   },
 );
+
+for (const resource of listRulesResources()) {
+  server.registerResource(
+    resource.name,
+    resource.uri,
+    {
+      title: resource.title,
+      description: resource.description,
+      mimeType: resource.mimeType,
+    },
+    async () => ({
+      contents: [
+        {
+          uri: resource.uri,
+          mimeType: RULES_RESOURCE_MIME_TYPE,
+          text: readRulesResourceText(resource.uri),
+        },
+      ],
+    }),
+  );
+}
 
 // HTTP tool handler registry: maps tool names to their async handler
 // functions so the HTTP endpoint can dispatch without MCP protocol overhead.
