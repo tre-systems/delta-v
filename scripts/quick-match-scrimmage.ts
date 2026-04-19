@@ -33,6 +33,8 @@ interface Config {
   jsonOutPath: string | null;
   /** Use `scrim_…` keys + human quick-match path instead of default `agent_…` + Bearer. */
   humanQuickMatchKeys: boolean;
+  /** Re-use a fixed playerKey per label across runs so leaderboard ratings accumulate. */
+  stableKeys: boolean;
 }
 
 interface QueuePlayer {
@@ -171,6 +173,7 @@ const SCRIMMAGE_BOOL_FLAGS = new Set([
   '--live',
   '--help',
   '--human-quick-match-keys',
+  '--stable-keys',
 ]);
 
 const findUnknownScrimmageFlags = (argv: string[]): string[] => {
@@ -216,6 +219,7 @@ Flags:
   --live                   Stream concise per-turn/chat/result updates
   --json-out               Write structured JSON summary to file
   --human-quick-match-keys Use scrim_* playerKeys (human queue path). Default is agent_* + /api/agent-token (production-like).
+  --stable-keys            Re-use a fixed playerKey per label across runs so ratings accumulate (for leaderboard seeding). Default regenerates each run.
 `);
     process.exit(0);
   }
@@ -252,6 +256,7 @@ Flags:
     live: args.includes('--live'),
     jsonOutPath: getFlag('--json-out') ?? null,
     humanQuickMatchKeys: args.includes('--human-quick-match-keys'),
+    stableKeys: args.includes('--stable-keys'),
   };
 };
 
@@ -269,9 +274,16 @@ const createQueuePlayer = (
   label: string,
   agentCommandBase: string,
   humanQuickMatchKeys: boolean,
+  stableKeys: boolean,
 ): QueuePlayer => {
   const profile = slugify(label);
-  const suffix = randomUUID().replace(/-/g, '').slice(0, 8);
+  // Stable mode uses a fixed suffix so the same label re-uses the same
+  // playerKey across scrimmage runs. Intended for leaderboard seeding
+  // where rating continuity matters. Default stays random to keep casual
+  // scrimmage runs isolated (prevents rating pollution on retries).
+  const suffix = stableKeys
+    ? 'seed'
+    : randomUUID().replace(/-/g, '').slice(0, 8);
   const prefix = humanQuickMatchKeys ? 'scrim' : 'agent';
   return {
     label,
@@ -658,11 +670,13 @@ const pairPlayersInSameRoom = async (
       config.labelA,
       config.agentCommandBase,
       config.humanQuickMatchKeys,
+      config.stableKeys,
     );
     const right = createQueuePlayer(
       config.labelB,
       config.agentCommandBase,
       config.humanQuickMatchKeys,
+      config.stableKeys,
     );
     console.log(
       `Queueing ${left.label} and ${right.label} on ${config.serverUrl} quick match...`,

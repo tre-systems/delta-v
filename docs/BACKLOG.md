@@ -146,7 +146,7 @@ Re-ran the simulation harness at 100 games per scenario for tighter signal (2026
 
 | Scenario | P0% | P1% | Draws | Avg turns | Status |
 |----------|----:|----:|------:|----------:|--------|
-| escape | 38 | 62 | 0 | 11.1 | asymmetric (intended?), but ±12pp |
+| escape | 38 | 62 | 0 | 11.1 | was P1-skewed; see updated note below |
 | biplanetary | 41 | 59 | 0 | 7.3 | mild P1 edge |
 | blockade | 43 | 57 | 0 | 7.1 | mild P1 edge |
 | interplanetaryWar | 45 | 53 | 2 | 33.8 | balanced ✓ |
@@ -155,13 +155,13 @@ Re-ran the simulation harness at 100 games per scenario for tighter signal (2026
 | duel | 59 | 41 | 0 | 6.2 | P0 edge |
 | grandTour | 50 | 25 | **25** | 156.6 | balanced-when-decided, but 25% timeout (see grandTour entry) |
 
-**Done for this slice:** fleetAction now overrides AI closing pressure upward (`combatClosingWeight` / `combatCloseBonus`) so the fleets commit earlier; a fresh 40-game hard-vs-hard sample moved it from 15% timeouts / 70-turn average to 10% timeouts / 46-turn average without reviving the old P0 blowout. Duel now also suppresses combat-closing pressure completely at the scenario-override layer; a fresh 60-game hard-vs-hard sample landed at 50/50 with the average fight lengthened to 7.4 turns.
+**Done for this slice:** fleetAction now overrides AI closing pressure upward (`combatClosingWeight` / `combatCloseBonus`) so the fleets commit earlier; a fresh 40-game hard-vs-hard sample moved it from 15% timeouts / 70-turn average to 10% timeouts / 46-turn average without reviving the old P0 blowout. Duel now also suppresses combat-closing pressure completely at the scenario-override layer; a fresh 60-game hard-vs-hard sample landed at 50/50 with the average fight lengthened to 7.4 turns. Escape now starts the Terra-side enforcer corvette one lane back instead of directly on the fugitive launch hex; a fresh 100-game hard-vs-hard sample moved it from 35/65 to 49/51 with no timeouts.
 
-Action: pick a target band (50±10% is conventional) and tune the offending scenarios. biplanetary + blockade + escape still need either P0 strengthening or scenario-side rebalancing. Re-measure fleetAction and duel on larger seeded sweeps before calling them done. For matchmaking + ranked play, document the seat-assignment policy: random per match, or always-asymmetric-to-skill?
+Action: pick a target band (50±10% is conventional) and tune the offending scenarios. biplanetary + blockade still need either P0 strengthening or scenario-side rebalancing. Re-measure fleetAction and duel on larger seeded sweeps before calling them done. For matchmaking + ranked play, document the seat-assignment policy: random per match, or always-asymmetric-to-skill?
 
 Seat assignment is now randomised in `MatchmakerDO`; keep `match_rating.player_a_key` / `player_b_key` ordering aligned to the actual seated side when touching pairing or archival logic.
 
-Implication for the launch-readiness snapshot: the earlier *first-player advantage* line was over-stated based on 30-game noise. After the latest duel/fleetAction tuning, the remaining meaningful seat skews appear to be escape/biplanetary/blockade on the P1 side plus any residual fleetAction drift that survives a larger seeded sweep.
+Implication for the launch-readiness snapshot: the earlier *first-player advantage* line was over-stated based on 30-game noise. After the latest duel/fleetAction/escape tuning, the remaining meaningful seat skews appear to be biplanetary/blockade on the P1 side plus any residual fleetAction drift that survives a larger seeded sweep.
 
 **Files:** `src/server/matchmaker-do.ts`, `src/shared/scenarios/duel.ts`, `src/shared/scenarios/biplanetary.ts`, `src/shared/scenarios/escape.ts`, `src/shared/scenarios/blockade.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/ai/`, `scripts/simulate-ai.ts`
 
