@@ -235,12 +235,6 @@ Two actions: (1) document the shipped two-layer behavior accurately (`agent.json
 
 **Files:** `static/.well-known/agent.json`, `wrangler.toml`, `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`
 
-### Orphan room cleanup invisible to operators
-
-A `POST /create` from an unauthenticated client creates a Durable Object that never gets joined. These rooms do not appear in `/api/matches?status=live` (which only counts pairs with a connected second player) and there is no public surface that exposes or counts them. After my probes I had ~24 orphan DOs that I had no way to enumerate or explicitly clean up — the alarm-driven cleanup in `GameDO` is the only sweep. Either expose an admin-only `/api/rooms?status=orphaned` count for monitoring, or document the alarm timer and orphan-eviction policy in [OBSERVABILITY.md](./OBSERVABILITY.md) so operators know what cost they're carrying.
-
-**Files:** `src/server/game-do/`, `src/server/live-registry-do.ts`, `docs/OBSERVABILITY.md`, `docs/SECURITY.md`
-
 ### Missing `/favicon.ico` and `/apple-touch-icon.png`
 
 Both return 404. Every browser request for the favicon (which is automatic on every page load) generates a 404 in the Worker logs and a network error in the user's DevTools console. iOS PWA "Add to Home Screen" falls back to a generic icon without `/apple-touch-icon.png`. Either:
