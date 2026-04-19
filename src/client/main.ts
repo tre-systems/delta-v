@@ -1,7 +1,10 @@
 import { showErrorScreen } from './error-screen';
 import { createGameClient, type GameClient } from './game/client-kernel';
 import { setupServiceWorkerReload } from './game/client-runtime';
-import { installGlobalErrorHandlers } from './telemetry';
+import {
+  configureTelemetryRuntime,
+  installGlobalErrorHandlers,
+} from './telemetry';
 import { installViewportSizing } from './viewport';
 import { getWebLocalStorage } from './web-local-storage';
 
@@ -18,6 +21,16 @@ try {
   document.documentElement.dataset.hudScale =
     hudScale === 'large' ? 'large' : 'default';
 
+  configureTelemetryRuntime({
+    fetchImpl: globalThis.fetch.bind(globalThis),
+    getStorage: () => ls,
+    getLocationHref: () => window.location.href,
+    getUserAgent: () => navigator.userAgent,
+    addGlobalListener: (type, listener) => {
+      window.addEventListener(type, listener);
+    },
+    createUuid: () => crypto.randomUUID(),
+  });
   installGlobalErrorHandlers();
   installViewportSizing();
   setupServiceWorkerReload();

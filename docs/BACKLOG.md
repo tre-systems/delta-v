@@ -263,6 +263,8 @@ Confirmed 2026-04-19: `POST /create` returns a 5-char code from a 32-char alphab
 
 Hide clone-sensitive engine mutators behind non-exported modules, extend import-boundary enforcement to the missing directions, and finish the client kernel DI cleanup so `WebSocket` and `fetch` are injected rather than reached directly.
 
+**Done for this slice:** browser telemetry/error reporting now runs through a configured runtime from `src/client/main.ts`, so the client no longer reaches global `fetch` directly inside `src/client/telemetry.ts`; the seam is covered in `src/client/telemetry.test.ts`.
+
 **Files:** `src/shared/engine/victory.ts`, `src/shared/engine/turn-advance.ts`, `src/shared/import-boundary.test.ts`, `src/server/import-boundary.test.ts`, `src/client/game/client-kernel.ts`, `src/client/game/connection.ts`, `src/client/game/session-api.ts`, `biome.json`
 
 ---
