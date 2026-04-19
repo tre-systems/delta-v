@@ -18,7 +18,6 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
-- *Match-history "Replay →" links are broken for every listed match* (Gameplay UX & matchmaking integrity) — every click shows "Replay unavailable" toast; breaks a promoted feature on a page that tells users replays are available.
 - *`/healthz` body unpopulated* (Agent & MCP ergonomics) — `sha:null, bootedAt:"1970-01-01..."` (re-re-verified 2026-04-19). Deploy-gate monitors that compare `sha` against pipeline build will always pass.
 - *`/api/agent-token` rate limit barely fires* — 50-burst got 46 successes, 4 throttled (re-re-verified 2026-04-19). Documented 5/60s; actual ~45/60s per-IP per-colo.
 
@@ -270,25 +269,6 @@ There is no actual spectator code path. Either ship spectator mode (read-only st
 Reproduced 2026-04-19: started Bi-Planetary via Play-vs-AI, advanced to turn 2, hit `location.reload()` — landed back at the lobby with no "restore" prompt. Multiplayer matches surface a "Your fleet and plotted burns are saved — restoring the match state" message (verified earlier this week), but local games don't, even though localStorage already holds enough state (`delta-v:player-profile`, `aiDifficulty`, etc.) to attempt restore. Either persist the local-game snapshot to localStorage on each turn submission, or surface a "Continue last local game?" lobby card if the SPA detects an in-progress local state.
 
 **Files:** `src/client/game/local-runtime.ts` (or wherever local-mode game state lives), `src/client/game/client-runtime.ts`, `src/client/ui/lobby.ts` (continue prompt)
-
-### Match-history replay links resolve to "Replay unavailable" for every match
-
-Reproduced 2026-04-19 on production. The `/matches` page advertises *"Every completed match is archived. Click any replay to watch it unfold turn-by-turn."* and renders a `Replay →` link next to each row. Clicking:
-
-1. Href is bare `/` — the click handler is JS-driven (looks up the match by a data attribute / state store, not the href).
-2. Navigates to the lobby with a toast: *"Replay unavailable for this match."*
-
-Every listed match shows this behaviour — including matches the current browser was a participant in (whose `playerToken` is still in `localStorage['delta-v:tokens']`). Manual `curl /replay/XVSZQ` with the stored token returns 403 `Invalid player token`, suggesting tokens are invalidated server-side at archive time. The handler at [src/server/game-do/http-handlers.ts:208-216](src/server/game-do/http-handlers.ts:208) *does* support `?viewer=spectator` for unauthenticated read, and `curl /replay/XVSZQ?viewer=spectator` correctly returns 404 "Replay not found" — a different error path — which means the spectator branch is reachable but the client doesn't request it.
-
-Client fix: have the replay-viewer UI try `?viewer=spectator` if no valid token is available, and surface a better error state than a silent toast ("Replay not yet available — check back in a few minutes" vs "This replay has expired and is no longer viewable").
-
-Server-side follow-up: for completed matches with a `match_archive` row, the spectator replay should generally work. Returning 404 here means the projection path can't reconstruct the timeline, probably because the DO has been evicted and the R2 archive path isn't wired into `getProjectedReplayTimeline`. Confirm R2 fallback works, or document that replays are DO-scoped (and therefore only viewable for a limited time).
-
-This is a player-visible promise-vs-delivery gap that matters for launch: promoting the game while the public match-history "Replay" link never works would be a confidence hit.
-
-Found via R1 (path discovery) + R7 (browser exercise of the UI).
-
-**Files:** `src/client/ui/matches-page.ts` (or wherever the matches-history component lives), `src/server/game-do/http-handlers.ts`, `src/server/game-do/archive.ts`, `src/server/room-routes.ts`, `static/matches.html` (copy)
 
 ## Architecture & correctness
 
