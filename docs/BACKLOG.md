@@ -1,8 +1,10 @@
 # Delta-V Backlog
 
-Outstanding tasks only — **no release log** (use `git log` for shipped work). Recurring review procedures: [REVIEW_PLAN.md](./REVIEW_PLAN.md). Architecture rationale: [ARCHITECTURE.md](./ARCHITECTURE.md).
+A prioritised list of outstanding tasks that deserve a named home between PRs — design gaps, tuning work, hardening items, doc-vs-reality drift. Each entry is either actionable in the next few weeks or explicitly trigger-gated.
 
-The sections below are grouped by theme but ordered within each group by priority. Gameplay-feel items (P1) translate most directly into a better player experience; architecture-solidity items (P2) unblock confident iteration on P1.
+Sections are grouped by theme and ordered by priority within each group: gameplay-feel items (P1) translate most directly into a better player experience; architecture-solidity items (P2) unblock confident iteration on P1.
+
+Shipped work lives in `git log`, not here. Recurring review procedures live in [REVIEW_PLAN.md](./REVIEW_PLAN.md). Architecture rationale lives in [ARCHITECTURE.md](./ARCHITECTURE.md). Exploratory-pass technique lives in [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md).
 
 ## Launch-readiness snapshot (2026-04-19)
 
@@ -17,10 +19,8 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
 - *Match-history "Replay →" links are broken for every listed match* (Gameplay UX & matchmaking integrity) — every click shows "Replay unavailable" toast; breaks a promoted feature on a page that tells users replays are available.
-- *Security-header middleware drafted but not deployed* — `src/server/response-headers.ts`, the `applyResponseHeaders` wiring in `src/server/index.ts`, and the `SECURITY.md` text claiming CSP/HSTS/X-Frame-Options are live are all present in the working tree but unshipped. Production responses still emit none of those headers (re-verified 2026-04-19). Commit and deploy the pending work, then re-run the R1 header check to close the loop.
 - *`/healthz` body unpopulated* (Agent & MCP ergonomics) — `sha:null, bootedAt:"1970-01-01..."` (re-re-verified 2026-04-19). Deploy-gate monitors that compare `sha` against pipeline build will always pass.
 - *`/api/agent-token` rate limit barely fires* — 50-burst got 46 successes, 4 throttled (re-re-verified 2026-04-19). Documented 5/60s; actual ~45/60s per-IP per-colo.
-- *No reserved-name blocklist on `/api/claim-name`* — 2026-04-19: claimed `admin`, `administrator`, `system`, `test user` with no rejection. Add a blocklist (or at least reserve `admin`, `administrator`, `system`, `root`, `moderator`, `delta-v`, `deltav`) and return 409 with a clear `username_reserved` error.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
 
@@ -47,7 +47,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 - Tutorial fires on first Play-vs-AI, persists `tutorial_done` across reloads.
 - PWA manifest, service worker, masked icons all wired correctly.
 - 2251 unit tests pass; lint + typecheck clean.
-- All 8 scenarios launch from the Play-vs-AI lobby without console errors.
+- All 9 scenarios launch from the Play-vs-AI lobby without console errors.
 - Validation quality on `/api/claim-name` and `/api/agent-token` is the gold standard for the rest of the API.
 - SPA initial load: TTFB 21-30ms, DOM ready ~180ms, 39KB initial transfer, 15 resources (measured 2026-04-19).
 - HUD scale toggle (`deltav_hud_scale`) and sound-effects toggle both persist to localStorage and survive reload.
