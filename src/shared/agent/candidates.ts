@@ -11,6 +11,7 @@ import {
   buildAIFleetPurchases,
 } from '../ai';
 import { evaluateOrdnanceLaunchIntercept } from '../ai/ordnance';
+import { SHIP_STATS } from '../constants';
 import { buildSolarSystemMap } from '../map-data';
 import type {
   AstrogationOrder,
@@ -149,6 +150,62 @@ const dedupeCandidates = (candidates: C2S[]): C2S[] => {
   return result;
 };
 
+const buildDirectionalAstrogationVariants = (
+  state: GameState,
+  playerId: PlayerId,
+): C2S[] => {
+  if (state.phase !== 'astrogation') {
+    return [];
+  }
+
+  const orderableShips = state.ships.filter(
+    (ship) =>
+      ship.owner === playerId &&
+      ship.lifecycle === 'active' &&
+      ship.damage.disabledTurns === 0,
+  );
+  if (orderableShips.length !== 1) {
+    return [];
+  }
+
+  const [ship] = orderableShips;
+  const idleOrders = buildIdleAstrogationOrders(state, playerId);
+  const baseOrders = idleOrders.map((order) =>
+    order.shipId === ship.id ? { ...order } : order,
+  );
+  const variants: C2S[] = [];
+
+  if (ship.fuel > 0) {
+    for (let direction = 0; direction < 6; direction += 1) {
+      variants.push({
+        type: 'astrogation',
+        orders: baseOrders.map((order) =>
+          order.shipId === ship.id
+            ? { ...order, burn: direction, overload: null }
+            : order,
+        ),
+      });
+    }
+  }
+
+  const canOverload =
+    ship.fuel >= 2 && !ship.overloadUsed && SHIP_STATS[ship.type].canOverload;
+  if (canOverload) {
+    for (let direction = 0; direction < 6; direction += 1) {
+      variants.push({
+        type: 'astrogation',
+        orders: baseOrders.map((order) =>
+          order.shipId === ship.id
+            ? { ...order, burn: direction, overload: direction }
+            : order,
+        ),
+      });
+    }
+  }
+
+  return variants;
+};
+
 /** True when this player already has ordnance in flight from last turn's launch. */
 export const hasRecentOwnOrdnanceLaunch = (
   state: GameState,
@@ -249,6 +306,7 @@ export const buildCandidates = (
   // Always include a coast (all ships idle) option for astrogation so agents
   // can choose to save fuel even when every AI difficulty picks a burn.
   if (state.phase === 'astrogation') {
+    seeds.push(...buildDirectionalAstrogationVariants(state, playerId));
     seeds.push({
       type: 'astrogation',
       orders: buildIdleAstrogationOrders(state, playerId),
