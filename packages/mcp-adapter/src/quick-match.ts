@@ -14,6 +14,7 @@ import type { QuickMatchResponse } from '../../../src/shared/matchmaking';
 
 export interface QuickMatchArgs {
   scenario: string;
+  rendezvousCode?: string;
   username: string;
   playerKey: string;
   pollMs?: number;
@@ -69,6 +70,7 @@ export const queueRemoteMatch = async (
       headers,
       body: JSON.stringify({
         scenario: args.scenario,
+        rendezvousCode: args.rendezvousCode,
         player: {
           playerKey: args.playerKey,
           username: args.username,

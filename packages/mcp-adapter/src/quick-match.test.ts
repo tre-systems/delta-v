@@ -128,6 +128,42 @@ describe('queueRemoteMatch', () => {
     expect(calls[0]?.url).toContain('/enqueue');
   });
 
+  it('forwards rendezvousCode to the matchmaker enqueue payload', async () => {
+    const { env, calls } = buildEnv((req) => {
+      if (req.url.endsWith('/enqueue')) {
+        return Response.json({
+          status: 'queued',
+          ticket: 'TICKET',
+          scenario: 'duel',
+        });
+      }
+      return Response.json({
+        status: 'matched',
+        ticket: 'TICKET',
+        scenario: 'duel',
+        code: 'ABCDE',
+        playerToken: 'X'.repeat(32),
+      });
+    });
+
+    await queueRemoteMatch(env, {
+      scenario: 'duel',
+      rendezvousCode: 'qa123',
+      username: 'tester',
+      playerKey: 'agent_test_rendezvous',
+      waitForOpponent: false,
+    });
+
+    const enqueueReq = calls.find((req) => req.url.endsWith('/enqueue'));
+    expect(enqueueReq).toBeDefined();
+    const body = JSON.parse(
+      await (enqueueReq ?? new Request('https://invalid.test')).text(),
+    ) as {
+      rendezvousCode?: string;
+    };
+    expect(body.rendezvousCode).toBe('qa123');
+  });
+
   it('throws on expired ticket', async () => {
     const { env } = buildEnv((req) => {
       if (req.url.endsWith('/enqueue')) {
