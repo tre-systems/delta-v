@@ -17,7 +17,6 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
 - *`/api/agent-token` rate limit not firing* (Cost & abuse hardening) — 30-burst re-verified 2026-04-19: 30/30 succeeded. `/create` and `/quick-match` limits now enforce; `/api/agent-token` doesn't.
-- *`/api/matches?status=*` and `?before=*` still not validated* — `scenario`/`winner`/`limit` now return 400 on garbage, but `status` and `before` still silently accepted (re-verified 2026-04-19).
 - *`delta-v:tokens` localStorage accumulates without cleanup* (same section) — token cache grows unbounded; tokens never invalidated server-side on archive.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
@@ -306,14 +305,6 @@ There is no actual spectator code path. Either ship spectator mode (read-only st
 Reproduced 2026-04-19: started Bi-Planetary via Play-vs-AI, advanced to turn 2, hit `location.reload()` — landed back at the lobby with no "restore" prompt. Multiplayer matches surface a "Your fleet and plotted burns are saved — restoring the match state" message (verified earlier this week), but local games don't, even though localStorage already holds enough state (`delta-v:player-profile`, `aiDifficulty`, etc.) to attempt restore. Either persist the local-game snapshot to localStorage on each turn submission, or surface a "Continue last local game?" lobby card if the SPA detects an in-progress local state.
 
 **Files:** `src/client/game/local-runtime.ts` (or wherever local-mode game state lives), `src/client/game/client-runtime.ts`, `src/client/ui/lobby.ts` (continue prompt)
-
-### Partial filter validation on `/api/matches`
-
-Commit `7b21301` validates `scenario` and `winner`, but `?status=invalid`, `?limit=abc`, `?before=garbage` still return 200 with default data instead of 400. Apply the same `parseFilters` discipline to all four params so behaviour is uniform. Found via R2 (re-verification of the recent fix).
-
-**Files:** `src/server/matches-list.ts`, `src/server/matches-list.test.ts`
-
----
 
 ## Architecture & correctness
 
