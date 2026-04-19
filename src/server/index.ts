@@ -23,7 +23,19 @@ import {
   buildPublicCorsPreflightResponse,
 } from './response-headers';
 
-const WORKER_BOOTED_AT = new Date().toISOString();
+let workerBootedAt: string | null = null;
+
+const resolveWorkerBootedAt = (): string => {
+  if (workerBootedAt === null) {
+    workerBootedAt = new Date(Date.now()).toISOString();
+  }
+
+  return workerBootedAt;
+};
+
+export const __resetWorkerBootedAtForTests = (): void => {
+  workerBootedAt = null;
+};
 
 export type { CreateRateLimiterBinding, Env } from './env';
 
@@ -310,7 +322,7 @@ export default {
         return Response.json({
           ok: true,
           sha,
-          bootedAt: WORKER_BOOTED_AT,
+          bootedAt: resolveWorkerBootedAt(),
         });
       }
 

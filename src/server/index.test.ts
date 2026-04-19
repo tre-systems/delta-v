@@ -16,6 +16,7 @@ import { asGameId } from '../shared/ids';
 import { issueAgentToken } from './auth';
 import type { MatchArchive } from './game-do/match-archive';
 import worker, {
+  __resetWorkerBootedAtForTests,
   createRateMap,
   type Env,
   errorReportRateMap,
@@ -146,6 +147,7 @@ const createEnv = (
 describe('server index worker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    __resetWorkerBootedAtForTests();
     createRateMap.clear();
   });
 
@@ -371,6 +373,29 @@ describe('server index worker', () => {
         url: 'https://delta-v.test/version.json',
       }),
     );
+  });
+
+  it('initializes bootedAt lazily and keeps it stable for the isolate', async () => {
+    const nowSpy = vi.spyOn(Date, 'now');
+    nowSpy.mockReturnValueOnce(1_000).mockReturnValue(5_000);
+    const { env } = createEnv();
+
+    const first = await worker.fetch(
+      new Request('https://delta-v.test/healthz', { method: 'GET' }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    const firstPayload = (await first.json()) as { bootedAt: string };
+
+    const second = await worker.fetch(
+      new Request('https://delta-v.test/healthz', { method: 'GET' }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    const secondPayload = (await second.json()) as { bootedAt: string };
+
+    expect(firstPayload.bootedAt).toBe('1970-01-01T00:00:01.000Z');
+    expect(secondPayload.bootedAt).toBe(firstPayload.bootedAt);
   });
 
   it('adds explicit wildcard CORS to public read APIs and handles OPTIONS preflight', async () => {
