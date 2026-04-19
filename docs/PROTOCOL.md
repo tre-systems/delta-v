@@ -41,7 +41,7 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 | `/.well-known/agent.json` | GET | Machine-readable agent manifest |
 | `/agent-playbook.json` | GET | Phase/action map for agents |
 | `/version.json` | GET | Build-time `{ packageVersion, assetsHash }` for support/cache-bust debugging |
-| `/healthz` (aliases: `/health`, `/status`) | GET | Liveness probe: `{ ok, sha, bootedAt }` |
+| `/healthz` (aliases: `/health`, `/status`) | GET | Liveness probe: `{ ok, sha, bootedAt }` (`sha` resolves from deploy metadata, then `/version.json` `assetsHash`) |
 | `/telemetry`, `/error` | POST | Client-side reporting (JSON, ≤ 4 KB) |
 
 Rate limits for each route: [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture).

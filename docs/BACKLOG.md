@@ -17,7 +17,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 (Note: the seat-hijack / unauthenticated-join finding is **not** P0 — by product decision, frictionless start outweighs private-room auth. Listed under polish below for the spectator-misadvertisement and structured-rejection parts only.)
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
-- *`/healthz` body unpopulated* (Agent & MCP ergonomics) — `sha:null, bootedAt:"1970-01-01..."` (re-re-verified 2026-04-19). Deploy-gate monitors that compare `sha` against pipeline build will always pass.
+- *`/healthz` production payload still stale until the fallback ships live* (Agent & MCP ergonomics) — production still returns `sha:null, bootedAt:"1970-01-01..."` as of 2026-04-19. Code now falls back from Worker deploy metadata to bundled `/version.json` `assetsHash` and stamps `bootedAt` at module load; re-verify on the next deploy before removing this line.
 - *`/api/agent-token` rate limit barely fires* — 50-burst got 46 successes, 4 throttled (re-re-verified 2026-04-19). Documented 5/60s; actual ~45/60s per-IP per-colo.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
