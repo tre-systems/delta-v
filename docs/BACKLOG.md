@@ -155,7 +155,9 @@ Re-ran the simulation harness at 100 games per scenario for tighter signal (2026
 | duel | 59 | 41 | 0 | 6.2 | P0 edge |
 | grandTour | 50 | 25 | **25** | 156.6 | balanced-when-decided, but 25% timeout (see grandTour entry) |
 
-Action: pick a target band (50±10% is conventional) and tune the offending scenarios. duel + fleetAction need P0 weakening; biplanetary + blockade + escape need either P0 strengthening or scenario-side rebalancing. For matchmaking + ranked play, document the seat-assignment policy: random per match, or always-asymmetric-to-skill?
+**Done for this slice:** fleetAction now overrides AI closing pressure upward (`combatClosingWeight` / `combatCloseBonus`) so the fleets commit earlier; a fresh 40-game hard-vs-hard sample moved it from 15% timeouts / 70-turn average to 10% timeouts / 46-turn average without reviving the old P0 blowout.
+
+Action: pick a target band (50±10% is conventional) and tune the offending scenarios. duel still needs P0 weakening; biplanetary + blockade + escape need either P0 strengthening or scenario-side rebalancing. Re-measure fleetAction on a larger seeded sweep before calling it done. For matchmaking + ranked play, document the seat-assignment policy: random per match, or always-asymmetric-to-skill?
 
 Seat assignment is now randomised in `MatchmakerDO`; keep `match_rating.player_a_key` / `player_b_key` ordering aligned to the actual seated side when touching pairing or archival logic.
 
@@ -165,7 +167,7 @@ Implication for the launch-readiness snapshot: the earlier *first-player advanta
 
 ### High timeout rate in `grandTour` (23%) and `fleetAction` (20%)
 
-Same sweep — almost a quarter of grandTour and a fifth of fleetAction games hit the simulation turn-limit without resolving. For grandTour the 164-turn average suggests the scenario is genuinely long; for fleetAction 31 turns is reasonable but a fifth still timing out points to AI stalemate (both fleets coast indefinitely with neither willing to commit). Either lower the turn limit and add a tiebreak (sum of remaining ship-cost? closest-to-objective?), or tune the AI's cohesion pressure so it forces engagement before the limit.
+Same sweep — almost a quarter of grandTour and a fifth of fleetAction games hit the simulation turn-limit without resolving. For grandTour the 164-turn average suggests the scenario is genuinely long. fleetAction has improved after the closing-pressure override, but still times out often enough to need another larger seeded sweep before dropping the item. Either lower the turn limit and add a tiebreak (sum of remaining ship-cost? closest-to-objective?), or keep tuning AI cohesion pressure so it forces engagement before the limit.
 
 **Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenarios/grand-tour.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/engine/victory.ts` (tiebreak)
 
