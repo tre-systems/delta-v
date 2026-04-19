@@ -56,15 +56,32 @@ type MatchesQueryError = {
 };
 
 const isQueryError = (
-  value: MatchWinnerFilter | ScenarioKey | null | MatchesQueryError,
+  value: number | MatchWinnerFilter | ScenarioKey | null | MatchesQueryError,
 ): value is MatchesQueryError =>
   typeof value === 'object' && value !== null && 'status' in value;
 
-const parseLimit = (raw: string | null): number => {
+const parseLimit = (raw: string | null): number | MatchesQueryError => {
   if (!raw) return DEFAULT_LIMIT;
   const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_LIMIT;
-  return Math.min(parsed, MAX_LIMIT);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return {
+      status: 400,
+      body: {
+        error: 'invalid_query',
+        message: 'Invalid limit. Expected a positive integer.',
+      },
+    };
+  }
+  if (parsed > MAX_LIMIT) {
+    return {
+      status: 400,
+      body: {
+        error: 'invalid_query',
+        message: `Invalid limit: ${raw}. Maximum is ${MAX_LIMIT}.`,
+      },
+    };
+  }
+  return parsed;
 };
 
 const parseBefore = (raw: string | null): number | null => {
@@ -132,8 +149,11 @@ const parseFilters = (
   const winner = parseWinner(url.searchParams.get('winner'));
   if (isQueryError(winner)) return winner;
 
+  const limit = parseLimit(url.searchParams.get('limit'));
+  if (isQueryError(limit)) return limit;
+
   return {
-    limit: parseLimit(url.searchParams.get('limit')),
+    limit,
     before: parseBefore(url.searchParams.get('before')),
     scenario,
     winner,

@@ -72,22 +72,41 @@ describe('handleMatchesList', () => {
     expect(bind).toHaveBeenCalledWith(51);
   });
 
-  it('caps limit at 100 and accepts custom limits', async () => {
+  it('accepts custom limits up to 100', async () => {
     const { db, bind } = mockDb([]);
     await handleMatchesList(
-      new Request('https://example/api/matches?limit=500'),
+      new Request('https://example/api/matches?limit=100'),
       buildEnv(db),
     );
-    expect(bind).toHaveBeenCalledWith(101); // capped to MAX_LIMIT + 1
+    expect(bind).toHaveBeenCalledWith(101);
   });
 
-  it('falls back to default limit for invalid values', async () => {
-    const { db, bind } = mockDb([]);
-    await handleMatchesList(
+  it('rejects invalid limit values', async () => {
+    const { db, prepare } = mockDb([]);
+    const response = await handleMatchesList(
       new Request('https://example/api/matches?limit=not-a-number'),
       buildEnv(db),
     );
-    expect(bind).toHaveBeenCalledWith(51);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'invalid_query',
+      message: 'Invalid limit. Expected a positive integer.',
+    });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized limit values', async () => {
+    const { db, prepare } = mockDb([]);
+    const response = await handleMatchesList(
+      new Request('https://example/api/matches?limit=500'),
+      buildEnv(db),
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'invalid_query',
+      message: 'Invalid limit: 500. Maximum is 100.',
+    });
+    expect(prepare).not.toHaveBeenCalled();
   });
 
   it('uses WHERE completed_at < ? for pagination via ?before', async () => {
