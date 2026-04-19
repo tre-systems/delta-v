@@ -131,6 +131,7 @@ describe('.well-known/agent.json', () => {
   it('advertises the shipped MCP rules resources', () => {
     expect(manifest.mcp?.resources).toContain('game://rules/current');
     expect(manifest.mcp?.resources).toContain('game://rules/{scenario}');
+    expect(manifest.mcp?.resources).toContain('game://leaderboard/agents');
   });
 });
 

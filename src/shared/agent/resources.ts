@@ -2,6 +2,7 @@ import { SCENARIOS, type ScenarioKey } from '../map-data';
 
 export const RULES_RESOURCE_MIME_TYPE = 'application/json';
 export const RULES_CURRENT_URI = 'game://rules/current';
+export const LEADERBOARD_AGENTS_URI = 'game://leaderboard/agents';
 
 export interface ListedMcpResource {
   description: string;
@@ -26,6 +27,23 @@ export const buildScenarioRulesResourceDocument = (scenario: ScenarioKey) => ({
   definition: SCENARIOS[scenario],
 });
 
+export interface LeaderboardAgentEntry {
+  gamesPlayed: number;
+  lastPlayedAt: number | null;
+  provisional: boolean;
+  rating: number;
+  rd: number;
+  username: string;
+}
+
+export const buildLeaderboardAgentsResourceDocument = (
+  entries: LeaderboardAgentEntry[],
+) => ({
+  version: 1 as const,
+  kind: 'agentLeaderboard' as const,
+  entries,
+});
+
 export const listRulesResources = (): ListedMcpResource[] => [
   {
     name: 'delta-v-rules-current',
@@ -47,6 +65,15 @@ export const listRulesResources = (): ListedMcpResource[] => [
     mimeType: RULES_RESOURCE_MIME_TYPE,
   })),
 ];
+
+export const leaderboardAgentsResource = (): ListedMcpResource => ({
+  name: 'delta-v-leaderboard-agents',
+  title: 'Agent Leaderboard',
+  description:
+    'Public agent leaderboard snapshot as structured JSON, ordered by rating.',
+  uri: LEADERBOARD_AGENTS_URI,
+  mimeType: RULES_RESOURCE_MIME_TYPE,
+});
 
 export const readRulesResourceDocument = (uri: string): unknown => {
   if (uri === RULES_CURRENT_URI) {
