@@ -189,7 +189,9 @@ Two intertwined problems:
 1. **Normal ≈ Hard.** `normal-vs-hard` gives 62/38 in P0's favour and `hard-vs-normal` gives 64/36 — i.e. the seat bias swamps the difficulty signal. A player picking "Hard" over "Normal" in *Play vs AI* gets ~4 percentage points of edge net of seat. From the player's perspective the difficulty selector is largely cosmetic.
 2. **First-player bias depends on difficulty.** `hard-vs-hard` → P0=60% (forward bias). `easy-vs-easy` → P0=36% (**reversed bias**). The same pattern reproduces on biplanetary (Hard-vs-Hard P0=63%, Easy-vs-Easy P0=33%). So the seat advantage isn't a fixed first-mover bonus — it's emergent from the AI heuristics, and the Easy AI plays *worse* as the initiator. For matchmaking with random seat assignment among Hard-vs-Hard matches the leaderboard skew will persist; for the *Play vs AI* difficulty selector to be meaningful, the gap between tiers needs to be larger than the seat skew (~20pp).
 
-Fix paths: widen the depth/eval gap between Normal and Hard (e.g. Hard adds rollout depth or candidate enumeration that Normal skips); add a "play first vs second" heuristic to Easy that doesn't penalise initiation; expose a per-difficulty win-rate table on the difficulty selector so players know what to expect.
+**Done for this slice:** widened the risk split in astrogation lookahead and combat commitment so Normal and Hard no longer collapse to the exact same duel outcomes on the same seeds; a quick 30-game sample moved `normal-vs-normal` to 70/30 while `hard-vs-hard` landed at 50/50.
+
+**Remaining:** hold that spread across larger seeded sweeps, keep reducing seat bias in the same-difficulty ladders, add a "play first vs second" heuristic to Easy so it does not invert the bias, and optionally expose per-difficulty expectations in the difficulty selector copy.
 
 **Files:** `src/shared/ai/config.ts`, `src/shared/ai/`, `src/client/ui/lobby.ts` (difficulty selector copy), `scripts/simulate-ai.ts`
 
