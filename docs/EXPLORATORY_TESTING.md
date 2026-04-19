@@ -261,3 +261,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 |------|----------|-------|----------------------|
 | 2026-04-18 | agent (Opus 4.7) | MCP-vs-browser pairing, public API surface, scenario sweep, doc-consistency | 9 |
 | 2026-04-19 | agent (Opus 4.7) | Rate-limit verification, payload validation, healthz audit, hosted-MCP parity, scenario sweep | 5 |
+| 2026-04-19 | agent (Opus 4.7) | Listing-endpoint silent caps, leaderboard validation, /join metadata gap, auth-failure log silence, validation shape consistency | 5 |
