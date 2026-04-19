@@ -12,7 +12,8 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 - *DO close handler crashes after a code deploy* (Cost & abuse hardening section) — three unguarded handlers in `game-do.ts`. Continuous delivery means every deploy can lose in-flight matches.
 - *Matchmaker pairs the same agent identity into two simultaneous matches* (same section) — corrupts Glicko-2 sequential-update invariant on the public leaderboard.
-- *`evacuation` scenario near-unwinnable for P0* (AI behavior & rules conformance) — 3.3% P0 win rate at hard difficulty in 30-game sweep; matchmaker would systematically penalise the P0 seat on Glicko-2.
+- *`evacuation` scenario near-unwinnable for P0* (AI behavior & rules conformance) — 3% P0 win rate at hard difficulty in 100-game sweep; matchmaker would systematically penalise the P0 seat on Glicko-2.
+- *Matchmaker assigns seats by queue order (no shuffle)* (AI behavior & rules conformance) — combined with the per-scenario seat balance, this lets a timing-aware agent farm seat advantages for systematic Glicko-2 gain.
 
 (Note: the seat-hijack / unauthenticated-join finding is **not** P0 — by product decision, frictionless start outweighs private-room auth. Listed under polish below for the spectator-misadvertisement and structured-rejection parts only.)
 
@@ -133,6 +134,24 @@ For matchmaking + ranked play this is showstopping: whoever gets the P0 seat in 
 Found via R16. The same recipe also revealed that scenario *balance* and AI-tuning live in different files — useful when triaging similar findings.
 
 **Files:** `src/shared/scenarios/evacuation.ts` (or wherever the evac map / fleet definition lives — see [src/shared/scenarios/](src/shared/scenarios/)), `src/shared/ai/scenarios/evacuation.ts` (if scenario-specific AI heuristics exist), `scripts/simulate-ai.ts`
+
+### Matchmaker assigns seats by queue order (no shuffle)
+
+Confirmed by reading [src/server/matchmaker-do.ts:325-371](src/server/matchmaker-do.ts:325): `matchEntries(entries, leftIndex, rightIndex)` is invoked from `enqueue` as `matchEntries(entries, entries.length-1, humanMatchIndex)`. The newly-queued player (`left`) is always assigned `room.playerTokens[0]` → seat 0 (P0); the previously-waiting player (`right`) gets `playerTokens[1]` → seat 1 (P1). There is no `Math.random` or shuffle in the path.
+
+Combined with the per-scenario balance findings (duel P0=59%, fleetAction P0=59%, biplanetary P1=59%, evacuation P1=97%), this means whoever queues **at the right moment** structurally wins. A sophisticated agent could:
+
+- For duel/fleetAction: queue *second* (delay 100ms after seeing a queue entry appear) to grab P0 → ~9pp seat advantage net of skill.
+- For evacuation: queue *first* to be P1 → ~94pp advantage.
+
+For the public Glicko-2 leaderboard this is a real exploit: timing manipulation drives systematic rating gain. Two layered fixes:
+
+1. **Random seat assignment**: in `matchEntries`, swap the two `room.playerTokens[*]` assignments with 50% probability. One-line change. Removes timing-exploit and de-correlates Glicko-2 from queue order.
+2. **Per-scenario seat-balance documentation**: surface the expected per-scenario P0/P1 win rate in `agent.json` so honest agents can plan. (Independent of the fix; useful for transparency either way.)
+
+The launch-readiness P0 list should add this; without random seat assignment, the per-scenario imbalances become exploitable rather than merely cosmetic.
+
+**Files:** `src/server/matchmaker-do.ts:325-371`, `src/server/matchmaker-do.test.ts`, `static/.well-known/agent.json` (publish per-scenario balance numbers if intentional)
 
 ### Per-scenario seat-balance gaps (100-game hard-vs-hard runs)
 
