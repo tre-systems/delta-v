@@ -169,7 +169,7 @@ Implication for the launch-readiness snapshot: the earlier *first-player advanta
 
 Same sweep — almost a quarter of grandTour and a fifth of fleetAction games hit the simulation turn-limit without resolving. For grandTour the 164-turn average suggests the scenario is genuinely long. fleetAction has improved after the closing-pressure override, but still times out often enough to need another larger seeded sweep before dropping the item. Either lower the turn limit and add a tiebreak (sum of remaining ship-cost? closest-to-objective?), or keep tuning AI cohesion pressure so it forces engagement before the limit.
 
-**Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenarios/grand-tour.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/engine/victory.ts` (tiebreak)
+**Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenario-definitions.ts`, `src/shared/engine/victory.ts` (tiebreak)
 
 ### AI difficulty tiers under-differentiate; first-player bias flips with difficulty
 
@@ -282,6 +282,8 @@ Tighten scenario/body registries around closed keys; brand ship / ordnance ident
 ### Broaden engine and protocol coverage
 
 Optional positive/negative `contracts.json` rows for parameterless phase one-shots (`skipOrdnance`, `endCombat`, …) beyond current coverage. Deeper `transport.json` vs live Durable Object message parity.
+
+**Done for this slice:** `transport.json` now fixture-covers the submitter-only `actionAccepted` / `actionRejected` envelopes as reviewed wire shapes, so the newer guard/engine rejection metadata is locked to the same normalized transport fixtures as `gameStart`, `stateUpdate`, `movementResult`, and `combatResult`.
 
 **Files:** `src/shared/__fixtures__/contracts.json`, `src/shared/protocol.test.ts`, `src/server/game-do/__fixtures__/transport.json`, `src/server/game-do/publication.test.ts`
 

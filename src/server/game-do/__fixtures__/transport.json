@@ -28,6 +28,36 @@
         }
       ]
     },
+    "actionAccepted": {
+      "type": "actionAccepted",
+      "guardStatus": "stalePhaseForgiven",
+      "submitterPlayerId": 1,
+      "expected": {
+        "phase": "combat"
+      },
+      "actual": {
+        "turn": 1,
+        "phase": "astrogation",
+        "activePlayer": 0
+      },
+      "idempotencyKey": "abc"
+    },
+    "actionRejected": {
+      "type": "actionRejected",
+      "reason": "staleTurn",
+      "message": "turn drift",
+      "submitterPlayerId": 1,
+      "expected": {
+        "turn": 99
+      },
+      "actual": {
+        "turn": 1,
+        "phase": "astrogation",
+        "activePlayer": 0
+      },
+      "idempotencyKey": "abc",
+      "state": "__STATE__"
+    },
     "movementResult": {
       "type": "movementResult",
       "movements": [
