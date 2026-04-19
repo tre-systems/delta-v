@@ -82,7 +82,7 @@ Send one thematic chat via `delta_v_send_chat` at game start. Keep under 200 cha
 
 ### fleetBuilding (simultaneous)
 
-Send `{ "type": "fleetReady", "purchases": [] }` to accept defaults. Fleet building requires deep scenario knowledge; defaults are competitive.
+Always send `{ "type": "fleetReady", "purchases": [] }` when `state.phase === 'fleetBuilding'` unless you are intentionally customizing purchases. The phase is simultaneous, but it does not auto-submit on connect: `delta_v_wait_for_turn` may return while fleet building is still open for your seat, and the game only advances to `astrogation` after both seats have sent `fleetReady`. Fleet building requires deep scenario knowledge; defaults are competitive.
 
 ### astrogation (sequential)
 

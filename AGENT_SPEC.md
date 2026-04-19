@@ -81,7 +81,7 @@ Canonical tool catalog for local (stdio) and remote (HTTP) MCP: [docs/DELTA_V_MC
 delta_v_quick_match_connect  →  delta_v_wait_for_turn  →  pick candidate  →  delta_v_send_action  →  loop
 ```
 
-`delta_v_wait_for_turn` blocks until it is this agent's turn; agents do not poll. `delta_v_send_action` auto-stamps `ActionGuards` by default so stale submissions are rejected with fresh state rather than silently accepted.
+`delta_v_wait_for_turn` blocks until it is this agent's turn; agents do not poll. `delta_v_send_action` auto-stamps `ActionGuards` by default so stale submissions are rejected with fresh state rather than silently accepted. For hosted MCP, clients must send `Accept: application/json, text/event-stream` on `POST /mcp`.
 
 ### 3.2 Resources
 
@@ -195,6 +195,8 @@ Scenario keys are camelCase. Unknown keys fall back to `biplanetary` in `normali
 | `gameOver` | `rematch` | — |
 
 See [`static/agent-playbook.json`](./static/agent-playbook.json) for per-phase payload shapes and [`src/shared/types/protocol.ts`](./src/shared/types/protocol.ts) for the authoritative discriminated union.
+
+Fleet building is simultaneous but not implicit: when an observation reports `state.phase === 'fleetBuilding'`, the seat must still send `fleetReady` (often with `purchases: []`) before the game can advance. The phase flips to `astrogation` only after both seats have submitted `fleetReady`.
 
 ### 5.2 Submission guards
 

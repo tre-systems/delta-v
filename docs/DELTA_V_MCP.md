@@ -12,7 +12,7 @@ For onboarding and workflow:
 | Transport | Entry point | Shape | Session model |
 | --- | --- | --- | --- |
 | **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_reconnect`, `delta_v_close_session`). Outbound responses are **queued** so concurrent tool completions cannot corrupt stdout framing. Many MCP hosts still invoke tools **serially** (next call starts after the prior returns); use **local HTTP** (`npm run mcp:delta-v:http`) when you need concurrent tool requests from **separate processes** or hosts that pipeline multiple `tools/call` before prior responses return. |
-| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Stateless per request; layered `agentToken` (Bearer) + `matchToken` (tool arg). `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
+| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Stateless per request; layered `agentToken` (Bearer) + `matchToken` (tool arg). Clients must send `Accept: application/json, text/event-stream` or the endpoint rejects the call. `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
 | **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
 
 ### Stdio quick match: operational notes
@@ -109,10 +109,12 @@ Notes:
 
 - **Solo quick match (local Worker):** with `DEV_MODE=1` (see `.dev.vars.example`), the matchmaker may pair a lone quick-match ticket with a synthetic dev bot after ~10s so one MCP client can reach `matched` without a second player. Production (`DEV_MODE=0`) still waits for a real opponent.
 - **Hosted MCP** forwards optional `compactState` on `delta_v_get_observation` (query string), `delta_v_wait_for_turn`, and `delta_v_send_action` (JSON body) to the GAME DO — same semantics as local stdio.
+- **Hosted MCP** requires `Accept: application/json, text/event-stream` on every `POST /mcp` request, even though Delta-V currently returns the JSON response path rather than an SSE stream.
 - When `delta_v_send_action` waits for a result, accepted responses include `guardStatus` (`inSync` or `stalePhaseForgiven`) so agents can tell whether an expected-phase guard was forgiven even though the action went through.
 - `delta_v_wait_for_turn` throws on timeout and may return/reject when game reaches `gameOver`.
 - `delta_v_get_events`, `delta_v_list_sessions`, `delta_v_reconnect`, and `delta_v_close_session` are local-session helpers (stdio MCP ownership model).
 - `delta_v_get_observation` is the preferred read surface for most agents; `delta_v_get_state` is lower-level.
+- During `fleetBuilding`, always send `fleetReady` explicitly if `state.phase === 'fleetBuilding'`. That phase is simultaneous, but it does not auto-submit on connect; `wait_for_turn` may legitimately return a fleet-building observation until both seats have sent `fleetReady`.
 
 ## `delta_v_send_action` payload examples
 

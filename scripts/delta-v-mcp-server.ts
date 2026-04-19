@@ -484,7 +484,7 @@ server.registerTool(
   'delta_v_quick_match_connect',
   {
     description:
-      'Queue for quick match, wait for match, and connect a player WebSocket session. Returns sessionId and matchToken (alias of sessionId) for local/hosted payload parity.',
+      'Queue for quick match, wait for match, and connect a player WebSocket session. Returns sessionId and matchToken (alias of sessionId) for local/hosted payload parity. If the first actionable observation is still fleetBuilding, send fleetReady explicitly; the game only advances after both seats submit it.',
     inputSchema: QUICK_MATCH_CONNECT_SCHEMA,
   },
   handleQuickMatchConnect,
@@ -671,7 +671,7 @@ server.registerTool(
   'delta_v_wait_for_turn',
   {
     description:
-      "Block until it is the caller's turn to act (fleetBuilding: both seats; every other phase including astrogation: state.activePlayer must match this seat), then return a fresh observation. Eliminates polling for MCP agents. Respects a timeout (default 30s) and throws if the game reaches gameOver before becoming actionable. Supports the same v2 enrichment toggles as delta_v_get_observation.",
+      "Block until it is the caller's turn to act (fleetBuilding: both seats; every other phase including astrogation: state.activePlayer must match this seat), then return a fresh observation. Eliminates polling for MCP agents. If the returned observation is still fleetBuilding, the seat still needs to send fleetReady explicitly. Respects a timeout (default 30s) and throws if the game reaches gameOver before becoming actionable. Supports the same v2 enrichment toggles as delta_v_get_observation.",
     inputSchema: {
       sessionId: z.string().optional(),
       matchToken: z.string().optional(),
