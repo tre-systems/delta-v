@@ -42,6 +42,21 @@ export interface ActionGuards {
 }
 
 export type ActionGuardStatus = 'inSync' | 'stalePhaseForgiven';
+export type ActionRejectedReason =
+  | 'staleTurn'
+  | 'stalePhase'
+  | 'wrongActivePlayer'
+  | 'duplicateIdempotencyKey'
+  | 'invalidPhase'
+  | 'notYourTurn'
+  | 'invalidPlayer'
+  | 'invalidShip'
+  | 'invalidTarget'
+  | 'invalidSelection'
+  | 'invalidInput'
+  | 'notAllowed'
+  | 'resourceLimit'
+  | 'stateConflict';
 
 type WithGuards<T> = T & { guards?: ActionGuards };
 
@@ -133,15 +148,13 @@ export type S2C =
       /**
        * Sent to the submitter (never broadcast) when an action failed its
        * ActionGuards check (stale turn, stale phase, wrong active player, or
-       * duplicate idempotency key). Carries the fresh state so the agent can
-       * re-decide without another `get_observation` round-trip.
+       * duplicate idempotency key), or when the engine rejected a submitter-
+       * scoped action with a typed validation/resource error. Carries the
+       * fresh state so the agent can re-decide without another
+       * `get_observation` round-trip.
        */
       type: 'actionRejected';
-      reason:
-        | 'staleTurn'
-        | 'stalePhase'
-        | 'wrongActivePlayer'
-        | 'duplicateIdempotencyKey';
+      reason: ActionRejectedReason;
       message: string;
       /** Seat that submitted the rejected action (agents need not correlate WebSocket context). */
       submitterPlayerId?: PlayerId;

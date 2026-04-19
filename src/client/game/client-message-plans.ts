@@ -1,6 +1,7 @@
 import type { PlayerToken, RoomCode } from '../../shared/ids';
 import type {
   CombatResult,
+  ErrorCode,
   GameState,
   MovementEvent,
   OrdnanceMovement,
@@ -9,6 +10,7 @@ import type {
   ShipMovement,
 } from '../../shared/types/domain';
 import type {
+  ActionRejectedReason,
   LogisticsTransferLogEvent,
   S2C,
 } from '../../shared/types/protocol';
@@ -73,7 +75,7 @@ export type ClientMessagePlan =
   | {
       kind: 'error';
       message: string;
-      code?: import('../../shared/types/domain').ErrorCode;
+      code?: ErrorCode;
     }
   | {
       kind: 'actionAccepted';
@@ -91,11 +93,7 @@ export type ClientMessagePlan =
     }
   | {
       kind: 'actionRejected';
-      reason:
-        | 'staleTurn'
-        | 'stalePhase'
-        | 'wrongActivePlayer'
-        | 'duplicateIdempotencyKey';
+      reason: ActionRejectedReason;
       message: string;
       submitterPlayerId?: PlayerId;
       expected: {
