@@ -129,7 +129,7 @@ describe('server index worker', () => {
     createRateMap.clear();
   });
 
-  it('creates rooms with generated tokens and defaults invalid payloads to biplanetary', async () => {
+  it('creates rooms with generated tokens for valid scenario payloads', async () => {
     let initPayload: Record<string, unknown> | null = null;
 
     const { env, initFetch } = createEnv(async (request) => {
@@ -143,7 +143,7 @@ describe('server index worker', () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: '{',
+        body: JSON.stringify({ scenario: 'escape' }),
       }),
       env as unknown as Env,
       mockCtx(),
@@ -153,7 +153,7 @@ describe('server index worker', () => {
     expect(response.status).toBe(200);
     expect(initFetch).toHaveBeenCalledTimes(1);
     expect(initPayload).toMatchObject({
-      scenario: 'biplanetary',
+      scenario: 'escape',
     });
     expect(payload.code).toMatch(/^[A-Z2-9]{5}$/);
     expect(payload.playerToken).toMatch(/^[A-Za-z0-9_-]{32}$/);
@@ -162,6 +162,61 @@ describe('server index worker', () => {
 
     expect(data.code).toBe(payload.code);
     expect(data.playerToken).toBe(payload.playerToken);
+  });
+
+  it('rejects create requests with invalid JSON, unknown scenarios, and oversized bodies', async () => {
+    const { env, initFetch } = createEnv();
+    const ctx = mockCtx();
+
+    const invalidJson = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: '{',
+      }),
+      env as unknown as Env,
+      ctx,
+    );
+    expect(invalidJson.status).toBe(400);
+    await expect(invalidJson.json()).resolves.toMatchObject({
+      error: 'Invalid JSON body',
+    });
+
+    const invalidScenario = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ scenario: 'fake_scenario' }),
+      }),
+      env as unknown as Env,
+      ctx,
+    );
+    expect(invalidScenario.status).toBe(400);
+    await expect(invalidScenario.json()).resolves.toMatchObject({
+      error: 'Invalid scenario',
+    });
+
+    const oversized = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ scenario: 'escape', padding: 'x'.repeat(1100) }),
+      }),
+      env as unknown as Env,
+      ctx,
+    );
+    expect(oversized.status).toBe(413);
+    await expect(oversized.json()).resolves.toMatchObject({
+      error: 'Create payload exceeds 1024 bytes',
+    });
+
+    expect(initFetch).not.toHaveBeenCalled();
   });
 
   it('proxies quick-match requests to the matchmaker durable object', async () => {
@@ -389,6 +444,10 @@ describe('server index worker', () => {
     const response = await worker.fetch(
       new Request('https://delta-v.test/create', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ scenario: 'escape' }),
       }),
       env as unknown as Env,
       mockCtx(),
@@ -875,8 +934,10 @@ describe('/create rate limiting', () => {
         new Request('https://delta-v.test/create', {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             'cf-connecting-ip': '1.2.3.4',
           },
+          body: JSON.stringify({ scenario: 'escape' }),
         }),
         env as unknown as Env,
         mockCtx(),
@@ -892,8 +953,10 @@ describe('/create rate limiting', () => {
         new Request('https://delta-v.test/create', {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             'cf-connecting-ip': '1.2.3.4',
           },
+          body: JSON.stringify({ scenario: 'escape' }),
         }),
         env as unknown as Env,
         mockCtx(),
@@ -903,8 +966,10 @@ describe('/create rate limiting', () => {
       new Request('https://delta-v.test/create', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'cf-connecting-ip': '1.2.3.4',
         },
+        body: JSON.stringify({ scenario: 'escape' }),
       }),
       env as unknown as Env,
       mockCtx(),
@@ -920,8 +985,10 @@ describe('/create rate limiting', () => {
         new Request('https://delta-v.test/create', {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             'cf-connecting-ip': '1.2.3.4',
           },
+          body: JSON.stringify({ scenario: 'escape' }),
         }),
         env as unknown as Env,
         mockCtx(),
@@ -932,8 +999,10 @@ describe('/create rate limiting', () => {
       new Request('https://delta-v.test/create', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'cf-connecting-ip': '5.6.7.8',
         },
+        body: JSON.stringify({ scenario: 'escape' }),
       }),
       env as unknown as Env,
       mockCtx(),
@@ -953,8 +1022,10 @@ describe('/create rate limiting', () => {
       new Request('https://delta-v.test/create', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'cf-connecting-ip': '1.2.3.4',
         },
+        body: JSON.stringify({ scenario: 'escape' }),
       }),
       env as unknown as Env,
       mockCtx(),
@@ -979,8 +1050,10 @@ describe('/create rate limiting', () => {
       new Request('https://delta-v.test/create', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'cf-connecting-ip': '1.2.3.4',
         },
+        body: JSON.stringify({ scenario: 'escape' }),
       }),
       env as unknown as Env,
       mockCtx(),
@@ -1003,8 +1076,10 @@ describe('/create rate limiting', () => {
         new Request('http://127.0.0.1:8787/create', {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             'cf-connecting-ip': '127.0.0.1',
           },
+          body: JSON.stringify({ scenario: 'escape' }),
         }),
         env as unknown as Env,
         mockCtx(),
