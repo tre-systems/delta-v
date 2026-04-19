@@ -30,16 +30,15 @@ export type ClaimNameResult =
 export interface PostClaimNameOpts {
   playerKey: string;
   username: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl: typeof fetch;
 }
 
 export const postClaimName = async (
   opts: PostClaimNameOpts,
 ): Promise<ClaimNameResult> => {
-  const fetcher = opts.fetchImpl ?? fetch;
   let res: Response;
   try {
-    res = await fetcher('/api/claim-name', {
+    res = await opts.fetchImpl('/api/claim-name', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -104,12 +103,11 @@ export type FetchPlayerRankResult =
 
 export const fetchPlayerRank = async (opts: {
   playerKey: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl: typeof fetch;
 }): Promise<FetchPlayerRankResult> => {
-  const fetcher = opts.fetchImpl ?? fetch;
   let res: Response;
   try {
-    res = await fetcher(
+    res = await opts.fetchImpl(
       `/api/leaderboard/me?playerKey=${encodeURIComponent(opts.playerKey)}`,
     );
   } catch {
