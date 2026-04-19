@@ -85,6 +85,31 @@ describe('buildCandidates', () => {
     expect(candidates.length).toBeGreaterThan(0);
   });
 
+  it('offers broad directional astrogation choices for single-ship opening turns', () => {
+    const candidates = buildCandidates(state, 1, map).filter(
+      (candidate) => candidate.type === 'astrogation',
+    );
+    const burnDirections = new Set(
+      candidates
+        .map((candidate) => candidate.orders[0]?.burn)
+        .filter((burn): burn is number => burn !== null && burn !== undefined),
+    );
+    const overloadDirections = new Set(
+      candidates
+        .map((candidate) => candidate.orders[0]?.overload)
+        .filter(
+          (overload): overload is number =>
+            overload !== null && overload !== undefined,
+        ),
+    );
+
+    expect(
+      candidates.some((candidate) => candidate.orders[0]?.burn === null),
+    ).toBe(true);
+    expect([...burnDirections].sort()).toEqual([0, 1, 2, 3, 4, 5]);
+    expect([...overloadDirections].sort()).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
   it('demotes consecutive low-confidence ordnance recommendations behind skip', () => {
     const consecutiveState = createTestState({
       phase: 'ordnance',

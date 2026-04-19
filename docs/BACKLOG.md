@@ -134,14 +134,6 @@ Gaps in local vs hosted MCP parity, first-class resources, and structured reject
 
 **Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/protocol.ts`, `src/shared/protocol.ts`, `scripts/delta-v-mcp-server.ts`, `src/client/game/client-message-plans.ts`
 
-### Live-play friction from 2026-04-18 MCP-vs-browser verification
-
-Four papercuts hit while pairing a local MCP agent against a human browser seat (duel, production server):
-
-- **Thin candidate set.** Turn-1 astrogation labelled candidates only offered NE / NE+overload / coast; other directions and fuel-vs-overload trade-offs were invisible without hand-rolling actions. Widen `labeledCandidates` coverage for opening turns.
-
-**Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/shared/agent/`, `src/shared/types/protocol.ts`, `.claude/skills/play/SKILL.md`
-
 ### Match-isolation flag for automated verification
 
 During exploratory pairing on the production server, an MCP agent and a paired browser seat were split across the public queue — the browser matched a real user instead of the intended MCP partner, making exploratory / regression testing both flaky and user-disruptive. Options: a `delta_v_quick_match_connect({ scenario, rendezvousCode })` mode that pairs only with clients presenting the same short code (bypassing the public queue), a `private: true` flag that puts the ticket in a segregated pool, or a dev-only scenario namespace (e.g. `duel:test`) that never mixes with public queues.
