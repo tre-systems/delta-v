@@ -391,22 +391,12 @@ Delta-V is a fully installable PWA. A lightweight hand-written service worker pr
 
 ### E. Build Pipeline
 
-The project uses minimal, fast build tooling with no
-heavy bundler configuration:
+Minimal, fast build tooling with no heavy bundler configuration:
 
-- **Client bundle**: `esbuild.client.mjs` produces a
-  single ESM bundle from `src/client/main.ts`. Production
-  builds minify; dev builds include source maps. esbuild
-  was chosen for sub-second build times.
-- **Server bundle**: `wrangler` handles server
-  compilation and deployment. `wrangler dev` provides
-  local development with Durable Object simulation.
-- **Cache busting**: The build script hashes the output
-  bundle and CSS, then injects the hash into the service
-  worker's cache name (`delta-v-${hash}`). Every deploy
-  with code changes triggers automatic SW update.
-- **Type checking**: `tsc --noEmit` runs separately from
-  bundling — esbuild strips types without checking them.
+- **Client bundle**: `esbuild.client.mjs` produces a single ESM bundle from `src/client/main.ts`. Production builds minify; dev builds include source maps. esbuild was chosen for sub-second build times.
+- **Server bundle**: `wrangler` handles server compilation and deployment. `wrangler dev` provides local development with Durable Object simulation.
+- **Cache busting**: the build script hashes the output bundle and CSS, then injects the hash into the service worker's cache name (`delta-v-${hash}`). Every deploy with code changes triggers an automatic SW update.
+- **Type checking**: `tsc --noEmit` runs separately from bundling — esbuild strips types without checking them.
 - **Linting**: Biome runs as a pre-commit hook and in CI.
 - **Cloudflare bindings** (`wrangler.toml`):
 
@@ -440,56 +430,23 @@ Testing uses Vitest with co-located test files, property-based testing via fast-
 - Focused `game-do-*.test.ts` modules (`alarm`, `fetch`, `turn-timeout`, `ws`)
   stub `DurableObjectStorage` and handler deps with `vi.fn` instead of full DO
   harnesses where a narrow branch is under test.
-- `MockStorage`: In-memory `Map<string, unknown>` with
-  `get`, `put`, `delete`, `list` matching the DO storage
-  API. Supports atomic multi-key `put(Record<string, T>)`.
-- `MockDurableObjectState`: Tracks sockets via `WeakMap`
-  for tag-based lookup, matching the hibernatable
-  WebSocket API surface (`acceptWebSocket`,
-  `getWebSockets`, `getTags`).
+- `MockStorage`: in-memory `Map<string, unknown>` with `get`, `put`, `delete`, `list` matching the DO storage API. Supports atomic multi-key `put(Record<string, T>)`.
+- `MockDurableObjectState`: tracks sockets via `WeakMap` for tag-based lookup, matching the hibernatable WebSocket API surface (`acceptWebSocket`, `getWebSockets`, `getTags`).
 
-**Deterministic RNG in tests:**
-Engine tests pass a deterministic `rng` function
-(e.g. `() => 0.5` or a seeded sequence) to reproduce
-exact outcomes. This is why RNG injection is mandatory
-for all turn-resolution entry points.
+**Deterministic RNG in tests.** Engine tests pass a deterministic `rng` function (e.g. `() => 0.5` or a seeded sequence) to reproduce exact outcomes. This is why RNG injection is mandatory for all turn-resolution entry points.
 
-**Property-based test generators:**
-Custom fast-check arbitraries generate valid game inputs
-within bounded ranges (`arbCoord()` for hex coordinates,
-`arbSmallVelocity()` for velocity vectors, etc.). Tests
-verify invariants that must hold across all inputs:
-fuel never goes negative, hex distance is symmetric,
-movement preserves conservation laws.
+**Property-based test generators.** Custom fast-check arbitraries generate valid game inputs within bounded ranges (`arbCoord()` for hex coordinates, `arbSmallVelocity()` for velocity vectors, and so on). Tests verify invariants that must hold across all inputs: fuel never goes negative, hex distance is symmetric, movement preserves conservation laws.
 
-**Coverage thresholds:**
-`src/shared/` has enforced coverage thresholds (statements,
-branches, functions, lines) via vitest config. The
-pre-commit hook and CI both run `test:coverage` to
-prevent backsliding.
+**Coverage thresholds.** `src/shared/` has enforced coverage thresholds (statements, branches, functions, lines) via vitest config. The pre-commit hook and CI both run `test:coverage` to prevent backsliding.
 
 ### Library Stance
 
-The architecture currently benefits from a narrow
-dependency surface. That remains the default.
+A narrow dependency surface is the default.
 
-- **Do not add framework/state-machine/rendering stacks by
-  default.** React, Vue, Redux, Zustand, RxJS, XState, and
-  canvas/game frameworks would blur boundaries that are
-  currently explicit and testable.
-- **Prefer targeted libraries only when they remove a real
-  maintenance or security burden.**
-- **Potentially good additions later**:
-  `DOMPurify` if any user-controlled or external HTML needs
-  to be rendered; a schema library such as `Valibot` or
-  `Zod` if protocol or event-envelope schemas expand enough
-  that handwritten validators become harder to reason
-  about.
-- **Not worth swapping right now**:
-  the custom `reactive.ts` layer. It is small, tested, and
-  intentionally scoped. Replacing it with a library would
-  only make sense if the project no longer wants to own
-  reactive internals.
+- **Do not add framework / state-machine / rendering stacks by default.** React, Vue, Redux, Zustand, RxJS, XState, and canvas/game frameworks would blur boundaries that are explicit and testable today.
+- **Prefer targeted libraries only when they remove a real maintenance or security burden.**
+- **Potentially good additions later**: `DOMPurify` if any user-controlled or external HTML needs to be rendered; a schema library such as `Valibot` or `Zod` if protocol or event-envelope schemas expand enough that handwritten validators become harder to reason about.
+- **Not worth swapping**: the custom `reactive.ts` layer — it is small, tested, and intentionally scoped. Replacing it with a library would only make sense if the project no longer wants to own reactive internals.
 
 ---
 
@@ -530,18 +487,12 @@ Disconnect → 30s grace period → reconnect with token or forfeit
 At a high level (matching the server section above):
 
 1. Client submits a validated command.
-2. The Durable Object appends canonical, versioned
-   domain events to a per-match stream.
-3. Authoritative state is rebuilt or incrementally
-   projected from checkpoint plus event tail.
-4. Player and spectator/public views are derived from
-   that projection.
-5. The server broadcasts one state-bearing update plus
-   any animation/log summaries needed by the client.
+2. The Durable Object appends canonical, versioned domain events to a per-match stream.
+3. Authoritative state is rebuilt or incrementally projected from checkpoint plus event tail.
+4. Player and spectator/public views are derived from that projection.
+5. The server broadcasts one state-bearing update plus any animation/log summaries needed by the client.
 
-Under that model, `GameState` snapshots are transport
-payloads and optional checkpoints rather than the
-authoritative persisted truth.
+Under that model, `GameState` snapshots are transport payloads and optional checkpoints rather than the authoritative persisted truth.
 
 ---
 
