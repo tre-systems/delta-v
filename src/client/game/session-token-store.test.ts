@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  capStoredTokens,
   deleteStoredPlayerToken,
   getStoredPlayerToken,
   loadTokenStore,
+  MAX_STORED_PLAYER_TOKENS,
   pruneExpiredTokens,
   saveTokenStore,
   setStoredPlayerToken,
@@ -69,5 +71,25 @@ describe('game client session token store', () => {
       TOKEN_STORE_KEY,
       JSON.stringify(pruned),
     );
+  });
+
+  it('caps stored tokens to the most recent entries', () => {
+    const store = Object.fromEntries(
+      Array.from({ length: MAX_STORED_PLAYER_TOKENS + 2 }, (_, index) => [
+        `ROOM${index}`,
+        { playerToken: `pt-${index}`, ts: index + 1 },
+      ]),
+    );
+
+    expect(Object.keys(capStoredTokens(store))).toEqual([
+      'ROOM9',
+      'ROOM8',
+      'ROOM7',
+      'ROOM6',
+      'ROOM5',
+      'ROOM4',
+      'ROOM3',
+      'ROOM2',
+    ]);
   });
 });

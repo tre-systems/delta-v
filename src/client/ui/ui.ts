@@ -5,6 +5,7 @@ import {
 } from '../game/interaction-fsm';
 import type { ClientState } from '../game/phase';
 import type { PlayerProfileService } from '../game/player-profile-service';
+import type { SessionTokenService } from '../game/session-token-service';
 import type { ReadonlySignal } from '../reactive';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { MOBILE_BREAKPOINT_PX } from '../ui-breakpoints';
@@ -42,7 +43,11 @@ const HUD_MODES: ReadonlySet<InteractionMode> = new Set<InteractionMode>([
 const isHudMode = (mode: InteractionMode): boolean => HUD_MODES.has(mode);
 
 export interface UIManagerDeps {
-  playerProfile: Pick<PlayerProfileService, 'getProfile' | 'setUsername'>;
+  playerProfile: Pick<
+    PlayerProfileService,
+    'getProfile' | 'setUsername' | 'resetProfile'
+  >;
+  sessionTokens: Pick<SessionTokenService, 'clearAllStoredPlayerTokens'>;
 }
 
 export const createUIManager = (deps: UIManagerDeps) => {
@@ -124,6 +129,10 @@ export const createUIManager = (deps: UIManagerDeps) => {
     getPlayerName: () => deps.playerProfile.getProfile().username,
     setPlayerName: (name) => deps.playerProfile.setUsername(name).username,
     getPlayerKey: () => deps.playerProfile.getProfile().playerKey,
+    resetPlayerIdentity: () => {
+      deps.sessionTokens.clearAllStoredPlayerTokens();
+      return deps.playerProfile.resetProfile();
+    },
   });
 
   scope.add(
