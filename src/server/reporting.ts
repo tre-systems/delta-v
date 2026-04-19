@@ -156,15 +156,16 @@ export const isCreateRateLimited = async (
   env: { CREATE_RATE_LIMITER?: CreateRateLimiterBinding },
   ipHash: string,
 ): Promise<boolean> => {
+  const localBlocked = isCreateRateLimitedInMemory(ipHash);
   if (env.CREATE_RATE_LIMITER) {
     const result = await env.CREATE_RATE_LIMITER.limit({
       key: `create:${ipHash}`,
     });
 
-    return !result.success;
+    return localBlocked || !result.success;
   }
 
-  return isCreateRateLimitedInMemory(ipHash);
+  return localBlocked;
 };
 
 export const isJoinProbeRateLimited = (ipHash: string): boolean =>

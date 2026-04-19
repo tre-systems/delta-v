@@ -1044,6 +1044,48 @@ describe('/create rate limiting', () => {
     });
   });
 
+  it('still enforces the local cap when the binding keeps allowing requests', async () => {
+    const limiter = {
+      limit: vi.fn(async () => ({ success: true })),
+    };
+    const { env } = createEnv(undefined, {
+      CREATE_RATE_LIMITER: limiter,
+    });
+
+    for (let i = 0; i < 5; i++) {
+      const response = await worker.fetch(
+        new Request('https://delta-v.test/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'cf-connecting-ip': '1.2.3.4',
+          },
+          body: JSON.stringify({ scenario: 'escape' }),
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+
+      expect(response.status).toBe(200);
+    }
+
+    const blocked = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-connecting-ip': '1.2.3.4',
+        },
+        body: JSON.stringify({ scenario: 'escape' }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(blocked.status).toBe(429);
+    expect(limiter.limit).toHaveBeenCalledTimes(6);
+  });
+
   it('returns 429 when the configured rate-limit binding rejects the request', async () => {
     const limiter = {
       limit: vi.fn(async () => ({ success: false })),
@@ -1095,6 +1137,55 @@ describe('/create rate limiting', () => {
     }
 
     expect(limiter.limit).not.toHaveBeenCalled();
+  });
+});
+
+describe('/api/agent-token rate limiting', () => {
+  beforeEach(() => {
+    createRateMap.clear();
+  });
+
+  it('applies the shared local cap even when the edge binding allows every request', async () => {
+    const limiter = {
+      limit: vi.fn(async () => ({ success: true })),
+    };
+    const { env } = createEnv(undefined, {
+      CREATE_RATE_LIMITER: limiter,
+    });
+
+    for (let i = 0; i < 5; i++) {
+      const response = await worker.fetch(
+        new Request('https://delta-v.test/api/agent-token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'cf-connecting-ip': '1.2.3.4',
+          },
+          body: JSON.stringify({ playerKey: 'agent_alpha-v1' }),
+        }),
+        env as unknown as Env,
+        mockCtx(),
+      );
+
+      expect(response.status).toBe(200);
+    }
+
+    const blocked = await worker.fetch(
+      new Request('https://delta-v.test/api/agent-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-connecting-ip': '1.2.3.4',
+        },
+        body: JSON.stringify({ playerKey: 'agent_alpha-v1' }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get('Retry-After')).toBe('60');
+    expect(limiter.limit).toHaveBeenCalledTimes(6);
   });
 });
 
