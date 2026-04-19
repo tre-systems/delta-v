@@ -99,6 +99,18 @@ describe('MatchmakerDO additional coverage', () => {
 
     expect(badJson.status).toBe(400);
     expect(missingPlayer.status).toBe(400);
+    await expect(badJson.json()).resolves.toMatchObject({
+      ok: false,
+      error: 'invalid_payload',
+      message: 'Invalid quick-match payload.',
+      hint: 'Send { player: { playerKey, username? }, scenario? } as JSON.',
+    });
+    await expect(missingPlayer.json()).resolves.toMatchObject({
+      ok: false,
+      error: 'invalid_payload',
+      message: 'Invalid quick-match payload.',
+      hint: 'Send { player: { playerKey, username? }, scenario? } as JSON.',
+    });
   });
 
   it('returns the same queued ticket when the same player re-enqueues', async () => {
