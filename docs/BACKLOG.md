@@ -100,7 +100,7 @@ Hosted MCP: add `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_
 
 ### Ship MCP resources: rules, match log, replay
 
-[AGENT_SPEC.md lines 91–96](../AGENT_SPEC.md) lists `game://rules/current`, `game://rules/{scenario}`, `game://matches/{id}/observation`, `game://matches/{id}/log`, `game://matches/{id}/replay`, `game://leaderboard/agents` as first-class MCP resources; none are served yet. The rules resource has the highest payoff — agents currently either bake rules into the skill body (`/play`) or re-read `/.well-known/agent.json` + `/agent-playbook.json` every session. Serving the same content as a listable MCP resource lets hosts cache it and skip repeated fetches.
+[AGENT_SPEC.md lines 91–96](../AGENT_SPEC.md) now has `game://rules/current` and `game://rules/{scenario}` shipped. Remaining resource work is `game://matches/{id}/observation`, `game://matches/{id}/log`, `game://matches/{id}/replay`, and `game://leaderboard/agents` so agents can fetch live match state, append-only logs, and rankings as first-class resources instead of bespoke tool/HTTP calls.
 
 **Files:** `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts`, `static/.well-known/agent.json`, `src/shared/agent/`
 

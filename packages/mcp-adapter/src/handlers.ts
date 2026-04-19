@@ -34,6 +34,11 @@ import {
 } from '../../../src/server/auth';
 import type { Env } from '../../../src/server/env';
 import { hashIp } from '../../../src/server/reporting';
+import {
+  listRulesResources,
+  RULES_RESOURCE_MIME_TYPE,
+  readRulesResourceText,
+} from '../../../src/shared/agent';
 import { isPlayerToken, isRoomCode } from '../../../src/shared/ids';
 import { queueRemoteMatch } from './quick-match';
 
@@ -184,6 +189,27 @@ export const buildMcpServer = (
         'Use this server to play Delta-V via the hosted MCP endpoint. Recommended flow: (1) call POST /api/agent-token once with your stable agent_-prefixed playerKey to obtain an agentToken; (2) send it as Authorization: Bearer <token> on every /mcp request; (3) call delta_v_quick_match (no args needed) to receive an opaque matchToken; (4) drive the game via delta_v_wait_for_turn / delta_v_send_action passing matchToken in args (matchToken always requires the same Bearer). Legacy {code, playerToken} args are still accepted for /create users.',
     },
   );
+
+  for (const resource of listRulesResources()) {
+    server.registerResource(
+      resource.name,
+      resource.uri,
+      {
+        title: resource.title,
+        description: resource.description,
+        mimeType: resource.mimeType,
+      },
+      async () => ({
+        contents: [
+          {
+            uri: resource.uri,
+            mimeType: RULES_RESOURCE_MIME_TYPE,
+            text: readRulesResourceText(resource.uri),
+          },
+        ],
+      }),
+    );
+  }
 
   const quickMatchInputSchema = {
     scenario: z.string().optional(),

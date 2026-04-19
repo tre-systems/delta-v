@@ -31,6 +31,7 @@ interface AgentManifest {
     serverToClient: Array<{ type: string }>;
   };
   mcp?: {
+    resources?: string[];
     tools: string[];
   };
 }
@@ -121,6 +122,11 @@ describe('.well-known/agent.json', () => {
   it('advertises the MCP observation and wait-for-turn tools', () => {
     expect(manifest.mcp?.tools).toContain('delta_v_get_observation');
     expect(manifest.mcp?.tools).toContain('delta_v_wait_for_turn');
+  });
+
+  it('advertises the shipped MCP rules resources', () => {
+    expect(manifest.mcp?.resources).toContain('game://rules/current');
+    expect(manifest.mcp?.resources).toContain('game://rules/{scenario}');
   });
 });
 

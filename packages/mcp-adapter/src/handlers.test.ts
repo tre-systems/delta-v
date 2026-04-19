@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { issueAgentToken, issueMatchToken } from '../../../src/server/auth';
 import type { Env } from '../../../src/server/env';
+import { RULES_CURRENT_URI } from '../../../src/shared/agent';
 import { buildMcpServer, handleMcpHttpRequest } from './handlers';
 
 const TEST_SECRET = 'mcp-handlers-test-secret-must-be-16-chars';
@@ -208,6 +209,49 @@ describe('handleMcpHttpRequest', () => {
       'delta_v_wait_for_turn',
     ]);
     void server; // keep import used
+  });
+
+  it('lists the shipped rules resources', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const res = await handleMcpHttpRequest(
+      post({ jsonrpc: '2.0', id: 21, method: 'resources/list' }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      result: { resources: Array<{ uri: string }> };
+    };
+    const uris = body.result.resources.map((resource) => resource.uri);
+    expect(uris).toContain(RULES_CURRENT_URI);
+    expect(uris).toContain('game://rules/duel');
+  });
+
+  it('reads the current rules resource as JSON text', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const res = await handleMcpHttpRequest(
+      post({
+        jsonrpc: '2.0',
+        id: 22,
+        method: 'resources/read',
+        params: { uri: RULES_CURRENT_URI },
+      }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      result: {
+        contents: Array<{ text?: string; mimeType?: string; uri: string }>;
+      };
+    };
+    expect(body.result.contents).toHaveLength(1);
+    expect(body.result.contents[0]).toMatchObject({
+      uri: RULES_CURRENT_URI,
+      mimeType: 'application/json',
+    });
+    expect(body.result.contents[0]?.text).toContain(
+      '"defaultScenario": "duel"',
+    );
+    expect(body.result.contents[0]?.text).toContain('"duel"');
   });
 
   it('forwards delta_v_get_state to the GAME DO', async () => {

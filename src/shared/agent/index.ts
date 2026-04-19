@@ -47,6 +47,17 @@ export {
   requireMatchedQuickMatch,
 } from './quick-match';
 export {
+  buildCurrentRulesResourceDocument,
+  buildScenarioRulesResourceDocument,
+  type ListedMcpResource,
+  listRulesResources,
+  RULES_CURRENT_URI,
+  RULES_RESOURCE_MIME_TYPE,
+  readRulesResourceDocument,
+  readRulesResourceText,
+  rulesScenarioUri,
+} from './resources';
+export {
   renderSpatialGrid,
   type SpatialGridOptions,
 } from './spatial-grid';
