@@ -38,7 +38,11 @@ const aiOrdnance = (
   rng: () => number = TEST_RNG,
 ): OrdnanceLaunch[] => rawAiOrdnance(state, playerId, map, difficulty, rng);
 
-import { findDirectionToward, pickNextCheckpoint } from './ai/common';
+import {
+  estimateRemainingCheckpointTourCost,
+  findDirectionToward,
+  pickNextCheckpoint,
+} from './ai/common';
 import { evaluateOrdnanceLaunchIntercept } from './ai/ordnance';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
@@ -1205,6 +1209,40 @@ describe('aiAstrogation — checkpoint race', () => {
     // combatDisabled means no overloads
     expect(orders[0].overload).toBeNull();
   });
+
+  it('grandTour: remaining tour cost drops as checkpoints are visited', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-COST'),
+      findBaseHex,
+    );
+    const checkpoints = state.scenarioRules.checkpointBodies ?? [];
+    const ship = must(state.ships.find((s) => s.owner === 0));
+    const player = state.players[0];
+    const before = estimateRemainingCheckpointTourCost(
+      player,
+      checkpoints,
+      map,
+      ship.position,
+    );
+
+    player.visitedBodies = [
+      ...(player.visitedBodies ?? []),
+      'Sol',
+      'Mercury',
+      'Venus',
+    ];
+
+    const after = estimateRemainingCheckpointTourCost(
+      player,
+      checkpoints,
+      map,
+      ship.position,
+    );
+
+    expect(after).toBeLessThan(before);
+  });
 });
 describe('aiAstrogation — easy AI randomization', () => {
   afterEach(() => {
@@ -1248,6 +1286,25 @@ describe('aiAstrogation — easy AI randomization', () => {
     aiShip.fuel = 10;
     const orders = aiAstrogation(state, 1, map, 'easy');
     expect(orders).toHaveLength(1);
+  });
+
+  it('easy AI keeps the opening turn deterministic even with a low rng roll', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('RAND-OPEN'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: 0, r: 0 };
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.fuel = 10;
+
+    const lowRngOrders = aiAstrogation(state, 1, map, 'easy', () => 0.1);
+    const neutralRngOrders = aiAstrogation(state, 1, map, 'easy', () => 0.5);
+
+    expect(lowRngOrders).toEqual(neutralRngOrders);
   });
 });
 describe('aiAstrogation — pure combat positioning', () => {

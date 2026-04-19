@@ -148,7 +148,9 @@ Further AI ordnance work vs the [2018 Triplanetary rulebook](../Triplanetary2018
 
 **Done for this slice:** raised hard `nukeMinReachProbability` and the nuke score floor when a torpedo is also viable so marginal lanes prefer the cheaper weapon; duel-sweep remains the harness for follow-up EV tuning.
 
-**Remaining:** expected-damage refinement beyond current gates, and **`simulate:duel-sweep`**-driven threshold tables tied to measurement runs (rulebook: nuke **300 MCr** vs torpedo **20 MCr**, **2:1** anti-nuke table, detonation on lane contacts).
+**Done for this slice:** when both torpedo and nuke geometry are viable, Hard now compares expected net target value instead of only score floors, so expensive nukes no longer beat cheaper torpedoes on marginal capital targets just because the target is "strong enough."
+
+**Remaining:** **`simulate:duel-sweep`**-driven threshold tables tied to measurement runs (rulebook: nuke **300 MCr** vs torpedo **20 MCr**, **2:1** anti-nuke table, detonation on lane contacts).
 
 **Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/engine/combat.ts`
 
@@ -185,9 +187,9 @@ Implication for the launch-readiness snapshot: the earlier *first-player advanta
 
 **Files:** `src/server/matchmaker-do.ts`, `src/shared/scenarios/duel.ts`, `src/shared/scenarios/biplanetary.ts`, `src/shared/scenarios/escape.ts`, `src/shared/scenarios/blockade.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/ai/`, `scripts/simulate-ai.ts`
 
-### High timeout rate in `grandTour` (23%) and `fleetAction` (20%)
+### High timeout rate in `fleetAction`
 
-Same sweep — almost a quarter of grandTour and a fifth of fleetAction games hit the simulation turn-limit without resolving. For grandTour the 164-turn average suggests the scenario is genuinely long. fleetAction has improved after the closing-pressure override, but still times out often enough to need another larger seeded sweep before dropping the item. Either lower the turn limit and add a tiebreak (sum of remaining ship-cost? closest-to-objective?), or keep tuning AI cohesion pressure so it forces engagement before the limit.
+`grandTour` no longer records null timeouts in the simulation harness: when the phase cap trips in a checkpoint race, `scripts/simulate-ai.ts` now resolves a progress tiebreak from visited checkpoint count, surviving ships, and estimated remaining tour distance. A fresh 30-game hard-vs-hard sample came back `46.7/53.3` with **0** timeouts, `4` progress-tiebreak wins, `4` full race completions, and a reduced average length of `102.2` turns. `fleetAction` has improved after the closing-pressure override, but still times out often enough to need another larger seeded sweep before dropping the item.
 
 **Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenario-definitions.ts`, `src/shared/engine/victory.ts` (tiebreak)
 
@@ -213,7 +215,9 @@ Two intertwined problems:
 
 **Done for this slice:** widened the risk split in astrogation lookahead and combat commitment so Normal and Hard no longer collapse to the exact same duel outcomes on the same seeds; the follow-up duel override then held `hard-vs-hard` at 50/50 on a 60-game sample while leaving a visible behavior gap between tiers.
 
-**Remaining:** hold that spread across larger seeded sweeps, keep reducing seat bias in the same-difficulty ladders, add a "play first vs second" heuristic to Easy so it does not invert the bias, and optionally expose per-difficulty expectations in the difficulty selector copy.
+**Done for this slice:** Easy no longer applies its random-burn sabotage on turn 1, so the worst "first player is weaker on Easy" inversion is gone. A fresh 60-game `easy-vs-easy` duel sample moved from the old `36/64` reversal to `56.7/43.3`.
+
+**Remaining:** hold that spread across larger seeded sweeps, keep reducing seat bias in the same-difficulty ladders, and optionally expose per-difficulty expectations in the difficulty selector copy.
 
 **Files:** `src/shared/ai/config.ts`, `src/shared/ai/`, `src/client/ui/lobby.ts` (difficulty selector copy), `scripts/simulate-ai.ts`
 

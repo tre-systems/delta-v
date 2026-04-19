@@ -909,8 +909,11 @@ export const aiAstrogation = (
       }
     }
 
+    const allowEasyRandomBurn =
+      cfg.easyRandomBurnProbability > 0 && state.turnNumber > 1;
+
     if (
-      cfg.easyRandomBurnProbability > 0 &&
+      allowEasyRandomBurn &&
       rng() < cfg.easyRandomBurnProbability &&
       canBurnFuel
     ) {
