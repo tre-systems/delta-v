@@ -197,12 +197,6 @@ Two different caps in two endpoints serving similar paginated reads, neither doc
 
 **Files:** `src/server/matches-list.ts`, `src/server/leaderboard/`, `static/.well-known/agent.json`
 
-### Loose query validation on `/api/leaderboard`
-
-Same anti-pattern that `7b21301` fixed for `/api/matches` is still present on the leaderboard endpoint: `?limit=-1`, `?limit=abc`, `?includeProvisional=garbage`, and `?ofset=10` (typo) all return 200 with whatever default the server happened to choose. Apply the same `Number.parseInt` + range validation + boolean-or-400 used in `parseFilters` (`src/server/matches-list.ts`) to the leaderboard handler so both share an idiom and clients fail fast on typos.
-
-**Files:** `src/server/leaderboard/`, `src/server/matches-list.ts` (reuse helpers), tests
-
 ### `/join/{code}` success response missing documented metadata
 
 `/agents` and `agent.json` describe `GET /join/{code}` as returning "room metadata". Empirically:
