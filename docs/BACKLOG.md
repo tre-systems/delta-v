@@ -18,7 +18,6 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 - *`/healthz` production payload still stale until the fallback ships live* (Agent & MCP ergonomics) — production still returns `sha:null, bootedAt:"1970-01-01..."` as of 2026-04-19. Code now falls back from Worker deploy metadata to bundled `/version.json` `assetsHash` and stamps `bootedAt` at module load; re-verify on the next deploy before removing this line.
-- *`/api/agent-token` rate limit barely fires* — 50-burst got 46 successes, 4 throttled (re-re-verified 2026-04-19). Documented 5/60s; actual ~45/60s per-IP per-colo.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
 
@@ -40,6 +39,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 - Match-history `Replay →` links now work end-to-end: clicking loads `/?code=XXXXX` in spectator mode with full playback controls (First / Previous / Play / Next / Last / EXIT). Scrubbing advances at event-stream granularity ("Turn N · P# PHASE · n/total"); the Play button auto-advances and flips aria-label to Pause. Verified 2026-04-19 against completed match `E65LY-m1`.
 - MCP resources shipped: hosted `/mcp` `resources/list` returns eleven entries — `game://rules/current`, nine per-scenario `game://rules/{id}` entries, and `game://leaderboard/agents`. `resources/read` returns `application/json` with `{version, scenario, definition}` (or `{version, kind, entries}` for the leaderboard). Verified 2026-04-19.
 - Local Play-vs-AI restore-after-reload no longer deletes `delta-v:local-game` on the initial blank startup tick; the saved snapshot survives long enough for `resumeLocalGame()` to restore it, with a regression test covering the startup race in `local-session-store`.
+- Public docs now describe the shipped two-layer state-changing POST limits accurately: strict Worker-local 5 / 60 s per hashed IP for `/create`, `/api/agent-token`, `/quick-match`, and `/api/claim-name`, with Cloudflare `CREATE_RATE_LIMITER` as an extra best-effort edge layer in production; hosted `/mcp` is documented separately as a 20 / 60 s edge limit keyed by agentToken hash or hashed IP.
 
 **Confirmed working** (do not regress):
 
@@ -223,17 +223,11 @@ Findings from a 2026-04-17 cost-surface review. Baseline controls are documented
 
 **Still backlog / trigger-gated:** WAF or `[[ratelimits]]` if baseline throttles prove insufficient; Turnstile on human name claim; proof-of-work on bulk agent name claims; spectator delay for serious competition. File hooks sit under [Future features](#future-features-not-currently-planned) where applicable.
 
-### Documented rate limits significantly understate observed protection
+### Strict cross-colo rate limits for state-changing POSTs (only if needed)
 
-Empirical 2026-04-19 (R1 / R2 probe burst from a single client IP, single CF colo LHR):
+The docs now reflect the shipped model accurately: `/create`, `/api/agent-token`, `/quick-match`, and `/api/claim-name` use a strict Worker-local **5 / 60 s per hashed IP** bucket plus Cloudflare `CREATE_RATE_LIMITER` as an extra best-effort edge layer in production. That is enough for accidental floods and single-isolate abuse, but not a true global cap.
 
-- `POST /create` — documented **5 / 60 s per IP** (`agent.json` and `wrangler.toml` `CREATE_RATE_LIMITER`); observed **~35 / 60 s** before any 429s. ~7x the published limit.
-- `POST /api/agent-token` — now shares the same strict Worker-local **5 / 60 s per IP** overlay as `/create`, but the Cloudflare edge binding is still best-effort across colos.
-- `POST /quick-match` — documented **5 / 60 s per IP**; observed first 429 around request 11.
-
-Cloudflare's `[[ratelimits]]` binding is **best-effort and per-edge-colo**, so a single attacker hitting one colo can exceed the published limit; an attacker spread across multiple colos can exceed it by a much larger multiple. The current numbers offer real protection against accidental floods but don't match the documented contract.
-
-Two actions: (1) document the shipped two-layer behavior accurately (`agent.json`, `/agents` page, `docs/SECURITY.md`); (2) if strict cross-colo enforcement becomes necessary, add a D1 or Durable Object counter so the cap is global rather than per isolate plus best-effort edge binding.
+If cross-colo or distributed issuance becomes a real problem, the next step is a D1 or Durable Object counter so the limit is global rather than per isolate plus best-effort edge binding.
 
 **Files:** `static/.well-known/agent.json`, `wrangler.toml`, `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`
 
