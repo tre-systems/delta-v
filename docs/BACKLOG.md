@@ -17,6 +17,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
 - *Match-history "Replay →" links are broken for every listed match* (Gameplay UX & matchmaking integrity) — every click shows "Replay unavailable" toast; breaks a promoted feature on a page that tells users replays are available.
+- *Security-header middleware drafted but not deployed* — `src/server/response-headers.ts`, the `applyResponseHeaders` wiring in `src/server/index.ts`, and the `SECURITY.md` text claiming CSP/HSTS/X-Frame-Options are live are all present in the working tree but unshipped. Production responses still emit none of those headers (re-verified 2026-04-19). Commit and deploy the pending work, then re-run the R1 header check to close the loop.
 - *`/healthz` body unpopulated* (Agent & MCP ergonomics) — `sha:null, bootedAt:"1970-01-01..."` (re-re-verified 2026-04-19). Deploy-gate monitors that compare `sha` against pipeline build will always pass.
 - *`/api/agent-token` rate limit barely fires* — 50-burst got 46 successes, 4 throttled (re-re-verified 2026-04-19). Documented 5/60s; actual ~45/60s per-IP per-colo.
 - *No reserved-name blocklist on `/api/claim-name`* — 2026-04-19: claimed `admin`, `administrator`, `system`, `test user` with no rejection. Add a blocklist (or at least reserve `admin`, `administrator`, `system`, `root`, `moderator`, `delta-v`, `deltav`) and return 409 with a clear `username_reserved` error.
