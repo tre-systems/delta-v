@@ -79,7 +79,7 @@ Doc index by purpose, grouped by theme:
 | Doc | Purpose |
 | --- | --- |
 | [MANUAL_TEST_PLAN.md](./docs/MANUAL_TEST_PLAN.md) | Release / regression manual checks |
-| [SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) | Headless AI simulation and websocket load harness |
+| [SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) | Headless AI simulation and WebSocket load harness |
 | [EXPLORATORY_TESTING.md](./docs/EXPLORATORY_TESTING.md) | Open-ended discovery-pass toolkit and probe recipes |
 
 **Release and planning**
@@ -163,7 +163,7 @@ Doc index by purpose, grouped by theme:
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run verify` | Pre-release sweep (lint, typecheck, coverage, build, e2e, a11y, simulation) |
 | `npm run simulate -- [scenario] [iterations] [--ci]` | Headless AI-vs-AI matches |
-| `npm run load:test -- --games 20 --concurrency 5` | Websocket load / chaos harness |
+| `npm run load:test -- --games 20 --concurrency 5` | WebSocket load / chaos harness |
 | `npm run deploy` | Deploy to Cloudflare Workers |
 
 Pass simulation arguments after the npm `--`, e.g. `npm run simulate -- all 25 --ci`.
@@ -176,7 +176,7 @@ Three complementary layers keep the regression net cheap to run:
 - **Headless AI simulation** (`npm run simulate`) — scenario-wide engine stability and balance sweeps; much cheaper than the browser.
 - **Playwright** — an intentionally thin browser smoke suite for boot, core multiplayer, and a11y baselines (`test:e2e` and `test:e2e:a11y`).
 
-When deciding where a new test belongs: rules/combat/protocol assertions → Vitest; broad scenario behavior across many turns → simulation; anything that requires a real browser, multiple pages, storage, or websocket wiring → Playwright. See [SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) for simulation detail and [CONTRIBUTING.md](./docs/CONTRIBUTING.md) for verification flow.
+When deciding where a new test belongs: rules/combat/protocol assertions → Vitest; broad scenario behavior across many turns → simulation; anything that requires a real browser, multiple pages, storage, or WebSocket wiring → Playwright. See [SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) for simulation detail and [CONTRIBUTING.md](./docs/CONTRIBUTING.md) for verification flow.
 
 ## 📜 Game Rules
 
