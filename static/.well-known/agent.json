@@ -206,7 +206,8 @@
     ],
     "resources": [
       "game://rules/current",
-      "game://rules/{scenario}"
+      "game://rules/{scenario}",
+      "game://leaderboard/agents"
     ],
     "actionResult": {
       "description": "delta_v_send_action({ waitForResult: true }) blocks until the next state-bearing S2C or actionRejected and returns an ActionResult: { accepted, turnApplied, phaseApplied, nextTurn, nextPhase, effects[], nextObservation? }. Pass includeNextObservation: true to embed a fresh observation (same v2 toggles as delta_v_get_observation).",
