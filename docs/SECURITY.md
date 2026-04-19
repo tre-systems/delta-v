@@ -23,6 +23,8 @@ Delta-V now has a materially stronger authoritative-server boundary than the ori
 - `GET /ws/:code` WebSocket upgrades have a hashed-IP in-memory cap (20 upgrades / 60s, per isolate), reducing repeated socket-churn abuse in lower environments.
 - `POST /telemetry` and `POST /error` are JSON-only with a 4 KB cap and hashed-IP window limits, limiting abuse and D1 write amplification in the default path. A daily cron (`purgeOldEvents`) deletes `events` rows older than **30 days**.
 - `POST /mcp` uses Cloudflare's edge `MCP_RATE_LIMITER` binding (20 RPM keyed on `agentToken` hash or hashed IP) with a **16 KB body cap** checked before JSON-RPC dispatch ([`packages/mcp-adapter/src/handlers.ts`](../packages/mcp-adapter/src/handlers.ts)).
+- Worker responses now apply a shared hardening baseline: `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: geolocation=(), microphone=(), camera=()`.
+- Public read endpoints (`/healthz`, `/api/matches`, `/api/leaderboard`, `/api/leaderboard/me`, `/replay/:code`, and `/.well-known/agent.json`) now return explicit wildcard CORS headers so browser-hosted embeds and third-party tools can consume those read-only surfaces without a same-origin proxy.
 
 These changes make private multiplayer substantially safer than before, especially for host-seat integrity, reconnect safety, and server authority.
 

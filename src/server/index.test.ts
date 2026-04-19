@@ -283,6 +283,14 @@ describe('server index worker', () => {
       sha: 'deploy-sha-123',
       bootedAt: expect.any(String),
     });
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(response.headers.get('Content-Security-Policy')).toContain(
+      "default-src 'self'",
+    );
+    expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+    expect(response.headers.get('Referrer-Policy')).toBe(
+      'strict-origin-when-cross-origin',
+    );
   });
 
   it('falls back to CF_PAGES_COMMIT_SHA when version metadata is unavailable', async () => {
@@ -319,6 +327,52 @@ describe('server index worker', () => {
       sha: null,
       bootedAt: expect.any(String),
     });
+  });
+
+  it('adds explicit wildcard CORS to public read APIs and handles OPTIONS preflight', async () => {
+    const { env } = createEnv();
+
+    const healthz = await worker.fetch(
+      new Request('https://delta-v.test/healthz', { method: 'GET' }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(healthz.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(healthz.headers.get('Access-Control-Allow-Methods')).toContain(
+      'GET',
+    );
+
+    const preflight = await worker.fetch(
+      new Request('https://delta-v.test/api/matches', { method: 'OPTIONS' }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(preflight.headers.get('Access-Control-Allow-Methods')).toContain(
+      'OPTIONS',
+    );
+  });
+
+  it('does not add wildcard CORS to non-public write endpoints', async () => {
+    const { env } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ scenario: 'duel' }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull();
+    expect(response.headers.get('Content-Security-Policy')).toContain(
+      "frame-ancestors 'none'",
+    );
   });
 
   it('returns 403 when quick-match uses agent_ playerKey without Bearer', async () => {

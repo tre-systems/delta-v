@@ -45,6 +45,8 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 
 Rate limits for each route: [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture).
 
+Public read endpoints (`/healthz`, `/api/matches`, `/api/leaderboard`, `/api/leaderboard/me`, `/replay/:code`, `/.well-known/agent.json`) send `Access-Control-Allow-Origin: *` plus the shared response-security header baseline documented in [SECURITY.md](./SECURITY.md).
+
 ## Room Lifecycle
 
 ```
