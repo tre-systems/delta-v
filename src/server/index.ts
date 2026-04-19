@@ -430,7 +430,8 @@ export default {
           return tooManyRequests();
         }
       }
-      if (url.searchParams.get('status') === 'live') {
+      const status = url.searchParams.get('status');
+      if (status === 'live') {
         return handleLiveMatchesList(env);
       }
       return handleMatchesList(request, env);
