@@ -123,11 +123,11 @@ Four papercuts hit while pairing a local MCP agent against a human browser seat 
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/shared/agent/`, `src/shared/types/protocol.ts`, `.claude/skills/play/SKILL.md`
 
-### Liveness endpoint
+### Liveness endpoint payload is unpopulated
 
-No `/healthz` (or `/health` / `/status`) — probes currently must scrape the SPA home page. Add a small JSON endpoint returning `{ ok: true, sha, bootedAt }` for uptime monitors and release gates.
+`/healthz`, `/health`, `/status` all return 200 with `{"ok":true,"sha":null,"bootedAt":"1970-01-01T00:00:00.000Z"}`. The endpoint shape is right but neither field is populated — `sha` is hard-coded `null` and `bootedAt` is the Unix epoch. Uptime probes that only check `ok:true` will pass; release gates that compare deployed `sha` against the pipeline build will silently always pass. Wire in the actual deploy SHA (`CF_PAGES_COMMIT_SHA` / a build-time env var injected by `esbuild.client.mjs` or the Worker bundler) and stamp `bootedAt` in the Worker module-scope at first import. Bonus: alias decision — three URLs (`/healthz`, `/health`, `/status`) all 200 with the same body; pick one canonical and 301 the others, or document them as supported aliases. Found via R1.
 
-**Files:** `src/server/`, `docs/DEPLOYMENT.md` (if present)
+**Files:** `src/server/`, `wrangler.toml`, `esbuild.client.mjs`, `docs/OBSERVABILITY.md`
 
 ### Match-isolation flag for automated verification
 
@@ -135,35 +135,11 @@ During exploratory pairing on the production server, an MCP agent and a paired b
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/server/`, `src/shared/agent/quick-match.ts`
 
-### Fleet-building behaviour surfaced in MCP tool docs
-
-Observed inconsistency across two duels from the same agent: one match went straight to `astrogation` on the first `wait_for_turn` (implicit `fleetReady`), the next left `fleetBuilding` open and required an explicit `{ type: "fleetReady", purchases: [] }`. Whatever the actual server logic, it is not documented at the tool level and the skill body silently glosses over it. Either make the behaviour deterministic, or document it clearly in the tool description and in [DELTA_V_MCP.md](./DELTA_V_MCP.md) so agents know whether to always send `fleetReady` explicitly after connect.
-
-**Files:** `scripts/delta-v-mcp-server.ts`, `src/server/game-do/`, `docs/DELTA_V_MCP.md`, `.claude/skills/play/SKILL.md`
-
-### Stale `?code=` parameter persistence in URL
-
-Navigating to `https://delta-v.tre.systems/?code=<dead>` correctly falls back to the lobby, but the URL **keeps** the `?code=` parameter across subsequent navigations, which is confusing while debugging and makes "I'm on a fresh lobby" harder to assert from automation. Strip the parameter once the lobby has determined the code is not joinable.
-
-**Files:** `src/client/`, `src/client/ui/`
-
-### Playbook vs skill: astrogation simultaneity contradiction
-
-`/agent-playbook.json` declares `phaseActionMap.astrogation.simultaneous: true`, but `.claude/skills/play/SKILL.md` and observed behaviour say astrogation is sequential (I-Go-You-Go, only `state.activePlayer` may submit burns). Pick one source of truth and align the other. If the engine truly is I-Go-You-Go, the playbook's `simultaneous` field is misleading for any agent author consuming the JSON first.
-
-**Files:** `static/agent-playbook.json`, `.claude/skills/play/SKILL.md`, `docs/AGENT_SPEC.md`
-
 ### Public `/api/matches` exposes user-typed usernames
 
 The matches JSON (public, unauthenticated) includes `winnerUsername` / `loserUsername` as the raw callsign the user typed at the lobby. Users entering real names, emails, or personal handles would have those published indefinitely in the public match log. Options: show only the agent playerKey prefix or a hashed handle for non-leaderboard matches, rate-limit per-IP, or warn users at the callsign input that the value will be published. (Pre-launch is the cheapest time to tighten this.)
 
 **Files:** `src/server/`, `static/index.html`, `src/client/ui/` (callsign input warning)
-
-### Hosted-MCP `/mcp` Accept-header error message
-
-Without `Accept: application/json, text/event-stream` the hosted MCP endpoint returns JSON-RPC error `-32000: Not Acceptable: Client must accept both application/json and text/event-stream`. Correct per spec but unhelpful for first-time integrators — the `/agents` doc and `agent.json` `endpoints[].description` for `/mcp` should call out the required Accept header explicitly (it currently only hints at "Streamable-HTTP MCP endpoint").
-
-**Files:** `static/.well-known/agent.json`, `/agents` page source (likely `src/server/` or a static MD)
 
 ### Retire legacy `{code, playerToken}` tool args once leaderboard stabilises
 
@@ -178,6 +154,44 @@ Hosted MCP tools still accept either `matchToken` or `{code, playerToken}` via `
 Findings from a 2026-04-17 cost-surface review. Baseline controls are documented in [SECURITY.md](./SECURITY.md).
 
 **Still backlog / trigger-gated:** WAF or `[[ratelimits]]` if baseline throttles prove insufficient; Turnstile on human name claim; proof-of-work on bulk agent name claims; spectator delay for serious competition. File hooks sit under [Future features](#future-features-not-currently-planned) where applicable.
+
+### Documented rate limits significantly understate observed protection
+
+Empirical 2026-04-19 (R1 / R2 probe burst from a single client IP, single CF colo LHR):
+
+- `POST /create` — documented **5 / 60 s per IP** (`agent.json` and `wrangler.toml` `CREATE_RATE_LIMITER`); observed **~35 / 60 s** before any 429s. ~7x the published limit.
+- `POST /api/agent-token` — documented **5 / 60 s per IP**; observed **0 throttling** in a 12-burst (rate limit code IS called at `src/server/index.ts:356` but never fired in this test).
+- `POST /quick-match` — documented **5 / 60 s per IP**; observed first 429 around request 11.
+
+Cloudflare's `[[ratelimits]]` binding is **best-effort and per-edge-colo**, so a single attacker hitting one colo can exceed the published limit; an attacker spread across multiple colos can exceed it by a much larger multiple. The current numbers offer real protection against accidental floods but don't match the documented contract.
+
+Two actions: (1) bring the docs (`agent.json`, `/agents` page, `wrangler.toml` comment) in line with what the binding actually enforces under realistic conditions; (2) for endpoints where strict caps matter (token issuance, room creation), add a second layer using D1 or a Durable Object counter so the global cap is enforceable.
+
+**Files:** `static/.well-known/agent.json`, `wrangler.toml`, `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`
+
+### `POST /create` accepts unknown scenarios and arbitrary payloads
+
+Same gap that was just fixed for the MCP path (`26e6820`) is still wide open on the public Worker handler:
+
+- `{"scenario":"fake_scenario"}` → 200 + valid 5-char code (room is created with engine fall-through behaviour).
+- Empty body → 200 + valid code.
+- 5 KB scenario string → 200 + valid code.
+
+Combined with the rate-limit gap above, an anonymous client can burn through Durable-Object-create operations rapidly with junk payloads. Wire the same `isValidScenario` check used by the MCP path into `handleCreate`, and add a JSON schema or zod parse to fail closed on missing/oversize bodies (cap at, say, 1 KB). Found via R2.
+
+**Files:** `src/server/index.ts`, `src/server/room-routes.ts`, `src/shared/map-data.ts`
+
+### Server-side `/create` produces no D1 audit trail
+
+Walking `events` after a 50-burst confirmed that **no row is written for `/create` attempts** — only client-emitted telemetry events (`create_game_attempted`, `game_created`, …) reach D1. An attacker hitting `/create` directly from a script bypasses analytics entirely; the only forensic trail is Cloudflare's Worker logs (1 day retention by default for free tier; 7 days persisted with `[observability]`). For incident reconstruction and abuse detection this is a real gap. Insert a server-side `events` row at the rate-limit decision point (with the hashed IP, scenario, success / `rate_limited`) so the analytics pipeline matches the request volume.
+
+**Files:** `src/server/index.ts`, `src/server/reporting.ts`, `docs/OBSERVABILITY.md`
+
+### Orphan room cleanup invisible to operators
+
+A `POST /create` from an unauthenticated client creates a Durable Object that never gets joined. These rooms do not appear in `/api/matches?status=live` (which only counts pairs with a connected second player) and there is no public surface that exposes or counts them. After my probes I had ~24 orphan DOs that I had no way to enumerate or explicitly clean up — the alarm-driven cleanup in `GameDO` is the only sweep. Either expose an admin-only `/api/rooms?status=orphaned` count for monitoring, or document the alarm timer and orphan-eviction policy in [OBSERVABILITY.md](./OBSERVABILITY.md) so operators know what cost they're carrying.
+
+**Files:** `src/server/game-do/`, `src/server/live-registry-do.ts`, `docs/OBSERVABILITY.md`, `docs/SECURITY.md`
 
 ---
 
