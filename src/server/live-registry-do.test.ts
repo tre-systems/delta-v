@@ -107,6 +107,40 @@ describe('LiveRegistryDO', () => {
     expect(matches[0].scenario).toBe('duel');
   });
 
+  it('reports whether a player key is currently active', async () => {
+    const { doObj } = createDO();
+    await doObj.fetch(
+      new Request('https://live-registry.internal/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: 'ABCDE',
+          scenario: 'duel',
+          startedAt: Date.now(),
+          playerKeys: ['player_a', 'player_b'],
+        }),
+      }),
+    );
+
+    const active = await doObj.fetch(
+      new Request('https://live-registry.internal/active-player/player_a', {
+        method: 'GET',
+      }),
+    );
+    const inactive = await doObj.fetch(
+      new Request('https://live-registry.internal/active-player/player_z', {
+        method: 'GET',
+      }),
+    );
+
+    await expect(active.json()).resolves.toEqual({
+      active: true,
+      code: 'ABCDE',
+      scenario: 'duel',
+    });
+    await expect(inactive.json()).resolves.toEqual({ active: false });
+  });
+
   it('deregisters a match and removes it from the listing', async () => {
     const { doObj } = createDO();
     await register(doObj, {

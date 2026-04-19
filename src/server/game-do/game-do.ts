@@ -1032,7 +1032,11 @@ export class GameDO extends DurableObject<Env> {
   // `reportSideChannelFailure` so operators can see when matches stop
   // registering / deregistering rather than silently disappearing from
   // /matches.
-  private registerLiveMatch(code: string, scenario: string): void {
+  private registerLiveMatch(
+    code: string,
+    scenario: string,
+    playerKeys: string[],
+  ): void {
     const reg = this.env.LIVE_REGISTRY;
     if (!reg) return;
     const deps = {
@@ -1046,7 +1050,12 @@ export class GameDO extends DurableObject<Env> {
           new Request('https://live-registry.internal/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, scenario, startedAt: Date.now() }),
+            body: JSON.stringify({
+              code,
+              scenario,
+              startedAt: Date.now(),
+              playerKeys,
+            }),
           }),
         )
         .then((res) => {
@@ -1108,7 +1117,10 @@ export class GameDO extends DurableObject<Env> {
     const roomConfig = await this.getRoomConfig();
     const code = await this.getGameCode();
     const scenario = roomConfig?.scenario ?? 'duel';
-    this.registerLiveMatch(code, scenario);
+    const playerKeys = (roomConfig?.players ?? [])
+      .flatMap((player) => (player ? [player.playerKey] : []))
+      .filter((playerKey) => typeof playerKey === 'string');
+    this.registerLiveMatch(code, scenario, playerKeys);
     const gameId = await this.getLatestGameId();
     reportLifecycleEvent(
       { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },

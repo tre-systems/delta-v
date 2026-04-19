@@ -42,12 +42,18 @@ const createMatchmaker = (
   initImpl: (request: Request) => Promise<Response> = async () =>
     Response.json({ ok: true }, { status: 201 }),
   db?: D1Database,
+  liveRegistryImpl: (request: Request) => Promise<Response> = async () =>
+    Response.json({ active: false }, { status: 200 }),
 ) => {
   const storage = createMockStorage();
   const waitUntilPromises: Promise<unknown>[] = [];
   const initFetch = vi.fn(initImpl);
+  const liveRegistryFetch = vi.fn(liveRegistryImpl);
   const gameStub = {
     fetch: initFetch,
+  } as unknown as DurableObjectStub;
+  const liveRegistryStub = {
+    fetch: liveRegistryFetch,
   } as unknown as DurableObjectStub;
   const matchmaker = new MatchmakerDO(
     {
@@ -61,19 +67,31 @@ const createMatchmaker = (
         idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
         get: vi.fn(() => gameStub),
       },
+      LIVE_REGISTRY: {
+        idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
+        get: vi.fn(() => liveRegistryStub),
+      },
       ...(db ? { DB: db } : {}),
     } as unknown as {
       GAME: DurableObjectNamespace;
+      LIVE_REGISTRY: DurableObjectNamespace;
       DB?: D1Database;
     },
   );
 
-  return { matchmaker, initFetch, storage, waitUntilPromises };
+  return {
+    matchmaker,
+    initFetch,
+    storage,
+    waitUntilPromises,
+    liveRegistryFetch,
+  };
 };
 
 describe('MatchmakerDO additional coverage', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(Math, 'random').mockReturnValue(0.25);
   });
 
   afterEach(() => {
@@ -274,6 +292,109 @@ describe('MatchmakerDO additional coverage', () => {
 
     expect(second.status).toBe(503);
     expect(await second.text()).toBe('Failed to allocate quick match');
+  });
+
+  it('rejects enqueues for players already active in a live match', async () => {
+    const { matchmaker, initFetch } = createMatchmaker(
+      async () => Response.json({ ok: true }, { status: 201 }),
+      undefined,
+      async () =>
+        Response.json({
+          active: true,
+          code: 'ABCDE',
+          scenario: 'duel',
+        }),
+    );
+
+    const response = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: 'player_already_active',
+      hint: 'Reconnect to room ABCDE (duel) before queueing again.',
+    });
+    expect(initFetch).not.toHaveBeenCalled();
+  });
+
+  it('drops stale queued players that are already active elsewhere before pairing', async () => {
+    const { matchmaker, storage, initFetch } = createMatchmaker(
+      async () => Response.json({ ok: true }, { status: 201 }),
+      undefined,
+      async (request) => {
+        const playerKey = decodeURIComponent(
+          request.url.split('/').at(-1) ?? '',
+        );
+        if (playerKey === 'playerkey1') {
+          return Response.json({
+            active: true,
+            code: 'ABCDE',
+            scenario: 'duel',
+          });
+        }
+        return Response.json({ active: false });
+      },
+    );
+
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const first = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+    const firstPayload = (await first.json()) as { ticket: string };
+
+    const second = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey2',
+            username: 'Pilot Two',
+          },
+        }),
+      }),
+    );
+
+    expect(second.status).toBe(200);
+    await expect(second.json()).resolves.toMatchObject({
+      status: 'queued',
+      scenario: 'duel',
+    });
+    expect(initFetch).not.toHaveBeenCalled();
+    expect(
+      (
+        (await storage.get('quickMatchQueue')) as {
+          player: { playerKey: string };
+        }[]
+      ).map((entry) => entry.player.playerKey),
+    ).toEqual(['playerkey2']);
+
+    const firstStatus = await matchmaker.fetch(
+      new Request(`https://matchmaker.internal/ticket/${firstPayload.ticket}`, {
+        method: 'GET',
+      }),
+    );
+    expect(firstStatus.status).toBe(410);
   });
 
   it('returns 404 for unsupported routes', async () => {
