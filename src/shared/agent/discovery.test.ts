@@ -36,7 +36,13 @@ interface AgentManifest {
 }
 
 interface AgentPlaybook {
-  phaseActionMap: Record<string, { legalC2S?: string[] }>;
+  phaseActionMap: Record<
+    string,
+    {
+      legalC2S?: string[];
+      simultaneous?: boolean;
+    }
+  >;
 }
 
 // Source-of-truth values copied from src/shared/types/protocol.ts.
@@ -153,5 +159,13 @@ describe('agent-playbook.json', () => {
       new Set(['logistics', 'skipLogistics']),
     );
     expect(playbook.phaseActionMap.gameOver.legalC2S).toEqual(['rematch']);
+  });
+
+  it('marks only fleetBuilding as simultaneous', () => {
+    expect(playbook.phaseActionMap.fleetBuilding.simultaneous).toBe(true);
+    expect(playbook.phaseActionMap.astrogation.simultaneous).toBe(false);
+    expect(playbook.phaseActionMap.ordnance.simultaneous).toBe(false);
+    expect(playbook.phaseActionMap.combat.simultaneous).toBe(false);
+    expect(playbook.phaseActionMap.logistics.simultaneous).toBe(false);
   });
 });

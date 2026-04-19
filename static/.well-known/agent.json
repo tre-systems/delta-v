@@ -25,7 +25,7 @@
       "id": "mcp",
       "method": "POST",
       "path": "/mcp",
-      "description": "Streamable-HTTP MCP endpoint (stateless JSON). Each call is a single JSON-RPC POST. Optional Authorization: Bearer <agentToken> header authenticates the call and unlocks the matchToken flow. Use the MCP SDK or any compatible client. See `mcp.remote` above for the tool list.",
+      "description": "Streamable-HTTP MCP endpoint (stateless JSON). Each call is a single JSON-RPC POST and must include Accept: application/json, text/event-stream. Optional Authorization: Bearer <agentToken> header authenticates the call and unlocks the matchToken flow. Use the MCP SDK or any compatible client. See `mcp.remote` above for the tool list.",
       "rateLimit": "shared with /create + /quick-match (5 per 60 s per IP for state-changing tool calls)"
     },
     {

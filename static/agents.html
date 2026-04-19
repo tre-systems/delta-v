@@ -697,7 +697,7 @@ const ws = new WebSocket('wss://delta-v.tre.systems/ws/ABCDE');
     <p>The bridge spawns your command via <code>zsh -lc</code> for each decision. The full JSON payload is written to its stdin; your process must write a JSON response to stdout and exit.</p>
 
     <h3>HTTP (http mode)</h3>
-    <p>The bridge <code>POST</code>s the JSON payload to your URL with <code>Content-Type: application/json</code>. Respond with the same JSON format.</p>
+    <p>The bridge <code>POST</code>s the JSON payload to your URL with <code>Content-Type: application/json</code>. Hosted MCP clients must also send <code>Accept: application/json, text/event-stream</code>. Respond with the same JSON format.</p>
 
     <h3>AgentTurnInput</h3>
     <pre><code>{

@@ -105,7 +105,7 @@ const normalizeGameId = (raw: string | null): string | null => {
   return trimmed;
 };
 
-const autoJoinFromUrl = (
+export const autoJoinFromUrl = (
   joinGame: (code: string, playerToken: string | null) => void,
   spectateGame: (code: string) => void,
   viewArchivedReplay: (code: string, gameId: string) => void,
@@ -137,6 +137,7 @@ const autoJoinFromUrl = (
     }
     return;
   }
+  history.replaceState(null, '', '/');
   setMenuState();
 };
 
