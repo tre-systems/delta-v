@@ -1,14 +1,6 @@
 # Delta-V Game Rules
 
-An online multiplayer space combat game — vector movement and gravity in the inner Solar System.
-
-## Overview
-
-Delta-V is a turn-based strategy game where ships move using realistic vector physics on a hex grid. Ships maintain velocity between turns, can burn fuel to accelerate, and are affected by planetary gravity. Combat uses dice-based resolution with modifiers for range and relative velocity.
-
-The client renders the board as a continuous-space experience — no visible hex grid — while the engine uses hex coordinates internally for all game logic. Ships animate along their velocity vectors with thrust and gravity effects.
-
-## How To Read This Document
+The canonical design reference for Delta-V's gameplay rules — movement, combat, ordnance, scenarios. When prose here disagrees with the code, the code wins; otherwise the rules below are authoritative.
 
 Rules and scenarios only. Other concerns live elsewhere:
 
@@ -17,7 +9,11 @@ Rules and scenarios only. Other concerns live elsewhere:
 - **Open work:** [BACKLOG.md](./BACKLOG.md).
 - **Implementation gotchas per pattern:** [`patterns/`](../patterns/README.md).
 
-When prose here disagrees with the code, the code wins — but the rules below are the canonical design reference.
+## Overview
+
+Delta-V is a turn-based strategy game where ships move using realistic vector physics on a hex grid. Ships maintain velocity between turns, can burn fuel to accelerate, and are affected by planetary gravity. Combat uses dice-based resolution with modifiers for range and relative velocity.
+
+The client renders the board as a continuous-space experience — no visible hex grid — while the engine uses hex coordinates internally for all game logic. Ships animate along their velocity vectors with thrust and gravity effects.
 
 ## Table of Contents
 

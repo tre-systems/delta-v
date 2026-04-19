@@ -1,10 +1,11 @@
 # Delta-V Agents: Practical Guide
 
-The fastest path to a working Delta-V agent. Start here; read deeper docs only when you need them:
+The fastest path to a working Delta-V agent — integration-path choice, a runnable quick start for each path, the contract your model receives, and a tuning workflow. Start here; read deeper docs only when you need them:
 
-- [AGENT_SPEC.md](../AGENT_SPEC.md) — deep protocol / design reference
+- [AGENT_SPEC.md](../AGENT_SPEC.md) — deep protocol and design reference
 - [DELTA_V_MCP.md](./DELTA_V_MCP.md) — MCP tool catalog and host configuration
 - [SIMULATION_TESTING.md](./SIMULATION_TESTING.md) — large-scale simulation and load/chaos harness
+- [SECURITY.md](./SECURITY.md) — token model, rate limits, abuse controls
 
 ## Choose an integration path
 
