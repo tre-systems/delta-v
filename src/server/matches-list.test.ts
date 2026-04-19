@@ -270,7 +270,7 @@ describe('handleMatchesList', () => {
     });
   });
 
-  it('surfaces winner/loser usernames from the JOIN', async () => {
+  it('does not surface public usernames in the matches listing', async () => {
     const { db } = mockDb([
       makeRow({
         winner_username: 'Zephyr',
@@ -282,8 +282,8 @@ describe('handleMatchesList', () => {
       buildEnv(db),
     );
     const body = (await response.json()) as MatchListingResponse;
-    expect(body.matches[0].winnerUsername).toBe('Zephyr');
-    expect(body.matches[0].loserUsername).toBe('Pilot_42');
+    expect(body.matches[0].winnerUsername).toBeNull();
+    expect(body.matches[0].loserUsername).toBeNull();
   });
 
   it('leaves usernames null when unclaimed / private-room matches', async () => {

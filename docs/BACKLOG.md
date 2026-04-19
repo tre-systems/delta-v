@@ -16,7 +16,6 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
-- *Public `/api/matches` exposes user-typed usernames* (Agent & MCP ergonomics) — needs lobby warning before public traffic. Also confirmed 2026-04-19: **no reserved-name blocklist** — I claimed `admin` and `test user` via `/api/claim-name` with no rejection.
 - *`/api/agent-token` rate limit not firing* (Cost & abuse hardening) — 30-burst re-verified 2026-04-19: 30/30 succeeded. `/create` and `/quick-match` limits now enforce; `/api/agent-token` doesn't.
 - *`/api/matches?status=*` and `?before=*` still not validated* — `scenario`/`winner`/`limit` now return 400 on garbage, but `status` and `before` still silently accepted (re-verified 2026-04-19).
 - *`delta-v:tokens` localStorage accumulates without cleanup* (same section) — token cache grows unbounded; tokens never invalidated server-side on archive.
@@ -208,12 +207,6 @@ During exploratory pairing on the production server, an MCP agent and a paired b
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/server/`, `src/shared/agent/quick-match.ts`
 
-### Public `/api/matches` exposes user-typed usernames
-
-The matches JSON (public, unauthenticated) includes `winnerUsername` / `loserUsername` as the raw callsign the user typed at the lobby. Users entering real names, emails, or personal handles would have those published indefinitely in the public match log. Options: show only the agent playerKey prefix or a hashed handle for non-leaderboard matches, rate-limit per-IP, or warn users at the callsign input that the value will be published. (Pre-launch is the cheapest time to tighten this.)
-
-**Files:** `src/server/`, `static/index.html`, `src/client/ui/` (callsign input warning)
-
 ### Retire legacy `{code, playerToken}` tool args once leaderboard stabilises
 
 Hosted MCP tools still accept either `matchToken` or `{code, playerToken}` via `matchTargetSchema` in `packages/mcp-adapter/src/handlers.ts`. Carrying both doubles tool-args surface area and forces every call site to branch on auth mode. Once the public leaderboard is live and all active agents have migrated to `matchToken`, drop the legacy union and simplify the adapter — consistent with the pre-launch-deletions stance elsewhere.
@@ -285,7 +278,7 @@ After ~6 matches my browser's `localStorage['delta-v:tokens']` had stored 6 dist
 
 ### Player profile in localStorage stores user-typed callsign verbatim
 
-`localStorage['delta-v:player-profile']` shape: `{playerKey, username, updatedAt}`. The `username` is whatever the user typed at the lobby callsign field, persisted indefinitely on-device. Combined with the existing finding that the matches API publishes the same string in `winnerUsername`/`loserUsername`, a user who once typed their real name has both a public match log entry AND a permanent on-device profile they may not realise exists. Add a "Forget my callsign" control in the lobby (clears `delta-v:player-profile` and `delta-v:tokens`), and confirm the [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) doc mentions on-device persistence.
+`localStorage['delta-v:player-profile']` shape: `{playerKey, username, updatedAt}`. The `username` is whatever the user typed at the lobby callsign field, persisted indefinitely on-device. Even with the public match log no longer surfacing usernames, a user who once typed their real name may not realise it remains stored locally. Add a "Forget my callsign" control in the lobby (clears `delta-v:player-profile` and `delta-v:tokens`), and confirm the [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) doc mentions on-device persistence.
 
 **Files:** `src/client/game/session-api.ts`, `src/client/ui/`, `static/index.html` (Forget control), `docs/PRIVACY_TECHNICAL.md`
 
