@@ -345,6 +345,8 @@
     $board.classList.remove('hidden');
   };
 
+  let hasInitialLoaded = false;
+
   const load = async () => {
     $loading.classList.remove('hidden');
     $error.classList.add('hidden');
@@ -352,15 +354,18 @@
     $board.classList.add('hidden');
     try {
       let data = await fetchBoard($toggle.checked);
-      // If ranked-only returns nothing, automatically reveal provisional
-      // rows so first-time visitors still see active players.
-      if (!$toggle.checked && data.entries.length === 0) {
+      // On the first page load, if the ranked-only query is empty,
+      // auto-reveal provisional rows so first-time visitors see activity.
+      // After that, respect the user's explicit toggle — never silently flip
+      // the checkbox back on when they uncheck it.
+      if (!hasInitialLoaded && !$toggle.checked && data.entries.length === 0) {
         const provisionalData = await fetchBoard(true);
         if (provisionalData.entries.length > 0) {
           $toggle.checked = true;
           data = provisionalData;
         }
       }
+      hasInitialLoaded = true;
       render(data.entries);
     } catch (err) {
       console.error('[leaderboard] load failed', err);
