@@ -289,6 +289,9 @@ const createArchivedReplayDeps = (
     },
     applyGameState: track('applyGameState'),
     startArchivedReplay: track('startArchivedReplay'),
+    clearLog: track('clearLog'),
+    setChatEnabled: track('setChatEnabled'),
+    logText: track('logText'),
     showToast: track('showToast'),
     exitToMenu: track('exitToMenu'),
     setScenario: track('setScenario'),
@@ -564,6 +567,9 @@ describe('session-controller', () => {
     expect(deps.calls.fetchArchivedReplay).toEqual([
       ['ZNMC6', 'ZNMC6-m1', undefined],
     ]);
+    expect(deps.calls.clearLog).toHaveLength(1);
+    expect(deps.calls.setChatEnabled).toEqual([[false]]);
+    expect(deps.calls.logText).toEqual([['Replay: ZNMC6-m1', 'log-system']]);
     // Final state applied before the replay controller starts.
     const appliedStates = deps.calls.applyGameState as Array<[GameState]>;
     expect(appliedStates).toHaveLength(1);
@@ -630,6 +636,9 @@ describe('session-controller', () => {
       },
       applyGameState: track('applyGameState'),
       startArchivedReplay: track('startArchivedReplay'),
+      clearLog: track('clearLog'),
+      setChatEnabled: track('setChatEnabled'),
+      logText: track('logText'),
       showToast: track('showToast'),
       exitToMenu: track('exitToMenu'),
       setScenario: track('setScenario'),

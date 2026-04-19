@@ -5,6 +5,7 @@ import { buildSolarSystemMap, SCENARIOS } from '../../shared/map-data';
 import type { GameTransport } from './transport';
 
 const mocks = vi.hoisted(() => ({
+  beginArchivedReplaySession: vi.fn(),
   beginJoinGameSession: vi.fn(),
   beginSpectateGameSession: vi.fn(),
   exitToMenuSession: vi.fn(),
@@ -13,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('./session-controller', () => ({
+  beginArchivedReplaySession: mocks.beginArchivedReplaySession,
   beginJoinGameSession: mocks.beginJoinGameSession,
   beginSpectateGameSession: mocks.beginSpectateGameSession,
   exitToMenuSession: mocks.exitToMenuSession,
@@ -25,6 +27,7 @@ vi.mock('./message-handler', () => ({
 
 import { asGameId } from '../../shared/ids';
 import {
+  beginArchivedReplayFromMain,
   beginJoinGameFromMain,
   beginSpectateGameFromMain,
   exitToMenuFromMain,
@@ -195,6 +198,50 @@ describe('main-session-network', () => {
     expect(spectateDeps.buildGameRoute('ROOM1')).toBe('/?code=ROOM1');
     expect(deps.connection.connect).toHaveBeenCalledWith('ROOM1');
     expect(deps.setState).toHaveBeenCalledWith('connecting');
+  });
+
+  it('routes archived replay exit back to /matches and seeds the log bridge', async () => {
+    const deps = createDeps();
+    const replaceState = vi
+      .spyOn(history, 'replaceState')
+      .mockImplementation(() => {});
+
+    beginArchivedReplayFromMain(deps, 'ROOM3', 'ROOM3-m1');
+    await Promise.resolve();
+
+    expect(deps.ui.log.setLocalGame).toHaveBeenCalledWith(false);
+    expect(mocks.beginArchivedReplaySession).toHaveBeenCalledWith(
+      expect.any(Object),
+      'ROOM3',
+      'ROOM3-m1',
+      expect.any(AbortSignal),
+    );
+
+    const archivedDeps = mocks.beginArchivedReplaySession.mock.calls[0]?.[0];
+    if (!archivedDeps) {
+      throw new Error('Expected archived replay session deps');
+    }
+
+    archivedDeps.clearLog();
+    archivedDeps.setChatEnabled(false);
+    archivedDeps.logText('Replay: ROOM3-m1', 'log-system');
+    archivedDeps.exitToMenu();
+
+    expect(deps.ui.log.clear).toHaveBeenCalledOnce();
+    expect(deps.ui.log.setChatEnabled).toHaveBeenCalledWith(false);
+    expect(deps.ui.log.logText).toHaveBeenCalledWith(
+      'Replay: ROOM3-m1',
+      'log-system',
+    );
+    expect(mocks.exitToMenuSession).toHaveBeenCalledWith(expect.any(Object));
+
+    const exitDeps = mocks.exitToMenuSession.mock.calls[0]?.[0];
+    if (!exitDeps) {
+      throw new Error('Expected exit deps');
+    }
+
+    exitDeps.replaceRoute('/');
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/matches');
   });
 
   it('reuses the shared remote-session bridge for joining', async () => {

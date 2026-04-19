@@ -161,13 +161,14 @@ const createMainJoinSessionDeps = (
 
 const createMainExitSessionDeps = (
   deps: MainNetworkDeps,
+  route = '/',
 ): ExitToMenuSessionDeps => ({
   ctx: deps.ctx,
   stopPing: () => deps.connection.stopPing(),
   stopTurnTimer: deps.stopTurnTimer,
   closeConnection: () => deps.connection.close(),
   resetTurnTelemetry: () => deps.turnTelemetry.reset(),
-  replaceRoute: replaceMainRoute,
+  replaceRoute: () => replaceMainRoute(route),
   setState: deps.setState,
 });
 
@@ -210,8 +211,14 @@ const createMainArchivedReplaySessionDeps = (
   applyGameState: deps.applyGameState,
   startArchivedReplay: (timeline) =>
     deps.replayController.startArchivedReplay(timeline),
+  clearLog: () => deps.ui.log.clear(),
+  setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),
+  logText: (text, cssClass) => deps.ui.log.logText(text, cssClass),
   showToast: (message, type) => deps.ui.overlay.showToast(message, type),
-  exitToMenu: () => exitToMenuFromMain(deps),
+  exitToMenu: () => {
+    deps.abortInflightArchivedReplayFetch?.();
+    exitToMenuSession(createMainExitSessionDeps(deps, '/matches'));
+  },
   setScenario: (scenario) => setScenario(deps.ctx, scenario),
 });
 
