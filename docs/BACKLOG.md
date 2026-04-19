@@ -193,6 +193,54 @@ A `POST /create` from an unauthenticated client creates a Durable Object that ne
 
 **Files:** `src/server/game-do/`, `src/server/live-registry-do.ts`, `docs/OBSERVABILITY.md`, `docs/SECURITY.md`
 
+### Silent `limit` caps differ across listing endpoints
+
+Observed 2026-04-19:
+
+- `GET /api/leaderboard?limit=99999` → response `limit: 200` (silently capped at 200, no warning).
+- `GET /api/matches?limit=99999` → response `limit: 100` (silently capped at 100, no warning).
+
+Two different caps in two endpoints serving similar paginated reads, neither documented in `agent.json`, neither surfaces a `Link: rel=next` or even an explicit `requested_limit` field — the only signal that the request was clamped is the difference between the request and the `limit` field in the response, which most clients won't compare. Either reject `limit > MAX` with 400 like the recent matches-filter fix does for `winner` / `scenario`, or echo the requested value alongside the applied one (e.g. `{ limit: 100, requestedLimit: 99999, capped: true }`). Pick one cap or document why they differ.
+
+**Files:** `src/server/matches-list.ts`, `src/server/leaderboard/`, `static/.well-known/agent.json`
+
+### Loose query validation on `/api/leaderboard`
+
+Same anti-pattern that `7b21301` fixed for `/api/matches` is still present on the leaderboard endpoint: `?limit=-1`, `?limit=abc`, `?includeProvisional=garbage`, and `?ofset=10` (typo) all return 200 with whatever default the server happened to choose. Apply the same `Number.parseInt` + range validation + boolean-or-400 used in `parseFilters` (`src/server/matches-list.ts`) to the leaderboard handler so both share an idiom and clients fail fast on typos.
+
+**Files:** `src/server/leaderboard/`, `src/server/matches-list.ts` (reuse helpers), tests
+
+### `/join/{code}` success response missing documented metadata
+
+`/agents` and `agent.json` describe `GET /join/{code}` as returning "room metadata". Empirically:
+
+- Joinable room → `{ "ok": true }` only — no scenario, no host info, no fleet-building state.
+- Unjoinable (in-progress) → rich `{ code: "GAME_IN_PROGRESS", message: ... }`.
+- Unknown code → 404.
+
+Either drop the "metadata" claim from the docs or actually return scenario, room creation timestamp, and seat status (`open`, `full`, `host-only`) so a join UI can render the lobby card without reconnecting first.
+
+**Files:** `src/server/room-routes.ts`, `static/.well-known/agent.json`, `static/agents.html`
+
+### Worker logs no entry on auth-failure paths
+
+`POST /mcp` with a bad `Authorization: Bearer …` header and `POST /api/agent-token` with malformed JSON both return helpful structured error bodies but emit **zero `console.log` lines** (verified with `wrangler tail --format json`). Brute-force attempts on token verification or sustained malformed-payload probes would leave no observability trail unless someone happens to look at the Cloudflare request log per-IP. Add a `console.log` (gated behind a sample rate to avoid log spam) on the four-eyes authentication failure paths: invalid agent token, malformed JSON to token endpoints, and rate-limited rejections. These map directly to the abuse signals operators most want to see.
+
+**Files:** `src/server/index.ts`, `src/server/auth/`, `src/server/reporting.ts`, `docs/OBSERVABILITY.md`
+
+### Validation/error-shape inconsistency across public POST endpoints
+
+Quality varies wildly:
+
+- `/api/claim-name` → structured JSON with explanatory messages, e.g. `{"ok":false,"error":"agent_-prefixed playerKeys claim names via POST /api/agent-token"}` (literally tells the caller the right path) — gold standard.
+- `/api/agent-token` → also structured (`{"ok":false,"error":"playerKey must match …"}`).
+- `/create` → silently 200 on garbage (see entry above).
+- `/quick-match` → 400 with plaintext `Invalid quick match payload` (no JSON envelope, no field-level pointer).
+
+Pick the `/api/claim-name` shape as the standard and bring the others up to it: every 4xx returns `{ok:false, error, message?, hint?}` JSON with `Content-Type: application/json`, including a `hint` line when there's a more correct related endpoint. Found via R2.
+
+**Files:** `src/server/index.ts`, `src/server/room-routes.ts`, `src/server/quick-match-route.ts` (or wherever quick-match enqueue lives)
+
 ---
 
 ## Architecture & correctness
