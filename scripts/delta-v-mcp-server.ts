@@ -18,7 +18,7 @@ import {
   queueForMatch,
   RULES_RESOURCE_MIME_TYPE,
   readRulesResourceText,
-  withCompactObservationState,
+  shapeObservationState,
 } from '../src/shared/agent';
 import { patchTransportWithSerializedSends } from '../src/shared/mcp-stdio-serialized-send';
 import type { GameState } from '../src/shared/types/domain';
@@ -108,10 +108,7 @@ const toolOk = <T extends Record<string, unknown>>(
 const shapeObservationForTool = (
   observation: AgentTurnInput,
   compactState: boolean | undefined,
-): AgentTurnInput =>
-  compactState === true
-    ? withCompactObservationState(observation)
-    : observation;
+): AgentTurnInput => shapeObservationState(observation, compactState, true);
 
 const buildWsUrl = (
   serverUrl: string,
@@ -602,7 +599,7 @@ server.registerTool(
   'delta_v_get_observation',
   {
     description:
-      'Get the unified agent observation for a session: candidates, legal-action metadata, prose summary, and recommendedIndex. Matches the AgentTurnInput shape sent by the stdin/HTTP bridge so the same agent code works via either path. Opt-in v2 enrichments (tactical features, ASCII spatial grid, labeled candidates with risk) cost extra tokens but help LLM agents reason without re-deriving geometry.',
+      'Get the unified agent observation for a session: candidates, legal-action metadata, prose summary, and recommendedIndex. Matches the AgentTurnInput shape sent by the stdin/HTTP bridge so the same agent code works via either path. Local MCP defaults to compact state (phase/turn/activePlayer only); pass compactState=false to include the full GameState. Opt-in v2 enrichments (tactical features, ASCII spatial grid, labeled candidates with risk) cost extra tokens but help LLM agents reason without re-deriving geometry.',
     inputSchema: {
       sessionId: z.string().optional(),
       matchToken: z.string().optional(),
@@ -611,7 +608,7 @@ server.registerTool(
       includeTactical: z.boolean().optional(),
       includeSpatialGrid: z.boolean().optional(),
       includeCandidateLabels: z.boolean().optional(),
-      /** When true, shrink `state` to phase/turn/activePlayer only (smaller tokens). Default false = full `AgentTurnInput.state`. */
+      /** Local MCP defaults to compact state. Pass false to force the full GameState. */
       compactState: z.boolean().optional(),
     },
   },
@@ -714,7 +711,7 @@ server.registerTool(
   'delta_v_wait_for_turn',
   {
     description:
-      "Block until it is the caller's turn to act (fleetBuilding: both seats; every other phase including astrogation: state.activePlayer must match this seat), then return a fresh observation. Eliminates polling for MCP agents. If the returned observation is still fleetBuilding, the seat still needs to send fleetReady explicitly. Respects a timeout (default 30s) and throws if the game reaches gameOver before becoming actionable. Supports the same v2 enrichment toggles as delta_v_get_observation.",
+      "Block until it is the caller's turn to act (fleetBuilding: both seats; every other phase including astrogation: state.activePlayer must match this seat), then return a fresh observation. Eliminates polling for MCP agents. If the returned observation is still fleetBuilding, the seat still needs to send fleetReady explicitly. Local MCP defaults to compact state (phase/turn/activePlayer only); pass compactState=false to include the full GameState. Respects a timeout (default 30s) and throws if the game reaches gameOver before becoming actionable. Supports the same v2 enrichment toggles as delta_v_get_observation.",
     inputSchema: {
       sessionId: z.string().optional(),
       matchToken: z.string().optional(),
@@ -837,7 +834,7 @@ server.registerTool(
   'delta_v_send_action',
   {
     description:
-      "Send a raw C2S game action for a session. ActionGuards are auto-filled from the session's current state unless autoGuards=false. When waitForResult=true (default false), blocks briefly for the next state-bearing S2C or actionRejected and returns an ActionResult with accepted, effects (visible deltas), turn/phase info, and optionally a fresh observation so agents can close the decision loop in one call.",
+      "Send a raw C2S game action for a session. ActionGuards are auto-filled from the session's current state unless autoGuards=false. When waitForResult=true (default false), blocks briefly for the next state-bearing S2C or actionRejected and returns an ActionResult with accepted, effects (visible deltas), turn/phase info, and optionally a fresh observation so agents can close the decision loop in one call. Local MCP nextObservation defaults to compact state; pass compactState=false to embed the full GameState.",
     inputSchema: {
       sessionId: z.string().optional(),
       matchToken: z.string().optional(),

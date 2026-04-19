@@ -102,8 +102,8 @@ All tools accept `sessionId` unless otherwise noted.
 | `delta_v_list_sessions` | List active local sessions | none | `{ sessions[] }` |
 | `delta_v_reconnect` | Reopen a dropped local WebSocket using the stored seat | `sessionId` | `{ reconnected, connectionStatus }` |
 | `delta_v_get_state` | Raw authoritative state | `sessionId` | `{ state, latestEventId }` |
-| `delta_v_get_observation` | Agent observation payload | `sessionId`, include flags as above, `compactState?` (default **false** — full `state`; set **true** to shrink `state` to phase/turn/activePlayer only) | `AgentTurnInput`-compatible object |
-| `delta_v_wait_for_turn` | Block until actionable turn window | `sessionId`, `timeoutMs?`, same include flags + optional `compactState` | same shape as `get_observation` |
+| `delta_v_get_observation` | Agent observation payload | `sessionId`, include flags as above, `compactState?` (default **true** on local stdio/local HTTP — compact `state`; pass **false** for full `GameState`) | `AgentTurnInput`-compatible object |
+| `delta_v_wait_for_turn` | Block until actionable turn window | `sessionId`, `timeoutMs?`, same include flags + optional `compactState` (same local default as above) | same shape as `get_observation` |
 | `delta_v_get_events` | Read buffered event stream | `sessionId`, `afterEventId?`, `limit?`, `clear?` | `{ events[], bufferedRemaining }` |
 | `delta_v_send_action` | Submit C2S action | `sessionId`, `action`, optional `compactState` when `includeNextObservation` | `{ actionType }` (or richer action result when enabled, including `guardStatus`) |
 | `delta_v_send_chat` | Send chat message | `sessionId`, `text` (alias: `message`) | `{ text }` |
@@ -122,7 +122,8 @@ Local stdio MCP inherits the same limits once it opens a browser-facing WebSocke
 Notes:
 
 - **Solo quick match (local Worker):** with `DEV_MODE=1` (see `.dev.vars.example`), the matchmaker may pair a lone quick-match ticket with a synthetic dev bot after ~10s so one MCP client can reach `matched` without a second player. Production (`DEV_MODE=0`) still waits for a real opponent.
-- **Hosted MCP** forwards optional `compactState` on `delta_v_get_observation` (query string), `delta_v_wait_for_turn`, and `delta_v_send_action` (JSON body) to the GAME DO — same semantics as local stdio.
+- **Local MCP** now defaults `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action(...includeNextObservation)` to compact `state` output. Pass `compactState: false` to force the full `GameState`.
+- **Hosted MCP** still forwards optional `compactState` on `delta_v_get_observation` (query string), `delta_v_wait_for_turn`, and `delta_v_send_action` (JSON body) to the GAME DO — unchanged from the previous explicit opt-in behavior.
 - **Hosted MCP** requires `Accept: application/json, text/event-stream` on every `POST /mcp` request, even though Delta-V currently returns the JSON response path rather than an SSE stream.
 - When `delta_v_send_action` waits for a result, accepted responses include `guardStatus` (`inSync` or `stalePhaseForgiven`) so agents can tell whether an expected-phase guard was forgiven even though the action went through.
 - `delta_v_wait_for_turn` throws on timeout and may return/reject when game reaches `gameOver`.

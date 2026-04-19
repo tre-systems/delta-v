@@ -37,6 +37,7 @@ export {
   type BuildObservationOptions,
   buildObservation,
   buildStateSummary,
+  shapeObservationState,
   withCompactObservationState,
 } from './observation';
 export {

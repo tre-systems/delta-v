@@ -213,3 +213,12 @@ export const withCompactObservationState = (
     } as GameState,
   };
 };
+
+export const shapeObservationState = (
+  observation: AgentTurnInput,
+  compactState: boolean | undefined,
+  defaultCompact = false,
+): AgentTurnInput =>
+  compactState === true || (compactState === undefined && defaultCompact)
+    ? withCompactObservationState(observation)
+    : observation;
