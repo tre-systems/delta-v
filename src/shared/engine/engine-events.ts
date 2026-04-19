@@ -239,3 +239,17 @@ export interface EventEnvelope {
   actor: PlayerId | null;
   event: EngineEvent;
 }
+
+export type CombatAttackEvent = Extract<EngineEvent, { type: 'combatAttack' }>;
+export type ShipTargetCombatAttackEvent = CombatAttackEvent & {
+  targetType: 'ship';
+  targetId: ShipId;
+};
+export type OrdnanceTargetCombatAttackEvent = CombatAttackEvent & {
+  targetType: 'ordnance';
+  targetId: OrdnanceId;
+};
+
+export const isShipTargetCombatAttackEvent = (
+  event: CombatAttackEvent,
+): event is ShipTargetCombatAttackEvent => event.targetType === 'ship';

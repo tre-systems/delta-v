@@ -322,6 +322,16 @@ export interface CombatAttack {
   attackStrength: number | null;
 }
 
+export type ShipTargetCombatAttack = CombatAttack & {
+  targetType: 'ship';
+  targetId: ShipId;
+};
+
+export type OrdnanceTargetCombatAttack = CombatAttack & {
+  targetType: 'ordnance';
+  targetId: OrdnanceId;
+};
+
 export type DamageType = 'none' | 'disabled' | 'eliminated';
 export type AttackType = 'gun' | 'baseDefense' | 'asteroidHazard' | 'antiNuke';
 
@@ -341,6 +351,24 @@ export interface CombatResult {
   disabledTurns: number;
   counterattack: CombatResult | null;
 }
+
+export type ShipTargetCombatResult = CombatResult & {
+  targetType: 'ship';
+  targetId: ShipId;
+};
+
+export type OrdnanceTargetCombatResult = CombatResult & {
+  targetType: 'ordnance';
+  targetId: OrdnanceId;
+};
+
+export const isShipTargetCombatResult = (
+  result: CombatResult,
+): result is ShipTargetCombatResult => result.targetType === 'ship';
+
+export const isOrdnanceTargetCombatResult = (
+  result: CombatResult,
+): result is OrdnanceTargetCombatResult => result.targetType === 'ordnance';
 
 // --- Movement events ---
 
