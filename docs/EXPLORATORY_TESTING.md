@@ -361,3 +361,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | 2026-04-19 | agent (Opus 4.7) | AI difficulty stratification sweep, matchmaker seat-assignment code read, reserved-name blocklist gap, re-verification of shipped P1 fixes | 3 |
 | 2026-04-19 | agent (Opus 4.7) | Post-fix sweep confirmed evacuation rebalanced + seat shuffle shipped; security-header + CORS audit | 2 |
 | 2026-04-19 | agent (Opus 4.7) | Match-history page replay link probe — surfaced broken promise ("Replay →" shows unavailable toast for every match) | 1 |
+| 2026-04-19 | agent (Opus 4.7) | Lobby flows (Join / Forget my callsign / callsign input), reserved-name blocklist gap, final re-verification of shipped fixes | 1 |
