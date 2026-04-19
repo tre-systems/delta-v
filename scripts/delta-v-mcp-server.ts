@@ -31,7 +31,6 @@ const MAX_EVENTS_PER_SESSION = 500;
 const WELCOME_TIMEOUT_MS = 10_000; // wait for playerId after WebSocket open
 const WAIT_FOR_TURN_DEFAULT_MS = 30_000; // delta_v_wait_for_turn default
 const ACTION_RESULT_DEFAULT_MS = 5_000; // delta_v_send_action waitForResult
-const SESSION_CLEANUP_DELAY_MS = 30_000; // grace period before deleting closed sessions
 const PING_INTERVAL_MS = 25_000; // keepalive ping to prevent proxy idle disconnects
 
 type PlayerSeat = 0 | 1;
@@ -55,6 +54,9 @@ interface DeltaVSession {
   events: SessionEvent[];
   nextEventId: number;
   lastState: GameState | null;
+  connectionStatus: 'connecting' | 'open' | 'closed';
+  lastDisconnectAt: number | null;
+  lastDisconnectReason: string | null;
   // Resolvers waiting for the next state-bearing S2C message.
   // Used by delta_v_wait_for_turn to avoid polling.
   stateWaiters: Array<() => void>;
@@ -136,6 +138,15 @@ const waitForOpen = async (ws: WebSocket): Promise<void> =>
     ws.on('error', onError);
   });
 
+const wakeStateWaiters = (session: DeltaVSession): void => {
+  if (session.stateWaiters.length === 0) {
+    return;
+  }
+  const waiters = session.stateWaiters;
+  session.stateWaiters = [];
+  for (const resolve of waiters) resolve();
+};
+
 const pushEvent = (session: DeltaVSession, message: S2C): void => {
   session.events.push({
     id: session.nextEventId,
@@ -175,10 +186,8 @@ const pushEvent = (session: DeltaVSession, message: S2C): void => {
     stateChanged = true;
   }
 
-  if (stateChanged && session.stateWaiters.length > 0) {
-    const waiters = session.stateWaiters;
-    session.stateWaiters = [];
-    for (const resolve of waiters) resolve();
+  if (stateChanged) {
+    wakeStateWaiters(session);
   }
 };
 
@@ -231,8 +240,11 @@ const waitForNextState = async (
     });
   });
 
-const attachSessionListeners = (session: DeltaVSession): void => {
-  session.ws.on('message', (raw: WebSocket.RawData) => {
+const attachSessionListeners = (
+  session: DeltaVSession,
+  ws: WebSocket,
+): void => {
+  ws.on('message', (raw: WebSocket.RawData) => {
     try {
       const parsed = JSON.parse(raw.toString()) as S2C;
       pushEvent(session, parsed);
@@ -245,29 +257,80 @@ const attachSessionListeners = (session: DeltaVSession): void => {
   // idle timeouts from killing the WebSocket (code 1006). The game server
   // responds with pong and resets its own inactivity timer.
   const pingInterval = setInterval(() => {
-    if (session.ws.readyState === WebSocket.OPEN) {
+    if (ws.readyState === WebSocket.OPEN) {
       try {
         const ping: C2S = { type: 'ping', t: Date.now() };
-        session.ws.send(JSON.stringify(ping));
+        ws.send(JSON.stringify(ping));
       } catch {
         // send failure on a dying socket — close handler will clean up
       }
     }
   }, PING_INTERVAL_MS);
 
-  const onClosed = (): void => {
+  const onClosed = (reason?: string): void => {
     clearInterval(pingInterval);
-    // Give any in-flight / immediately-following tool calls a short grace
-    // window before deleting session state. This avoids transient
-    // `Unknown sessionId` errors.
-    setTimeout(
-      () => sessions.delete(session.sessionId),
-      SESSION_CLEANUP_DELAY_MS,
-    );
+    // Ignore late close/error callbacks from a socket that has already been
+    // replaced by delta_v_reconnect.
+    if (session.ws !== ws) {
+      return;
+    }
+    session.connectionStatus = 'closed';
+    session.lastDisconnectAt = Date.now();
+    session.lastDisconnectReason = reason ?? 'Socket closed';
+    wakeStateWaiters(session);
   };
 
-  session.ws.on('close', onClosed);
-  session.ws.on('error', onClosed);
+  ws.on('close', (_code: number, reason: Buffer) => {
+    const text = reason.toString();
+    onClosed(text.length > 0 ? text : 'Socket closed');
+  });
+  ws.on('error', (error: Error) => {
+    onClosed(error.message || 'Socket error');
+  });
+};
+
+const waitForWelcome = async (
+  session: DeltaVSession,
+  timeoutMs: number,
+): Promise<void> => {
+  const welcomeDeadline = Date.now() + timeoutMs;
+  while (Date.now() < welcomeDeadline && session.playerId === null) {
+    const remaining = welcomeDeadline - Date.now();
+    const arrived = await waitForNextState(session, remaining);
+    if (!arrived) break;
+  }
+  if (session.playerId === null) {
+    throw new Error(
+      `Timed out waiting for welcome/playerId on session ${session.sessionId}`,
+    );
+  }
+};
+
+const connectSessionSocket = async (
+  session: DeltaVSession,
+  options?: { awaitWelcome?: boolean },
+): Promise<void> => {
+  const ws = new WebSocket(
+    buildWsUrl(session.serverUrl, session.code, session.playerToken),
+  );
+  session.ws = ws;
+  session.connectionStatus = 'connecting';
+  session.lastDisconnectAt = null;
+  session.lastDisconnectReason = null;
+  if (options?.awaitWelcome) {
+    session.playerId = null;
+  }
+  attachSessionListeners(session, ws);
+  await waitForOpen(ws);
+  if (session.ws !== ws) {
+    throw new Error(
+      `Session ${session.sessionId} socket was replaced during connect`,
+    );
+  }
+  session.connectionStatus = 'open';
+  if (options?.awaitWelcome) {
+    await waitForWelcome(session, WELCOME_TIMEOUT_MS);
+  }
 };
 
 const getSessionOrThrow = (sessionId: string): DeltaVSession => {
@@ -379,8 +442,6 @@ const handleQuickMatchConnect = async (args: {
   });
 
   const sessionId = randomUUID();
-  const wsUrl = buildWsUrl(serverUrl, matched.code, matched.playerToken);
-  const ws = new WebSocket(wsUrl);
   const session: DeltaVSession = {
     sessionId,
     createdAt: Date.now(),
@@ -389,33 +450,19 @@ const handleQuickMatchConnect = async (args: {
     code: matched.code,
     ticket: matched.ticket,
     playerToken: matched.playerToken,
-    ws,
+    ws: null as unknown as WebSocket,
     playerId: null,
     events: [],
     nextEventId: 1,
     lastState: null,
+    connectionStatus: 'connecting',
+    lastDisconnectAt: null,
+    lastDisconnectReason: null,
     stateWaiters: [],
   };
   sessions.set(sessionId, session);
   // Attach listeners before awaiting open so early welcome/state messages are not lost.
-  attachSessionListeners(session);
-  await waitForOpen(ws);
-
-  // Ensure we received the initial welcome/playerId before returning. Some
-  // ws close paths happen before welcome; in those cases, subsequent calls
-  // would fail with Unknown sessionId.
-  const welcomeDeadline = Date.now() + WELCOME_TIMEOUT_MS;
-  while (Date.now() < welcomeDeadline && session.playerId === null) {
-    const remaining = welcomeDeadline - Date.now();
-    // Wait for any next state-bearing message (welcome counts).
-    const arrived = await waitForNextState(session, remaining);
-    if (!arrived) break;
-  }
-  if (session.playerId === null) {
-    throw new Error(
-      `Timed out waiting for welcome/playerId on session ${sessionId}`,
-    );
-  }
+  await connectSessionSocket(session, { awaitWelcome: true });
 
   return toolOk(
     `Connected Delta-V session ${sessionId} (code ${matched.code}).`,
@@ -427,6 +474,7 @@ const handleQuickMatchConnect = async (args: {
       code: matched.code,
       ticket: matched.ticket,
       playerKey,
+      connectionStatus: session.connectionStatus,
       connected: true,
     },
   );
@@ -466,6 +514,9 @@ server.registerTool(
         scenario: session.scenario,
         serverUrl: session.serverUrl,
         playerId: session.playerId,
+        connectionStatus: session.connectionStatus,
+        lastDisconnectAt: session.lastDisconnectAt,
+        lastDisconnectReason: session.lastDisconnectReason,
         eventsBuffered: session.events.length,
         currentPhase: session.lastState?.phase ?? null,
         turnNumber: session.lastState?.turnNumber ?? null,
@@ -494,6 +545,9 @@ server.registerTool(
       matchToken: session.sessionId,
       code: session.code,
       playerId: session.playerId,
+      connectionStatus: session.connectionStatus,
+      lastDisconnectAt: session.lastDisconnectAt,
+      lastDisconnectReason: session.lastDisconnectReason,
       state: session.lastState,
       eventsBuffered: session.events.length,
       latestEventId: session.events.at(-1)?.id ?? 0,
@@ -562,6 +616,54 @@ server.registerTool(
         ...(out as unknown as Record<string, unknown>),
       },
     );
+  },
+);
+
+server.registerTool(
+  'delta_v_reconnect',
+  {
+    description:
+      'Reconnect a local MCP session using its stored code/playerToken after a dropped WebSocket. Keeps the same sessionId and buffered events.',
+    inputSchema: {
+      sessionId: z.string().optional(),
+      matchToken: z.string().optional(),
+    },
+  },
+  async ({ sessionId, matchToken }) => {
+    const resolvedSessionId = resolveSessionIdOrThrow({
+      sessionId,
+      matchToken,
+    });
+    const session = getSessionOrThrow(resolvedSessionId);
+
+    if (
+      session.connectionStatus === 'open' &&
+      session.ws.readyState === WebSocket.OPEN
+    ) {
+      return toolOk(`Session ${resolvedSessionId} is already connected.`, {
+        sessionId: session.sessionId,
+        matchToken: session.sessionId,
+        code: session.code,
+        playerId: session.playerId,
+        connectionStatus: session.connectionStatus,
+        lastDisconnectAt: session.lastDisconnectAt,
+        lastDisconnectReason: session.lastDisconnectReason,
+        reconnected: false,
+      });
+    }
+
+    await connectSessionSocket(session);
+
+    return toolOk(`Reconnected session ${resolvedSessionId}.`, {
+      sessionId: session.sessionId,
+      matchToken: session.sessionId,
+      code: session.code,
+      playerId: session.playerId,
+      connectionStatus: session.connectionStatus,
+      lastDisconnectAt: session.lastDisconnectAt,
+      lastDisconnectReason: session.lastDisconnectReason,
+      reconnected: true,
+    });
   },
 );
 
@@ -730,7 +832,9 @@ server.registerTool(
     });
     const session = getSessionOrThrow(resolvedSessionId);
     if (session.ws.readyState !== WebSocket.OPEN) {
-      throw new Error(`Session ${resolvedSessionId} socket is not open`);
+      throw new Error(
+        `Session ${resolvedSessionId} socket is not open; call delta_v_reconnect first`,
+      );
     }
 
     const shouldAutoGuard = autoGuards ?? true;
@@ -920,7 +1024,9 @@ server.registerTool(
     });
     const session = getSessionOrThrow(resolvedSessionId);
     if (session.ws.readyState !== WebSocket.OPEN) {
-      throw new Error(`Session ${resolvedSessionId} socket is not open`);
+      throw new Error(
+        `Session ${resolvedSessionId} socket is not open; call delta_v_reconnect first`,
+      );
     }
     const action: C2S = { type: 'chat', text: chatText };
     session.ws.send(JSON.stringify(action));
@@ -947,7 +1053,11 @@ server.registerTool(
       matchToken,
     });
     const session = getSessionOrThrow(resolvedSessionId);
-    session.ws.close(1000, 'Closed by MCP tool');
+    try {
+      session.ws.close(1000, 'Closed by MCP tool');
+    } catch {
+      // ignore close races on already-closed sockets
+    }
     sessions.delete(session.sessionId);
     return toolOk(`Closed session ${resolvedSessionId}.`, {
       sessionId: session.sessionId,
