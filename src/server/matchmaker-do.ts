@@ -144,6 +144,17 @@ const normalizeQuickMatchRequest = (
 const ticketFromEntropy = (): string =>
   generatePlayerToken().replace(/_/g, 'A').replace(/-/g, 'B');
 
+const invalidQuickMatchPayload = (): Response =>
+  Response.json(
+    {
+      ok: false,
+      error: 'invalid_payload',
+      message: 'Invalid quick-match payload.',
+      hint: 'Send { player: { playerKey, username? }, scenario? } as JSON.',
+    },
+    { status: 400 },
+  );
+
 /** Synthetic opponent profile for dev-only quick-match bot fill (`DEV_MODE=1`). */
 const buildBotProfile = (humanTicket: string): PublicPlayerProfile => ({
   playerKey: `agent_devqm_${humanTicket}`,
@@ -390,13 +401,13 @@ export class MatchmakerDO extends DurableObject<Env> {
     try {
       payload = await request.json();
     } catch {
-      return new Response('Invalid quick match payload', { status: 400 });
+      return invalidQuickMatchPayload();
     }
 
     const parsed = normalizeQuickMatchRequest(payload);
 
     if (!parsed) {
-      return new Response('Invalid quick match payload', { status: 400 });
+      return invalidQuickMatchPayload();
     }
 
     const leaderboardAgentVerified =
