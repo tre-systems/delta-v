@@ -18,7 +18,10 @@
 // remote MCP via {code, playerToken} keep working, and new agents can opt
 // into the layered token flow without a breaking change.
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import {
+  McpServer,
+  ResourceTemplate,
+} from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
 import {
@@ -40,11 +43,21 @@ import {
   logSampledOperationalEvent,
 } from '../../../src/server/reporting';
 import {
+  type AgentTurnInput,
   buildLeaderboardAgentsResourceDocument,
+  buildMatchLogResourceDocument,
+  buildMatchObservationResourceDocument,
+  buildMatchReplayResourceDocument,
   LEADERBOARD_AGENTS_URI,
   type LeaderboardAgentEntry,
   leaderboardAgentsResource,
   listRulesResources,
+  MATCH_LOG_URI_TEMPLATE,
+  MATCH_OBSERVATION_URI_TEMPLATE,
+  MATCH_REPLAY_URI_TEMPLATE,
+  matchLogUri,
+  matchObservationUri,
+  matchReplayUri,
   RULES_RESOURCE_MIME_TYPE,
   readRulesResourceText,
 } from '../../../src/shared/agent';
@@ -61,6 +74,17 @@ const MCP_MAX_BODY_BYTES = 16 * 1024;
 const SERVER_INTERNAL = 'https://game.internal';
 
 type JsonRecord = Record<string, unknown>;
+type ObservationBody = JsonRecord;
+type EventsBody = JsonRecord & {
+  events?: Array<{
+    id: number;
+    receivedAt: number;
+    type: string;
+    message: unknown;
+  }>;
+  latestEventId?: number;
+  bufferedRemaining?: number;
+};
 
 const text = (body: string): { type: 'text'; text: string } => ({
   type: 'text',
@@ -93,6 +117,83 @@ const callDurableObject = (
 ): Promise<Response> => {
   const stub = env.GAME.get(env.GAME.idFromName(code));
   return stub.fetch(new Request(init.url, init));
+};
+
+const buildHostedMatchObservationResource = async (
+  env: Env,
+  target: MatchTarget,
+): Promise<string> => {
+  const params = buildObservationParams({
+    includeSummary: true,
+    includeLegalActionInfo: true,
+    includeCandidateLabels: true,
+    compactState: true,
+  });
+  params.set('playerToken', target.playerToken);
+  const response = await callDurableObject(env, target.code, {
+    url: `${SERVER_INTERNAL}/mcp/observation?${params.toString()}`,
+    method: 'GET',
+  });
+  const body = (await response.json()) as ObservationBody;
+  if (!response.ok) {
+    fail(`match observation resource failed: ${JSON.stringify(body)}`);
+  }
+  return JSON.stringify(
+    buildMatchObservationResourceDocument(
+      target.code,
+      body as unknown as AgentTurnInput,
+    ),
+    null,
+    2,
+  );
+};
+
+const buildHostedMatchLogResource = async (
+  env: Env,
+  target: MatchTarget,
+): Promise<string> => {
+  const response = await callDurableObject(env, target.code, {
+    url: `${SERVER_INTERNAL}/mcp/events?playerToken=${encodeURIComponent(target.playerToken)}`,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ limit: 200 }),
+  });
+  const body = (await response.json()) as EventsBody;
+  if (!response.ok) {
+    fail(`match log resource failed: ${JSON.stringify(body)}`);
+  }
+  return JSON.stringify(
+    buildMatchLogResourceDocument(
+      target.code,
+      (body.events ?? []) as never,
+      typeof body.latestEventId === 'number' ? body.latestEventId : 0,
+      typeof body.bufferedRemaining === 'number' ? body.bufferedRemaining : 0,
+    ),
+    null,
+    2,
+  );
+};
+
+const buildHostedMatchReplayResource = async (
+  env: Env,
+  target: MatchTarget,
+): Promise<string> => {
+  const response = await callDurableObject(env, target.code, {
+    url: `${SERVER_INTERNAL}/replay?playerToken=${encodeURIComponent(target.playerToken)}`,
+    method: 'GET',
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    fail(`match replay resource failed: ${body}`);
+  }
+  return JSON.stringify(
+    buildMatchReplayResourceDocument(
+      target.code,
+      (await response.json()) as import('../../../src/shared/replay').ReplayTimeline,
+    ),
+    null,
+    2,
+  );
 };
 
 const buildObservationParams = (args: {
@@ -269,6 +370,105 @@ export const buildMcpServer = (
                 null,
                 2,
               ),
+            },
+          ],
+        };
+      },
+    );
+  }
+
+  {
+    const template = new ResourceTemplate(MATCH_OBSERVATION_URI_TEMPLATE, {
+      list: undefined,
+    });
+    server.registerResource(
+      'delta-v-match-observation',
+      template,
+      {
+        title: 'Match Observation',
+        description:
+          'Current agent observation for a live match. Hosted MCP uses matchToken as {id}.',
+        mimeType: RULES_RESOURCE_MIME_TYPE,
+      },
+      async (_uri, variables) => {
+        const id = String(variables.id ?? '');
+        const target = await resolveMatchTarget(
+          { matchToken: id },
+          env,
+          agentIdentity,
+        );
+        return {
+          contents: [
+            {
+              uri: matchObservationUri(id),
+              mimeType: RULES_RESOURCE_MIME_TYPE,
+              text: await buildHostedMatchObservationResource(env, target),
+            },
+          ],
+        };
+      },
+    );
+  }
+
+  {
+    const template = new ResourceTemplate(MATCH_LOG_URI_TEMPLATE, {
+      list: undefined,
+    });
+    server.registerResource(
+      'delta-v-match-log',
+      template,
+      {
+        title: 'Match Log',
+        description:
+          'Buffered append-only event log for a live match. Hosted MCP uses matchToken as {id}.',
+        mimeType: RULES_RESOURCE_MIME_TYPE,
+      },
+      async (_uri, variables) => {
+        const id = String(variables.id ?? '');
+        const target = await resolveMatchTarget(
+          { matchToken: id },
+          env,
+          agentIdentity,
+        );
+        return {
+          contents: [
+            {
+              uri: matchLogUri(id),
+              mimeType: RULES_RESOURCE_MIME_TYPE,
+              text: await buildHostedMatchLogResource(env, target),
+            },
+          ],
+        };
+      },
+    );
+  }
+
+  {
+    const template = new ResourceTemplate(MATCH_REPLAY_URI_TEMPLATE, {
+      list: undefined,
+    });
+    server.registerResource(
+      'delta-v-match-replay',
+      template,
+      {
+        title: 'Match Replay',
+        description:
+          'Latest replay timeline for a live match. Hosted MCP uses matchToken as {id}.',
+        mimeType: RULES_RESOURCE_MIME_TYPE,
+      },
+      async (_uri, variables) => {
+        const id = String(variables.id ?? '');
+        const target = await resolveMatchTarget(
+          { matchToken: id },
+          env,
+          agentIdentity,
+        );
+        return {
+          contents: [
+            {
+              uri: matchReplayUri(id),
+              mimeType: RULES_RESOURCE_MIME_TYPE,
+              text: await buildHostedMatchReplayResource(env, target),
             },
           ],
         };

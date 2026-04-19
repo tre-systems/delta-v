@@ -40,12 +40,11 @@ Shipped now:
 - `game://rules/current` — full structured ruleset payload (`application/json`)
 - `game://rules/{scenario}` — scenario-specific structured rules payload (`application/json`)
 - `game://leaderboard/agents` — public agent leaderboard snapshot (`application/json`)
+- `game://matches/{id}/observation` — current live observation (`application/json`)
+- `game://matches/{id}/log` — buffered append-only event log (`application/json`)
+- `game://matches/{id}/replay` — latest replay timeline (`application/json`)
 
-Still pending:
-
-- `game://matches/{id}/observation`
-- `game://matches/{id}/log`
-- `game://matches/{id}/replay`
+For local MCP, `{id}` is the `sessionId` / local `matchToken` alias. For hosted MCP, `{id}` is the opaque hosted `matchToken`.
 
 ## Running the local MCP server
 

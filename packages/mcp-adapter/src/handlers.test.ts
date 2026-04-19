@@ -8,6 +8,9 @@ import {
 } from '../../../src/server/reporting';
 import {
   LEADERBOARD_AGENTS_URI,
+  MATCH_LOG_URI_TEMPLATE,
+  MATCH_OBSERVATION_URI_TEMPLATE,
+  MATCH_REPLAY_URI_TEMPLATE,
   RULES_CURRENT_URI,
 } from '../../../src/shared/agent';
 import { buildMcpServer, handleMcpHttpRequest } from './handlers';
@@ -255,6 +258,24 @@ describe('handleMcpHttpRequest', () => {
     expect(uris).toContain(LEADERBOARD_AGENTS_URI);
   });
 
+  it('lists the shipped match resource templates', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const res = await handleMcpHttpRequest(
+      post({ jsonrpc: '2.0', id: 211, method: 'resources/templates/list' }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      result: { resourceTemplates: Array<{ uriTemplate: string }> };
+    };
+    const templates = body.result.resourceTemplates.map(
+      (resource) => resource.uriTemplate,
+    );
+    expect(templates).toContain(MATCH_OBSERVATION_URI_TEMPLATE);
+    expect(templates).toContain(MATCH_LOG_URI_TEMPLATE);
+    expect(templates).toContain(MATCH_REPLAY_URI_TEMPLATE);
+  });
+
   it('reads the current rules resource as JSON text', async () => {
     const { env } = buildEnv(() => new Response('{}'));
     const res = await handleMcpHttpRequest(
@@ -339,6 +360,160 @@ describe('handleMcpHttpRequest', () => {
     );
     expect(body.result.contents[0]?.text).toContain('"agent_alpha"');
     expect(body.result.contents[0]?.text).not.toContain('"human_beta"');
+  });
+
+  it('reads the hosted match observation resource via the GAME DO', async () => {
+    const { env, calls } = buildEnv((req) => {
+      if (req.url.includes('/mcp/observation')) {
+        return Response.json({
+          phase: 'astrogation',
+          turnNumber: 1,
+          activePlayer: 0,
+          summary: 'Your turn.',
+          candidates: [],
+          legalActionInfo: null,
+          recommendedIndex: null,
+          state: { phase: 'astrogation', turnNumber: 1, activePlayer: 0 },
+        });
+      }
+      return Response.json({});
+    });
+    const agent = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_resource_observation_1',
+    });
+    const match = await issueMatchToken({
+      secret: TEST_SECRET,
+      code: 'ABCDE',
+      playerToken: 'A'.repeat(32),
+      agentToken: agent.token,
+    });
+    const uri = `game://matches/${match.token}/observation`;
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 231,
+          method: 'resources/read',
+          params: { uri },
+        },
+        agent.token,
+      ),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(calls.at(-1)?.url).toContain('/mcp/observation?');
+    const body = (await res.json()) as {
+      result: { contents: Array<{ text?: string; uri: string }> };
+    };
+    expect(body.result.contents[0]?.uri).toBe(uri);
+    expect(body.result.contents[0]?.text).toContain(
+      '"kind": "matchObservation"',
+    );
+  });
+
+  it('reads the hosted match log resource via the GAME DO', async () => {
+    const { env, calls } = buildEnv((req) => {
+      if (req.url.includes('/mcp/events')) {
+        return Response.json({
+          ok: true,
+          events: [
+            {
+              id: 1,
+              receivedAt: 123,
+              type: 'welcome',
+              message: {
+                type: 'welcome',
+                playerId: 0,
+                code: 'ABCDE',
+                playerToken: 'A'.repeat(32),
+              },
+            },
+          ],
+          latestEventId: 1,
+          bufferedRemaining: 1,
+        });
+      }
+      return Response.json({});
+    });
+    const agent = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_resource_log_1',
+    });
+    const match = await issueMatchToken({
+      secret: TEST_SECRET,
+      code: 'ABCDE',
+      playerToken: 'A'.repeat(32),
+      agentToken: agent.token,
+    });
+    const uri = `game://matches/${match.token}/log`;
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 232,
+          method: 'resources/read',
+          params: { uri },
+        },
+        agent.token,
+      ),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(calls.at(-1)?.url).toContain('/mcp/events?');
+    const body = (await res.json()) as {
+      result: { contents: Array<{ text?: string; uri: string }> };
+    };
+    expect(body.result.contents[0]?.uri).toBe(uri);
+    expect(body.result.contents[0]?.text).toContain('"kind": "matchLog"');
+    expect(body.result.contents[0]?.text).toContain('"latestEventId": 1');
+  });
+
+  it('reads the hosted match replay resource via the GAME DO', async () => {
+    const { env, calls } = buildEnv((req) => {
+      if (req.url.includes('/replay?')) {
+        return Response.json({
+          gameId: 'ABCDE-m1',
+          roomCode: 'ABCDE',
+          matchNumber: 1,
+          scenario: 'duel',
+          createdAt: 123,
+          entries: [],
+        });
+      }
+      return Response.json({});
+    });
+    const agent = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_resource_replay_1',
+    });
+    const match = await issueMatchToken({
+      secret: TEST_SECRET,
+      code: 'ABCDE',
+      playerToken: 'A'.repeat(32),
+      agentToken: agent.token,
+    });
+    const uri = `game://matches/${match.token}/replay`;
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 233,
+          method: 'resources/read',
+          params: { uri },
+        },
+        agent.token,
+      ),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(calls.at(-1)?.url).toContain('/replay?playerToken=');
+    const body = (await res.json()) as {
+      result: { contents: Array<{ text?: string; uri: string }> };
+    };
+    expect(body.result.contents[0]?.uri).toBe(uri);
+    expect(body.result.contents[0]?.text).toContain('"kind": "matchReplay"');
+    expect(body.result.contents[0]?.text).toContain('"gameId": "ABCDE-m1"');
   });
 
   it('forwards delta_v_get_events to the GAME DO', async () => {

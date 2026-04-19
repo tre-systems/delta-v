@@ -1,8 +1,14 @@
 import { SCENARIOS, type ScenarioKey } from '../map-data';
+import type { ReplayTimeline } from '../replay';
+import type { S2C } from '../types/protocol';
+import type { AgentTurnInput } from './types';
 
 export const RULES_RESOURCE_MIME_TYPE = 'application/json';
 export const RULES_CURRENT_URI = 'game://rules/current';
 export const LEADERBOARD_AGENTS_URI = 'game://leaderboard/agents';
+export const MATCH_OBSERVATION_URI_TEMPLATE = 'game://matches/{id}/observation';
+export const MATCH_LOG_URI_TEMPLATE = 'game://matches/{id}/log';
+export const MATCH_REPLAY_URI_TEMPLATE = 'game://matches/{id}/replay';
 
 export interface ListedMcpResource {
   description: string;
@@ -10,6 +16,13 @@ export interface ListedMcpResource {
   name: string;
   title: string;
   uri: string;
+}
+
+export interface MatchLogEntry {
+  id: number;
+  receivedAt: number;
+  type: S2C['type'];
+  message: S2C;
 }
 
 export const rulesScenarioUri = (scenario: ScenarioKey): string =>
@@ -73,6 +86,48 @@ export const leaderboardAgentsResource = (): ListedMcpResource => ({
     'Public agent leaderboard snapshot as structured JSON, ordered by rating.',
   uri: LEADERBOARD_AGENTS_URI,
   mimeType: RULES_RESOURCE_MIME_TYPE,
+});
+
+export const matchObservationUri = (id: string): string =>
+  `game://matches/${id}/observation`;
+
+export const matchLogUri = (id: string): string => `game://matches/${id}/log`;
+
+export const matchReplayUri = (id: string): string =>
+  `game://matches/${id}/replay`;
+
+export const buildMatchObservationResourceDocument = (
+  id: string,
+  observation: AgentTurnInput,
+) => ({
+  version: 1 as const,
+  kind: 'matchObservation' as const,
+  id,
+  observation,
+});
+
+export const buildMatchLogResourceDocument = (
+  id: string,
+  events: MatchLogEntry[],
+  latestEventId: number,
+  bufferedRemaining: number,
+) => ({
+  version: 1 as const,
+  kind: 'matchLog' as const,
+  id,
+  latestEventId,
+  bufferedRemaining,
+  events,
+});
+
+export const buildMatchReplayResourceDocument = (
+  id: string,
+  replay: ReplayTimeline,
+) => ({
+  version: 1 as const,
+  kind: 'matchReplay' as const,
+  id,
+  replay,
 });
 
 export const readRulesResourceDocument = (uri: string): unknown => {

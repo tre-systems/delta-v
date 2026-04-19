@@ -132,6 +132,11 @@ describe('.well-known/agent.json', () => {
     expect(manifest.mcp?.resources).toContain('game://rules/current');
     expect(manifest.mcp?.resources).toContain('game://rules/{scenario}');
     expect(manifest.mcp?.resources).toContain('game://leaderboard/agents');
+    expect(manifest.mcp?.resources).toContain(
+      'game://matches/{id}/observation',
+    );
+    expect(manifest.mcp?.resources).toContain('game://matches/{id}/log');
+    expect(manifest.mcp?.resources).toContain('game://matches/{id}/replay');
   });
 });
 
