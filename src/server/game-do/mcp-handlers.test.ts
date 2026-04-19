@@ -591,6 +591,42 @@ describe('handleMcpRequest', () => {
     void initialPhase;
   });
 
+  it('action route flags autoSkipLikely when control passes away after a phase change', async () => {
+    const stateRef = { current: buildDuelState() };
+    stateRef.current.phase = 'combat';
+    stateRef.current.activePlayer = 0;
+    const built = buildHandlersAgainst(stateRef);
+    const deps = buildDeps({
+      getCurrentGameState: async () => stateRef.current,
+      handlers: built.handlers,
+    });
+
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/action', { playerToken: TOKEN_A }), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: { type: 'skipCombat' },
+          autoGuards: false,
+          waitForResult: true,
+          waitTimeoutMs: 500,
+        }),
+      }),
+    );
+
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      ok: true,
+      accepted: true,
+      actionType: 'skipCombat',
+      autoSkipLikely: true,
+      phaseChanged: true,
+      nextActivePlayer: 1,
+    });
+  });
+
   it('action route reports rejection when guards do not match', async () => {
     const stateRef = { current: buildDuelState() };
     const built = buildHandlersAgainst(stateRef);

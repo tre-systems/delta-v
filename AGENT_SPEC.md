@@ -81,7 +81,7 @@ Canonical tool catalog for local (stdio) and remote (HTTP) MCP: [docs/DELTA_V_MC
 delta_v_quick_match_connect  →  delta_v_wait_for_turn  →  pick candidate  →  delta_v_send_action  →  loop
 ```
 
-`delta_v_wait_for_turn` blocks until it is this agent's turn; agents do not poll. `delta_v_send_action` auto-stamps `ActionGuards` by default so stale submissions are rejected with fresh state rather than silently accepted. For hosted MCP, clients must send `Accept: application/json, text/event-stream` on `POST /mcp`.
+`delta_v_wait_for_turn` blocks until it is this agent's turn; agents do not poll. `delta_v_send_action` auto-stamps `ActionGuards` by default so stale submissions are rejected with fresh state rather than silently accepted. When the action result carries `autoSkipLikely: true`, agents should `wait_for_turn` instead of immediately submitting the returned `nextPhase`. For hosted MCP, clients must send `Accept: application/json, text/event-stream` on `POST /mcp`.
 
 ### 3.2 Resources
 
