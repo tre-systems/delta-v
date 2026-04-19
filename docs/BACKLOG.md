@@ -235,17 +235,6 @@ Two actions: (1) document the shipped two-layer behavior accurately (`agent.json
 
 **Files:** `static/.well-known/agent.json`, `wrangler.toml`, `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`
 
-### Missing `/favicon.ico` and `/apple-touch-icon.png`
-
-Both return 404. Every browser request for the favicon (which is automatic on every page load) generates a 404 in the Worker logs and a network error in the user's DevTools console. iOS PWA "Add to Home Screen" falls back to a generic icon without `/apple-touch-icon.png`. Either:
-
-- ship a 32×32 favicon at `/favicon.ico` and a 180×180 PNG at `/apple-touch-icon.png` (one-line each in `static/`), or
-- have the Worker serve both as 200 redirects to the existing `/icons/icon-192.png`.
-
-Found via R1 (path sweep) + browser DevTools inspection.
-
-**Files:** `static/`, `esbuild.client.mjs` (asset bundling), `src/server/index.ts` (or wherever asset routing happens)
-
 ### `delta-v:tokens` localStorage accumulates without cleanup
 
 After ~6 matches my browser's `localStorage['delta-v:tokens']` had stored 6 distinct game-code → playerToken pairs (`QUGQF`, `CTD4V`, `9M7YA`, `VX6SS`, `T8CHP`, `E65LY`). None of the corresponding matches are joinable any more (long since completed or abandoned), so the entries are just dead weight. Beyond storage growth, each entry is an active credential — anyone with access to the device's localStorage could theoretically replay any of these matches if the Worker would still accept the token. Bound the cache: drop entries older than 24h or whose match has reached `gameOver`, and confirm the server invalidates `playerToken` on game-archive write.
