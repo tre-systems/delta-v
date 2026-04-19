@@ -94,12 +94,19 @@ export const attachLocalGameSessionPersistence = (
   storage: LocalSessionStorageLike,
   ctx: LocalSessionPersistenceContext,
   now: () => number = () => Date.now(),
-): Dispose =>
-  effect(() => {
+): Dispose => {
+  let isFirstRun = true;
+
+  return effect(() => {
     const isLocalGame = ctx.isLocalGameSignal.value;
     const clientState = ctx.stateSignal.value;
     const gameState = ctx.gameStateSignal.value;
     const playerId = ctx.playerIdSignal.value;
+    const isInitialBlankState =
+      !isLocalGame &&
+      gameState === null &&
+      clientState === 'menu' &&
+      playerId === -1;
 
     if (
       !isLocalGame ||
@@ -108,10 +115,17 @@ export const attachLocalGameSessionPersistence = (
       clientState === 'gameOver' ||
       (playerId !== 0 && playerId !== 1)
     ) {
+      if (isFirstRun && isInitialBlankState) {
+        isFirstRun = false;
+        return;
+      }
+
+      isFirstRun = false;
       deleteStoredLocalGameSession(storage);
       return;
     }
 
+    isFirstRun = false;
     saveStoredLocalGameSession(storage, {
       version: 1,
       scenario: ctx.scenario,
@@ -121,3 +135,4 @@ export const attachLocalGameSessionPersistence = (
       updatedAt: now(),
     });
   });
+};
