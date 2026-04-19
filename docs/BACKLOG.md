@@ -279,6 +279,8 @@ Tighten scenario/body registries around closed keys; brand ship / ordnance ident
 
 **Done for this slice:** combat payload parsing now brands `targetId` as `ShipId` or `OrdnanceId` at validation time based on `targetType`, instead of pushing an untyped string through the shared combat path until later casts.
 
+**Done for this slice:** shared combat resolution and conflict projection now narrow ship-vs-ordnance targets with explicit guards, so those hot paths no longer need ad hoc `as ShipId` / `as OrdnanceId` assertions after `targetType` checks.
+
 **Files:** `src/shared/hex.ts`, `src/shared/ids.ts`, `src/shared/map-data.ts`, `src/shared/types/domain.ts`, `src/server/room-routes.ts`, `src/server/game-do/http-handlers.ts`, `src/client/game/main-session-network.ts`
 
 ---

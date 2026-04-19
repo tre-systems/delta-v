@@ -13,13 +13,14 @@ import {
 } from '../combat';
 import { ANTI_NUKE_ODDS, SHIP_STATS } from '../constants';
 import { hexDistance, hexKey } from '../hex';
-import type { OrdnanceId, ShipId } from '../ids';
 import {
   type CombatAttack,
   type CombatResult,
   type EngineError,
   ErrorCode,
   type GameState,
+  isOrdnanceTargetCombatResult,
+  isShipTargetCombatResult,
   type Ordnance,
   type PlayerId,
   type Ship,
@@ -235,19 +236,19 @@ const combatResultToEvents = (
     },
   ];
 
-  if (r.targetType === 'ship') {
+  if (isShipTargetCombatResult(r)) {
     const target = state.ships.find((ship) => ship.id === r.targetId);
     if (r.damageType === 'eliminated' || target?.lifecycle === 'destroyed') {
       events.push({
         type: 'shipDestroyed',
-        shipId: r.targetId as ShipId,
+        shipId: r.targetId,
         cause: r.attackType,
       });
     }
-  } else if (r.damageType === 'eliminated') {
+  } else if (isOrdnanceTargetCombatResult(r) && r.damageType === 'eliminated') {
     events.push({
       type: 'ordnanceDestroyed',
-      ordnanceId: r.targetId as OrdnanceId,
+      ordnanceId: r.targetId,
       cause: r.attackType,
     });
   }

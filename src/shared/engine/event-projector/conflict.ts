@@ -1,6 +1,6 @@
 import { DAMAGE_ELIMINATION_THRESHOLD, ORDNANCE_MASS } from '../../constants';
-import type { ShipId } from '../../ids';
 import type { GameState, Result } from '../../types/domain';
+import { isShipTargetCombatAttackEvent } from '../engine-events';
 import type { ConflictProjectionEvent } from './support';
 import {
   cloneGravityEffects,
@@ -197,15 +197,17 @@ export const projectConflictEvent = (
         targetKey,
       ];
 
-      if (event.targetType === 'ordnance' || event.damageType === 'none') {
+      if (
+        !isShipTargetCombatAttackEvent(event) ||
+        event.damageType === 'none'
+      ) {
         return {
           ok: true,
           value: state,
         };
       }
 
-      // After the ordnance guard above, targetId is a ShipId
-      const projectedShip = requireShip(state, event.targetId as ShipId);
+      const projectedShip = requireShip(state, event.targetId);
 
       if (!projectedShip.ok) {
         return projectedShip;

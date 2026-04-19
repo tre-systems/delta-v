@@ -32,14 +32,25 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Never intercept non-GET requests or API routes
+  // Never intercept non-GET requests, API routes, or any other dynamic
+  // server endpoints that must always hit the network. Stale-while-
+  // revalidate on these silently shows pre-wipe leaderboard / match
+  // data and breaks any client expecting fresh authoritative state.
   if (
     event.request.method !== 'GET' ||
+    url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/ws/') ||
     url.pathname === '/create' ||
     url.pathname.startsWith('/join/') ||
+    url.pathname.startsWith('/quick-match') ||
+    url.pathname.startsWith('/replay/') ||
+    url.pathname === '/mcp' ||
+    url.pathname.startsWith('/healthz') ||
+    url.pathname.startsWith('/health') ||
+    url.pathname.startsWith('/status') ||
     url.pathname === '/error' ||
-    url.pathname === '/telemetry'
+    url.pathname === '/telemetry' ||
+    url.pathname === '/version.json'
   ) {
     return;
   }
