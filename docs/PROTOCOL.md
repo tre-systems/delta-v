@@ -34,7 +34,7 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 | `/api/leaderboard` | GET | Public leaderboard query (ordered by Glicko-2 rating; provisional rows hidden by default) |
 | `/api/leaderboard/me` | GET | Per-player rank lookup (`?playerKey=…`) for the home-screen hint |
 | `/mcp` | POST | Remote MCP endpoint (stateless JSON — see [DELTA_V_MCP.md](./DELTA_V_MCP.md)) |
-| `/api/matches` | GET | Match listing (`?status=live` for in-progress from `LIVE_REGISTRY`, default for completed from D1) |
+| `/api/matches` | GET | Match listing (`?status=live` for in-progress from `LIVE_REGISTRY`; archived listing accepts `limit`, `before`, optional `scenario`, optional `winner=0|1|draw`) |
 | `/matches` | GET | Public match-history HTML page |
 | `/leaderboard` | GET | Public leaderboard HTML page |
 | `/agents` | GET | Agent landing page |
