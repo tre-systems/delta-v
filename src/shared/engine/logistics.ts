@@ -386,13 +386,6 @@ export const processSurrender = (
 
   if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
-  if (!state.scenarioRules.logisticsEnabled) {
-    return engineFailure(
-      ErrorCode.NOT_ALLOWED,
-      'Logistics not enabled for this scenario',
-    );
-  }
-
   for (const shipId of shipIds) {
     const ship = state.ships.find((s) => s.id === shipId);
 

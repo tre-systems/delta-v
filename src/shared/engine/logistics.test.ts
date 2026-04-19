@@ -134,7 +134,7 @@ describe('processSurrender', () => {
     const result = processSurrender(state, 0, [asShipId('s1')]);
     expect('error' in result).toBe(true);
   });
-  it('rejects surrender when logistics not enabled', () => {
+  it('allows surrender even when logistics is disabled', () => {
     const ship = makeShip({ id: asShipId('s1'), owner: 0 });
     const state = makeState([ship], {
       phase: 'astrogation',
@@ -142,7 +142,7 @@ describe('processSurrender', () => {
       scenarioRules: {},
     });
     const result = processSurrender(state, 0, [asShipId('s1')]);
-    expect('error' in result).toBe(true);
+    expect('error' in result).toBe(false);
   });
   it('surrenders multiple ships', () => {
     const s1 = makeShip({ id: asShipId('s1'), owner: 0 });
