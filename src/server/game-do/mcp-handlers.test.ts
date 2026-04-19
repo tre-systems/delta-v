@@ -878,10 +878,9 @@ describe('handleMcpRequest', () => {
         }),
       }),
     );
-    expect(res?.status).toBe(400);
+    expect(res?.status).toBe(200);
     const body = (await res?.json()) as Record<string, unknown>;
-    // Duel disallows logistics/surrender, but shorthand should now parse and
-    // reach engine validation (not fail schema validation).
-    expect(body.error).toBe('Logistics not enabled for this scenario');
+    expect(body.ok).toBe(true);
+    expect(body.accepted).toBe(true);
   });
 });
