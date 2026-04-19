@@ -209,7 +209,9 @@ Gaps in local vs hosted MCP parity, first-class resources, and structured reject
 
 **Done for this slice:** submitter-only `actionAccepted` now carries `guardStatus: inSync | stalePhaseForgiven` so local MCP, hosted MCP, browser clients, and agent scripts can distinguish forgiven phase drift from fully in-sync submissions without overloading `actionRejected`.
 
-**Remaining:** richer discrimination for engine-level invalidations that still surface as generic `error` today.
+**Done for this slice:** engine validation/resource failures that are still submitter-scoped now map into typed `actionRejected` reasons instead of collapsing to a generic `error` transport message.
+
+**Remaining:** extend the structured rejection coverage to any remaining engine-invalid paths that still escape through generic `error`.
 
 **Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/protocol.ts`, `src/shared/protocol.ts`, `scripts/delta-v-mcp-server.ts`, `src/client/game/client-message-plans.ts`
 
