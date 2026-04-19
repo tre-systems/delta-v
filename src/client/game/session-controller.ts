@@ -9,6 +9,7 @@ import {
 import { TOAST } from '../messages/toasts';
 import {
   resetReconnectAttempts,
+  setAIDifficulty,
   setGameCode,
   setIsLocalGame,
   setLatencyMs,
@@ -21,6 +22,7 @@ import {
   setWaitingScreenState,
 } from './client-context-store';
 import { clearClientGameState } from './game-state-store';
+import type { StoredLocalGameSession } from './local-session-store';
 import { deriveGameStartClientState } from './network';
 import type { ClientState } from './phase';
 import type { ClientSession } from './session-model';
@@ -226,6 +228,51 @@ const prepareLocalSession = (ctx: LocalSessionPrepState): void => {
   clearReconnectUiState(ctx);
 };
 
+const completeLocalGameSession = (
+  deps: LocalGameSessionDeps,
+  scenario: string,
+  state: GameState,
+  playerId: PlayerId,
+  mode: 'new' | 'restored',
+): void => {
+  prepareLocalSession(deps.ctx);
+  setScenario(deps.ctx, scenario);
+  setPlayerId(deps.ctx, playerId);
+  deps.resetTurnTelemetry();
+  setTransport(deps.ctx, deps.createLocalTransport());
+  deps.clearTrails();
+  deps.clearLog();
+  deps.setChatEnabled(false);
+  deps.logText(
+    `${mode === 'restored' ? 'Restored vs AI' : 'vs AI'} (${deps.ctx.aiDifficulty}) \u2014 ${deps.getScenarioName(scenario)}`,
+  );
+
+  if (mode === 'new') {
+    deps.trackGameCreated({
+      scenario,
+      mode: 'local',
+      difficulty: deps.ctx.aiDifficulty,
+    });
+  }
+
+  deps.applyGameState(state);
+  deps.logScenarioBriefing();
+
+  const gameState = deps.ctx.gameState;
+
+  if (!gameState) {
+    return;
+  }
+
+  const nextState = deriveGameStartClientState(gameState, deps.ctx.playerId);
+
+  deps.setState(nextState);
+
+  if (nextState === 'playing_opponentTurn') {
+    deps.runLocalAI();
+  }
+};
+
 export const completeCreatedGameSession = (
   deps: CreatedGameSessionDeps,
   scenario: string,
@@ -254,8 +301,6 @@ export const startLocalGameSession = (
   deps: LocalGameSessionDeps,
   scenario: string,
 ): void => {
-  prepareLocalSession(deps.ctx);
-  setScenario(deps.ctx, scenario);
   const forcedSide = (globalThis as Record<string, unknown>)
     .__DELTAV_FORCE_PLAYER_SIDE;
   const humanSide = (
@@ -265,9 +310,6 @@ export const startLocalGameSession = (
         ? 0
         : 1
   ) as PlayerId;
-  setPlayerId(deps.ctx, humanSide);
-  deps.resetTurnTelemetry();
-  setTransport(deps.ctx, deps.createLocalTransport());
 
   const result = deps.createLocalGameState(scenario);
 
@@ -275,35 +317,21 @@ export const startLocalGameSession = (
     throw new Error(result.error.message);
   }
 
-  const state = result.value;
+  completeLocalGameSession(deps, scenario, result.value, humanSide, 'new');
+};
 
-  deps.clearTrails();
-  deps.clearLog();
-  deps.setChatEnabled(false);
-  deps.logText(
-    `vs AI (${deps.ctx.aiDifficulty}) \u2014 ${deps.getScenarioName(scenario)}`,
+export const resumeLocalGameSession = (
+  deps: LocalGameSessionDeps,
+  snapshot: StoredLocalGameSession,
+): void => {
+  setAIDifficulty(deps.ctx, snapshot.aiDifficulty);
+  completeLocalGameSession(
+    deps,
+    snapshot.scenario,
+    snapshot.gameState,
+    snapshot.playerId,
+    'restored',
   );
-  deps.trackGameCreated({
-    scenario,
-    mode: 'local',
-    difficulty: deps.ctx.aiDifficulty,
-  });
-  deps.applyGameState(state);
-  deps.logScenarioBriefing();
-
-  const gameState = deps.ctx.gameState;
-
-  if (!gameState) {
-    return;
-  }
-
-  const nextState = deriveGameStartClientState(gameState, deps.ctx.playerId);
-
-  deps.setState(nextState);
-
-  if (nextState === 'playing_opponentTurn') {
-    deps.runLocalAI();
-  }
 };
 
 export const beginSpectateGameSession = (

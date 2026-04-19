@@ -12,12 +12,20 @@ describe('autoJoinFromUrl', () => {
     const joinGame = vi.fn();
     const spectateGame = vi.fn();
     const viewArchivedReplay = vi.fn();
+    const resumeLocalGame = vi.fn(() => false);
     const setMenuState = vi.fn();
 
-    autoJoinFromUrl(joinGame, spectateGame, viewArchivedReplay, setMenuState);
+    autoJoinFromUrl(
+      joinGame,
+      spectateGame,
+      viewArchivedReplay,
+      resumeLocalGame,
+      setMenuState,
+    );
 
     expect(window.location.search).toBe('');
     expect(joinGame).not.toHaveBeenCalled();
+    expect(resumeLocalGame).toHaveBeenCalledOnce();
     expect(setMenuState).toHaveBeenCalledOnce();
   });
 
@@ -25,9 +33,26 @@ describe('autoJoinFromUrl', () => {
     history.replaceState(null, '', '/?code=ABCDE');
     const joinGame = vi.fn();
 
-    autoJoinFromUrl(joinGame, vi.fn(), vi.fn(), vi.fn());
+    autoJoinFromUrl(
+      joinGame,
+      vi.fn(),
+      vi.fn(),
+      vi.fn(() => false),
+      vi.fn(),
+    );
 
     expect(window.location.search).toBe('?code=ABCDE');
     expect(joinGame).toHaveBeenCalledWith('ABCDE', null);
+  });
+
+  it('restores a local game when there is no URL-driven session', () => {
+    const resumeLocalGame = vi.fn(() => true);
+    const setMenuState = vi.fn();
+
+    autoJoinFromUrl(vi.fn(), vi.fn(), vi.fn(), resumeLocalGame, setMenuState);
+
+    expect(resumeLocalGame).toHaveBeenCalledOnce();
+    expect(setMenuState).not.toHaveBeenCalled();
+    expect(window.location.pathname).toBe('/');
   });
 });
