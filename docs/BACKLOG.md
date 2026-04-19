@@ -240,6 +240,57 @@ Pick the `/api/claim-name` shape as the standard and bring the others up to it: 
 
 **Files:** `src/server/index.ts`, `src/server/room-routes.ts`, `src/server/quick-match-route.ts` (or wherever quick-match enqueue lives)
 
+### CRITICAL: DO close handler crashes after a code deploy → match outcomes lost
+
+`wrangler tail` captured during a 2026-04-19 paired match:
+
+```
+TypeError: The Durable Object's code has been updated, this version can no longer access storage.
+  at async GameDO.getGameCode (index.js:45700:12)
+  at async Promise.all (index 0)
+  at async GameDO.getLatestGameId (index.js:45754:33)
+  at async GameDO.getCurrentGameState (index.js:45666:20)
+  at async handleGameDoWebSocketClose (index.js:45582:21)
+```
+
+When a Worker version rolls out while long-lived `GameDO` instances are still alive, Cloudflare evicts the old DO and any storage access from old code throws. The exception fires inside the **WebSocket close handler** — the same handler that's responsible for triggering match-archive writes when a player disconnects. Concretely: any match where one or both players disconnect during a deploy window risks losing its `match_archive` row, R2 archive object, and `match_rating` rows. Result: rated outcomes silently dropped during deploy windows.
+
+Fix options: (a) wrap close-handler storage calls in try/catch with a structured `console.error` and a fallback re-route to a fresh DO instance via `state.storage.fetch` or a sibling DO; (b) gate code deploys on zero in-flight games (use the live-registry count); (c) document the deploy-window hazard in [OBSERVABILITY.md](./OBSERVABILITY.md) and accept lossy archives as the trade-off.
+
+This is the highest-priority finding from the 2026-04-19 pass — it directly threatens leaderboard integrity. Found via R8.
+
+**Files:** `src/server/game-do/game-do.ts`, `src/server/game-do/archive.ts`, `src/server/game-do/ws.ts`, `docs/OBSERVABILITY.md`
+
+### Surrender silently disabled in `duel`; misleading "Logistics not enabled" error
+
+`POST` action `{"type":"surrender"}` against a duel scenario returns `{"error":"Logistics not enabled for this scenario"}` (verified 2026-04-19; test `mcp-handlers.test.ts:648` enshrines this). Two distinct issues:
+
+1. **Behavioural**: surrender is a fundamental "I quit" mechanic. Disabling it in `duel` (and possibly other scenarios) leaves the only out as drifting/dying. `/agent-playbook.json` `phaseActionMap.astrogation.legalC2S` lists `surrender` unconditionally, so an agent following the documented contract gets rejected.
+2. **UX/wording**: the rejection message names the wrong subsystem. An agent looking at the logistics phase to debug will find nothing; the actual issue is scenario-level surrender allow-listing. Either always allow surrender (recommended), or return `{error:"surrender_not_allowed", message:"Surrender is not enabled for scenario duel"}` so the message matches the action.
+
+Cross-references the doc-vs-behaviour drift item in **Agent & MCP ergonomics**.
+
+**Files:** `src/shared/engine/logistics.ts`, `src/server/game-do/actions.ts`, `static/agent-playbook.json`, `src/server/game-do/mcp-handlers.test.ts` (update assertion)
+
+### Matchmaker pairs the same agent identity into two simultaneous matches
+
+Sequence captured 2026-04-19 (with `wrangler tail` and `match_rating`):
+
+1. `delta_v_quick_match_connect({username:"QA_Probe_3"})` → enqueued, **timed out client-side** after 30 s. Server-side ticket apparently not cleaned up.
+2. Browser queued (`QA_Probe_B`).
+3. `delta_v_quick_match_connect({username:"QA_Probe_M"})` → enqueued.
+4. Within 600 ms, the matchmaker emitted two `matchmaker_paired` log lines: `E65LY` paired browser ↔ `agent_mcp_1f1dfd39d380` (QA_Probe_3) and `XVSZQ` paired QA_Probe_M ↔ same `agent_mcp_1f1dfd39d380`.
+
+Result: the QA_Probe_3 player record now shows `games_played: 2` from a single ticket. This violates the implicit invariant "one active match per playerKey" and lets a stalled / abandoned client passively log multiple rated outcomes. In the `match_rating` table this reads as the same player's rating evolving in two simultaneous games, which the Glicko-2 update assumes is sequential. Either invalidate orphan tickets when the corresponding WebSocket never connects within N seconds, or reject any pairing whose `playerKey` is already in an active `LiveRegistryDO` entry. Found via R8 + leaderboard inspection.
+
+**Files:** `src/server/matchmaker-do.ts`, `src/server/live-registry-do.ts`, `src/shared/agent/quick-match.ts`, `src/server/leaderboard/`
+
+### Leaderboard pollution from exploratory test traffic
+
+The 2026-04-19 paired test left three rows in the public `player` table (`QA_Probe_M`, `QA_Probe_3`, `QA_Probe_B`) with non-default Glicko-2 ratings, all visible at `/api/leaderboard?includeProvisional=true`. Pre-launch this is fine to wipe (and is in fact the third such wipe this week), but post-launch any exploratory pass that pairs against a real or test opponent will accrete leaderboard pollution unless tests use a reserved username prefix that the leaderboard handler filters out (e.g. `QA_*`, `Probe_*`, or a `?test=1` query in `/api/agent-token`). Add a server-side filter so the public leaderboard view excludes a named test prefix, and update [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md) anti-patterns with the chosen prefix convention.
+
+**Files:** `src/server/leaderboard/`, `src/server/auth/issue-route.ts`, `docs/EXPLORATORY_TESTING.md`
+
 ---
 
 ## Architecture & correctness
