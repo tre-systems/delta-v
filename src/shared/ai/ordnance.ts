@@ -484,6 +484,31 @@ export const evaluateOrdnanceLaunchIntercept = (
   };
 };
 
+export const scoreOrdnanceInterceptTarget = (
+  state: GameState,
+  playerId: PlayerId,
+  shipId: Ship['id'],
+  targetShipId: Ship['id'],
+  map: SolarSystemMap,
+): number | null => {
+  const ship = state.ships.find(
+    (candidate) =>
+      candidate.id === shipId &&
+      candidate.owner === playerId &&
+      candidate.lifecycle === 'active',
+  );
+  const target = state.ships.find(
+    (candidate) =>
+      candidate.id === targetShipId &&
+      candidate.owner !== playerId &&
+      candidate.lifecycle !== 'destroyed',
+  );
+  if (!ship || !target) {
+    return null;
+  }
+  return scoreEnemyTarget(ship, target, state, playerId, map).score;
+};
+
 const scoreEnemyTarget = (
   ship: Ship,
   enemy: Ship,
