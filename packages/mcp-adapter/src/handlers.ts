@@ -262,7 +262,7 @@ export const buildMcpServer = (
     'delta_v_quick_match_connect',
     {
       description:
-        'Alias for delta_v_quick_match so local and hosted MCP can share one quick-match entry point name.',
+        'Alias for delta_v_quick_match so local and hosted MCP can share one quick-match entry point name. If the first actionable observation is still fleetBuilding, send fleetReady explicitly; that phase advances only after both seats submit it.',
       inputSchema: quickMatchInputSchema,
     },
     quickMatchHandler,
@@ -311,7 +311,7 @@ export const buildMcpServer = (
     'delta_v_wait_for_turn',
     {
       description:
-        "Block (server-side) until it's the caller's turn to act (fleetBuilding: both seats; later phases including astrogation: activePlayer must match this seat), then return a fresh observation. Default 25 s timeout — issue successive calls for longer waits. Returns { actionable: false, timedOut: true } on timeout instead of throwing.",
+        "Block (server-side) until it's the caller's turn to act (fleetBuilding: both seats; later phases including astrogation: activePlayer must match this seat), then return a fresh observation. If the returned observation is still fleetBuilding, the seat still needs to send fleetReady explicitly. Default 25 s timeout — issue successive calls for longer waits. Returns { actionable: false, timedOut: true } on timeout instead of throwing.",
       inputSchema: {
         ...matchTargetSchema,
         timeoutMs: z.number().int().min(1_000).max(25_000).optional(),

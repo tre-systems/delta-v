@@ -24,7 +24,7 @@
     },
     "astrogation": {
       "legalC2S": ["astrogation", "surrender"],
-      "simultaneous": true,
+      "simultaneous": false,
       "requiredShape": {
         "type": "astrogation",
         "orders": "AstrogationOrder[]"
