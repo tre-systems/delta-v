@@ -18,8 +18,10 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
+- *Local Play-vs-AI restore-after-reload is broken by a startup race* — the `attachLocalGameSessionPersistence` effect in [src/client/game/local-session-store.ts:93-123](../src/client/game/local-session-store.ts) fires immediately at client startup when `gameState` is still null and `clientState` is `'menu'`, hits its else branch, and calls `deleteStoredLocalGameSession` **before** `resumeLocalGame()` in `autoJoinFromUrl` has a chance to read it. Net effect: the saved session is silently consumed on every reload, the player lands at the lobby, and the shipped "restore local AI sessions after reload" feature never actually restores. Reproduced 2026-04-19 on production: saved-key `delta-v:local-game` existed (~1.6 KB) before reload, vanished post-reload, lobby shown without any restore toast. **Fix:** either guard the effect so it never deletes on the initial firing (track `hasEverSaved` flag), or call `loadStoredLocalGameSession` + `resumeLocalGameFromMain` **synchronously before** `attachLocalGameSessionPersistence` is attached. Add a regression test that simulates the full startup order.
 - *`/healthz` body unpopulated* (Agent & MCP ergonomics) — `sha:null, bootedAt:"1970-01-01..."` (re-re-verified 2026-04-19). Deploy-gate monitors that compare `sha` against pipeline build will always pass.
 - *`/api/agent-token` rate limit barely fires* — 50-burst got 46 successes, 4 throttled (re-re-verified 2026-04-19). Documented 5/60s; actual ~45/60s per-IP per-colo.
+- *Reserved-name blocklist missing `owner`* (Cost & abuse hardening) — most operator names now 409 with `username_reserved`, but `owner` was still claimable on a fresh playerKey 2026-04-19. Extend the blocklist to include it.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
 
@@ -204,12 +206,6 @@ Gaps in local vs hosted MCP parity, first-class resources, and structured reject
 **Remaining:** richer discrimination for engine-level invalidations that still surface as generic `error` today.
 
 **Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/protocol.ts`, `src/shared/protocol.ts`, `scripts/delta-v-mcp-server.ts`, `src/client/game/client-message-plans.ts`
-
-### Match-isolation flag for automated verification
-
-During exploratory pairing on the production server, an MCP agent and a paired browser seat were split across the public queue — the browser matched a real user instead of the intended MCP partner, making exploratory / regression testing both flaky and user-disruptive. Options: a `delta_v_quick_match_connect({ scenario, rendezvousCode })` mode that pairs only with clients presenting the same short code (bypassing the public queue), a `private: true` flag that puts the ticket in a segregated pool, or a dev-only scenario namespace (e.g. `duel:test`) that never mixes with public queues.
-
-**Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/server/`, `src/shared/agent/quick-match.ts`
 
 ### Retire legacy `{code, playerToken}` tool args once leaderboard stabilises
 
