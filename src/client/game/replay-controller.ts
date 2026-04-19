@@ -1,4 +1,4 @@
-import type { ReplayTimeline } from '../../shared/replay';
+import type { ReplayEntry, ReplayTimeline } from '../../shared/replay';
 import type { GameState } from '../../shared/types/domain';
 import { TOAST } from '../messages/toasts';
 import { type ReadonlySignal, signal } from '../reactive';
@@ -12,7 +12,9 @@ import {
   shiftReplaySelection,
 } from './replay-selection';
 
-const PLAY_INTERVAL_MS = 600;
+// Minimum dwell between replay frames when not animating. Long enough to read
+// a snap-only state (e.g. ordnance launch, logistics) before advancing.
+const SNAP_DWELL_MS = 800;
 
 interface ReplayControllerDeps {
   getClientContext: () => {
@@ -27,6 +29,16 @@ interface ReplayControllerDeps {
   clearTrails: () => void;
   applyGameState: (state: GameState) => void;
   frameOnActivePlayer: (state: GameState) => void;
+  // Drive a replay entry through the live presentation pipeline so that
+  // movement/combat events trigger the same animations as during play. The
+  // host is expected to apply state, kick off any animations, and invoke
+  // `onAnimationsDone` when the entry has fully played out (callers may
+  // invoke synchronously when there is nothing to animate).
+  presentReplayEntry: (
+    entry: ReplayEntry,
+    previousState: GameState | null,
+    onAnimationsDone: () => void,
+  ) => void;
 }
 
 export interface ReplayController {
@@ -53,15 +65,19 @@ export const createReplayController = (
   let replayIndex: number | null = null;
   let replaySourceState: GameState | null = null;
   let selectedReplayGameId: string | null = null;
-  let playIntervalId: ReturnType<typeof setInterval> | null = null;
+  let playToken: number | null = null;
+  let playTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let pendingAnimationToken: number | null = null;
   const controlsSignal = signal(createHiddenReplayControls());
 
-  const isPlaying = () => playIntervalId !== null;
+  const isPlaying = () => playToken !== null;
 
   const stopPlay = () => {
-    if (playIntervalId !== null) {
-      clearInterval(playIntervalId);
-      playIntervalId = null;
+    playToken = null;
+    pendingAnimationToken = null;
+    if (playTimeoutId !== null) {
+      clearTimeout(playTimeoutId);
+      playTimeoutId = null;
     }
   };
 
@@ -178,16 +194,44 @@ export const createReplayController = (
     selectedReplayGameId = null;
   };
 
-  const applyReplayEntry = (index: number) => {
+  // Apply a single replay entry. When `animateContinuation` is supplied we
+  // hand the entry off to the host's presentation pipeline so movement/combat
+  // play with full animations, and the continuation fires once those are
+  // done. When omitted we snap directly to the entry's state (used for
+  // manual scrubbing where the user is in control of pacing).
+  const applyReplayEntry = (
+    index: number,
+    animateContinuation?: () => void,
+  ) => {
     if (!replayTimeline) return;
     const entry = replayTimeline.entries[index];
     if (!entry) return;
+    const previousState = deps.getClientContext().gameState;
+
+    if (animateContinuation) {
+      deps.presentReplayEntry(entry, previousState, animateContinuation);
+      deps.frameOnActivePlayer(entry.message.state);
+      return;
+    }
+
     deps.clearTrails();
     deps.applyGameState(entry.message.state);
     deps.frameOnActivePlayer(entry.message.state);
   };
 
-  const stepForward = () => {
+  const scheduleNextEntry = (token: number) => {
+    if (token !== playToken) return;
+    if (playTimeoutId !== null) {
+      clearTimeout(playTimeoutId);
+    }
+    playTimeoutId = setTimeout(() => {
+      playTimeoutId = null;
+      stepForward(token);
+    }, SNAP_DWELL_MS);
+  };
+
+  const stepForward = (token: number) => {
+    if (token !== playToken) return;
     if (!replayTimeline || replayIndex === null) return;
     const maxIndex = replayTimeline.entries.length - 1;
     if (replayIndex >= maxIndex) {
@@ -196,7 +240,35 @@ export const createReplayController = (
       return;
     }
     replayIndex = replayIndex + 1;
-    applyReplayEntry(replayIndex);
+    pendingAnimationToken = token;
+    applyReplayEntry(replayIndex, () => {
+      if (pendingAnimationToken !== token) return;
+      pendingAnimationToken = null;
+      scheduleNextEntry(token);
+    });
+    updateOverlay();
+  };
+
+  const startPlay = () => {
+    if (!replayTimeline || replayIndex === null) return;
+    if (isPlaying()) return;
+
+    const maxIndex = replayTimeline.entries.length - 1;
+    const token = (playToken ?? 0) + 1;
+    playToken = token;
+
+    if (replayIndex >= maxIndex) {
+      replayIndex = 0;
+      pendingAnimationToken = token;
+      applyReplayEntry(replayIndex, () => {
+        if (pendingAnimationToken !== token) return;
+        pendingAnimationToken = null;
+        scheduleNextEntry(token);
+      });
+    } else {
+      scheduleNextEntry(token);
+    }
+
     updateOverlay();
   };
 
@@ -296,7 +368,7 @@ export const createReplayController = (
       replayTimeline = timeline;
       replayIndex = 0;
       applyReplayEntry(replayIndex);
-      updateOverlay();
+      startPlay();
     },
     togglePlay: () => {
       if (!replayTimeline || replayIndex === null) return;
@@ -307,15 +379,7 @@ export const createReplayController = (
         return;
       }
 
-      // If at the end, restart from the beginning
-      const maxIndex = replayTimeline.entries.length - 1;
-      if (replayIndex >= maxIndex) {
-        replayIndex = 0;
-        applyReplayEntry(replayIndex);
-      }
-
-      playIntervalId = setInterval(stepForward, PLAY_INTERVAL_MS);
-      updateOverlay();
+      startPlay();
     },
     stepReplay: (direction) => {
       if (!replayTimeline || replayIndex === null) {
@@ -360,7 +424,7 @@ export const createReplayController = (
       replayTimeline = timeline;
       replayIndex = 0;
       applyReplayEntry(replayIndex);
-      updateOverlay();
+      startPlay();
     },
   };
 };

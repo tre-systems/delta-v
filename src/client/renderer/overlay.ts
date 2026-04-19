@@ -18,6 +18,7 @@ import type {
 } from '../../shared/types/domain';
 import type { PlanningState } from '../game/planning';
 import type { AnimationState } from './animation';
+import { isOwnShipForViewer } from './colours';
 import {
   getCombatOverlayHighlights,
   getCombatPreview,
@@ -75,7 +76,7 @@ export const renderOrdnance = ({
   ): void => {
     const color = getOrdnanceColor(owner, playerId);
     const pulse = getOrdnancePulse(now);
-    const isFriendly = owner === playerId;
+    const isFriendly = isOwnShipForViewer(owner, playerId);
 
     if (ordType === 'nuke') {
       const s = 7;
@@ -166,7 +167,7 @@ export const renderOrdnance = ({
 
     if (!animState) {
       const color = getOrdnanceColor(ord.owner, playerId);
-      const isFriendly = ord.owner === playerId;
+      const isFriendly = isOwnShipForViewer(ord.owner, playerId);
 
       drawOrdnanceVelocity(ctx, ord.position, ord.velocity, p, color, hexSize);
 

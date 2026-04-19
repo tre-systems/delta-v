@@ -18,6 +18,7 @@ import {
   createMovementAnimationManager,
 } from './animation';
 import { createCamera } from './camera';
+import { SPECTATOR_PLAYER_ID } from './colours';
 import { buildCombatEffectsForResults } from './combat-fx';
 import { drawAstrogationCoursePreviewLayer } from './course-draw';
 import {
@@ -443,7 +444,12 @@ export const createRenderer = (
       const visibleMovements = gameState
         ? movements.filter((m) => {
             const ship = gameState?.ships.find((s) => s.id === m.shipId);
-            return ship && (ship.owner === playerId || ship.detected);
+            return (
+              ship &&
+              ((playerId as number) === SPECTATOR_PLAYER_ID ||
+                ship.owner === playerId ||
+                ship.detected)
+            );
           })
         : movements;
       const visibleOrdnance = ordnanceMovements;

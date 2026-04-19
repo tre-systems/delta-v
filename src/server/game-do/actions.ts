@@ -419,10 +419,11 @@ const mapEngineErrorToActionRejectedReason = (
       return 'resourceLimit';
     case ErrorCode.STATE_CONFLICT:
       return 'stateConflict';
+    case ErrorCode.GAME_COMPLETED:
+      return 'gameCompleted';
     case ErrorCode.ROOM_NOT_FOUND:
     case ErrorCode.ROOM_FULL:
     case ErrorCode.GAME_IN_PROGRESS:
-    case ErrorCode.GAME_COMPLETED:
       return null;
   }
 };

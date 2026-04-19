@@ -67,8 +67,9 @@ export const frameCameraOnPlayerShips = (
   playerId: PlayerId,
   hexSize: number,
 ): void => {
+  const isSpectator = (playerId as number) === -1;
   const myShips = state.ships.filter(
-    (s) => s.owner === playerId && s.lifecycle !== 'destroyed',
+    (s) => s.lifecycle !== 'destroyed' && (isSpectator || s.owner === playerId),
   );
   frameOnShips(camera, myShips, hexSize, 200);
 };

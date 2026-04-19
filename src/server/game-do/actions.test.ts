@@ -54,7 +54,7 @@ describe('runGameStateAction', () => {
     expect(deps.sendError).not.toHaveBeenCalled();
   });
 
-  it('keeps non-actionable room/runtime errors on the error channel', async () => {
+  it('surfaces completed-game engine failures as actionRejected', async () => {
     const deps = createDeps();
 
     await runGameStateAction(
@@ -68,10 +68,34 @@ describe('runGameStateAction', () => {
       async () => {},
     );
 
+    expect(deps.sendActionRejected).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'actionRejected',
+        reason: 'gameCompleted',
+        message: 'Game already over',
+      }),
+    );
+    expect(deps.sendError).not.toHaveBeenCalled();
+  });
+
+  it('keeps non-actionable room/runtime errors on the error channel', async () => {
+    const deps = createDeps();
+
+    await runGameStateAction(
+      deps,
+      async () => ({
+        error: {
+          code: ErrorCode.GAME_IN_PROGRESS,
+          message: 'Game still in progress',
+        },
+      }),
+      async () => {},
+    );
+
     expect(deps.sendActionRejected).not.toHaveBeenCalled();
     expect(deps.sendError).toHaveBeenCalledWith(
-      'Game already over',
-      ErrorCode.GAME_COMPLETED,
+      'Game still in progress',
+      ErrorCode.GAME_IN_PROGRESS,
     );
   });
 });

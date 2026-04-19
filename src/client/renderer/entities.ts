@@ -8,6 +8,15 @@ import {
   hexVecLength,
 } from '../../shared/hex';
 import type { GameState, PlayerId, Ship } from '../../shared/types/domain';
+import { isOwnShipForViewer, SPECTATOR_PLAYER_ID } from './colours';
+
+const isShipDetectedForViewer = (
+  ship: Pick<Ship, 'owner' | 'detected'>,
+  playerId: PlayerId,
+): boolean =>
+  (playerId as number) === SPECTATOR_PLAYER_ID ||
+  ship.owner === playerId ||
+  ship.detected === true;
 
 export interface ShipStackOffset {
   xOffset: number;
@@ -48,9 +57,7 @@ export const getVisibleShips = (
   return state.ships.filter((ship) => {
     if (ship.lifecycle === 'destroyed' && !isAnimating) return false;
 
-    if (ship.owner === playerId) return true;
-
-    return ship.detected;
+    return isShipDetectedForViewer(ship, playerId);
   });
 };
 
@@ -119,15 +126,13 @@ export const getShipIdentityMarker = (
 ): ShipIdentityMarker | null => {
   if (isAnimating) return null;
 
-  if (ship.identity?.hasFugitives && ship.owner === playerId) {
+  const isOwn = isOwnShipForViewer(ship.owner, playerId);
+
+  if (ship.identity?.hasFugitives && isOwn) {
     return 'friendlyFugitive';
   }
 
-  if (
-    hiddenIdentityInspection &&
-    ship.owner !== playerId &&
-    ship.identity?.revealed
-  ) {
+  if (hiddenIdentityInspection && !isOwn && ship.identity?.revealed) {
     return ship.identity.hasFugitives ? 'enemyFugitive' : 'enemyDecoy';
   }
 
@@ -161,7 +166,7 @@ export const buildShipLabelView = (
 ): ShipLabelView | null => {
   const typeName = SHIP_STATS[ship.type]?.name ?? 'Unknown';
 
-  if (ship.owner === playerId) {
+  if (isOwnShipForViewer(ship.owner, playerId)) {
     const orbiting = hexVecLength(ship.velocity) === 1 && inGravity;
 
     const isLanded = ship.lifecycle === 'landed';
@@ -181,7 +186,7 @@ export const buildShipLabelView = (
     };
   }
 
-  if (!ship.detected) return null;
+  if (!isShipDetectedForViewer(ship, playerId)) return null;
 
   return {
     typeName: `Enemy ${typeName}`,
@@ -197,7 +202,7 @@ export const getOrdnanceColor = (
   owner: PlayerId,
   playerId: PlayerId,
 ): string => {
-  return owner === playerId ? '#4fc3f7' : '#ff9800';
+  return isOwnShipForViewer(owner, playerId) ? '#4fc3f7' : '#ff9800';
 };
 
 export const getOrdnancePulse = (now: number): number => {
