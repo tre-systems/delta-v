@@ -80,17 +80,16 @@ This is the canonical rate-limit table for the project. Other docs should link h
 
 | Endpoint / scope | Limit | Window | Scope | Binding | On exceed |
 | --- | --- | --- | --- | --- | --- |
-| `POST /create` (production) | 5 | 60 s | per hashed IP | Cloudflare `CREATE_RATE_LIMITER` (global) | 429 + `Retry-After` |
-| `POST /create` (fallback) | 5 | 60 s | per hashed IP | in-memory (per isolate) | 429 + `Retry-After` |
-| `POST /api/agent-token` | 5 | 60 s | per hashed IP | reuses `CREATE_RATE_LIMITER` | 429 |
-| `POST /quick-match` | 5 | 60 s | per hashed IP | reuses `CREATE_RATE_LIMITER` | 429 |
+| `POST /create` | 5 | 60 s | per hashed IP | in-memory (strict per isolate) + Cloudflare `CREATE_RATE_LIMITER` (best-effort edge layer) | 429 + `Retry-After` |
+| `POST /api/agent-token` | 5 | 60 s | per hashed IP | reuses the same strict local bucket + `CREATE_RATE_LIMITER` edge layer | 429 |
+| `POST /quick-match` | 5 | 60 s | per hashed IP | reuses the same strict local bucket + `CREATE_RATE_LIMITER` edge layer | 429 |
 | `GET /ws/:code` (upgrade) | 20 | 60 s | per hashed IP | in-memory (per isolate) | 429 |
 | `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches` | 100 | 60 s | per hashed IP | in-memory (per isolate) | 429 |
 | `GET /replay/:code` | 250 | 60 s | per hashed IP | in-memory (per isolate, separate bucket) | 429 |
 | `POST /telemetry` | 120 | 60 s | per hashed IP | Cloudflare `TELEMETRY_RATE_LIMITER` (global), in-memory fallback; body capped at 4 KB | 429 |
 | `POST /error` | 40 | 60 s | per hashed IP | Cloudflare `ERROR_RATE_LIMITER` (global), in-memory fallback; body capped at 4 KB | 429 |
 | `POST /mcp` (hosted MCP entry) | 20 | 60 s | per `agentToken` hash (Bearer) or hashed IP | Cloudflare `MCP_RATE_LIMITER`; body capped at 16 KB | 429 + `Retry-After` |
-| `POST /api/claim-name` | 5 | 60 s | per hashed IP | reuses `CREATE_RATE_LIMITER` | 429 |
+| `POST /api/claim-name` | 5 | 60 s | per hashed IP | reuses the same strict local bucket + `CREATE_RATE_LIMITER` edge layer | 429 |
 | `GET /api/leaderboard`, `GET /api/leaderboard/me` | 100 | 60 s | per hashed IP | in-memory (shares the join-probe bucket) | 429 |
 | WebSocket messages (after connect) | 10 | 1 s | per socket | in-memory (`WeakMap<WebSocket, RateWindow>`) | close 1008 |
 | Chat messages | 1 per 500 ms | — | per player ID | in-memory | silently dropped |
@@ -100,8 +99,8 @@ Constants live in [`src/server/reporting.ts`](../src/server/reporting.ts) (per-I
 
 **Tier topology.**
 
-- **Edge binding** — `CREATE_RATE_LIMITER`, `TELEMETRY_RATE_LIMITER`, `ERROR_RATE_LIMITER`, and `MCP_RATE_LIMITER` (declared in [`wrangler.toml`](../wrangler.toml)) apply globally across Cloudflare's edge. Production has them; lower environments (e.g. `wrangler dev` without bindings) fall back to per-isolate in-memory limits.
-- **In-memory per-isolate** covers WebSocket upgrades, join/replay/match-list/leaderboard GET probes, and the reporting endpoints' fallback path. A distributed attacker spraying many edges could bypass these — optional WAF or additional `[[ratelimits]]` namespaces close that gap if observed.
+- **Edge binding** — `CREATE_RATE_LIMITER`, `TELEMETRY_RATE_LIMITER`, `ERROR_RATE_LIMITER`, and `MCP_RATE_LIMITER` (declared in [`wrangler.toml`](../wrangler.toml)) are a best-effort Cloudflare edge layer. Production has them; lower environments (e.g. `wrangler dev` without bindings) simply skip that layer.
+- **In-memory per-isolate** covers WebSocket upgrades, join/replay/match-list/leaderboard GET probes, and now also acts as the strict first line for `/create`, `/api/agent-token`, `/quick-match`, and `/api/claim-name`. A distributed attacker spraying many edges could still exceed the per-isolate buckets, so WAF or a DO/D1 counter remains the escalation path if observed.
 - **Per-socket DO layer** (the "WebSocket messages" and "Chat messages" rows) is enforced after the socket upgrade, inside the `GameDO`; it does not scale with IPs.
 
 **Deployment recommendation:**
@@ -189,7 +188,7 @@ Current assessment:
 - **Host-seat integrity:** good
 - **Guest-seat integrity:** acceptable for friendly matches (room-code model is deliberate)
 - **Match availability under hostile payloads:** good
-- **Rate limiting:** good — `/create`, `/api/agent-token`, `/quick-match`, `/api/claim-name`, `/telemetry`, `/error`, and `/mcp` use Cloudflare `[[ratelimits]]` bindings (global across the edge), with per-isolate in-memory fallbacks when the binding is absent (e.g. `wrangler dev`); WebSocket upgrades and join/replay/match-list/leaderboard probes have per-isolate hashed-IP windows; WebSocket message flood is capped per socket (see table above); optional WAF remains available for cross-edge caps on the in-memory paths
+- **Rate limiting:** good — `/create`, `/api/agent-token`, `/quick-match`, and `/api/claim-name` now use a strict per-isolate hashed-IP bucket plus Cloudflare `[[ratelimits]]` as an extra edge layer; `/telemetry`, `/error`, and `/mcp` use Cloudflare bindings with in-memory fallback or companion limits; WebSocket upgrades and join/replay/match-list/leaderboard probes have per-isolate hashed-IP windows; WebSocket message flood is capped per socket (see table above); optional WAF remains available for true cross-edge caps
 - **XSS posture:** good (trusted HTML boundary, no user-generated content)
 - **Room secrecy / public matchmaking readiness:** weak (short codes; default join/replay throttles are per-isolate, not global)
 
