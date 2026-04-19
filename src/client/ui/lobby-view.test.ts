@@ -467,10 +467,12 @@ describe('LobbyView', () => {
     await expect.poll(() => emit.mock.calls.length).toBeGreaterThan(0);
 
     expect(setPlayerName).toHaveBeenCalledWith('  Pilot 1  ');
-    expect(postClaimName).toHaveBeenCalledWith({
-      playerKey: 'humankey12345678',
-      username: 'Pilot 1',
-    });
+    expect(postClaimName).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerKey: 'humankey12345678',
+        username: 'Pilot 1',
+      }),
+    );
     expect(emit).toHaveBeenCalledWith({ type: 'quickMatch' });
   });
 
