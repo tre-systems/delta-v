@@ -17,7 +17,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 (Note: the seat-hijack / unauthenticated-join finding is **not** P0 — by product decision, frictionless start outweighs private-room auth. Listed under polish below for the spectator-misadvertisement and structured-rejection parts only.)
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
-- *`/healthz` production payload still stale until the fallback ships live* (Agent & MCP ergonomics) — production still returns `sha:null, bootedAt:"1970-01-01..."` as of 2026-04-19. Code now falls back from Worker deploy metadata to bundled `/version.json` `assetsHash` and stamps `bootedAt` at module load; re-verify on the next deploy before removing this line.
+- None currently pinned. Re-rank after each exploratory / QA pass.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
 
@@ -38,6 +38,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 - Reserved-name blocklist landed: fresh-playerKey claims for `root`, `moderator`, `delta-v`, `deltav`, `admin`, `administrator`, and `owner` all return 409 `username_reserved` (verified 2026-04-19).
 - Match-history `Replay →` links now work end-to-end: clicking loads `/?code=XXXXX` in spectator mode with full playback controls (First / Previous / Play / Next / Last / EXIT). Scrubbing advances at event-stream granularity ("Turn N · P# PHASE · n/total"); the Play button auto-advances and flips aria-label to Pause. Verified 2026-04-19 against completed match `E65LY-m1`.
 - MCP resources shipped: hosted `/mcp` `resources/list` returns eleven entries — `game://rules/current`, nine per-scenario `game://rules/{id}` entries, and `game://leaderboard/agents`. `resources/read` returns `application/json` with `{version, scenario, definition}` (or `{version, kind, entries}` for the leaderboard). Verified 2026-04-19.
+- `/healthz` now returns the deployed `sha` and a real boot timestamp again (`{"ok":true,"sha":"118a9f00","bootedAt":"2026-04-19T21:58:22.461Z"}` on 2026-04-19), so the old stale-payload launch note is closed.
 - Local Play-vs-AI restore-after-reload no longer deletes `delta-v:local-game` on the initial blank startup tick; the saved snapshot survives long enough for `resumeLocalGame()` to restore it, with a regression test covering the startup race in `local-session-store`.
 - Public docs now describe the shipped two-layer state-changing POST limits accurately: strict Worker-local 5 / 60 s per hashed IP for `/create`, `/api/agent-token`, `/quick-match`, and `/api/claim-name`, with Cloudflare `CREATE_RATE_LIMITER` as an extra best-effort edge layer in production; hosted `/mcp` is documented separately as a 20 / 60 s edge limit keyed by agentToken hash or hashed IP.
 
