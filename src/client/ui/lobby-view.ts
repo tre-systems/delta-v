@@ -34,6 +34,7 @@ export interface LobbyViewDeps {
   getPlayerName: () => string;
   setPlayerName: (name: string) => string;
   getPlayerKey: () => string;
+  resetPlayerIdentity: () => { username: string };
   copyText?: (text: string) => Promise<void> | undefined;
   // Optional network boundary — tests pass a stub so the lobby doesn't
   // hit the real /api/claim-name route.
@@ -79,6 +80,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const quickMatchBtn = byId<HTMLButtonElement>('quickMatchBtn');
   const singlePlayerBtn = byId('singlePlayerBtn');
   const playerNameInput = byId<HTMLInputElement>('playerNameInput');
+  const forgetCallsignBtn = byId<HTMLButtonElement>('forgetCallsignBtn');
   const backBtn = byId('backBtn');
   const scenarioListEl = byId('scenarioList');
   const difficultyButtons = Array.from(
@@ -281,6 +283,12 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
     listen(menuHowToPlayBtn, 'click', () => {
       deps.toggleHelpOverlay();
+    });
+
+    listen(forgetCallsignBtn, 'click', () => {
+      const profile = deps.resetPlayerIdentity();
+      playerNameInput.value = profile.username;
+      setCallsignStatus('Local callsign cleared on this device.', 'info');
     });
 
     listen(createBtn, 'click', () => {

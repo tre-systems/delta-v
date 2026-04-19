@@ -16,7 +16,6 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
-- *`delta-v:tokens` localStorage accumulates without cleanup* (same section) — token cache grows unbounded; tokens never invalidated server-side on archive.
 - *No security headers on responses* (Gameplay UX & matchmaking integrity) — no CSP, HSTS, X-Frame-Options, Referrer-Policy. Standard production hardening missing. User-typed callsigns in multiple render paths make CSP especially worthwhile.
 - *CORS policy on public APIs is undocumented and silent* (same section) — no `Access-Control-Allow-*` headers mean third-party agents and leaderboard embeds can't read JSON endpoints from browsers.
 - *Match-history "Replay →" links are broken for every listed match* (Gameplay UX & matchmaking integrity) — every click shows "Replay unavailable" toast; breaks a promoted feature on a page that tells users replays are available.
@@ -235,18 +234,6 @@ Cloudflare's `[[ratelimits]]` binding is **best-effort and per-edge-colo**, so a
 Two actions: (1) document the shipped two-layer behavior accurately (`agent.json`, `/agents` page, `docs/SECURITY.md`); (2) if strict cross-colo enforcement becomes necessary, add a D1 or Durable Object counter so the cap is global rather than per isolate plus best-effort edge binding.
 
 **Files:** `static/.well-known/agent.json`, `wrangler.toml`, `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`
-
-### `delta-v:tokens` localStorage accumulates without cleanup
-
-After ~6 matches my browser's `localStorage['delta-v:tokens']` had stored 6 distinct game-code → playerToken pairs (`QUGQF`, `CTD4V`, `9M7YA`, `VX6SS`, `T8CHP`, `E65LY`). None of the corresponding matches are joinable any more (long since completed or abandoned), so the entries are just dead weight. Beyond storage growth, each entry is an active credential — anyone with access to the device's localStorage could theoretically replay any of these matches if the Worker would still accept the token. Bound the cache: drop entries older than 24h or whose match has reached `gameOver`, and confirm the server invalidates `playerToken` on game-archive write.
-
-**Files:** `src/client/game/session-api.ts`, `src/client/game/client-kernel.ts`, `src/server/game-do/archive.ts` (token invalidation), tests
-
-### Player profile in localStorage stores user-typed callsign verbatim
-
-`localStorage['delta-v:player-profile']` shape: `{playerKey, username, updatedAt}`. The `username` is whatever the user typed at the lobby callsign field, persisted indefinitely on-device. Even with the public match log no longer surfacing usernames, a user who once typed their real name may not realise it remains stored locally. Add a "Forget my callsign" control in the lobby (clears `delta-v:player-profile` and `delta-v:tokens`), and confirm the [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) doc mentions on-device persistence.
-
-**Files:** `src/client/game/session-api.ts`, `src/client/ui/`, `static/index.html` (Forget control), `docs/PRIVACY_TECHNICAL.md`
 
 ### Private-room code space + unauthenticated join (intentional UX trade-off)
 

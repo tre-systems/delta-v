@@ -99,6 +99,7 @@ const installFixture = () => {
     <button id="createBtn"></button>
     <button id="singlePlayerBtn"></button>
     <input id="playerNameInput" />
+    <button id="forgetCallsignBtn"></button>
     <button id="backBtn"></button>
     <button id="joinBtn"></button>
     <input id="codeInput" />
@@ -163,6 +164,13 @@ const createTestUIManager = () =>
         playerKey: 'playerkey1',
         username,
       }),
+      resetProfile: () => ({
+        playerKey: 'playerkey2',
+        username: 'Pilot ABC',
+      }),
+    },
+    sessionTokens: {
+      clearAllStoredPlayerTokens: vi.fn(),
     },
   });
 

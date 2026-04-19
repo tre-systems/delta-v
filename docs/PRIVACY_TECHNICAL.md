@@ -9,6 +9,8 @@ Telemetry/error collection, server-side diagnostics, and match-archive storage. 
 ## Client data flow
 
 - **`anonId`** — random UUID in `localStorage` under key `deltav_anon_id`, attached to client reporting payloads ([`src/client/telemetry.ts`](../src/client/telemetry.ts)).
+- **Player profile** — the lobby stores `{ playerKey, username, updatedAt }` in `localStorage['delta-v:player-profile']` so a returning browser keeps the same callsign and matchmaking identity. The lobby now exposes a **Forget my callsign** control that removes this local profile and clears cached room tokens on the current device.
+- **Session tokens** — room-scoped `playerToken`s are cached in `localStorage['delta-v:tokens']` for reconnect/join convenience. The cache is pruned to the most recent 8 entries and drops anything older than 24 hours.
 - **`reportError()`** — sends `error`, caller-supplied `context`, `url`, and `ua`.
 - **`track(event, props)`** — sends arbitrary event names / props.
 - **Requirement at call sites:** never put secrets, credentials, or direct personal data in telemetry/error props.

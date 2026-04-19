@@ -4,6 +4,7 @@ import {
   type PublicPlayerProfile,
 } from '../../shared/player';
 import {
+  deleteStoredPlayerProfile,
   loadStoredPlayerProfile,
   type PlayerProfileStorageLike,
   type StoredPlayerProfile,
@@ -13,6 +14,7 @@ import {
 export interface PlayerProfileService {
   getProfile: () => PublicPlayerProfile;
   setUsername: (username: string) => PublicPlayerProfile;
+  resetProfile: () => PublicPlayerProfile;
 }
 
 export interface PlayerProfileServiceDeps {
@@ -79,6 +81,14 @@ export const createPlayerProfileService = (
       return {
         playerKey: saved.playerKey,
         username: saved.username,
+      };
+    },
+    resetProfile: () => {
+      deleteStoredPlayerProfile(deps.storage);
+      const profile = ensureProfile();
+      return {
+        playerKey: profile.playerKey,
+        username: profile.username,
       };
     },
   };

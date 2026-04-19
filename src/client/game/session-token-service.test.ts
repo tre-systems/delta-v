@@ -61,4 +61,24 @@ describe('session token service', () => {
     );
     expect(tokens.getStoredPlayerToken('ABCDE')).toBeNull();
   });
+
+  it('clears every stored token at once', () => {
+    const storage = createStorage({
+      'delta-v:tokens': JSON.stringify({
+        ABCDE: { playerToken: 'pt-1', ts: 100 },
+        FGHIJ: { playerToken: 'pt-2', ts: 101 },
+      }),
+    });
+    const tokens = createSessionTokenService({
+      storage,
+      now: () => 123,
+    });
+
+    tokens.clearAllStoredPlayerTokens();
+
+    expect(storage.setItem).toHaveBeenLastCalledWith(
+      'delta-v:tokens',
+      JSON.stringify({}),
+    );
+  });
 });

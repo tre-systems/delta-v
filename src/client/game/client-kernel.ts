@@ -50,11 +50,15 @@ export const createGameClient = () => {
   const playerProfile = createPlayerProfileService({
     storage: localStorage,
   });
+  const sessionTokens = createSessionTokenService({
+    storage: localStorage,
+  });
 
   const canvas = byId<HTMLCanvasElement>('gameCanvas');
   const renderer = createRenderer(canvas, ctx.planningState);
   const ui = createUIManager({
     playerProfile,
+    sessionTokens,
   });
   const tutorial = createTutorial({
     openHelpSection: (sectionElementId) => ui.openHelpSection(sectionElementId),
@@ -64,9 +68,6 @@ export const createGameClient = () => {
   const transferPanelEl = byId('transferPanel');
   const map = buildSolarSystemMap();
   const turnTelemetry = createTurnTelemetryTracker();
-  const sessionTokens = createSessionTokenService({
-    storage: localStorage,
-  });
 
   let applyGameState: (state: GameState) => void;
   let setState: (newState: ClientState) => void;

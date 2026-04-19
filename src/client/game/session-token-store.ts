@@ -14,6 +14,7 @@ export interface StorageLike {
 
 export const TOKEN_STORE_KEY = 'delta-v:tokens';
 export const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+export const MAX_STORED_PLAYER_TOKENS = 8;
 
 export const loadTokenStore = (
   storage: Pick<StorageLike, 'getItem'>,
@@ -34,14 +35,29 @@ export const pruneExpiredTokens = (
   return pickBy(store, (entry) => now - entry.ts <= ttlMs) as TokenStore;
 };
 
+export const capStoredTokens = (
+  store: TokenStore,
+  maxEntries = MAX_STORED_PLAYER_TOKENS,
+): TokenStore => {
+  const sortedEntries = Object.entries(store).sort(
+    (left, right) => right[1].ts - left[1].ts,
+  );
+
+  return Object.fromEntries(sortedEntries.slice(0, maxEntries));
+};
+
 export const saveTokenStore = (
   storage: Pick<StorageLike, 'setItem'>,
   store: TokenStore,
   now: number,
   key = TOKEN_STORE_KEY,
   ttlMs = TOKEN_TTL_MS,
+  maxEntries = MAX_STORED_PLAYER_TOKENS,
 ): TokenStore => {
-  const prunedStore = pruneExpiredTokens(store, now, ttlMs);
+  const prunedStore = capStoredTokens(
+    pruneExpiredTokens(store, now, ttlMs),
+    maxEntries,
+  );
 
   try {
     storage.setItem(key, JSON.stringify(prunedStore));

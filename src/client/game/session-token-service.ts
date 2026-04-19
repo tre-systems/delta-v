@@ -13,6 +13,7 @@ export interface SessionTokenService {
   getStoredPlayerToken: (code: string) => string | null;
   storePlayerToken: (code: string, token: string) => void;
   clearStoredPlayerToken: (code: string) => void;
+  clearAllStoredPlayerTokens: () => void;
 }
 
 export interface SessionTokenServiceDeps {
@@ -50,6 +51,9 @@ export const createSessionTokenService = (
     },
     clearStoredPlayerToken: (code) => {
       writeTokenStore(deleteStoredPlayerToken(readTokenStore(), code));
+    },
+    clearAllStoredPlayerTokens: () => {
+      writeTokenStore({});
     },
   };
 };

@@ -10,6 +10,7 @@ const installFixture = () => {
     <button id="createBtn">Create Game</button>
     <button id="singlePlayerBtn">Single Player</button>
     <input id="playerNameInput" />
+    <button id="forgetCallsignBtn">Forget my callsign</button>
     <button id="backBtn">Back</button>
     <div id="scenarioList"></div>
     <button class="btn-difficulty" data-difficulty="easy">Easy</button>
@@ -63,6 +64,7 @@ describe('LobbyView', () => {
           getPlayerName: () => 'Pilot 1',
           setPlayerName: (name) => name,
           getPlayerKey: () => 'humankey12345678',
+          resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
           postClaimName: async () => ({
             ok: true,
             player: {
@@ -92,6 +94,7 @@ describe('LobbyView', () => {
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
       postClaimName: async () => ({
         ok: true,
         player: {
@@ -122,6 +125,7 @@ describe('LobbyView', () => {
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
       postClaimName: async () => ({
         ok: true,
         player: {
@@ -172,6 +176,7 @@ describe('LobbyView', () => {
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
       postClaimName: async () => ({
         ok: true,
         player: {
@@ -215,6 +220,7 @@ describe('LobbyView', () => {
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
       postClaimName: async () => ({
         ok: true,
         player: {
@@ -301,6 +307,7 @@ describe('LobbyView', () => {
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
       postClaimName: async () => ({
         ok: true,
         player: {
@@ -338,6 +345,7 @@ describe('LobbyView', () => {
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
       postClaimName: async () => ({
         ok: true,
         player: {
@@ -397,6 +405,7 @@ describe('LobbyView', () => {
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name,
       getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
       postClaimName: async () => ({
         ok: true,
         player: {
@@ -444,6 +453,7 @@ describe('LobbyView', () => {
       getPlayerName: () => 'Pilot 1',
       setPlayerName,
       getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
       postClaimName,
     });
 
@@ -475,6 +485,7 @@ describe('LobbyView', () => {
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name.trim(),
       getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
       postClaimName: async () => ({ ok: false as const, error: 'name_taken' }),
     });
 
@@ -499,6 +510,7 @@ describe('LobbyView', () => {
       getPlayerName: () => 'Pilot 1',
       setPlayerName: (name) => name.trim(),
       getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
       postClaimName: async () => ({ ok: false as const, error: 'network' }),
     });
 
@@ -510,5 +522,33 @@ describe('LobbyView', () => {
       'info',
     );
     expect(emit).toHaveBeenCalledWith({ type: 'quickMatch' });
+  });
+
+  it('forgets the local callsign and clears local status without hitting the network', () => {
+    const resetPlayerIdentity = vi.fn(() => ({ username: 'Pilot ABC' }));
+    const postClaimName = vi.fn();
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name.trim(),
+      getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity,
+      postClaimName,
+    });
+
+    document.getElementById('forgetCallsignBtn')?.click();
+
+    expect(resetPlayerIdentity).toHaveBeenCalledTimes(1);
+    expect(postClaimName).not.toHaveBeenCalled();
+    expect(
+      (document.getElementById('playerNameInput') as HTMLInputElement).value,
+    ).toBe('Pilot ABC');
+    expect(document.getElementById('callsignStatus')?.textContent).toContain(
+      'Local callsign cleared',
+    );
   });
 });
