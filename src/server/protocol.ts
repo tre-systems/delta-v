@@ -62,13 +62,28 @@ export const normalizeScenarioKey = (
 export const parseCreatePayload = (
   raw: unknown,
   knownScenarioKeys: readonly string[],
-): { scenario: string } => {
+): Result<{ scenario: string }> => {
   if (!isObject(raw)) {
-    return { scenario: 'biplanetary' };
+    return { ok: false, error: 'Invalid create payload' };
+  }
+
+  const keys = Object.keys(raw);
+  if (keys.length !== 1 || keys[0] !== 'scenario') {
+    return { ok: false, error: 'Create payload only supports scenario' };
+  }
+
+  if (
+    typeof raw.scenario !== 'string' ||
+    !knownScenarioKeys.includes(raw.scenario)
+  ) {
+    return { ok: false, error: 'Invalid scenario' };
   }
 
   return {
-    scenario: normalizeScenarioKey(raw.scenario, knownScenarioKeys),
+    ok: true,
+    value: {
+      scenario: raw.scenario,
+    },
   };
 };
 
