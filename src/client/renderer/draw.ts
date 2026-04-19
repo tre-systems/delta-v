@@ -11,6 +11,7 @@ import {
   type PixelCoord,
 } from '../../shared/hex';
 import type { PlayerId } from '../../shared/types/domain';
+import { isOwnShipForViewer } from './colours';
 
 export type DrawShipIconInput = {
   ctx: CanvasRenderingContext2D;
@@ -37,10 +38,9 @@ export const drawShipIcon = ({
   disabledTurns = 0,
   shipType,
 }: DrawShipIconInput): void => {
-  const color =
-    owner === playerId
-      ? `rgba(79, 195, 247, ${alpha})`
-      : `rgba(255, 152, 0, ${alpha})`;
+  const color = isOwnShipForViewer(owner, playerId)
+    ? `rgba(79, 195, 247, ${alpha})`
+    : `rgba(255, 152, 0, ${alpha})`;
 
   const stats = shipType ? SHIP_STATS[shipType] : undefined;
   const combat = stats?.combat ?? 2;

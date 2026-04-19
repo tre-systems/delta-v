@@ -56,7 +56,8 @@ export type ActionRejectedReason =
   | 'invalidInput'
   | 'notAllowed'
   | 'resourceLimit'
-  | 'stateConflict';
+  | 'stateConflict'
+  | 'gameCompleted';
 
 type WithGuards<T> = T & { guards?: ActionGuards };
 

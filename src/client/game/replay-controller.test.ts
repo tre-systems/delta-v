@@ -90,6 +90,7 @@ describe('replay-controller', () => {
       clearTrails: () => {},
       applyGameState: () => {},
       frameOnActivePlayer: () => {},
+      presentReplayEntry: (_entry, _previousState, done) => done(),
     });
 
     controller.onGameOverShown();
@@ -125,6 +126,7 @@ describe('replay-controller', () => {
         appliedStates.push(state.gameId);
       },
       frameOnActivePlayer: () => {},
+      presentReplayEntry: (_entry, _previousState, done) => done(),
     });
 
     controller.onGameOverShown();
@@ -162,6 +164,7 @@ describe('replay-controller', () => {
       frameOnActivePlayer: (state) => {
         framedStates.push(state.gameId);
       },
+      presentReplayEntry: (_entry, _previousState, done) => done(),
     });
 
     controller.startArchivedReplay(timeline);
@@ -200,6 +203,7 @@ describe('replay-controller', () => {
       clearTrails: () => {},
       applyGameState: (state) => applied.push(state.gameId),
       frameOnActivePlayer: () => {},
+      presentReplayEntry: (_entry, _previousState, done) => done(),
     });
 
     controller.startArchivedReplay(emptyTimeline);

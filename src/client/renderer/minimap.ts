@@ -12,6 +12,15 @@ import {
   type ScreenRect,
 } from '../game/minimap';
 import { getObjectiveBearingTargetHex } from '../game/navigation';
+import { isOwnShipForViewer, SPECTATOR_PLAYER_ID } from './colours';
+
+const isShipVisibleToViewer = (
+  ship: { owner: PlayerId; detected?: boolean },
+  playerId: PlayerId | -1,
+): boolean =>
+  playerId === SPECTATOR_PLAYER_ID ||
+  ship.owner === playerId ||
+  ship.detected === true;
 
 export interface MinimapCameraView {
   x: number;
@@ -84,16 +93,15 @@ const buildShipTrailViews = (
 
     if (!ship) continue;
 
-    if (ship.owner !== playerId && !ship.detected) {
+    if (!isShipVisibleToViewer(ship, playerId)) {
       continue;
     }
 
     trails.push({
       points: trail.map((hex) => projectHex(layout, hex, hexSize)),
-      color:
-        ship.owner === playerId
-          ? 'rgba(79, 195, 247, 0.14)'
-          : 'rgba(255, 138, 101, 0.14)',
+      color: isOwnShipForViewer(ship.owner, playerId)
+        ? 'rgba(79, 195, 247, 0.14)'
+        : 'rgba(255, 138, 101, 0.14)',
     });
   }
 
@@ -109,13 +117,12 @@ const buildShipDots = (
   return state.ships
     .filter(
       (ship) =>
-        ship.lifecycle !== 'destroyed' &&
-        (ship.owner === playerId || ship.detected),
+        ship.lifecycle !== 'destroyed' && isShipVisibleToViewer(ship, playerId),
     )
     .map((ship) => ({
       position: projectHex(layout, ship.position, hexSize),
       radius: 2.5,
-      color: ship.owner === playerId ? '#4fc3f7' : '#ff8a65',
+      color: isOwnShipForViewer(ship.owner, playerId) ? '#4fc3f7' : '#ff8a65',
       alpha: 1,
     }));
 };

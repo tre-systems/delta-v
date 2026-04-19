@@ -91,6 +91,11 @@ describe('renderer entity helpers', () => {
       'enemy-visible',
       'destroyed',
     ]);
+
+    // Spectator (-1) sees both fleets regardless of detection.
+    expect(
+      getVisibleShips(state, -1 as 0, false).map((ship) => ship.id),
+    ).toEqual(['mine', 'enemy-visible', 'enemy-hidden']);
   });
 
   it('builds stack offsets for ships sharing a hex', () => {
