@@ -241,12 +241,6 @@ A `POST /create` from an unauthenticated client creates a Durable Object that ne
 
 **Files:** `src/server/game-do/`, `src/server/live-registry-do.ts`, `docs/OBSERVABILITY.md`, `docs/SECURITY.md`
 
-### Leaderboard pollution from exploratory test traffic
-
-The 2026-04-19 paired test left three rows in the public `player` table (`QA_Probe_M`, `QA_Probe_3`, `QA_Probe_B`) with non-default Glicko-2 ratings, all visible at `/api/leaderboard?includeProvisional=true`. Pre-launch this is fine to wipe (and is in fact the third such wipe this week), but post-launch any exploratory pass that pairs against a real or test opponent will accrete leaderboard pollution unless tests use a reserved username prefix that the leaderboard handler filters out (e.g. `QA_*`, `Probe_*`, or a `?test=1` query in `/api/agent-token`). Add a server-side filter so the public leaderboard view excludes a named test prefix, and update [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md) anti-patterns with the chosen prefix convention.
-
-**Files:** `src/server/leaderboard/`, `src/server/auth/issue-route.ts`, `docs/EXPLORATORY_TESTING.md`
-
 ### Missing `/favicon.ico` and `/apple-touch-icon.png`
 
 Both return 404. Every browser request for the favicon (which is automatic on every page load) generates a 404 in the Worker logs and a network error in the user's DevTools console. iOS PWA "Add to Home Screen" falls back to a generic icon without `/apple-touch-icon.png`. Either:
