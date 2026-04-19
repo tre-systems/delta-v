@@ -16,9 +16,19 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
-- *Public `/api/matches` exposes user-typed usernames* (Agent & MCP ergonomics) — needs lobby warning before public traffic.
-- *Documented rate limits significantly understate observed protection* (Cost & abuse hardening) — `/create` and `/api/agent-token` allow 5-7× the documented per-IP cap.
+- *Public `/api/matches` exposes user-typed usernames* (Agent & MCP ergonomics) — needs lobby warning before public traffic. Also confirmed 2026-04-19: **no reserved-name blocklist** — I claimed `admin` and `test user` via `/api/claim-name` with no rejection.
+- *`/api/agent-token` rate limit not firing* (Cost & abuse hardening) — 30-burst re-verified 2026-04-19: 30/30 succeeded. `/create` and `/quick-match` limits now enforce; `/api/agent-token` doesn't.
+- *`/api/matches?status=*` and `?before=*` still not validated* — `scenario`/`winner`/`limit` now return 400 on garbage, but `status` and `before` still silently accepted (re-verified 2026-04-19).
 - *`delta-v:tokens` localStorage accumulates without cleanup* (same section) — token cache grows unbounded; tokens never invalidated server-side on archive.
+
+**Fixed since opening** (re-verified 2026-04-19 on production):
+
+- `POST /create` validates scenario (`invalid_payload`), empty body, and payload size (1024-byte cap via `payload_too_large`).
+- `/api/matches?limit=abc` / `?limit=99999` return 400 with `invalid_query`.
+- `/api/leaderboard?limit=abc` / `?limit=-1` / `?includeProvisional=garbage` return 400.
+- `/join/{code}` returns `{ok, scenario, seatStatus}` — matches the "room metadata" doc contract.
+- `delta_v_reconnect` shipped in local MCP (hosted parity still outstanding).
+- DO close handler no longer causing visible exceptions in tail during normal close (re-verify on next post-deploy pass).
 
 **Confirmed working** (do not regress):
 
@@ -31,6 +41,9 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 - 2251 unit tests pass; lint + typecheck clean.
 - All 8 scenarios launch from the Play-vs-AI lobby without console errors.
 - Validation quality on `/api/claim-name` and `/api/agent-token` is the gold standard for the rest of the API.
+- SPA initial load: TTFB 21-30ms, DOM ready ~180ms, 39KB initial transfer, 15 resources (measured 2026-04-19).
+- HUD scale toggle (`deltav_hud_scale`) and sound-effects toggle both persist to localStorage and survive reload.
+- Help overlay has 10 content sections (Turn Phases, Movement & Fuel, Gravity & Landing, Combat, Ships, Ordnance, Win Conditions, Map Symbols, Controls).
 
 ---
 
