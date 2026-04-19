@@ -98,7 +98,9 @@ Remaining audit: session UI effects / reactive wiring, telemetry-driven copy, an
 
 **Done (phase 1):** combat **[`]` / `[`]** cycles eligible enemy ships/nukes (same visibility rules as pointer targeting), updates planning via `cycleCombatTarget` → `setCombatPlan`, centers the camera on the new target, and shows **Target: …** on the HUD status line (desktop hint includes `[ ]`).
 
-**Remaining:** mixed-hex attacker cycling without pointer, richer gamepad binding on the same command path, and other tactical picks still pointer-first.
+**Done (phase 2):** combat **`{` / `}`** cycles legal attackers for the selected target, updates planning on the same command path, recenters on the attacking stack, and makes mixed-hex attacker selection reachable without pointer-only clicks.
+
+**Remaining:** richer gamepad binding on the same command path, and other tactical picks still pointer-first.
 
 **Files:** `src/client/game/keyboard.ts`, `src/client/game/input-events.ts`, `src/client/game/input.ts`, `src/client/game/combat.ts`, `src/client/ui/hud.ts`, `static/index.html`
 

@@ -319,6 +319,14 @@ const getCycledSelection = <T extends { id: string }>(
   matches: T[],
   currentId?: string | null,
 ): T | null => {
+  return getDirectedCycledSelection(matches, currentId, 1);
+};
+
+const getDirectedCycledSelection = <T extends { id: string }>(
+  matches: T[],
+  currentId: string | null | undefined,
+  direction: -1 | 1,
+): T | null => {
   if (matches.length === 0) return null;
 
   if (matches.length === 1) return matches[0];
@@ -335,7 +343,7 @@ const getCycledSelection = <T extends { id: string }>(
     return matches[0];
   }
 
-  return matches[(currentIndex + 1) % matches.length];
+  return matches[(currentIndex + direction + matches.length) % matches.length];
 };
 
 const getSelectedLegalAttackers = (
@@ -675,6 +683,55 @@ export const createCombatTargetPlan = (
       targetType === 'ship' && defaultAttacker
         ? getCombatStrength([defaultAttacker])
         : null,
+  };
+};
+
+export const cycleCombatAttackerPlan = (
+  state: GameState,
+  playerId: PlayerId,
+  planning: CombatPlanningSnapshot,
+  map: SolarSystemMap | null,
+  direction: -1 | 1,
+): {
+  plan: CombatTargetPlan;
+  selectedShipId: ShipId;
+  selectedHex: HexCoord;
+} | null => {
+  if (planning.combatTargetId === null || planning.combatTargetType === null) {
+    return null;
+  }
+
+  const legalAttackers = getLegalCombatAttackers(
+    state,
+    playerId,
+    planning.queuedAttacks,
+    planning.combatTargetId,
+    planning.combatTargetType,
+    map,
+  );
+
+  const nextAttacker = getDirectedCycledSelection(
+    legalAttackers,
+    planning.selectedShipId,
+    direction,
+  );
+
+  if (!nextAttacker) {
+    return null;
+  }
+
+  return {
+    plan: {
+      combatTargetId: planning.combatTargetId,
+      combatTargetType: planning.combatTargetType,
+      combatAttackerIds: [nextAttacker.id],
+      combatAttackStrength:
+        planning.combatTargetType === 'ship'
+          ? getCombatStrength([nextAttacker])
+          : null,
+    },
+    selectedShipId: nextAttacker.id,
+    selectedHex: nextAttacker.position,
   };
 };
 

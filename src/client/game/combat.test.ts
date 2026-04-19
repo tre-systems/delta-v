@@ -14,6 +14,7 @@ import {
   countRemainingCombatAttackers,
   createClearedCombatPlan,
   createCombatTargetPlan,
+  cycleCombatAttackerPlan,
   cycleCombatTargetPlan,
   findPreferredTarget,
   getAttackStrengthForSelection,
@@ -505,6 +506,49 @@ describe('game client combat helpers', () => {
       1,
     );
     expect(wrap?.combatTargetId).toBe(asShipId('x'));
+  });
+
+  it('cycles legal combat attackers for the selected target in both directions', () => {
+    const state = createState({
+      ships: [
+        createShip({
+          id: asShipId('a'),
+          owner: 0,
+          type: 'corsair',
+          position: { q: 0, r: 0 },
+        }),
+        createShip({
+          id: asShipId('b'),
+          owner: 0,
+          type: 'corvette',
+          position: { q: 0, r: 0 },
+        }),
+        createShip({
+          id: asShipId('x'),
+          owner: 1,
+          type: 'frigate',
+          position: { q: 1, r: 0 },
+        }),
+      ],
+    });
+
+    const planning = {
+      selectedShipId: asShipId('a'),
+      combatTargetId: asShipId('x'),
+      combatTargetType: 'ship' as const,
+      combatAttackerIds: [asShipId('a')],
+      combatAttackStrength: 4,
+      queuedAttacks: [] as CombatAttack[],
+    };
+
+    const next = cycleCombatAttackerPlan(state, 0, planning, map, 1);
+    expect(next?.selectedShipId).toBe(asShipId('b'));
+    expect(next?.plan.combatAttackerIds).toEqual([asShipId('b')]);
+    expect(next?.selectedHex).toEqual({ q: 0, r: 0 });
+
+    const back = cycleCombatAttackerPlan(state, 0, planning, map, -1);
+    expect(back?.selectedShipId).toBe(asShipId('b'));
+    expect(back?.plan.combatAttackerIds).toEqual([asShipId('b')]);
   });
 
   it('shares target visibility logic for preferred-target and combat-visible checks', () => {

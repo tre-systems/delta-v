@@ -18,6 +18,7 @@ import {
   type CombatActionDeps,
   clearCombatSelection,
   confirmSingleAttack,
+  cycleCombatAttacker,
   cycleCombatTarget,
   endCombatPhase,
   fireAllAttacks,
@@ -220,6 +221,10 @@ const combatHandlers = {
   setCombatPlan: (deps, cmd) => setCombatPlan(deps.ctx.planningState, cmd),
   clearCombatSelection: (deps) => clearCombatSelection(deps.combatDeps),
   undoQueuedAttack,
+  cycleCombatAttacker: (deps, cmd) =>
+    cycleCombatAttacker(deps.combatDeps, cmd.direction, (hex) =>
+      deps.renderer.centerOnHex(hex),
+    ),
   cycleCombatTarget: (deps, cmd) =>
     cycleCombatTarget(deps.combatDeps, cmd.direction, (hex) =>
       deps.renderer.centerOnHex(hex),
@@ -235,6 +240,7 @@ const combatHandlers = {
   | 'setCombatPlan'
   | 'clearCombatSelection'
   | 'undoQueuedAttack'
+  | 'cycleCombatAttacker'
   | 'cycleCombatTarget'
 >;
 
