@@ -30,7 +30,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 - `delta_v_reconnect` shipped in local MCP (hosted parity still outstanding).
 - DO close handler no longer causing visible exceptions in tail during normal close (re-verify on next post-deploy pass).
 - Evacuation scenario balance fixed: 100-game sweep now 63/37 (was 3/97).
-- Matchmaker seat-shuffle shipped: `Math.random() < 0.5` in `matchEntries` at [src/server/matchmaker-do.ts:405](src/server/matchmaker-do.ts:405).
+- Matchmaker seat-shuffle shipped: `Math.random() < 0.5` in `matchEntries` at [src/server/matchmaker-do.ts](../src/server/matchmaker-do.ts).
 - `/favicon.ico`, `/favicon.svg`, `/apple-touch-icon.png` now return 200 (no more favicon 404 noise, iOS home-screen icon works).
 - `Forget my callsign` control exists on the lobby and regenerates to an anonymous `Pilot XXXX` identity (confirmed 2026-04-19).
 - `delta-v:tokens` localStorage is now bounded (was 6 entries, now 0 — cleanup appears to be shipped).
