@@ -194,6 +194,7 @@
     },
     "tools": [
       "delta_v_quick_match_connect",
+      "delta_v_pair_quick_match_tickets",
       "delta_v_list_sessions",
       "delta_v_get_state",
       "delta_v_get_observation",

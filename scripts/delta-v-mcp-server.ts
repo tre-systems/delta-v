@@ -15,6 +15,7 @@ import {
   computeActionEffects,
   listRulesResources,
   normalizeQuickMatchServerUrl,
+  pollQuickMatchTicket,
   queueForMatch,
   RULES_RESOURCE_MIME_TYPE,
   readRulesResourceText,
@@ -435,6 +436,46 @@ const QUICK_MATCH_CONNECT_SCHEMA = {
   timeoutMs: z.number().int().min(5_000).max(600_000).optional(),
 };
 
+const QUICK_MATCH_PAIR_TICKETS_SCHEMA = {
+  serverUrl: z.string().optional(),
+  leftTicket: z.string().min(1),
+  rightTicket: z.string().min(1),
+  pollMs: z.number().int().min(200).max(10_000).optional(),
+  timeoutMs: z.number().int().min(5_000).max(600_000).optional(),
+};
+
+const createConnectedQuickMatchSession = async (args: {
+  serverUrl: string;
+  scenario: string;
+  code: string;
+  ticket: string;
+  playerToken: string;
+}): Promise<DeltaVSession> => {
+  const sessionId = randomUUID();
+  const session: DeltaVSession = {
+    sessionId,
+    createdAt: Date.now(),
+    serverUrl: args.serverUrl,
+    scenario: args.scenario,
+    code: args.code,
+    ticket: args.ticket,
+    playerToken: args.playerToken,
+    ws: null as unknown as WebSocket,
+    playerId: null,
+    events: [],
+    nextEventId: 1,
+    lastState: null,
+    connectionStatus: 'connecting',
+    lastDisconnectAt: null,
+    lastDisconnectReason: null,
+    stateWaiters: [],
+  };
+  sessions.set(sessionId, session);
+  // Attach listeners before awaiting open so early welcome/state messages are not lost.
+  await connectSessionSocket(session, { awaitWelcome: true });
+  return session;
+};
+
 const handleQuickMatchConnect = async (args: {
   serverUrl?: string;
   scenario?: string;
@@ -481,34 +522,19 @@ const handleQuickMatchConnect = async (args: {
     );
   }
 
-  const sessionId = randomUUID();
-  const session: DeltaVSession = {
-    sessionId,
-    createdAt: Date.now(),
+  const session = await createConnectedQuickMatchSession({
     serverUrl,
     scenario,
     code: matched.code,
     ticket: matched.ticket,
     playerToken: matched.playerToken,
-    ws: null as unknown as WebSocket,
-    playerId: null,
-    events: [],
-    nextEventId: 1,
-    lastState: null,
-    connectionStatus: 'connecting',
-    lastDisconnectAt: null,
-    lastDisconnectReason: null,
-    stateWaiters: [],
-  };
-  sessions.set(sessionId, session);
-  // Attach listeners before awaiting open so early welcome/state messages are not lost.
-  await connectSessionSocket(session, { awaitWelcome: true });
+  });
 
   return toolOk(
-    `Connected Delta-V session ${sessionId} (code ${matched.code}).`,
+    `Connected Delta-V session ${session.sessionId} (code ${matched.code}).`,
     {
-      sessionId,
-      matchToken: sessionId,
+      sessionId: session.sessionId,
+      matchToken: session.sessionId,
       serverUrl,
       scenario,
       code: matched.code,
@@ -528,6 +554,83 @@ server.registerTool(
     inputSchema: QUICK_MATCH_CONNECT_SCHEMA,
   },
   handleQuickMatchConnect,
+);
+
+server.registerTool(
+  'delta_v_pair_quick_match_tickets',
+  {
+    description:
+      'Local-only dev helper: poll two queued quick-match tickets, verify they resolved into the same match, then connect both seats as local MCP sessions without using lobby URLs.',
+    inputSchema: QUICK_MATCH_PAIR_TICKETS_SCHEMA,
+  },
+  async ({ serverUrl, leftTicket, rightTicket, pollMs, timeoutMs }) => {
+    const resolvedServerUrl = normalizeQuickMatchServerUrl(
+      serverUrl ?? DEFAULT_SERVER_URL,
+    );
+    const [leftMatch, rightMatch] = await Promise.all([
+      pollQuickMatchTicket({
+        serverUrl: resolvedServerUrl,
+        ticket: leftTicket,
+        pollMs: pollMs ?? 1000,
+        timeoutMs: timeoutMs ?? 120_000,
+      }),
+      pollQuickMatchTicket({
+        serverUrl: resolvedServerUrl,
+        ticket: rightTicket,
+        pollMs: pollMs ?? 1000,
+        timeoutMs: timeoutMs ?? 120_000,
+      }),
+    ]);
+
+    if (
+      leftMatch.code !== rightMatch.code ||
+      leftMatch.scenario !== rightMatch.scenario
+    ) {
+      throw new Error(
+        `Quick-match tickets resolved to different matches: ${leftTicket} -> ${leftMatch.code}/${leftMatch.scenario}, ${rightTicket} -> ${rightMatch.code}/${rightMatch.scenario}.`,
+      );
+    }
+
+    const [leftSession, rightSession] = await Promise.all([
+      createConnectedQuickMatchSession({
+        serverUrl: resolvedServerUrl,
+        scenario: leftMatch.scenario,
+        code: leftMatch.code,
+        ticket: leftMatch.ticket,
+        playerToken: leftMatch.playerToken,
+      }),
+      createConnectedQuickMatchSession({
+        serverUrl: resolvedServerUrl,
+        scenario: rightMatch.scenario,
+        code: rightMatch.code,
+        ticket: rightMatch.ticket,
+        playerToken: rightMatch.playerToken,
+      }),
+    ]);
+
+    return toolOk(
+      `Connected paired Delta-V sessions ${leftSession.sessionId} and ${rightSession.sessionId} (code ${leftMatch.code}).`,
+      {
+        serverUrl: resolvedServerUrl,
+        code: leftMatch.code,
+        scenario: leftMatch.scenario,
+        left: {
+          ticket: leftMatch.ticket,
+          sessionId: leftSession.sessionId,
+          matchToken: leftSession.sessionId,
+          connectionStatus: leftSession.connectionStatus,
+          playerId: leftSession.playerId,
+        },
+        right: {
+          ticket: rightMatch.ticket,
+          sessionId: rightSession.sessionId,
+          matchToken: rightSession.sessionId,
+          connectionStatus: rightSession.connectionStatus,
+          playerId: rightSession.playerId,
+        },
+      },
+    );
+  },
 );
 
 server.registerTool(
