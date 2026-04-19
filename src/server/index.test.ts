@@ -48,6 +48,8 @@ type MockEnv = {
   CF_VERSION_METADATA?: {
     id?: string;
   };
+  CF_PAGES_COMMIT_SHA?: string;
+  GIT_COMMIT_SHA?: string;
   CREATE_RATE_LIMITER?: {
     limit: ReturnType<
       typeof vi.fn<(options: { key: string }) => Promise<{ success: boolean }>>
@@ -207,6 +209,42 @@ describe('server index worker', () => {
     await expect(response.json()).resolves.toMatchObject({
       ok: true,
       sha: 'deploy-sha-123',
+      bootedAt: expect.any(String),
+    });
+  });
+
+  it('falls back to CF_PAGES_COMMIT_SHA when version metadata is unavailable', async () => {
+    const { env } = createEnv(undefined, {
+      CF_PAGES_COMMIT_SHA: 'pages-sha-456',
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/health', { method: 'GET' }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      sha: 'pages-sha-456',
+      bootedAt: expect.any(String),
+    });
+  });
+
+  it('returns null sha when no deploy metadata is available', async () => {
+    const { env } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/status', { method: 'GET' }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      sha: null,
       bootedAt: expect.any(String),
     });
   });
