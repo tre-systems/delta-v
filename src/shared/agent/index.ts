@@ -51,8 +51,12 @@ export {
 } from './quick-match';
 export {
   buildCurrentRulesResourceDocument,
+  buildLeaderboardAgentsResourceDocument,
   buildScenarioRulesResourceDocument,
+  LEADERBOARD_AGENTS_URI,
+  type LeaderboardAgentEntry,
   type ListedMcpResource,
+  leaderboardAgentsResource,
   listRulesResources,
   RULES_CURRENT_URI,
   RULES_RESOURCE_MIME_TYPE,

@@ -90,6 +90,7 @@ Resources (URI-style read-only data) are partially shipped over MCP:
 ```
 game://rules/current                  # Full ruleset as structured data
 game://rules/{scenario}               # Scenario-specific rules
+game://leaderboard/agents             # Public agent leaderboard snapshot
 ```
 
 Still planned:
@@ -98,10 +99,9 @@ Still planned:
 game://matches/{id}/observation       # Current observation
 game://matches/{id}/log               # Append-only event log
 game://matches/{id}/replay            # Full replay timeline
-game://leaderboard/agents             # Public rankings (depends on leaderboard arc)
 ```
 
-Use the shipped rules resources for cached rules discovery; for live match data keep using `delta_v_get_observation` and `GET /replay/{code}` until the remaining match/log/replay resources land.
+Use the shipped rules and leaderboard resources for cached discovery; for live match data keep using `delta_v_get_observation` and `GET /replay/{code}` until the remaining match/log/replay resources land.
 
 ---
 

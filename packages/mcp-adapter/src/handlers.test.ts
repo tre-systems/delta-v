@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { issueAgentToken, issueMatchToken } from '../../../src/server/auth';
 import type { Env } from '../../../src/server/env';
-import { RULES_CURRENT_URI } from '../../../src/shared/agent';
+import {
+  LEADERBOARD_AGENTS_URI,
+  RULES_CURRENT_URI,
+} from '../../../src/shared/agent';
 import { buildMcpServer, handleMcpHttpRequest } from './handlers';
 
 const TEST_SECRET = 'mcp-handlers-test-secret-must-be-16-chars';
@@ -224,6 +227,7 @@ describe('handleMcpHttpRequest', () => {
     const uris = body.result.resources.map((resource) => resource.uri);
     expect(uris).toContain(RULES_CURRENT_URI);
     expect(uris).toContain('game://rules/duel');
+    expect(uris).toContain(LEADERBOARD_AGENTS_URI);
   });
 
   it('reads the current rules resource as JSON text', async () => {
@@ -252,6 +256,64 @@ describe('handleMcpHttpRequest', () => {
       '"defaultScenario": "duel"',
     );
     expect(body.result.contents[0]?.text).toContain('"duel"');
+  });
+
+  it('reads the agent leaderboard resource as filtered JSON text', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    env.DB = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({
+          all: vi.fn(async () => ({
+            results: [
+              {
+                username: 'agent_alpha',
+                is_agent: 1,
+                rating: 1623,
+                rd: 74,
+                games_played: 12,
+                distinct_opponents: 6,
+                last_match_at: 1_234_567,
+              },
+              {
+                username: 'human_beta',
+                is_agent: 0,
+                rating: 1700,
+                rd: 62,
+                games_played: 15,
+                distinct_opponents: 8,
+                last_match_at: 2_345_678,
+              },
+            ],
+          })),
+        })),
+      })),
+    } as unknown as Env['DB'];
+
+    const res = await handleMcpHttpRequest(
+      post({
+        jsonrpc: '2.0',
+        id: 23,
+        method: 'resources/read',
+        params: { uri: LEADERBOARD_AGENTS_URI },
+      }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      result: {
+        contents: Array<{ text?: string; mimeType?: string; uri: string }>;
+      };
+    };
+    expect(body.result.contents).toHaveLength(1);
+    expect(body.result.contents[0]).toMatchObject({
+      uri: LEADERBOARD_AGENTS_URI,
+      mimeType: 'application/json',
+    });
+    expect(body.result.contents[0]?.text).toContain(
+      '"kind": "agentLeaderboard"',
+    );
+    expect(body.result.contents[0]?.text).toContain('"agent_alpha"');
+    expect(body.result.contents[0]?.text).not.toContain('"human_beta"');
   });
 
   it('forwards delta_v_get_state to the GAME DO', async () => {

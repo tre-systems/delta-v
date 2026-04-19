@@ -33,8 +33,13 @@ import {
   verifyMatchToken,
 } from '../../../src/server/auth';
 import type { Env } from '../../../src/server/env';
+import { handleLeaderboardQuery } from '../../../src/server/leaderboard/query-route';
 import { hashIp } from '../../../src/server/reporting';
 import {
+  buildLeaderboardAgentsResourceDocument,
+  LEADERBOARD_AGENTS_URI,
+  type LeaderboardAgentEntry,
+  leaderboardAgentsResource,
   listRulesResources,
   RULES_RESOURCE_MIME_TYPE,
   readRulesResourceText,
@@ -208,6 +213,62 @@ export const buildMcpServer = (
           },
         ],
       }),
+    );
+  }
+
+  {
+    const resource = leaderboardAgentsResource();
+    server.registerResource(
+      resource.name,
+      resource.uri,
+      {
+        title: resource.title,
+        description: resource.description,
+        mimeType: resource.mimeType,
+      },
+      async () => {
+        const response = await handleLeaderboardQuery(
+          new Request(
+            'https://game.internal/api/leaderboard?limit=200&includeProvisional=true',
+            { method: 'GET' },
+          ),
+          env,
+        );
+        const body = (await response.json()) as {
+          entries?: Array<{
+            username: string;
+            isAgent: boolean;
+            rating: number;
+            rd: number;
+            gamesPlayed: number;
+            provisional: boolean;
+            lastPlayedAt: number | null;
+          }>;
+        };
+        const entries: LeaderboardAgentEntry[] = (body.entries ?? [])
+          .filter((entry) => entry.isAgent)
+          .map((entry) => ({
+            username: entry.username,
+            rating: entry.rating,
+            rd: entry.rd,
+            gamesPlayed: entry.gamesPlayed,
+            provisional: entry.provisional,
+            lastPlayedAt: entry.lastPlayedAt,
+          }));
+        return {
+          contents: [
+            {
+              uri: LEADERBOARD_AGENTS_URI,
+              mimeType: RULES_RESOURCE_MIME_TYPE,
+              text: JSON.stringify(
+                buildLeaderboardAgentsResourceDocument(entries),
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
     );
   }
 

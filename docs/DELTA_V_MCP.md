@@ -38,13 +38,13 @@ Shipped now:
 
 - `game://rules/current` — full structured ruleset payload (`application/json`)
 - `game://rules/{scenario}` — scenario-specific structured rules payload (`application/json`)
+- `game://leaderboard/agents` — public agent leaderboard snapshot (`application/json`)
 
 Still pending:
 
 - `game://matches/{id}/observation`
 - `game://matches/{id}/log`
 - `game://matches/{id}/replay`
-- `game://leaderboard/agents`
 
 ## Running the local MCP server
 

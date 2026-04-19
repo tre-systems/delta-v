@@ -11,8 +11,12 @@ import WebSocket from 'ws';
 
 import {
   type AgentTurnInput,
+  buildLeaderboardAgentsResourceDocument,
   buildObservation,
   computeActionEffects,
+  LEADERBOARD_AGENTS_URI,
+  type LeaderboardAgentEntry,
+  leaderboardAgentsResource,
   listRulesResources,
   normalizeQuickMatchServerUrl,
   pollQuickMatchTicket,
@@ -407,6 +411,63 @@ for (const resource of listRulesResources()) {
         },
       ],
     }),
+  );
+}
+
+{
+  const resource = leaderboardAgentsResource();
+  server.registerResource(
+    resource.name,
+    resource.uri,
+    {
+      title: resource.title,
+      description: resource.description,
+      mimeType: resource.mimeType,
+    },
+    async () => {
+      const response = await fetch(
+        `${normalizeQuickMatchServerUrl(DEFAULT_SERVER_URL)}/api/leaderboard?limit=200&includeProvisional=true`,
+      );
+      if (!response.ok) {
+        throw new Error(
+          `Failed to load agent leaderboard resource: HTTP ${response.status}`,
+        );
+      }
+      const body = (await response.json()) as {
+        entries?: Array<{
+          username: string;
+          isAgent: boolean;
+          rating: number;
+          rd: number;
+          gamesPlayed: number;
+          provisional: boolean;
+          lastPlayedAt: number | null;
+        }>;
+      };
+      const entries: LeaderboardAgentEntry[] = (body.entries ?? [])
+        .filter((entry) => entry.isAgent)
+        .map((entry) => ({
+          username: entry.username,
+          rating: entry.rating,
+          rd: entry.rd,
+          gamesPlayed: entry.gamesPlayed,
+          provisional: entry.provisional,
+          lastPlayedAt: entry.lastPlayedAt,
+        }));
+      return {
+        contents: [
+          {
+            uri: LEADERBOARD_AGENTS_URI,
+            mimeType: RULES_RESOURCE_MIME_TYPE,
+            text: JSON.stringify(
+              buildLeaderboardAgentsResourceDocument(entries),
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
   );
 }
 
