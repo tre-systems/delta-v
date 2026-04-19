@@ -88,7 +88,25 @@ curl -sX POST https://delta-v.tre.systems/api/agent-token \
   -H 'Content-Type: application/json' -d '{"playerKey":"human_x"}'   # wrong prefix
 ```
 
-If the API silently coerces or ignores, log a finding.
+For state-changing POSTs, also test rate limits and payload validation as a pair — they're often filed together because both sides of the same boundary are involved:
+
+```bash
+# Burst test: count successes vs 429s. Compare against documented limit.
+n=$(seq 1 30 | xargs -I{} -P10 curl -s -o /dev/null -w '%{http_code}\n' \
+    -X POST https://delta-v.tre.systems/create \
+    -H 'Content-Type: application/json' -d '{"scenario":"duel"}' | sort | uniq -c)
+echo "$n"
+
+# Payload validation: empty, fake values, oversize.
+curl -s -X POST https://delta-v.tre.systems/create -w "\n%{http_code}\n"
+curl -s -X POST https://delta-v.tre.systems/create -H 'Content-Type: application/json' \
+  -d '{"scenario":"definitely_not_a_real_scenario"}' -w "\n%{http_code}\n"
+python3 -c "print('{\"scenario\":\"' + 'x'*5000 + '\"}')" | curl -s -X POST \
+  https://delta-v.tre.systems/create -H 'Content-Type: application/json' \
+  -d @- -w "\n%{http_code}\n"
+```
+
+Cloudflare's `[[ratelimits]]` binding is **per-edge-colo and best-effort** — observed limits will exceed the documented per-IP cap by 5-10x, sometimes more. That's a doc bug worth filing whenever the gap is large. If the API silently coerces / ignores / accepts garbage, log a finding.
 
 ### R3. Doc-consistency sweep
 
@@ -149,6 +167,10 @@ For each scenario in `/.well-known/agent.json`:
 4. Compare the objective copy (`Land on Mars`, `Destroy all enemies`, …) against the scenario description in `agent.json`.
 
 Differences in objective phrasing or missing controls per scenario type are findings.
+
+**Tooling caveat — Chrome MCP console:** `read_console_messages` only captures messages emitted **after** the tool is first called in the session. Messages from page load are missed. Workaround: call `read_console_messages` once with a throwaway pattern (e.g. `^x$`) to start the listener, then reload the page, then call again with the real pattern.
+
+**Tooling caveat — long synchronous JS loops:** driving 5+ scenario launches in one `javascript_tool` call frequently times out CDP (`Runtime.evaluate timed out after 45000ms`). Drive each scenario in a separate tool call instead.
 
 ### R8. Live observation during a paired match
 
@@ -238,3 +260,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | Date | Operator | Scope | Backlog entries filed |
 |------|----------|-------|----------------------|
 | 2026-04-18 | agent (Opus 4.7) | MCP-vs-browser pairing, public API surface, scenario sweep, doc-consistency | 9 |
+| 2026-04-19 | agent (Opus 4.7) | Rate-limit verification, payload validation, healthz audit, hosted-MCP parity, scenario sweep | 5 |
