@@ -112,7 +112,7 @@ const SCENARIOS_INTERNAL = {
     name: 'Lunar Evacuation',
     tags: ['Escort'],
     description:
-      'A crowded transport flees Luna for Terra with a corvette escort ' +
+      'A crowded transport flees Luna for Terra with corvette and frigate escorts ' +
       '— win only by landing survivors; a corsair tries to cut you off',
     rules: {
       logisticsEnabled: true,
@@ -133,6 +133,12 @@ const SCENARIOS_INTERNAL = {
             type: 'corvette',
             position: getBodyOffset('Luna', -1, 0),
             velocity: { dq: -2, dr: 1 },
+            startLanded: false,
+          },
+          {
+            type: 'frigate',
+            position: getBodyOffset('Luna', 1, -2),
+            velocity: { dq: -1, dr: 1 },
             startLanded: false,
           },
         ],

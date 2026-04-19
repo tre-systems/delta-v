@@ -60,7 +60,7 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
   biplanetary: [0.45, 0.85], // Mars→Venus has nav advantage
   escape: [0.0, 0.7], // Asymmetric — enforcers favored after moral victory tightening
   convoy: [0.3, 0.7], // Asymmetric escort
-  evacuation: [0.0, 0.5], // Asymmetric sprint — corsair heavily favored in AI vs AI
+  evacuation: [0.35, 0.65], // 100-game target is 40-60; CI uses 60-game tolerance for sample noise
   duel: [0.3, 0.7], // Symmetric combat (harness randomizes starting seat)
   blockade: [0.25, 0.65], // Asymmetric speed vs combat
   interplanetaryWar: [0.3, 0.7], // Equal credits, different bases
