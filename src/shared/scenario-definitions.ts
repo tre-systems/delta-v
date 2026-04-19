@@ -89,7 +89,7 @@ const SCENARIOS_INTERNAL = {
         ships: [
           {
             type: 'corvette',
-            position: getBodyOffset('Terra', -2, 1),
+            position: getBodyOffset('Terra', -4, 2),
             velocity: { dq: 0, dr: 0 },
             startLanded: false,
           },
