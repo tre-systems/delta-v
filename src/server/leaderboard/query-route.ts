@@ -52,6 +52,7 @@ type LeaderboardQueryError = {
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 200;
+const RESERVED_TEST_USERNAME_PREFIXES = ['bot_', 'probe_', 'qa_'];
 
 const error = (message: string): LeaderboardQueryError => ({
   status: 400,
@@ -101,6 +102,13 @@ const toEntry = (row: PlayerRow): LeaderboardEntry => {
     provisional,
     lastPlayedAt: row.last_match_at,
   };
+};
+
+const isReservedTestUsername = (username: string): boolean => {
+  const lowered = username.toLowerCase();
+  return RESERVED_TEST_USERNAME_PREFIXES.some((prefix) =>
+    lowered.startsWith(prefix),
+  );
 };
 
 // Canonical cache URL for this request: strip every query param except
@@ -155,7 +163,9 @@ const buildLeaderboardResponse = async (
     .bind(fetchSize)
     .all<PlayerRow>();
 
-  const rows = (results ?? []).map(toEntry);
+  const rows = (results ?? [])
+    .filter((row) => !isReservedTestUsername(row.username))
+    .map(toEntry);
   const filtered = includeProvisional
     ? rows
     : rows.filter((e) => !e.provisional);

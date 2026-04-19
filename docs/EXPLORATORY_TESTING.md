@@ -341,7 +341,7 @@ Things that have wasted exploratory time in past passes — don't repeat them.
 - **Speculative `git commit` after exploratory edits.** Exploratory passes usually shouldn't change source — only docs (`BACKLOG.md`, this doc, and occasionally a recipe-driven inline fix). If you found yourself editing engine code mid-pass, you switched modes; commit those changes separately, ideally on a dedicated branch.
 - **Mass-purging production data without a paired check on `?status=live`.** R11 destroys real matches if any are in flight. Always verify zero live matches first, and confirm scope with the operator.
 - **Adding "interesting but not actionable" entries to the backlog.** They drown out real items. If you can't write a fix, you don't have a finding yet — keep probing.
-- **Forgetting that the public match log archives usernames forever.** When testing, prefer obviously-non-PII callsigns (`QA_*`, `Bot_*`, `Probe_*`) over realistic-looking names.
+- **Forgetting that exploratory identities still persist in D1.** Use the reserved non-public prefixes (`QA_*`, `Bot_*`, `Probe_*`) for test callsigns; the leaderboard now filters them, but they remain queryable in operator tables and logs.
 
 ---
 

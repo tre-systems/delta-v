@@ -77,6 +77,24 @@ describe('handleLeaderboardQuery', () => {
     expect(body.entries[1].provisional).toBe(true);
   });
 
+  it('filters reserved exploratory usernames from the public leaderboard', async () => {
+    const { db } = mockDb([
+      row({ username: 'QA_Probe_A', rating: 1800, rd: 80 }),
+      row({ username: 'Probe_B', rating: 1750, rd: 80 }),
+      row({ username: 'Bot_C', rating: 1700, rd: 80, is_agent: 1 }),
+      row({ username: 'RankedPilot', rating: 1650, rd: 80 }),
+    ]);
+    const res = await handleLeaderboardQuery(
+      new Request('https://w.test/api/leaderboard?includeProvisional=true'),
+      env(db),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as LeaderboardResponse;
+    expect(body.entries.map((entry) => entry.username)).toEqual([
+      'RankedPilot',
+    ]);
+  });
+
   it('respects the limit parameter (ranked-only)', async () => {
     const rows = Array.from({ length: 10 }, (_, i) =>
       row({ username: `P${i}`, rating: 2000 - i }),
