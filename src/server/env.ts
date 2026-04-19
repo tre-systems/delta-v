@@ -34,4 +34,8 @@ export interface Env {
   CF_VERSION_METADATA?: {
     id?: string;
   };
+  // Optional deploy metadata injected by the platform or CI. Used as a
+  // fallback when version metadata is unavailable.
+  CF_PAGES_COMMIT_SHA?: string;
+  GIT_COMMIT_SHA?: string;
 }
