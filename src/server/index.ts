@@ -19,7 +19,7 @@ import { handleMatchesList } from './matches-list';
 import { MatchmakerDO } from './matchmaker-do';
 import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
 
-const WORKER_BOOTED_AT = new Date().toISOString();
+const WORKER_BOOTED_AT_MS = Date.now();
 
 export type { CreateRateLimiterBinding, Env } from './env';
 
@@ -161,6 +161,18 @@ const isLoopbackRequest = (request: Request): boolean => {
   );
 };
 
+const resolveWorkerSha = (env: Env): string | null => {
+  const candidate =
+    env.CF_VERSION_METADATA?.id ??
+    env.CF_PAGES_COMMIT_SHA ??
+    env.GIT_COMMIT_SHA;
+  if (typeof candidate !== 'string') {
+    return null;
+  }
+  const trimmed = candidate.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 export default {
   async fetch(
     request: Request,
@@ -177,8 +189,8 @@ export default {
     ) {
       return Response.json({
         ok: true,
-        sha: env.CF_VERSION_METADATA?.id ?? null,
-        bootedAt: WORKER_BOOTED_AT,
+        sha: resolveWorkerSha(env),
+        bootedAt: new Date(WORKER_BOOTED_AT_MS).toISOString(),
       });
     }
 

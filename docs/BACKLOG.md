@@ -146,12 +146,6 @@ Four papercuts hit while pairing a local MCP agent against a human browser seat 
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/shared/agent/`, `src/shared/types/protocol.ts`, `.claude/skills/play/SKILL.md`
 
-### Liveness endpoint payload is unpopulated
-
-`/healthz`, `/health`, `/status` all return 200 with `{"ok":true,"sha":null,"bootedAt":"1970-01-01T00:00:00.000Z"}`. The endpoint shape is right but neither field is populated — `sha` is hard-coded `null` and `bootedAt` is the Unix epoch. Uptime probes that only check `ok:true` will pass; release gates that compare deployed `sha` against the pipeline build will silently always pass. Wire in the actual deploy SHA (`CF_PAGES_COMMIT_SHA` / a build-time env var injected by `esbuild.client.mjs` or the Worker bundler) and stamp `bootedAt` in the Worker module-scope at first import. Bonus: alias decision — three URLs (`/healthz`, `/health`, `/status`) all 200 with the same body; pick one canonical and 301 the others, or document them as supported aliases. Found via R1.
-
-**Files:** `src/server/`, `wrangler.toml`, `esbuild.client.mjs`, `docs/OBSERVABILITY.md`
-
 ### Match-isolation flag for automated verification
 
 During exploratory pairing on the production server, an MCP agent and a paired browser seat were split across the public queue — the browser matched a real user instead of the intended MCP partner, making exploratory / regression testing both flaky and user-disruptive. Options: a `delta_v_quick_match_connect({ scenario, rendezvousCode })` mode that pairs only with clients presenting the same short code (bypassing the public queue), a `private: true` flag that puts the ticket in a segregated pool, or a dev-only scenario namespace (e.g. `duel:test`) that never mixes with public queues.
