@@ -19,6 +19,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 - *`delta-v:tokens` localStorage accumulates without cleanup* (same section) — token cache grows unbounded; tokens never invalidated server-side on archive.
 - *No security headers on responses* (Gameplay UX & matchmaking integrity) — no CSP, HSTS, X-Frame-Options, Referrer-Policy. Standard production hardening missing. User-typed callsigns in multiple render paths make CSP especially worthwhile.
 - *CORS policy on public APIs is undocumented and silent* (same section) — no `Access-Control-Allow-*` headers mean third-party agents and leaderboard embeds can't read JSON endpoints from browsers.
+- *Match-history "Replay →" links are broken for every listed match* (Gameplay UX & matchmaking integrity) — every click shows "Replay unavailable" toast; breaks a promoted feature on a page that tells users replays are available.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
 
@@ -295,6 +296,25 @@ Permissions-Policy: geolocation=(), microphone=(), camera=()
 Set these as a single middleware in `src/server/index.ts` for all HTML + JSON responses. Test under `npm run typecheck && vitest` and manual browser probes afterwards (CSP in particular breaks things when tightened — do a full scenario sweep to catch any inline-script or eval usage that needs carving out or fixing).
 
 **Files:** `src/server/index.ts`, `src/server/response-headers.ts` (new), `docs/SECURITY.md` (capture trade-offs), tests
+
+### Match-history replay links resolve to "Replay unavailable" for every match
+
+Reproduced 2026-04-19 on production. The `/matches` page advertises *"Every completed match is archived. Click any replay to watch it unfold turn-by-turn."* and renders a `Replay →` link next to each row. Clicking:
+
+1. Href is bare `/` — the click handler is JS-driven (looks up the match by a data attribute / state store, not the href).
+2. Navigates to the lobby with a toast: *"Replay unavailable for this match."*
+
+Every listed match shows this behaviour — including matches the current browser was a participant in (whose `playerToken` is still in `localStorage['delta-v:tokens']`). Manual `curl /replay/XVSZQ` with the stored token returns 403 `Invalid player token`, suggesting tokens are invalidated server-side at archive time. The handler at [src/server/game-do/http-handlers.ts:208-216](src/server/game-do/http-handlers.ts:208) *does* support `?viewer=spectator` for unauthenticated read, and `curl /replay/XVSZQ?viewer=spectator` correctly returns 404 "Replay not found" — a different error path — which means the spectator branch is reachable but the client doesn't request it.
+
+Client fix: have the replay-viewer UI try `?viewer=spectator` if no valid token is available, and surface a better error state than a silent toast ("Replay not yet available — check back in a few minutes" vs "This replay has expired and is no longer viewable").
+
+Server-side follow-up: for completed matches with a `match_archive` row, the spectator replay should generally work. Returning 404 here means the projection path can't reconstruct the timeline, probably because the DO has been evicted and the R2 archive path isn't wired into `getProjectedReplayTimeline`. Confirm R2 fallback works, or document that replays are DO-scoped (and therefore only viewable for a limited time).
+
+This is a player-visible promise-vs-delivery gap that matters for launch: promoting the game while the public match-history "Replay" link never works would be a confidence hit.
+
+Found via R1 (path discovery) + R7 (browser exercise of the UI).
+
+**Files:** `src/client/ui/matches-page.ts` (or wherever the matches-history component lives), `src/server/game-do/http-handlers.ts`, `src/server/game-do/archive.ts`, `src/server/room-routes.ts`, `static/matches.html` (copy)
 
 ### No CORS on public JSON endpoints (intentional? or oversight?)
 
