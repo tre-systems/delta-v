@@ -31,6 +31,7 @@ interface QueueEntry {
 
 interface Env {
   GAME: DurableObjectNamespace;
+  LIVE_REGISTRY?: DurableObjectNamespace;
   // Optional at the type level so tests with minimal env stubs continue to
   // work. At runtime the worker always has DB bound; structured events are
   // skipped silently when it isn't available.
@@ -153,6 +154,24 @@ const invalidQuickMatchPayload = (): Response =>
       hint: 'Send { player: { playerKey, username? }, scenario? } as JSON.',
     },
     { status: 400 },
+  );
+
+const playerAlreadyActiveResponse = (
+  playerKey: string,
+  active: { code: string; scenario: string } | null,
+): Response =>
+  Response.json(
+    {
+      ok: false,
+      error: 'player_already_active',
+      message: `Player ${playerKey} is already in an active match.`,
+      ...(active
+        ? {
+            hint: `Reconnect to room ${active.code} (${active.scenario}) before queueing again.`,
+          }
+        : {}),
+    },
+    { status: 409 },
   );
 
 /** Synthetic opponent profile for dev-only quick-match bot fill (`DEV_MODE=1`). */
@@ -322,6 +341,41 @@ export class MatchmakerDO extends DurableObject<Env> {
     });
   }
 
+  private async findActiveMatchForPlayer(
+    playerKey: string,
+  ): Promise<{ code: string; scenario: string } | null> {
+    const reg = this.env.LIVE_REGISTRY;
+    if (!reg) {
+      return null;
+    }
+
+    try {
+      const response = await reg
+        .get(reg.idFromName('global'))
+        .fetch(
+          new Request(
+            `https://live-registry.internal/active-player/${encodeURIComponent(playerKey)}`,
+            { method: 'GET' },
+          ),
+        );
+      if (!response.ok) {
+        return null;
+      }
+      const payload = (await response.json()) as
+        | { active: false }
+        | { active: true; code: string; scenario: string };
+      return payload.active
+        ? { code: payload.code, scenario: payload.scenario }
+        : null;
+    } catch (error) {
+      console.error('[matchmaker_live_registry_lookup_failed]', {
+        playerKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
   private async matchEntries(
     entries: QueueEntry[],
     leftIndex: number,
@@ -334,11 +388,29 @@ export class MatchmakerDO extends DurableObject<Env> {
       return null;
     }
 
+    const [leftActive, rightActive] = await Promise.all([
+      this.findActiveMatchForPlayer(left.player.playerKey),
+      this.findActiveMatchForPlayer(right.player.playerKey),
+    ]);
+    if (leftActive || rightActive) {
+      return entries.filter(
+        (_entry, index) =>
+          !(
+            (leftActive && index === leftIndex) ||
+            (rightActive && index === rightIndex)
+          ),
+      );
+    }
+
+    const seatZeroUsesLeft = Math.random() < 0.5;
+    const seatZeroPlayer = seatZeroUsesLeft ? left.player : right.player;
+    const seatOnePlayer = seatZeroUsesLeft ? right.player : left.player;
+
     // Both entries are matched on scenario before reaching matchEntries,
     // so left.scenario and right.scenario agree — pick either.
     const room = await this.allocateQuickMatchRoom(left.scenario, [
-      left.player,
-      right.player,
+      seatZeroPlayer,
+      seatOnePlayer,
     ]);
 
     if (!room) {
@@ -354,7 +426,7 @@ export class MatchmakerDO extends DurableObject<Env> {
         left.ticket,
         left.scenario,
         room.code,
-        room.playerTokens[0],
+        seatZeroUsesLeft ? room.playerTokens[0] : room.playerTokens[1],
       ),
     };
 
@@ -366,7 +438,7 @@ export class MatchmakerDO extends DurableObject<Env> {
         right.ticket,
         right.scenario,
         room.code,
-        room.playerTokens[1],
+        seatZeroUsesLeft ? room.playerTokens[1] : room.playerTokens[0],
       ),
     };
 
@@ -375,6 +447,8 @@ export class MatchmakerDO extends DurableObject<Env> {
       scenario: right.scenario,
       leftKey: left.player.playerKey,
       rightKey: right.player.playerKey,
+      seat0Key: seatZeroPlayer.playerKey,
+      seat1Key: seatOnePlayer.playerKey,
       waitMsLeft: now - left.queuedAt,
       waitMsRight: now - right.queuedAt,
     });
@@ -412,6 +486,16 @@ export class MatchmakerDO extends DurableObject<Env> {
 
     const leaderboardAgentVerified =
       request.headers.get(QUICK_MATCH_VERIFIED_AGENT_HEADER) === '1';
+
+    const existingActiveMatch = await this.findActiveMatchForPlayer(
+      parsed.player.playerKey,
+    );
+    if (existingActiveMatch) {
+      return playerAlreadyActiveResponse(
+        parsed.player.playerKey,
+        existingActiveMatch,
+      );
+    }
 
     const now = Date.now();
     let entries = this.pruneQueue(await this.readQueue(), now);

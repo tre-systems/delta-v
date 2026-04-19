@@ -42,13 +42,23 @@ const createCtx = () => ({
   waitUntil(_promise: Promise<unknown>) {},
 });
 
-const createMatchmaker = (options?: { devMode?: string }) => {
+const createMatchmaker = (options?: {
+  devMode?: string;
+  liveRegistryFetch?: (request: Request) => Promise<Response>;
+}) => {
   const initFetch = vi.fn<(request: Request) => Promise<Response>>(
     async (_request) => Response.json({ ok: true }, { status: 201 }),
+  );
+  const liveRegistryFetch = vi.fn(
+    options?.liveRegistryFetch ??
+      (async () => Response.json({ active: false }, { status: 200 })),
   );
   const ctx = createCtx();
   const gameStub = {
     fetch: initFetch,
+  } as unknown as DurableObjectStub;
+  const liveRegistryStub = {
+    fetch: liveRegistryFetch,
   } as unknown as DurableObjectStub;
   const matchmaker = new MatchmakerDO(
     ctx as unknown as DurableObjectState,
@@ -57,19 +67,25 @@ const createMatchmaker = (options?: { devMode?: string }) => {
         idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
         get: vi.fn(() => gameStub),
       },
+      LIVE_REGISTRY: {
+        idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
+        get: vi.fn(() => liveRegistryStub),
+      },
       ...(options?.devMode !== undefined ? { DEV_MODE: options.devMode } : {}),
     } as unknown as {
       GAME: DurableObjectNamespace;
+      LIVE_REGISTRY: DurableObjectNamespace;
       DEV_MODE?: string;
     },
   );
 
-  return { matchmaker, ctx, initFetch };
+  return { matchmaker, ctx, initFetch, liveRegistryFetch };
 };
 
 describe('MatchmakerDO', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(Math, 'random').mockReturnValue(0.25);
   });
 
   afterEach(() => {
@@ -428,5 +444,65 @@ describe('MatchmakerDO', () => {
         }),
       ]),
     });
+  });
+
+  it('can assign the waiting player to seat 0 when the shuffle flips', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    const { matchmaker, initFetch } = createMatchmaker();
+
+    const queued = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+    const queuedPayload = (await queued.json()) as { ticket: string };
+
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey2',
+            username: 'Pilot Two',
+          },
+        }),
+      }),
+    );
+
+    const initRequest = initFetch.mock.calls[0]?.[0];
+    if (!initRequest) throw new Error('Expected init request');
+    const initBody = (await initRequest.json()) as {
+      players: [{ playerKey: string }, { playerKey: string }];
+      playerToken: string;
+      guestPlayerToken: string;
+    };
+    expect(initBody).toMatchObject({
+      players: [
+        expect.objectContaining({ playerKey: 'playerkey1' }),
+        expect.objectContaining({ playerKey: 'playerkey2' }),
+      ],
+    });
+
+    const matchedQueued = await matchmaker.fetch(
+      new Request(
+        `https://matchmaker.internal/ticket/${queuedPayload.ticket}`,
+        {
+          method: 'GET',
+        },
+      ),
+    );
+    const matchedPayload = (await matchedQueued.json()) as {
+      playerToken: string;
+    };
+    expect(matchedPayload.playerToken).toBe(initBody.playerToken);
   });
 });
