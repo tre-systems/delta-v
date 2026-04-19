@@ -108,6 +108,11 @@ test.describe('accessibility smoke checks', () => {
     await launchFleetActionScenario(page);
     // launchFleetActionScenario lands on the HUD after picking a ship;
     // reset back to fleet-building by re-launching for the axe check.
+    // Clear the local-game snapshot first so resumeLocalGame() doesn't
+    // restore us straight back into the in-flight game and skip the menu.
+    await page.evaluate(() =>
+      window.localStorage.removeItem('delta-v:local-game'),
+    );
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForDisplay(page, '[data-testid="menu"]', 'flex');
     await page.click('[data-testid="singlePlayerBtn"]');
