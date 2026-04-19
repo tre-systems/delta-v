@@ -82,6 +82,12 @@ export const pickNextCheckpoint = (
   const homeCenter = bodyCenters.get(player.homeBody);
   const routeBodies = unvisited.filter((body) => bodyCenters.has(body));
 
+  const getRemainingTourCost = createRemainingTourCostEstimator(
+    routeBodies,
+    bodyCenters,
+    homeCenter,
+  );
+
   if (!homeCenter || routeBodies.length === 0) {
     return unvisited.reduce((best, name) => {
       const body = bodyCenters.get(name);
@@ -96,6 +102,41 @@ export const pickNextCheckpoint = (
     }, unvisited[0]);
   }
 
+  let bestBody = routeBodies[0];
+  let bestCost = Number.POSITIVE_INFINITY;
+  let bestDirectDist = Number.POSITIVE_INFINITY;
+  const fullMask = (1 << routeBodies.length) - 1;
+
+  for (let i = 0; i < routeBodies.length; i++) {
+    const nextBody = routeBodies[i];
+    const nextCenter = bodyCenters.get(nextBody);
+
+    if (!nextCenter) {
+      continue;
+    }
+
+    const directDist = hexDistance(shipPos, nextCenter);
+    const totalCost =
+      directDist + getRemainingTourCost(nextBody, fullMask ^ (1 << i));
+
+    if (
+      totalCost < bestCost ||
+      (totalCost === bestCost && directDist < bestDirectDist)
+    ) {
+      bestBody = nextBody;
+      bestCost = totalCost;
+      bestDirectDist = directDist;
+    }
+  }
+
+  return bestBody;
+};
+
+const createRemainingTourCostEstimator = (
+  routeBodies: readonly string[],
+  bodyCenters: ReadonlyMap<string, { q: number; r: number }>,
+  homeCenter: { q: number; r: number } | undefined,
+): ((fromBody: string, remainingMask: number) => number) => {
   const memo = new Map<string, number>();
   const getRemainingTourCost = (
     fromBody: string,
@@ -110,7 +151,7 @@ export const pickNextCheckpoint = (
 
     const fromCenter = bodyCenters.get(fromBody);
 
-    if (!fromCenter) {
+    if (!fromCenter || !homeCenter) {
       return Number.POSITIVE_INFINITY;
     }
 
@@ -148,10 +189,53 @@ export const pickNextCheckpoint = (
     return bestCost;
   };
 
-  let bestBody = routeBodies[0];
-  let bestCost = Number.POSITIVE_INFINITY;
-  let bestDirectDist = Number.POSITIVE_INFINITY;
+  return getRemainingTourCost;
+};
+
+export const estimateRemainingCheckpointTourCost = (
+  player: {
+    visitedBodies?: string[];
+    homeBody: string;
+  },
+  checkpoints: readonly string[],
+  map: SolarSystemMap,
+  shipPos?: {
+    q: number;
+    r: number;
+  },
+): number => {
+  if (!shipPos) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const visited = new Set(player.visitedBodies ?? []);
+  const unvisited = checkpoints.filter((body) => !visited.has(body));
+  const bodyCenters = new Map(
+    map.bodies.map((body) => [body.name, body.center] as const),
+  );
+  const homeCenter = bodyCenters.get(player.homeBody);
+
+  if (!homeCenter) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  if (unvisited.length === 0) {
+    return hexDistance(shipPos, homeCenter);
+  }
+
+  const routeBodies = unvisited.filter((body) => bodyCenters.has(body));
+
+  if (routeBodies.length === 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const getRemainingTourCost = createRemainingTourCostEstimator(
+    routeBodies,
+    bodyCenters,
+    homeCenter,
+  );
   const fullMask = (1 << routeBodies.length) - 1;
+  let bestCost = Number.POSITIVE_INFINITY;
 
   for (let i = 0; i < routeBodies.length; i++) {
     const nextBody = routeBodies[i];
@@ -161,21 +245,16 @@ export const pickNextCheckpoint = (
       continue;
     }
 
-    const directDist = hexDistance(shipPos, nextCenter);
-    const totalCost =
-      directDist + getRemainingTourCost(nextBody, fullMask ^ (1 << i));
+    const candidateCost =
+      hexDistance(shipPos, nextCenter) +
+      getRemainingTourCost(nextBody, fullMask ^ (1 << i));
 
-    if (
-      totalCost < bestCost ||
-      (totalCost === bestCost && directDist < bestDirectDist)
-    ) {
-      bestBody = nextBody;
-      bestCost = totalCost;
-      bestDirectDist = directDist;
+    if (candidateCost < bestCost) {
+      bestCost = candidateCost;
     }
   }
 
-  return bestBody;
+  return bestCost;
 };
 
 export const projectShipAfterCourse = (
