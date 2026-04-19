@@ -1,5 +1,5 @@
 import { asGameId, type RoomCode } from '../shared/ids';
-import { SCENARIOS } from '../shared/map-data';
+import { SCENARIOS, type ScenarioKey } from '../shared/map-data';
 import type { Env } from './env';
 import { projectReplayTimeline } from './game-do/archive';
 import { fetchArchivedMatch } from './game-do/match-archive';
@@ -149,7 +149,10 @@ export const handleCreate = async (
     return invalidRequest(400, 'invalid_json', 'Invalid JSON body.');
   }
 
-  const parsed = parseCreatePayload(payload, Object.keys(SCENARIOS));
+  const parsed = parseCreatePayload(
+    payload,
+    Object.keys(SCENARIOS) as ScenarioKey[],
+  );
   if (!parsed.ok) {
     return invalidRequest(400, 'invalid_payload', parsed.error);
   }

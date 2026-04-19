@@ -1,6 +1,6 @@
 import type { ViewerId } from '../../shared/engine/game-engine';
 import type { PlayerToken } from '../../shared/ids';
-import { SCENARIOS } from '../../shared/map-data';
+import { SCENARIOS, type ScenarioKey } from '../../shared/map-data';
 import {
   ErrorCode,
   type PlayerId,
@@ -156,7 +156,10 @@ export const handleInitRequest = async (
     });
   }
 
-  const parsed = parseInitPayload(payload, Object.keys(SCENARIOS));
+  const parsed = parseInitPayload(
+    payload,
+    Object.keys(SCENARIOS) as ScenarioKey[],
+  );
 
   if (!parsed.ok) {
     return new Response(parsed.error, { status: 400 });

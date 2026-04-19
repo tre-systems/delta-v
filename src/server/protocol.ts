@@ -11,6 +11,10 @@ import {
   normalizeUsername,
   type PublicPlayerProfile,
 } from '../shared/player';
+import {
+  isValidScenario,
+  type ScenarioKey,
+} from '../shared/scenario-definitions';
 import type { Result } from '../shared/types/domain';
 import { isObject, isString } from '../shared/util';
 
@@ -50,19 +54,21 @@ export const isValidPlayerToken = (value: unknown): value is PlayerToken =>
 
 export const normalizeScenarioKey = (
   raw: unknown,
-  knownScenarioKeys: readonly string[],
-): string => {
+  knownScenarioKeys: readonly ScenarioKey[],
+): ScenarioKey => {
   if (!isString(raw)) {
     return 'biplanetary';
   }
 
-  return knownScenarioKeys.includes(raw) ? raw : 'biplanetary';
+  return knownScenarioKeys.includes(raw as ScenarioKey)
+    ? (raw as ScenarioKey)
+    : 'biplanetary';
 };
 
 export const parseCreatePayload = (
   raw: unknown,
-  knownScenarioKeys: readonly string[],
-): Result<{ scenario: string }> => {
+  knownScenarioKeys: readonly ScenarioKey[],
+): Result<{ scenario: ScenarioKey }> => {
   if (!isObject(raw)) {
     return { ok: false, error: 'Invalid create payload' };
   }
@@ -73,7 +79,8 @@ export const parseCreatePayload = (
   }
 
   if (
-    typeof raw.scenario !== 'string' ||
+    !isString(raw.scenario) ||
+    !isValidScenario(raw.scenario) ||
     !knownScenarioKeys.includes(raw.scenario)
   ) {
     return { ok: false, error: 'Invalid scenario' };
@@ -89,7 +96,7 @@ export const parseCreatePayload = (
 
 export interface InitPayload {
   code: RoomCode;
-  scenario: string;
+  scenario: ScenarioKey;
   playerToken: PlayerToken;
   guestPlayerToken: PlayerToken | null;
   players: [RoomPlayerProfile, RoomPlayerProfile];
@@ -136,7 +143,7 @@ const normalizeRoomPlayerProfile = (
 
 export const parseInitPayload = (
   raw: unknown,
-  knownScenarioKeys: readonly string[],
+  knownScenarioKeys: readonly ScenarioKey[],
 ): Result<InitPayload> => {
   if (!isObject(raw)) {
     return { ok: false, error: 'Invalid init payload' };
@@ -147,7 +154,8 @@ export const parseInitPayload = (
   }
 
   if (
-    typeof raw.scenario !== 'string' ||
+    !isString(raw.scenario) ||
+    !isValidScenario(raw.scenario) ||
     !knownScenarioKeys.includes(raw.scenario)
   ) {
     return { ok: false, error: 'Invalid scenario' };
@@ -188,7 +196,7 @@ export const parseInitPayload = (
 
 export interface RoomConfig {
   code: RoomCode;
-  scenario: string;
+  scenario: ScenarioKey;
   playerTokens: [PlayerToken, PlayerToken | null];
   players: [RoomPlayerProfile, RoomPlayerProfile];
 }
