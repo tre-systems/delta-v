@@ -36,6 +36,10 @@ import {
   parseCoachMessage,
   setCoachDirective,
 } from './coach';
+import {
+  clearHostedMcpSeatEvents,
+  readHostedMcpSeatEvents,
+} from './mcp-session-state';
 import { type StateWaiters, TooManyWaitersError } from './state-waiters';
 
 export interface McpRequestDeps {
@@ -67,6 +71,19 @@ export interface McpRequestDeps {
   consumeLastTurnAutoPlayNotice: (
     playerId: PlayerId,
   ) => LastTurnAutoPlayed | null;
+}
+
+interface SessionSummaryResponse {
+  closed: boolean;
+  code: string;
+  connectionStatus: 'open';
+  currentPhase: GameState['phase'] | null;
+  eventsBuffered: number;
+  hasState: boolean;
+  playerId: PlayerId;
+  playerToken: PlayerToken;
+  scenario: string;
+  turnNumber: number | null;
 }
 
 const MAX_WAIT_TIMEOUT_MS = 25_000;
@@ -240,6 +257,48 @@ const handleStateRequest = async (
     state: view?.filtered ?? null,
     hasState: view !== null,
   });
+};
+
+const handleSessionSummaryRequest = async (
+  deps: McpRequestDeps,
+  request: Request,
+): Promise<Response> => {
+  const url = new URL(request.url);
+  const roomConfig = await deps.getRoomConfig();
+  const playerKey = url.searchParams.get('playerKey');
+  if (!roomConfig) {
+    return error(404, 'Game not found');
+  }
+  if (!playerKey) {
+    return error(400, 'playerKey is required');
+  }
+  const playerId = roomConfig.players.findIndex(
+    (player) => player.playerKey === playerKey,
+  );
+  if (playerId !== 0 && playerId !== 1) {
+    return error(404, 'Player is not seated in this match');
+  }
+  const playerToken = roomConfig.playerTokens[playerId];
+  if (!playerToken) {
+    return error(409, 'Seat has no playerToken');
+  }
+  const state = await deps.getCurrentGameState();
+  const buffer = await readHostedMcpSeatEvents(deps.storage, playerId, {
+    limit: 1,
+  });
+  const body: SessionSummaryResponse = {
+    code: roomConfig.code,
+    scenario: roomConfig.scenario,
+    playerId,
+    playerToken,
+    connectionStatus: 'open',
+    closed: false,
+    hasState: state !== null,
+    currentPhase: state?.phase ?? null,
+    turnNumber: state?.turnNumber ?? null,
+    eventsBuffered: buffer.bufferedRemaining,
+  };
+  return json({ ok: true, session: body });
 };
 
 const handleObservationRequest = async (
@@ -721,6 +780,71 @@ const handleChatRequest = async (
   return json({ ok: true, sent: true, text });
 };
 
+const handleEventsRequest = async (
+  deps: McpRequestDeps,
+  request: Request,
+): Promise<Response> => {
+  const url = new URL(request.url);
+  const auth = await authorizeRequest(deps, url);
+  if (!auth.ok) return auth.response;
+  let body: {
+    afterEventId?: unknown;
+    clear?: unknown;
+    limit?: unknown;
+  } = {};
+  try {
+    if (request.headers.get('content-length') !== '0') {
+      const parsed = await request.json();
+      if (parsed && typeof parsed === 'object') {
+        body = parsed as typeof body;
+      }
+    }
+  } catch {
+    // Default query options are fine.
+  }
+  const afterEventId =
+    typeof body.afterEventId === 'number' && Number.isFinite(body.afterEventId)
+      ? Math.max(0, Math.floor(body.afterEventId))
+      : undefined;
+  const limit =
+    typeof body.limit === 'number' && Number.isFinite(body.limit)
+      ? Math.max(1, Math.min(200, Math.floor(body.limit)))
+      : undefined;
+  const clear = body.clear === true;
+  const result = await readHostedMcpSeatEvents(
+    deps.storage,
+    auth.value.playerId,
+    {
+      afterEventId,
+      limit,
+      clear,
+    },
+  );
+  await deps.touchInactivity();
+  return json({
+    ok: true,
+    events: result.events,
+    bufferedRemaining: result.bufferedRemaining,
+    latestEventId: result.latestEventId,
+  });
+};
+
+const handleCloseRequest = async (
+  deps: McpRequestDeps,
+  request: Request,
+): Promise<Response> => {
+  const url = new URL(request.url);
+  const auth = await authorizeRequest(deps, url);
+  if (!auth.ok) return auth.response;
+  await clearHostedMcpSeatEvents(deps.storage, auth.value.playerId);
+  await deps.touchInactivity();
+  return json({
+    ok: true,
+    closed: true,
+    clearedEvents: true,
+  });
+};
+
 // Entry point dispatched from handleGameDoFetch. Returns null when the
 // pathname/method combination is not an MCP route so the caller can continue
 // matching (WebSocket upgrade, /init, etc.).
@@ -730,6 +854,9 @@ export const handleMcpRequest = async (
 ): Promise<Response | null> => {
   const url = new URL(request.url);
   const path = url.pathname;
+  if (path === '/mcp/session-summary' && request.method === 'GET') {
+    return handleSessionSummaryRequest(deps, request);
+  }
   if (path === '/mcp/state' && request.method === 'GET') {
     return handleStateRequest(deps, request);
   }
@@ -744,6 +871,12 @@ export const handleMcpRequest = async (
   }
   if (path === '/mcp/chat' && request.method === 'POST') {
     return handleChatRequest(deps, request);
+  }
+  if (path === '/mcp/events' && request.method === 'POST') {
+    return handleEventsRequest(deps, request);
+  }
+  if (path === '/mcp/close' && request.method === 'POST') {
+    return handleCloseRequest(deps, request);
   }
   return null;
 };

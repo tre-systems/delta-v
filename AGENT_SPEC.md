@@ -494,7 +494,7 @@ Threat model and mitigations: [SECURITY.md](./docs/SECURITY.md).
 **Local:** `npm run mcp:delta-v` — stdio transport, owns per-session WebSockets and an event buffer (exposes `delta_v_list_sessions`, `delta_v_get_events`, `delta_v_reconnect`, `delta_v_close_session` on top of the common toolset).
 For two-seat local automation, queue both seats with `delta_v_quick_match_connect({ waitForOpponent: false })`, then resolve/connect them with `delta_v_pair_quick_match_tickets`.
 
-**Remote:** `https://delta-v.tre.systems/mcp` — streamable HTTP, stateless, no install.
+**Remote:** `https://delta-v.tre.systems/mcp` — streamable HTTP, no install. The GAME DO now persists hosted seat event buffers, so remote MCP also supports `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` for authenticated agents.
 
 Remote flow with layered tokens:
 
@@ -564,7 +564,7 @@ Still open:
 
 - **MCP resources** — URI-style read-only data (`game://rules/{scenario}`, `game://matches/{id}/replay`) so agents can fetch rules and replays as first-class resources rather than via bespoke HTTP calls.
 - **Observation v2 wire-level unification** — collapse `AgentTurnInput` into a single `Observation` type across bridge and MCP, keeping the opt-in layers.
-- **Unify local and hosted MCP tool surfaces** — the local stdio server exposes `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_session` that hosted MCP lacks; picking one name for quick-match and porting session buffering to the hosted side is on the backlog.
+- **Unify local and hosted MCP tool surfaces** — `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_session` now exist on both local and hosted MCP. Remaining parity work is around live-match resources and any future reconnect semantics beyond the current hosted DO-backed event/session helpers.
 - **Multi-agent orchestration / tournament mode** — builds on the shipped leaderboard.
 - **Spectator-to-coach upgrade flow** in the browser UI.
 

@@ -120,12 +120,6 @@ Tune candidate thresholds with simulation outcomes (especially scenario-specific
 
 Gaps in local vs hosted MCP parity, first-class resources, and structured rejection surfaces for autonomous play.
 
-### Unify local and hosted MCP tool surfaces
-
-Hosted MCP: add `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_session` parity with local; server-side event buffering for flaky networks.
-
-**Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `docs/DELTA_V_MCP.md`, `AGENT_SPEC.md`
-
 ### Ship MCP resources: match log, replay
 
 [AGENT_SPEC.md lines 91–96](../AGENT_SPEC.md) now has `game://rules/current`, `game://rules/{scenario}`, and `game://leaderboard/agents` shipped. Remaining resource work is `game://matches/{id}/observation`, `game://matches/{id}/log`, and `game://matches/{id}/replay` so agents can fetch live match state and append-only logs as first-class resources instead of bespoke tool/HTTP calls.
