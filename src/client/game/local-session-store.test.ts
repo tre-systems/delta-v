@@ -110,4 +110,41 @@ describe('local-session-store', () => {
 
     dispose();
   });
+
+  it('preserves a pre-existing snapshot on the initial blank startup tick', () => {
+    const storage = createStorage();
+    const snapshot = createSnapshot();
+    saveStoredLocalGameSession(storage, snapshot);
+
+    const ctx = {
+      isLocalGameSignal: signal(false),
+      stateSignal: signal<'menu' | 'playing_astrogation' | 'gameOver'>('menu'),
+      gameStateSignal: signal<typeof snapshot.gameState | null>(null),
+      playerIdSignal: signal<0 | 1 | -1>(-1),
+      scenario: 'duel',
+      aiDifficulty: 'hard' as const,
+    };
+
+    const dispose = attachLocalGameSessionPersistence(storage, ctx, () => 999);
+
+    expect(loadStoredLocalGameSession(storage)).toEqual(snapshot);
+
+    ctx.isLocalGameSignal.value = true;
+    ctx.playerIdSignal.value = snapshot.playerId;
+    ctx.gameStateSignal.value = snapshot.gameState;
+    ctx.stateSignal.value = 'playing_astrogation';
+
+    expect(loadStoredLocalGameSession(storage)).toMatchObject({
+      updatedAt: 999,
+    });
+
+    ctx.isLocalGameSignal.value = false;
+    ctx.playerIdSignal.value = -1;
+    ctx.gameStateSignal.value = null;
+    ctx.stateSignal.value = 'menu';
+
+    expect(loadStoredLocalGameSession(storage)).toBeNull();
+
+    dispose();
+  });
 });
