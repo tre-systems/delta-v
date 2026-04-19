@@ -229,7 +229,7 @@ describe('ui hud helpers', () => {
     ).toMatchObject({
       phaseText: 'COMBAT',
       statusText:
-        'Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done \u00b7 [ ] Cycle targets',
+        'Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done \u00b7 [ ] Cycle targets \u00b7 { } Cycle attackers',
       skipCombatVisible: false,
     });
 
@@ -243,7 +243,7 @@ describe('ui hud helpers', () => {
       ),
     ).toMatchObject({
       statusText:
-        'Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done \u00b7 2 attacks queued \u00b7 [ ] Cycle targets',
+        'Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done \u00b7 2 attacks queued \u00b7 [ ] Cycle targets \u00b7 { } Cycle attackers',
     });
 
     expect(
@@ -265,7 +265,7 @@ describe('ui hud helpers', () => {
       ),
     ).toMatchObject({
       statusText:
-        'Target: Frigate · Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done \u00b7 [ ] Cycle targets',
+        'Target: Frigate · Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done \u00b7 [ ] Cycle targets \u00b7 { } Cycle attackers',
     });
   });
 

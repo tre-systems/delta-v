@@ -325,6 +325,44 @@ describe('game-command-router', () => {
     expect(ui.overlay.showToast).not.toHaveBeenCalled();
   });
 
+  it('cycles combat attackers for the selected target and recenters on the attacker hex', () => {
+    const { deps, renderer } = createDeps({
+      clientState: 'playing_combat',
+      gameState: createState({
+        phase: 'combat',
+        ships: [
+          createShip({
+            id: asShipId('ship-0'),
+            type: 'corsair',
+            position: { q: 0, r: 0 },
+          }),
+          createShip({
+            id: asShipId('ship-1'),
+            type: 'corvette',
+            position: { q: 0, r: 0 },
+          }),
+          createShip({
+            id: asShipId('enemy'),
+            owner: 1,
+            type: 'frigate',
+            position: { q: 1, r: 0 },
+          }),
+        ],
+      }),
+    });
+    deps.ctx.planningState.selectedShipId = 'ship-0';
+    deps.ctx.planningState.combatTargetId = 'enemy';
+    deps.ctx.planningState.combatTargetType = 'ship';
+    deps.ctx.planningState.combatAttackerIds = ['ship-0'];
+    deps.ctx.planningState.combatAttackStrength = 3;
+
+    dispatchGameCommand(deps, { type: 'cycleCombatAttacker', direction: 1 });
+
+    expect(deps.ctx.planningState.selectedShipId).toBe('ship-1');
+    expect(deps.ctx.planningState.combatAttackerIds).toEqual(['ship-1']);
+    expect(renderer.centerOnHex).toHaveBeenCalledWith({ q: 0, r: 0 });
+  });
+
   it('clears torpedo acceleration', () => {
     const { deps } = createDeps();
     deps.ctx.planningState.torpedoAimingActive = true;

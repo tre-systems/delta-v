@@ -12,6 +12,7 @@ import { batch } from '../reactive';
 import {
   buildCurrentAttack,
   createCombatTargetPlan,
+  cycleCombatAttackerPlan,
   cycleCombatTargetPlan,
   findPreferredTarget,
   getAttackStrengthForSelection,
@@ -269,6 +270,33 @@ export const resetCombatStrengthToMax = (deps: CombatActionDeps) => {
   if (maxStrength > 0) {
     deps.planningState.setCombatAttackStrength(maxStrength);
   }
+};
+
+export const cycleCombatAttacker = (
+  deps: CombatActionDeps,
+  direction: -1 | 1,
+  centerOnHex?: (hex: HexCoord) => void,
+) => {
+  const gameState = deps.getGameState();
+
+  if (!gameState || deps.getClientState() !== 'playing_combat') {
+    return;
+  }
+
+  const next = cycleCombatAttackerPlan(
+    gameState,
+    deps.getPlayerId(),
+    deps.planningState,
+    deps.getMap(),
+    direction,
+  );
+
+  if (!next) {
+    return;
+  }
+
+  deps.planningState.applyCombatPlanUpdate(next.plan, next.selectedShipId);
+  centerOnHex?.(next.selectedHex);
 };
 
 export const cycleCombatTarget = (

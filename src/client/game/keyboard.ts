@@ -66,6 +66,7 @@ export type KeyboardAction =
   | { kind: 'zoomCamera'; preventDefault: false; factor: number }
   | { kind: 'toggleHelp'; preventDefault: false }
   | { kind: 'toggleMute'; preventDefault: false }
+  | { kind: 'cycleCombatAttacker'; preventDefault: true; direction: -1 | 1 }
   | { kind: 'cycleCombatTarget'; preventDefault: true; direction: -1 | 1 };
 
 const createNoopAction = (): KeyboardAction => {
@@ -100,6 +101,17 @@ export const deriveKeyboardAction = (
       kind: 'cycleCombatTarget',
       preventDefault: true,
       direction: input.key === '[' ? -1 : 1,
+    };
+  }
+
+  if (
+    (input.key === '{' || input.key === '}') &&
+    context.state === 'playing_combat'
+  ) {
+    return {
+      kind: 'cycleCombatAttacker',
+      preventDefault: true,
+      direction: input.key === '{' ? -1 : 1,
     };
   }
 
