@@ -39,10 +39,18 @@ const buildStorageStub = (): DurableObjectStorage => {
   const data = new Map<string, unknown>();
   return {
     get: vi.fn(async (key: string) => data.get(key)),
-    put: vi.fn(async (key: string, value: unknown) => {
-      data.set(key, value);
-      return true;
-    }),
+    put: vi.fn(
+      async (key: string | Record<string, unknown>, value?: unknown) => {
+        if (typeof key === 'string') {
+          data.set(key, value);
+          return true;
+        }
+        for (const [entryKey, entryValue] of Object.entries(key)) {
+          data.set(entryKey, entryValue);
+        }
+        return true;
+      },
+    ),
     delete: vi.fn(async (key: string) => {
       data.delete(key);
     }),
@@ -189,6 +197,83 @@ describe('handleMcpRequest', () => {
     });
   });
 
+  it('returns a session summary for a seated hosted MCP player', async () => {
+    const storage = buildStorageStub();
+    await storage.put({
+      'mcpEvents:0': [
+        {
+          id: 1,
+          receivedAt: 123,
+          type: 'chat',
+          message: { type: 'chat', playerId: 0, text: 'ready' },
+        },
+      ],
+      'mcpEventSeq:0': 2,
+    });
+    const state = {
+      phase: 'movement',
+      turnNumber: 3,
+    } as unknown as GameState;
+    const deps = buildDeps({
+      storage,
+      getCurrentGameState: async () => state,
+    });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/session-summary', { playerKey: 'p0' }), {
+        method: 'GET',
+      }),
+    );
+
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as {
+      session: Record<string, unknown>;
+    };
+    expect(body.session).toMatchObject({
+      code: ROOM.code,
+      scenario: ROOM.scenario,
+      playerId: 0,
+      playerToken: TOKEN_A,
+      currentPhase: 'movement',
+      turnNumber: 3,
+      eventsBuffered: 1,
+      connectionStatus: 'open',
+      closed: false,
+      hasState: true,
+    });
+  });
+
+  it('rejects session summary requests without a playerKey', async () => {
+    const deps = buildDeps();
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/session-summary'), { method: 'GET' }),
+    );
+    expect(res?.status).toBe(400);
+  });
+
+  it('returns 404 when session summary playerKey is not seated', async () => {
+    const deps = buildDeps();
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/session-summary', { playerKey: 'missing' }), {
+        method: 'GET',
+      }),
+    );
+    expect(res?.status).toBe(404);
+  });
+
+  it('returns 409 when session summary seat has no player token', async () => {
+    const deps = buildDeps({ getRoomConfig: async () => ROOM_HOST_ONLY });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/session-summary', { playerKey: 'p1' }), {
+        method: 'GET',
+      }),
+    );
+    expect(res?.status).toBe(409);
+  });
+
   it('triggers initGameIfReady on every MCP request after auth', async () => {
     const initGameIfReady = vi.fn().mockResolvedValue(undefined);
     const deps = buildDeps({ initGameIfReady });
@@ -230,6 +315,122 @@ describe('handleMcpRequest', () => {
       gameOver: false,
       timedOut: true,
     });
+  });
+
+  it('events route returns buffered seat events and can clear them', async () => {
+    const storage = buildStorageStub();
+    await storage.put({
+      'mcpEvents:0': [
+        {
+          id: 1,
+          receivedAt: 100,
+          type: 'chat',
+          message: { type: 'chat', playerId: 0, text: 'one' },
+        },
+        {
+          id: 2,
+          receivedAt: 200,
+          type: 'actionAccepted',
+          message: {
+            type: 'actionAccepted',
+            actionType: 'endTurn',
+            turnNumber: 2,
+            phase: 'movement',
+            activePlayer: 0,
+            guardStatus: 'inSync',
+          },
+        },
+      ],
+      'mcpEventSeq:0': 3,
+    });
+    const touchInactivity = vi.fn().mockResolvedValue(undefined);
+    const deps = buildDeps({ storage, touchInactivity });
+
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/events', { playerToken: TOKEN_A }), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ afterEventId: 1, limit: 5, clear: true }),
+      }),
+    );
+
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as {
+      events: Array<{ id: number; type: string }>;
+      bufferedRemaining: number;
+      latestEventId: number;
+    };
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0]).toMatchObject({ id: 2, type: 'actionAccepted' });
+    expect(body.bufferedRemaining).toBe(0);
+    expect(body.latestEventId).toBe(2);
+    expect(await storage.get('mcpEvents:0')).toEqual([]);
+    expect(touchInactivity).toHaveBeenCalledTimes(1);
+  });
+
+  it('events route tolerates invalid JSON and falls back to defaults', async () => {
+    const storage = buildStorageStub();
+    await storage.put({
+      'mcpEvents:0': [
+        {
+          id: 1,
+          receivedAt: 100,
+          type: 'chat',
+          message: { type: 'chat', playerId: 0, text: 'one' },
+        },
+      ],
+      'mcpEventSeq:0': 2,
+    });
+    const deps = buildDeps({ storage });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/events', { playerToken: TOKEN_A }), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{',
+      }),
+    );
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as {
+      events: Array<{ id: number }>;
+      bufferedRemaining: number;
+      latestEventId: number;
+    };
+    expect(body.events).toEqual([expect.objectContaining({ id: 1 })]);
+    expect(body.bufferedRemaining).toBe(1);
+    expect(body.latestEventId).toBe(1);
+  });
+
+  it('close route clears buffered seat events', async () => {
+    const storage = buildStorageStub();
+    await storage.put({
+      'mcpEvents:0': [
+        {
+          id: 1,
+          receivedAt: 100,
+          type: 'chat',
+          message: { type: 'chat', playerId: 0, text: 'bye' },
+        },
+      ],
+      'mcpEventSeq:0': 2,
+    });
+    const touchInactivity = vi.fn().mockResolvedValue(undefined);
+    const deps = buildDeps({ storage, touchInactivity });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/close', { playerToken: TOKEN_A }), {
+        method: 'POST',
+      }),
+    );
+    expect(res?.status).toBe(200);
+    expect(await storage.get('mcpEvents:0')).toEqual([]);
+    expect((await res?.json()) as Record<string, unknown>).toMatchObject({
+      ok: true,
+      closed: true,
+      clearedEvents: true,
+    });
+    expect(touchInactivity).toHaveBeenCalledTimes(1);
   });
 
   it('wait route resolves immediately with gameOver state', async () => {

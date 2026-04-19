@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { LastTurnAutoPlayed } from '../../shared/agent/types';
 import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../../shared/constants';
+import { filterStateForPlayer } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
   isValidScenario,
@@ -60,6 +61,10 @@ import {
   initGameSession,
 } from './match';
 import { handleMcpRequest, type McpRequestDeps } from './mcp-handlers';
+import {
+  appendHostedMcpSeatEvent,
+  clearAllHostedMcpSessionState,
+} from './mcp-session-state';
 import type {
   PublishStateChangeOptions,
   StatefulServerMessage,
@@ -133,7 +138,11 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private waitUntil(promise: Promise<unknown>): void {
-    this.ctx.waitUntil(promise);
+    if (typeof this.ctx.waitUntil === 'function') {
+      this.ctx.waitUntil(promise);
+      return;
+    }
+    void promise.catch(() => undefined);
   }
 
   private getWebSockets(tag?: string): WebSocket[] {
@@ -284,6 +293,7 @@ export class GameDO extends DurableObject<Env> {
       // leaderboard code uses it to tag the archived match.
       this.storage.delete(GAME_DO_STORAGE_KEYS.coachDirectiveSeat0),
       this.storage.delete(GAME_DO_STORAGE_KEYS.coachDirectiveSeat1),
+      clearAllHostedMcpSessionState(this.storage),
     ]);
     // Drop per-match residue (event chunks, seq cursor, matchSeed,
     // matchCreatedAt, checkpoint). An abandoned room previously kept
@@ -1013,6 +1023,7 @@ export class GameDO extends DurableObject<Env> {
 
   private async initGame() {
     this.currentStateCache = null;
+    await clearAllHostedMcpSessionState(this.storage);
     await initGameSession(this.createInitGameDeps());
     // Register the new match in the LIVE_REGISTRY for the /matches page.
     const roomConfig = await this.getRoomConfig();
@@ -1036,6 +1047,28 @@ export class GameDO extends DurableObject<Env> {
     primaryMessage?: StatefulServerMessage,
   ) {
     broadcastStateChange(this.ctx, state, primaryMessage);
+    const primary = primaryMessage ?? { type: 'stateUpdate', state };
+    for (const playerId of [0, 1] as const) {
+      const filtered = {
+        ...primary,
+        state: filterStateForPlayer(state, playerId),
+      } as S2C;
+      this.waitUntil(
+        appendHostedMcpSeatEvent(this.storage, playerId, filtered),
+      );
+    }
+    if (state.phase === 'gameOver') {
+      const gameOver: S2C = {
+        type: 'gameOver',
+        winner: state.outcome?.winner ?? 0,
+        reason: state.outcome?.reason ?? 'Game over',
+      };
+      for (const playerId of [0, 1] as const) {
+        this.waitUntil(
+          appendHostedMcpSeatEvent(this.storage, playerId, gameOver),
+        );
+      }
+    }
   }
 
   // --- Messaging ---
@@ -1045,5 +1078,8 @@ export class GameDO extends DurableObject<Env> {
 
   private broadcast(msg: S2C) {
     broadcastMessage(this.ctx, msg);
+    for (const playerId of [0, 1] as const) {
+      this.waitUntil(appendHostedMcpSeatEvent(this.storage, playerId, msg));
+    }
   }
 }

@@ -28,9 +28,17 @@ const buildEnv = (
     get: vi.fn(() => stub),
     idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
   } as unknown as DurableObjectNamespace;
+  const liveRegistryStub = {
+    fetch: vi.fn(async () => Response.json({ matches: [] })),
+  } as unknown as DurableObjectStub;
+  const liveRegistry = {
+    get: vi.fn(() => liveRegistryStub),
+    idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
+  } as unknown as DurableObjectNamespace;
   const env = {
     GAME: namespace,
     MATCHMAKER: namespace, // not exercised here; keep shape
+    LIVE_REGISTRY: liveRegistry,
     AGENT_TOKEN_SECRET: TEST_SECRET,
   } as unknown as Env;
   return { env, calls };
@@ -203,8 +211,11 @@ describe('handleMcpHttpRequest', () => {
     };
     const names = body.result.tools.map((t) => t.name).sort();
     expect(names).toEqual([
+      'delta_v_close_session',
+      'delta_v_get_events',
       'delta_v_get_observation',
       'delta_v_get_state',
+      'delta_v_list_sessions',
       'delta_v_quick_match',
       'delta_v_quick_match_connect',
       'delta_v_send_action',
@@ -314,6 +325,98 @@ describe('handleMcpHttpRequest', () => {
     );
     expect(body.result.contents[0]?.text).toContain('"agent_alpha"');
     expect(body.result.contents[0]?.text).not.toContain('"human_beta"');
+  });
+
+  it('forwards delta_v_get_events to the GAME DO', async () => {
+    const { env, calls } = buildEnv(() =>
+      Response.json({
+        ok: true,
+        events: [],
+        bufferedRemaining: 0,
+        latestEventId: 0,
+      }),
+    );
+    const token = 'X'.repeat(32);
+    const res = await handleMcpHttpRequest(
+      post({
+        jsonrpc: '2.0',
+        id: 24,
+        method: 'tools/call',
+        params: {
+          name: 'delta_v_get_events',
+          arguments: { code: 'ABCDE', playerToken: token, afterEventId: 7 },
+        },
+      }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(calls.at(-1)?.url).toContain('/mcp/events?playerToken=');
+    expect(calls.at(-1)?.method).toBe('POST');
+  });
+
+  it('lists hosted sessions for the authenticated agent', async () => {
+    const doFetch = vi.fn(async (req: Request) => {
+      if (req.url.includes('/mcp/session-summary')) {
+        return Response.json({
+          ok: true,
+          session: {
+            code: 'ABCDE',
+            scenario: 'duel',
+            playerId: 0,
+            playerToken: 'A'.repeat(32),
+            currentPhase: 'astrogation',
+            turnNumber: 1,
+            eventsBuffered: 3,
+          },
+        });
+      }
+      return Response.json({});
+    });
+    const namespace = {
+      get: vi.fn(() => ({ fetch: doFetch }) as unknown as DurableObjectStub),
+      idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
+    } as unknown as DurableObjectNamespace;
+    const liveRegistry = {
+      get: vi.fn(
+        () =>
+          ({
+            fetch: vi.fn(async () =>
+              Response.json({
+                matches: [{ code: 'ABCDE', scenario: 'duel', startedAt: 1 }],
+              }),
+            ),
+          }) as unknown as DurableObjectStub,
+      ),
+      idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
+    } as unknown as DurableObjectNamespace;
+    const agent = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_session_list_1',
+    });
+    const env = {
+      GAME: namespace,
+      MATCHMAKER: namespace,
+      LIVE_REGISTRY: liveRegistry,
+      AGENT_TOKEN_SECRET: TEST_SECRET,
+    } as unknown as Env;
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 25,
+          method: 'tools/call',
+          params: { name: 'delta_v_list_sessions', arguments: {} },
+        },
+        agent.token,
+      ),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      result: { structuredContent: { sessions: Array<{ code: string }> } };
+    };
+    expect(body.result.structuredContent.sessions).toHaveLength(1);
+    expect(body.result.structuredContent.sessions[0]?.code).toBe('ABCDE');
   });
 
   it('forwards delta_v_get_state to the GAME DO', async () => {
