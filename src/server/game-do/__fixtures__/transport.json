@@ -1,7 +1,11 @@
 {
   "http": {
     "initResponse": { "ok": true },
-    "joinResponse": { "ok": true }
+    "joinResponse": {
+      "ok": true,
+      "scenario": "escape",
+      "seatStatus": "host-only"
+    }
   },
   "s2c": {
     "gameStart": {

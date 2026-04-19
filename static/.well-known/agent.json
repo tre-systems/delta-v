@@ -95,8 +95,13 @@
       "id": "joinCheck",
       "method": "GET",
       "path": "/join/{code}",
-      "description": "Check whether a room exists and has an open seat. Returns room metadata.",
-      "rateLimit": "100 per 60 s per IP"
+      "description": "Check whether a room exists and whether the guest seat is still host-only, open, or full.",
+      "rateLimit": "100 per 60 s per IP",
+      "response": {
+        "ok": true,
+        "scenario": "string",
+        "seatStatus": "\"host-only\" | \"open\" | \"full\""
+      }
     },
     {
       "id": "replay",
