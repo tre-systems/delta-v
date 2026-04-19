@@ -17,6 +17,8 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
 - *`delta-v:tokens` localStorage accumulates without cleanup* (same section) — token cache grows unbounded; tokens never invalidated server-side on archive.
+- *No security headers on responses* (Gameplay UX & matchmaking integrity) — no CSP, HSTS, X-Frame-Options, Referrer-Policy. Standard production hardening missing. User-typed callsigns in multiple render paths make CSP especially worthwhile.
+- *CORS policy on public APIs is undocumented and silent* (same section) — no `Access-Control-Allow-*` headers mean third-party agents and leaderboard embeds can't read JSON endpoints from browsers.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
 
@@ -304,6 +306,41 @@ There is no actual spectator code path. Either ship spectator mode (read-only st
 Reproduced 2026-04-19: started Bi-Planetary via Play-vs-AI, advanced to turn 2, hit `location.reload()` — landed back at the lobby with no "restore" prompt. Multiplayer matches surface a "Your fleet and plotted burns are saved — restoring the match state" message (verified earlier this week), but local games don't, even though localStorage already holds enough state (`delta-v:player-profile`, `aiDifficulty`, etc.) to attempt restore. Either persist the local-game snapshot to localStorage on each turn submission, or surface a "Continue last local game?" lobby card if the SPA detects an in-progress local state.
 
 **Files:** `src/client/game/local-runtime.ts` (or wherever local-mode game state lives), `src/client/game/client-runtime.ts`, `src/client/ui/lobby.ts` (continue prompt)
+
+### No security headers on responses (CSP, HSTS, X-Frame-Options, etc.)
+
+Audited 2026-04-19 on `https://delta-v.tre.systems/`:
+
+- **No `Content-Security-Policy`** — any injected string that reaches innerHTML can execute script. Combined with user-typed callsigns being rendered in the lobby, matches list, and game-over screen, this is a real XSS surface even though today's text-only rendering doesn't appear to set innerHTML unsafely.
+- **No `Strict-Transport-Security`** — first-time visitors over HTTP are vulnerable to downgrade. Cloudflare automatically redirects, but HSTS + preload would close the race.
+- **No `X-Frame-Options`** (and no `frame-ancestors` in CSP) — site is clickjackable. Someone can iframe the lobby and overlay fake controls.
+- **No `Referrer-Policy`** — referrer URLs (which include `?code=XYZ` private match codes) leak to third parties loaded via `<img>` / `<a>` clicks.
+- **No `Permissions-Policy`** / **no `X-Content-Type-Options`** — minor but standard.
+
+Proposed baseline (matches common Worker site patterns):
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' wss://delta-v.tre.systems; img-src 'self' data:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: geolocation=(), microphone=(), camera=()
+```
+
+Set these as a single middleware in `src/server/index.ts` for all HTML + JSON responses. Test under `npm run typecheck && vitest` and manual browser probes afterwards (CSP in particular breaks things when tightened — do a full scenario sweep to catch any inline-script or eval usage that needs carving out or fixing).
+
+**Files:** `src/server/index.ts`, `src/server/response-headers.ts` (new), `docs/SECURITY.md` (capture trade-offs), tests
+
+### No CORS on public JSON endpoints (intentional? or oversight?)
+
+Audited 2026-04-19: `GET /api/matches`, `/api/leaderboard`, `/healthz` return no `Access-Control-Allow-*` headers; `OPTIONS /mcp` returns 405 with `Allow: POST, DELETE` and no CORS. Effect: browser-hosted agents / third-party UIs cannot read the public APIs from their own origin. Two cases:
+
+- **If intentional** (same-origin lock-in): document the decision so third-party agent authors know they need server-side proxies.
+- **If oversight**: add `Access-Control-Allow-Origin: *` (or an allowlist) to the four public read endpoints (`/api/matches`, `/api/leaderboard`, `/healthz`, `/replay/{code}`) plus `OPTIONS` handling for `/mcp`. Leaderboard embeds on blog posts, third-party replay viewers, and community-built agents all benefit.
+
+Either way, flip the current silent behaviour to a deliberate, documented one before external developers build around it.
+
+**Files:** `src/server/index.ts`, `src/server/response-headers.ts`, `static/agents.html`, `static/.well-known/agent.json` (document the CORS policy)
 
 ## Architecture & correctness
 
