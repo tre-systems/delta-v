@@ -16,7 +16,6 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
-- *`/api/agent-token` rate limit not firing* (Cost & abuse hardening) — 30-burst re-verified 2026-04-19: 30/30 succeeded. `/create` and `/quick-match` limits now enforce; `/api/agent-token` doesn't.
 - *`delta-v:tokens` localStorage accumulates without cleanup* (same section) — token cache grows unbounded; tokens never invalidated server-side on archive.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
@@ -225,12 +224,12 @@ Findings from a 2026-04-17 cost-surface review. Baseline controls are documented
 Empirical 2026-04-19 (R1 / R2 probe burst from a single client IP, single CF colo LHR):
 
 - `POST /create` — documented **5 / 60 s per IP** (`agent.json` and `wrangler.toml` `CREATE_RATE_LIMITER`); observed **~35 / 60 s** before any 429s. ~7x the published limit.
-- `POST /api/agent-token` — documented **5 / 60 s per IP**; observed **0 throttling** in a 12-burst (rate limit code IS called at `src/server/index.ts:356` but never fired in this test).
+- `POST /api/agent-token` — now shares the same strict Worker-local **5 / 60 s per IP** overlay as `/create`, but the Cloudflare edge binding is still best-effort across colos.
 - `POST /quick-match` — documented **5 / 60 s per IP**; observed first 429 around request 11.
 
 Cloudflare's `[[ratelimits]]` binding is **best-effort and per-edge-colo**, so a single attacker hitting one colo can exceed the published limit; an attacker spread across multiple colos can exceed it by a much larger multiple. The current numbers offer real protection against accidental floods but don't match the documented contract.
 
-Two actions: (1) bring the docs (`agent.json`, `/agents` page, `wrangler.toml` comment) in line with what the binding actually enforces under realistic conditions; (2) for endpoints where strict caps matter (token issuance, room creation), add a second layer using D1 or a Durable Object counter so the global cap is enforceable.
+Two actions: (1) document the shipped two-layer behavior accurately (`agent.json`, `/agents` page, `docs/SECURITY.md`); (2) if strict cross-colo enforcement becomes necessary, add a D1 or Durable Object counter so the cap is global rather than per isolate plus best-effort edge binding.
 
 **Files:** `static/.well-known/agent.json`, `wrangler.toml`, `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`
 

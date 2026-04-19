@@ -420,7 +420,7 @@ heavy bundler configuration:
   | `DB`                     | D1             | Telemetry + `match_archive` + `player` tables  |
   | `MATCH_ARCHIVE`          | R2             | Completed match JSON archives                  |
   | `ASSETS`                 | Static Assets  | `./dist/` static bundle                        |
-  | `CREATE_RATE_LIMITER`    | Rate Limit     | 5/60s — shared by `/create`, `/api/agent-token`, `/quick-match`, `/api/claim-name` |
+  | `CREATE_RATE_LIMITER`    | Rate Limit     | 5/60s edge layer for `/create`, `/api/agent-token`, `/quick-match`, `/api/claim-name`; paired with a strict Worker-local bucket |
   | `TELEMETRY_RATE_LIMITER` | Rate Limit     | 120/60s — edge fallback for `/telemetry`       |
   | `ERROR_RATE_LIMITER`     | Rate Limit     | 40/60s — edge fallback for `/error`            |
   | `MCP_RATE_LIMITER`       | Rate Limit     | 20/60s — per `agentToken` hash or hashed IP    |
