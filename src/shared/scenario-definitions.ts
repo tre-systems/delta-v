@@ -245,8 +245,8 @@ const SCENARIOS_INTERNAL = {
       // unaffected because they don't set these overrides. Full weights
       // live in src/shared/ai/config.ts AI_CONFIG.hard.
       aiConfigOverrides: {
-        combatClosingWeight: 1,
-        combatCloseBonus: 10,
+        combatClosingWeight: 0,
+        combatCloseBonus: 0,
       },
     },
     startingPlayer: 1,
