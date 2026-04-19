@@ -270,19 +270,6 @@ Two different caps in two endpoints serving similar paginated reads, neither doc
 
 **Files:** `src/server/index.ts`, `src/server/auth/`, `src/server/reporting.ts`, `docs/OBSERVABILITY.md`
 
-### Validation/error-shape inconsistency across public POST endpoints
-
-Quality varies wildly:
-
-- `/api/claim-name` → structured JSON with explanatory messages, e.g. `{"ok":false,"error":"agent_-prefixed playerKeys claim names via POST /api/agent-token"}` (literally tells the caller the right path) — gold standard.
-- `/api/agent-token` → also structured (`{"ok":false,"error":"playerKey must match …"}`).
-- `/create` → silently 200 on garbage (see entry above).
-- `/quick-match` → 400 with plaintext `Invalid quick match payload` (no JSON envelope, no field-level pointer).
-
-Pick the `/api/claim-name` shape as the standard and bring the others up to it: every 4xx returns `{ok:false, error, message?, hint?}` JSON with `Content-Type: application/json`, including a `hint` line when there's a more correct related endpoint. Found via R2.
-
-**Files:** `src/server/index.ts`, `src/server/room-routes.ts`, `src/server/quick-match-route.ts` (or wherever quick-match enqueue lives)
-
 ### CRITICAL: DO close handler crashes after a code deploy → match outcomes lost
 
 `wrangler tail` captured during a 2026-04-19 paired match:

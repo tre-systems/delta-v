@@ -72,17 +72,33 @@ export const handleCreate = async (
   request: Request,
   env: Pick<Env, 'GAME'>,
 ): Promise<Response> => {
+  const invalidRequest = (
+    status: number,
+    error: string,
+    message?: string,
+  ): Response =>
+    Response.json(
+      {
+        ok: false,
+        error,
+        ...(message ? { message } : {}),
+      },
+      { status },
+    );
+
   const rawBody = await request.text();
   if (rawBody.length === 0) {
-    return Response.json(
-      { error: 'Create payload must include a scenario' },
-      { status: 400 },
+    return invalidRequest(
+      400,
+      'missing_scenario',
+      'Create payload must include a scenario.',
     );
   }
   if (rawBody.length > 1024) {
-    return Response.json(
-      { error: 'Create payload exceeds 1024 bytes' },
-      { status: 413 },
+    return invalidRequest(
+      413,
+      'payload_too_large',
+      'Create payload exceeds 1024 bytes.',
     );
   }
 
@@ -91,12 +107,12 @@ export const handleCreate = async (
   try {
     payload = JSON.parse(rawBody) as unknown;
   } catch {
-    return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return invalidRequest(400, 'invalid_json', 'Invalid JSON body.');
   }
 
   const parsed = parseCreatePayload(payload, Object.keys(SCENARIOS));
   if (!parsed.ok) {
-    return Response.json({ error: parsed.error }, { status: 400 });
+    return invalidRequest(400, 'invalid_payload', parsed.error);
   }
   const { scenario } = parsed.value;
 
@@ -125,13 +141,13 @@ export const handleCreate = async (
     }
 
     if (initResponse.status !== 409) {
-      return new Response('Failed to create game', {
-        status: 500,
-      });
+      return invalidRequest(500, 'create_failed', 'Failed to create game.');
     }
   }
 
-  return new Response('Failed to allocate room code', {
-    status: 503,
-  });
+  return invalidRequest(
+    503,
+    'room_code_unavailable',
+    'Failed to allocate room code.',
+  );
 };
