@@ -47,30 +47,57 @@ Each topic has one owner doc to keep decisions from drifting.
 4. One [pattern chapter](./patterns/README.md) that matches the area you'll touch (client / engine / protocol / testing / scenarios / types)
 5. [SPEC.md](./docs/SPEC.md) if you're touching game rules; [PROTOCOL.md](./docs/PROTOCOL.md) if you're touching the wire format
 
-Doc index by purpose:
+Doc index by purpose, grouped by theme:
+
+**Design reference**
 
 | Doc | Purpose |
 | --- | --- |
 | [SPEC.md](./docs/SPEC.md) | Game rules and scenarios |
 | [PROTOCOL.md](./docs/PROTOCOL.md) | Wire format, state shapes, hex math, HTTP/WS routes |
 | [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Module inventory, data flow, Durable Object design, replay/recovery |
+
+**Code and contribution**
+
+| Doc | Purpose |
+| --- | --- |
 | [CODING_STANDARDS.md](./docs/CODING_STANDARDS.md) | Conventions and refactoring guidance |
 | [patterns/](./patterns/README.md) | Design-pattern walk-through: *why* the code looks the way it does |
 | [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Contributor workflow, pre-commit, verification |
+
+**Operations**
+
+| Doc | Purpose |
+| --- | --- |
 | [SECURITY.md](./docs/SECURITY.md) | Integrity, abuse controls, rate limits, data retention |
 | [OBSERVABILITY.md](./docs/OBSERVABILITY.md) | Telemetry events, D1 queries, incident triage |
-| [A11Y.md](./docs/A11Y.md) | DOM accessibility audit checklist |
 | [PRIVACY_TECHNICAL.md](./docs/PRIVACY_TECHNICAL.md) | What the stack stores (technical, not legal) |
+| [A11Y.md](./docs/A11Y.md) | DOM accessibility audit checklist |
+
+**Testing**
+
+| Doc | Purpose |
+| --- | --- |
 | [MANUAL_TEST_PLAN.md](./docs/MANUAL_TEST_PLAN.md) | Release / regression manual checks |
 | [SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) | Headless AI simulation and websocket load harness |
 | [EXPLORATORY_TESTING.md](./docs/EXPLORATORY_TESTING.md) | Open-ended discovery-pass toolkit and probe recipes |
+
+**Release and planning**
+
+| Doc | Purpose |
+| --- | --- |
 | [REVIEW_PLAN.md](./docs/REVIEW_PLAN.md) | Recurring cross-cutting review checklist |
 | [COORDINATED_RELEASE_CHECKLIST.md](./docs/COORDINATED_RELEASE_CHECKLIST.md) | Protocol/schema version bump steps |
 | [BACKLOG.md](./docs/BACKLOG.md) | Remaining actionable work, in priority order |
-| [LORE.md](./docs/LORE.md) | Ship aesthetics and visual direction |
+
+**Agents and visual identity**
+
+| Doc | Purpose |
+| --- | --- |
 | [AGENTS.md](./docs/AGENTS.md) | Practical guide for building Delta-V agents |
 | [DELTA_V_MCP.md](./docs/DELTA_V_MCP.md) | MCP tool reference and host configuration |
 | [AGENT_SPEC.md](./AGENT_SPEC.md) | Deep agent protocol and design reference |
+| [LORE.md](./docs/LORE.md) | Ship aesthetics and visual direction |
 
 ### Glossary
 
