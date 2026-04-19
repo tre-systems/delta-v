@@ -102,7 +102,7 @@ Worker entrypoint observability also records two abuse-focused signals:
 
 The cleanup policy is:
 
-- every room touch refreshes `inactivityAt` to `Date.now() + 5 minutes` (`INACTIVITY_TIMEOUT_MS` in [src/shared/constants.ts](/Users/robertgilks/Source/delta-v/src/shared/constants.ts:263))
+- every room touch refreshes `inactivityAt` to `Date.now() + 5 minutes` (`INACTIVITY_TIMEOUT_MS` in [src/shared/constants.ts](../src/shared/constants.ts))
 - when the alarm reaches that deadline, `GameDO` closes any sockets, marks the room archived, clears disconnect/turn/rematch/MCP session markers, and purges match-scoped event/checkpoint residue from DO storage
 - if a game state exists at cleanup time, the alarm path also schedules the archival mirror to R2 + D1 before the local DO storage is scrubbed
 - orphan rooms never appear in `GET /api/matches?status=live`; that surface only reports seated live matches from `LIVE_REGISTRY`
