@@ -357,7 +357,13 @@ const SCENARIOS_INTERNAL = {
     name: 'Fleet Action',
     tags: ['Fleet'],
     description: 'Build your fleet and clash ' + '— Mars vs Venus',
-    rules: { logisticsEnabled: true },
+    rules: {
+      logisticsEnabled: true,
+      aiConfigOverrides: {
+        combatClosingWeight: 4,
+        combatCloseBonus: 60,
+      },
+    },
     startingPlayer: 1,
     startingCredits: [600, 400],
     availableFleetPurchases: [
