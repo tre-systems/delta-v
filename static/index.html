@@ -87,6 +87,9 @@
         <div class="menu-profile">
           <label class="menu-profile-label" for="playerNameInput">Callsign</label>
           <input id="playerNameInput" class="menu-profile-input" maxlength="20" placeholder="Pilot" autocapitalize="words" spellcheck="false" aria-label="Callsign">
+          <div class="menu-profile-actions">
+            <button id="forgetCallsignBtn" type="button" class="menu-profile-clear">Forget my callsign</button>
+          </div>
           <div id="callsignStatus" class="menu-profile-status" role="status" aria-live="polite"></div>
         </div>
         <button id="quickMatchBtn" data-testid="quickMatchBtn" class="btn btn-primary">Quick Match</button>

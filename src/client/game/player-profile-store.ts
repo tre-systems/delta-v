@@ -12,6 +12,7 @@ export interface StoredPlayerProfile extends PublicPlayerProfile {
 export interface PlayerProfileStorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem?: (key: string) => void;
 }
 
 export const PLAYER_PROFILE_STORAGE_KEY = 'delta-v:player-profile';
@@ -51,6 +52,17 @@ export const saveStoredPlayerProfile = (
 ): void => {
   try {
     storage.setItem(key, JSON.stringify(profile));
+  } catch {
+    // Ignore storage failures.
+  }
+};
+
+export const deleteStoredPlayerProfile = (
+  storage: Pick<PlayerProfileStorageLike, 'removeItem'>,
+  key = PLAYER_PROFILE_STORAGE_KEY,
+): void => {
+  try {
+    storage.removeItem?.(key);
   } catch {
     // Ignore storage failures.
   }
