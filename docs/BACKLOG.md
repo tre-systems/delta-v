@@ -147,12 +147,6 @@ Navigating to `https://delta-v.tre.systems/?code=<dead>` correctly falls back to
 
 **Files:** `src/client/`, `src/client/ui/`
 
-### Broken `scenario` filter on `/api/matches`
-
-`GET /api/matches?scenario=nonexistent` silently returns all recent matches (all duels in current data) with no indication the filter was ignored. Observed 2026-04-18. Either honor the filter or reject unknown scenario values with a 400; `limit`, `offset`, `winner` params should also be validated and documented (they appear to accept but not enforce).
-
-**Files:** `src/server/`, `static/.well-known/agent.json`
-
 ### Playbook vs skill: astrogation simultaneity contradiction
 
 `/agent-playbook.json` declares `phaseActionMap.astrogation.simultaneous: true`, but `.claude/skills/play/SKILL.md` and observed behaviour say astrogation is sequential (I-Go-You-Go, only `state.activePlayer` may submit burns). Pick one source of truth and align the other. If the engine truly is I-Go-You-Go, the playbook's `simultaneous` field is misleading for any agent author consuming the JSON first.
