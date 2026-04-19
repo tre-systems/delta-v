@@ -13,8 +13,10 @@ playwright-report/
 static/bundle.js
 static/bundle.js.map
 
-# Ignore PDFs
+# Ignore PDFs except the published documentation book editions
 *.pdf
+!docs/delta-v-documentation-book.pdf
+!docs/delta-v-documentation-book.audio.pdf
 
 docs/map.png
 /tmp/
