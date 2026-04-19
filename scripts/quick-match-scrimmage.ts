@@ -4,7 +4,11 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
-import { type QuickMatchResult, queueForMatch } from '../src/shared/agent';
+import {
+  type QuickMatchResult,
+  queueForMatch,
+  requireMatchedQuickMatch,
+} from '../src/shared/agent';
 import { hexDistance } from '../src/shared/hex';
 import type { ReplayTimeline } from '../src/shared/replay';
 import type { GameState, PlayerId, Ship } from '../src/shared/types/domain';
@@ -38,7 +42,7 @@ interface QueuePlayer {
   playerKey: string;
   agentCommand: string;
   ticket: string | null;
-  matched: QuickMatchResult | null;
+  matched: Extract<QuickMatchResult, { status: 'matched' }> | null;
   playerId: PlayerId | null;
   logs: string[];
 }
@@ -314,23 +318,25 @@ const claimUsername = async (
 const resolveMatch = async (
   config: Config,
   player: QueuePlayer,
-): Promise<QuickMatchResult> => {
+): Promise<Extract<QuickMatchResult, { status: 'matched' }>> => {
   // Pre-claim the username so the server-side rating writer has a
   // `player` row to update when this match completes. A private
   // scrimmage run without leaderboard wiring still works — the claim
   // failure path is non-fatal.
   await claimUsername(config, player);
 
-  const match = await queueForMatch({
-    serverUrl: config.serverUrl,
-    scenario: config.scenario,
-    username: player.username,
-    playerKey: player.playerKey,
-    pollMs: config.pollMs,
-    // Scrimmage runs want “effectively unbounded” pairing; the queue
-    // helper’s default timeout is relatively small, so we override it.
-    timeoutMs: 60 * 60 * 1000,
-  });
+  const match = requireMatchedQuickMatch(
+    await queueForMatch({
+      serverUrl: config.serverUrl,
+      scenario: config.scenario,
+      username: player.username,
+      playerKey: player.playerKey,
+      pollMs: config.pollMs,
+      // Scrimmage runs want “effectively unbounded” pairing; the queue
+      // helper’s default timeout is relatively small, so we override it.
+      timeoutMs: 60 * 60 * 1000,
+    }),
+  );
 
   player.ticket = match.ticket;
   player.matched = match;
@@ -640,8 +646,8 @@ const pairPlayersInSameRoom = async (
 ): Promise<{
   left: QueuePlayer;
   right: QueuePlayer;
-  leftMatch: QuickMatchResult;
-  rightMatch: QuickMatchResult;
+  leftMatch: Extract<QuickMatchResult, { status: 'matched' }>;
+  rightMatch: Extract<QuickMatchResult, { status: 'matched' }>;
   quickMatchPairingSplitRetries: number;
 }> => {
   const maxAttempts = 5;

@@ -117,7 +117,6 @@ Hosted MCP: add `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_
 Four papercuts hit while pairing a local MCP agent against a human browser seat (duel, production server):
 
 - **Misleading `nextPhase` in `send_action` response.** After `skipOrdnance` the close-loop response reported `nextPhase: combat, nextActivePlayer: 1`, but the combat phase auto-resolved (no attackers in range) and the opponent's astrogation slipped in before the agent's follow-up `skipCombat` arrived, producing a `wrongActivePlayer` rejection. Consider flagging likely auto-skip phases in the response (`autoSkipLikely: true`) or surfacing the post-auto-resolution phase so agents can `wait_for_turn` instead of firing a doomed skip.
-- **Two-client queue race.** Default `quick_match_connect` timeout (120s) is tight when the caller has to start a second client after queueing the first; a `waitForOpponent: false` mode that returns a ticket immediately would let agents queue, then trigger the browser, then poll.
 - **Thin candidate set.** Turn-1 astrogation labelled candidates only offered NE / NE+overload / coast; other directions and fuel-vs-overload trade-offs were invisible without hand-rolling actions. Widen `labeledCandidates` coverage for opening turns.
 - **Verbose observations by default.** Local MCP returns the full state blob unless `compactState: true` is passed; flipping the default (or surfacing recommended defaults in the skill) would cut tokens across a full game.
 

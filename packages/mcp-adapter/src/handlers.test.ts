@@ -242,6 +242,54 @@ describe('handleMcpHttpRequest', () => {
     expect(body.result.isError).not.toBe(true);
   });
 
+  it('returns a queued quick-match ticket immediately when waitForOpponent is false', async () => {
+    const { env, calls } = buildEnv((req) => {
+      if (req.url.endsWith('/enqueue')) {
+        return Response.json({
+          status: 'queued',
+          ticket: 'TICKET',
+          scenario: 'duel',
+        });
+      }
+      return Response.json({
+        status: 'matched',
+        ticket: 'TICKET',
+        scenario: 'duel',
+        code: 'ABCDE',
+        playerToken: 'X'.repeat(32),
+      });
+    });
+
+    const res = await handleMcpHttpRequest(
+      post({
+        jsonrpc: '2.0',
+        id: 30,
+        method: 'tools/call',
+        params: {
+          name: 'delta_v_quick_match',
+          arguments: {
+            playerKey: 'agent_test_wait_false',
+            username: 'Bot',
+            waitForOpponent: false,
+          },
+        },
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toContain('/enqueue');
+    const body = (await res.json()) as {
+      result: { structuredContent?: Record<string, unknown> };
+    };
+    expect(body.result.structuredContent).toMatchObject({
+      status: 'queued',
+      ticket: 'TICKET',
+      scenario: 'duel',
+    });
+  });
+
   it('rejects malformed code on tool call', async () => {
     const { env } = buildEnv(() => new Response('{}'));
     const res = await handleMcpHttpRequest(

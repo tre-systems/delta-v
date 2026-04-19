@@ -189,6 +189,7 @@ export const buildMcpServer = (
     scenario: z.string().optional(),
     username: z.string().min(2).max(20).optional(),
     playerKey: z.string().min(8).max(64).optional(),
+    waitForOpponent: z.boolean().optional(),
     pollMs: z.number().int().min(200).max(5_000).optional(),
     timeoutMs: z.number().int().min(5_000).max(120_000).optional(),
   };
@@ -197,6 +198,7 @@ export const buildMcpServer = (
     scenario?: string;
     username?: string;
     playerKey?: string;
+    waitForOpponent?: boolean;
     pollMs?: number;
     timeoutMs?: number;
   }) => {
@@ -215,10 +217,23 @@ export const buildMcpServer = (
       scenario: args.scenario ?? 'duel',
       username,
       playerKey,
+      waitForOpponent: args.waitForOpponent,
       pollMs: args.pollMs,
       timeoutMs: args.timeoutMs,
       verifiedLeaderboardAgent,
     });
+
+    if (matched.status === 'queued') {
+      return ok(
+        `Queued quick-match ticket ${matched.ticket} for scenario ${matched.scenario}.`,
+        {
+          status: 'queued',
+          ticket: matched.ticket,
+          scenario: matched.scenario,
+          playerKey,
+        },
+      );
+    }
 
     if (agentIdentity) {
       const secret = resolveAgentTokenSecret(env);
@@ -252,7 +267,7 @@ export const buildMcpServer = (
     'delta_v_quick_match',
     {
       description:
-        'Queue for public matchmaking and block until paired. With agentToken auth (Authorization: Bearer header) returns { matchToken, scenario } — the matchToken is opaque and replaces code+playerToken in subsequent tool calls. Without auth, returns the legacy { code, playerToken, scenario } pair. username/playerKey are inferred from the agentToken when present.',
+        'Queue for public matchmaking. With waitForOpponent=false, returns a queued ticket immediately so another client can join later; otherwise blocks until paired. With agentToken auth (Authorization: Bearer header) returns { matchToken, scenario } when matched — the matchToken is opaque and replaces code+playerToken in subsequent tool calls. Without auth, returns the legacy { code, playerToken, scenario } pair on match. username/playerKey are inferred from the agentToken when present.',
       inputSchema: quickMatchInputSchema,
     },
     quickMatchHandler,
@@ -262,7 +277,7 @@ export const buildMcpServer = (
     'delta_v_quick_match_connect',
     {
       description:
-        'Alias for delta_v_quick_match so local and hosted MCP can share one quick-match entry point name. If the first actionable observation is still fleetBuilding, send fleetReady explicitly; that phase advances only after both seats submit it.',
+        'Alias for delta_v_quick_match so local and hosted MCP can share one quick-match entry point name. Supports waitForOpponent=false for immediate ticket return. If the first actionable observation is still fleetBuilding, send fleetReady explicitly; that phase advances only after both seats submit it.',
       inputSchema: quickMatchInputSchema,
     },
     quickMatchHandler,

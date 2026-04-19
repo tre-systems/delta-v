@@ -409,6 +409,7 @@ const QUICK_MATCH_CONNECT_SCHEMA = {
   scenario: z.string().optional(),
   username: z.string().min(2).max(20).optional(),
   playerKey: z.string().min(8).max(64).optional(),
+  waitForOpponent: z.boolean().optional(),
   pollMs: z.number().int().min(200).max(10_000).optional(),
   timeoutMs: z.number().int().min(5_000).max(600_000).optional(),
 };
@@ -418,6 +419,7 @@ const handleQuickMatchConnect = async (args: {
   scenario?: string;
   username?: string;
   playerKey?: string;
+  waitForOpponent?: boolean;
   pollMs?: number;
   timeoutMs?: number;
 }) => {
@@ -437,9 +439,26 @@ const handleQuickMatchConnect = async (args: {
     scenario,
     username: args.username ?? 'Agent',
     playerKey,
+    waitForOpponent: args.waitForOpponent,
     pollMs: args.pollMs ?? 1000,
     timeoutMs: args.timeoutMs ?? 120_000,
   });
+
+  if (matched.status === 'queued') {
+    return toolOk(
+      `Queued Delta-V ticket ${matched.ticket} for scenario ${matched.scenario}.`,
+      {
+        serverUrl,
+        scenario: matched.scenario,
+        ticket: matched.ticket,
+        playerKey,
+        status: 'queued',
+        connected: false,
+        sessionId: null,
+        matchToken: null,
+      },
+    );
+  }
 
   const sessionId = randomUUID();
   const session: DeltaVSession = {
@@ -484,7 +503,7 @@ server.registerTool(
   'delta_v_quick_match_connect',
   {
     description:
-      'Queue for quick match, wait for match, and connect a player WebSocket session. Returns sessionId and matchToken (alias of sessionId) for local/hosted payload parity. If the first actionable observation is still fleetBuilding, send fleetReady explicitly; the game only advances after both seats submit it.',
+      'Queue for quick match, optionally return the ticket immediately with waitForOpponent=false, or wait for match and connect a player WebSocket session. Returns sessionId and matchToken (alias of sessionId) for local/hosted payload parity when connected. If the first actionable observation is still fleetBuilding, send fleetReady explicitly; the game only advances after both seats submit it.',
     inputSchema: QUICK_MATCH_CONNECT_SCHEMA,
   },
   handleQuickMatchConnect,
