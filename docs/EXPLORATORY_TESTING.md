@@ -337,3 +337,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | 2026-04-19 | agent (Opus 4.7) | Listing-endpoint silent caps, leaderboard validation, /join metadata gap, auth-failure log silence, validation shape consistency | 5 |
 | 2026-04-19 | agent (Opus 4.7) | End-to-end paired match → leaderboard verification; surfaced DO-deploy-eviction crash, surrender disabled in duel with wrong error, matchmaker double-pair, leaderboard test pollution | 4 |
 | 2026-04-19 | agent (Opus 4.7) | DO-eviction root-cause trace; PWA + tutorial + localStorage audit; favicon/apple-touch-icon gaps; on-device PII surface | 3 |
+| 2026-04-19 | agent (Opus 4.7) | Spectator/join-flow security probe — surfaced unauthenticated seat-hijack, missing spectator mode, local-game reload-loss, partial filter validation | 4 |

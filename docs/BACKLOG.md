@@ -8,10 +8,12 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md) pass log). Update or remove this section when the listed items are resolved or reassessed.
 
-**P0 — launch-blockers** (data integrity at risk, fix before any public traffic):
+**P0 — launch-blockers** (data integrity, fix before any public traffic):
 
 - *DO close handler crashes after a code deploy* (Cost & abuse hardening section) — three unguarded handlers in `game-do.ts`. Continuous delivery means every deploy can lose in-flight matches.
 - *Matchmaker pairs the same agent identity into two simultaneous matches* (same section) — corrupts Glicko-2 sequential-update invariant on the public leaderboard.
+
+(Note: the seat-hijack / unauthenticated-join finding is **not** P0 — by product decision, frictionless start outweighs private-room auth. Listed under polish below for the spectator-misadvertisement and structured-rejection parts only.)
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
@@ -344,6 +346,37 @@ After ~6 matches my browser's `localStorage['delta-v:tokens']` had stored 6 dist
 `localStorage['delta-v:player-profile']` shape: `{playerKey, username, updatedAt}`. The `username` is whatever the user typed at the lobby callsign field, persisted indefinitely on-device. Combined with the existing finding that the matches API publishes the same string in `winnerUsername`/`loserUsername`, a user who once typed their real name has both a public match log entry AND a permanent on-device profile they may not realise exists. Add a "Forget my callsign" control in the lobby (clears `delta-v:player-profile` and `delta-v:tokens`), and confirm the [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) doc mentions on-device persistence.
 
 **Files:** `src/client/game/session-api.ts`, `src/client/ui/`, `static/index.html` (Forget control), `docs/PRIVACY_TECHNICAL.md`
+
+### Private-room code space + unauthenticated join (intentional UX trade-off)
+
+Confirmed 2026-04-19: `POST /create` returns a 5-char code from a 32-char alphabet (~33.6M codes); `WebSocket(/ws/<code>)` with no `playerToken` auto-seats the connecting client as player 1 and issues a fresh playerToken. Brute-forcing the 5-char code is theoretically feasible (~3 h to find a random active room from a populated server, multi-IP).
+
+**Decision (2026-04-19, product):** this is *not* a launch-blocker. Frictionless start (no login, share-and-join) outweighs private-room hijack defence. Document the trade-off and skip auth/captcha/invite-token work; revisit only if real-world griefing is observed post-launch. The actually-actionable bits live in the next two entries (spectator misadvertisement; bare 1006 close shape).
+
+**Files:** —
+
+### Spectator mode advertised but unimplemented
+
+`/.well-known/agent.json` `endpoints[].description` for `WS /ws/{code}` says "...omit to spe…" (truncated, almost certainly "to spectate"). Empirically:
+
+- Empty room + no token → seated as player 1.
+- Full room + no token → WebSocket closes immediately with code 1006, no message, no welcome frame, no structured rejection.
+
+There is no actual spectator code path. Either ship spectator mode (read-only stream of S2C state messages, no `playerId`, drop any C2S writes) or rewrite the documentation to remove the spectator hint and return a structured `{type:"error", code:"room_full"}` close message instead of bare 1006.
+
+**Files:** `src/server/game-do/socket.ts`, `src/server/game-do/ws.ts`, `static/.well-known/agent.json`, `static/agents.html`
+
+### Local Play-vs-AI games lose progress on tab reload
+
+Reproduced 2026-04-19: started Bi-Planetary via Play-vs-AI, advanced to turn 2, hit `location.reload()` — landed back at the lobby with no "restore" prompt. Multiplayer matches surface a "Your fleet and plotted burns are saved — restoring the match state" message (verified earlier this week), but local games don't, even though localStorage already holds enough state (`delta-v:player-profile`, `aiDifficulty`, etc.) to attempt restore. Either persist the local-game snapshot to localStorage on each turn submission, or surface a "Continue last local game?" lobby card if the SPA detects an in-progress local state.
+
+**Files:** `src/client/game/local-runtime.ts` (or wherever local-mode game state lives), `src/client/game/client-runtime.ts`, `src/client/ui/lobby.ts` (continue prompt)
+
+### Partial filter validation on `/api/matches`
+
+Commit `7b21301` validates `scenario` and `winner`, but `?status=invalid`, `?limit=abc`, `?before=garbage` still return 200 with default data instead of 400. Apply the same `parseFilters` discipline to all four params so behaviour is uniform. Found via R2 (re-verification of the recent fix).
+
+**Files:** `src/server/matches-list.ts`, `src/server/matches-list.test.ts`
 
 ---
 
