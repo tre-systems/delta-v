@@ -115,23 +115,24 @@ Tune candidate thresholds with simulation outcomes (especially scenario-specific
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
 
-### CRITICAL: `evacuation` scenario near-unwinnable for P0 (3.3% win rate at hard)
+### CRITICAL: `evacuation` scenario near-unwinnable for P0 — scenario-side, not AI-side
 
-`npm run simulate -- all 30 --ci` (2026-04-19, hard-vs-hard) produced:
+`npm run simulate -- evacuation 30` across all four difficulty pairings (2026-04-19):
 
-| Scenario | P0 win% | P1 win% | Draws/Timeouts | Avg turns |
-|----------|---------|---------|----------------|-----------|
-| **evacuation** | **3.3%** | **96.7%** | 0 | — |
-| biplanetary | 63.3% | 36.7% | 0 | ~7 |
-| duel | 60.0% | 40.0% | 0 | 6.6 |
-| grandTour | 53.3% | 23.3% | 23.3% | 164 |
-| fleetAction | 46.7% | 33.3% | 20.0% | 31 |
+| P0 | P1 | P0 win% | Avg turns |
+|----|----|---------|-----------|
+| hard | hard | 6.7% | 2.3 |
+| easy | easy | 10.0% | 3.7 |
+| **hard** | **easy** | **13.3%** | 2.6 |
+| easy | hard | 6.7% | 3.3 |
 
-Evacuation is essentially a 96-3 sweep for the corsair (P1) against the transport+escort (P0). Even granting that asymmetric scenarios are *expected* to be asymmetric, this width gap suggests either the AI's pacing for the transport is broken or the scenario design needs a numeric tweak (cargo size, escape distance, escort firepower). For ranked play this would skew Glicko-2 wildly based on seat assignment alone. Action: pick a target P0 win rate (40-60% is the usual band) and tune AI scoring or scenario constants until 100-game runs land inside it.
+P0 (transport + escort) wins 7-13% **regardless of which AI plays which seat** — even Hard-vs-Easy gives only 13%. Games end in 2-4 turns. This is **not** an AI-tuning issue — the scenario itself doesn't give P0 a survival path; the corsair (P1) reaches and disables the transport before it can escape. Fix is scenario-side: lengthen the route, slow the corsair, beef up the escort, or add a head start. Pick a target P0 rate (40-60% in the usual band) and adjust scenario constants until 100-game runs land inside it.
 
-Found via R-new (simulation harness sweep — not yet in EXPLORATORY_TESTING.md, will add).
+For matchmaking + ranked play this is showstopping: whoever gets the P0 seat in evacuation systematically loses 90% of the time, devastating Glicko-2.
 
-**Files:** `src/shared/ai/`, `src/shared/scenarios/evacuation.ts` (or wherever evac scenario constants live), `scripts/simulate-ai.ts`
+Found via R16. The same recipe also revealed that scenario *balance* and AI-tuning live in different files — useful when triaging similar findings.
+
+**Files:** `src/shared/scenarios/evacuation.ts` (or wherever the evac map / fleet definition lives — see [src/shared/scenarios/](src/shared/scenarios/)), `src/shared/ai/scenarios/evacuation.ts` (if scenario-specific AI heuristics exist), `scripts/simulate-ai.ts`
 
 ### Material first-player advantage in `duel` and `biplanetary`
 
@@ -149,6 +150,30 @@ For the public leaderboard, even a 60/40 seat skew translates to systematic Glic
 Same sweep — almost a quarter of grandTour and a fifth of fleetAction games hit the simulation turn-limit without resolving. For grandTour the 164-turn average suggests the scenario is genuinely long; for fleetAction 31 turns is reasonable but a fifth still timing out points to AI stalemate (both fleets coast indefinitely with neither willing to commit). Either lower the turn limit and add a tiebreak (sum of remaining ship-cost? closest-to-objective?), or tune the AI's cohesion pressure so it forces engagement before the limit.
 
 **Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenarios/grand-tour.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/engine/victory.ts` (tiebreak)
+
+### AI difficulty tiers under-differentiate; first-player bias flips with difficulty
+
+Diagonal sweep on `duel`, 50 games per cell:
+
+| P0 | P1 | P0 win% | Avg turns |
+|----|----|---------|-----------|
+| easy | easy | 36.0% | 6.0 |
+| normal | normal | 60.0% | 6.4 |
+| hard | hard | 60.0% | 6.6 |
+| hard | easy | 70.0% | 7.2 |
+| hard | normal | 64.0% | 5.9 |
+| normal | hard | 62.0% | 5.8 |
+| easy | normal | 50.0% | 5.9 |
+| easy | hard | 40.0% | 7.6 |
+
+Two intertwined problems:
+
+1. **Normal ≈ Hard.** `normal-vs-hard` gives 62/38 in P0's favour and `hard-vs-normal` gives 64/36 — i.e. the seat bias swamps the difficulty signal. A player picking "Hard" over "Normal" in *Play vs AI* gets ~4 percentage points of edge net of seat. From the player's perspective the difficulty selector is largely cosmetic.
+2. **First-player bias depends on difficulty.** `hard-vs-hard` → P0=60% (forward bias). `easy-vs-easy` → P0=36% (**reversed bias**). The same pattern reproduces on biplanetary (Hard-vs-Hard P0=63%, Easy-vs-Easy P0=33%). So the seat advantage isn't a fixed first-mover bonus — it's emergent from the AI heuristics, and the Easy AI plays *worse* as the initiator. For matchmaking with random seat assignment among Hard-vs-Hard matches the leaderboard skew will persist; for the *Play vs AI* difficulty selector to be meaningful, the gap between tiers needs to be larger than the seat skew (~20pp).
+
+Fix paths: widen the depth/eval gap between Normal and Hard (e.g. Hard adds rollout depth or candidate enumeration that Normal skips); add a "play first vs second" heuristic to Easy that doesn't penalise initiation; expose a per-difficulty win-rate table on the difficulty selector so players know what to expect.
+
+**Files:** `src/shared/ai/config.ts`, `src/shared/ai/`, `src/client/ui/lobby.ts` (difficulty selector copy), `scripts/simulate-ai.ts`
 
 ### "Mutual destruction — last attacker loses" tiebreak feels arbitrary
 
