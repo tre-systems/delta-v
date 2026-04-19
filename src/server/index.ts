@@ -591,6 +591,20 @@ export default {
       return env.ASSETS.fetch(new Request(leaderboardUrl.toString(), request));
     }
 
+    // Root icon aliases so browsers and iOS home-screen probes do not
+    // generate 404s when they request the conventional paths.
+    if (url.pathname === '/favicon.ico') {
+      const faviconUrl = new URL(request.url);
+      faviconUrl.pathname = '/favicon.svg';
+      return env.ASSETS.fetch(new Request(faviconUrl.toString(), request));
+    }
+
+    if (url.pathname === '/apple-touch-icon.png') {
+      const touchIconUrl = new URL(request.url);
+      touchIconUrl.pathname = '/icons/apple-touch-icon.png';
+      return env.ASSETS.fetch(new Request(touchIconUrl.toString(), request));
+    }
+
     // Serve static assets
     return env.ASSETS.fetch(request);
   },

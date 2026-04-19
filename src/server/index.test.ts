@@ -714,6 +714,32 @@ describe('server index worker', () => {
     expect(assetsFetch).toHaveBeenCalledWith(request);
     expect(await response.text()).toBe('asset ok');
   });
+
+  it('serves root icon aliases from existing static assets', async () => {
+    const { env, assetsFetch } = createEnv();
+
+    const faviconResponse = await worker.fetch(
+      new Request('https://delta-v.test/favicon.ico'),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(faviconResponse.status).toBe(200);
+
+    const touchResponse = await worker.fetch(
+      new Request('https://delta-v.test/apple-touch-icon.png'),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(touchResponse.status).toBe(200);
+
+    const fetchedUrls = (assetsFetch.mock.calls as unknown[][])
+      .map((call) => (call[0] as { url?: unknown } | undefined)?.url)
+      .filter((url): url is string => typeof url === 'string');
+    expect(fetchedUrls).toContain('https://delta-v.test/favicon.svg');
+    expect(fetchedUrls).toContain(
+      'https://delta-v.test/icons/apple-touch-icon.png',
+    );
+  });
 });
 
 describe('/error endpoint', () => {
