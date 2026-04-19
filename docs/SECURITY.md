@@ -141,16 +141,7 @@ This is not currently implemented but the integration surface is narrow — only
 
 The current hidden-identity filtering is sound for the implemented Escape-style fugitive mechanic, because the hidden `hasFugitives` flag is stripped before broadcast. If the game expands toward dummy counters, concealed movement, or more scenario-specific secrets, that filtering layer will need another audit.
 
-That becomes more important as the project moves toward
-event-sourced match history. Raw internal event streams
-should be treated as authoritative private data, not as
-safe spectator or replay payloads. Replay and spectator
-APIs should serve filtered projections or explicitly
-redacted event views rather than exposing the internal
-event log directly. **Live spectator WebSockets** follow the
-same rule in practice: clients receive **filtered `GameState`
-JSON** (same `filterStateForPlayer(..., 'spectator')` path as
-broadcasts), not the append-only event stream.
+That becomes more important as the project moves toward event-sourced match history. Raw internal event streams should be treated as authoritative private data, not as safe spectator or replay payloads. Replay and spectator APIs should serve filtered projections or explicitly redacted event views rather than exposing the internal event log directly. **Live spectator WebSockets** follow the same rule in practice: clients receive filtered `GameState` JSON (same `filterStateForPlayer(..., 'spectator')` path as broadcasts), not the append-only event stream.
 
 ### Randomness
 
@@ -186,11 +177,7 @@ Current assessment:
 - **XSS posture:** good (trusted HTML boundary, no user-generated content)
 - **Room secrecy / public matchmaking readiness:** weak (short codes; default join/replay throttles are per-isolate, not global)
 
-Delta-V is well-hardened for private matches between
-friends. For public matchmaking, tournament play, or open
-lobbies, the remaining gaps are longer room identifiers,
-join throttling if guessing becomes real, and optional
-bot challenge protection.
+Delta-V is well-hardened for private matches between friends. For public matchmaking, tournament play, or open lobbies, the remaining gaps are longer room identifiers, join throttling if guessing becomes real, and optional bot challenge protection.
 
 ## Future Security Work
 
