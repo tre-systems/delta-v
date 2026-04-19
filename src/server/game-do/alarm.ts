@@ -1,5 +1,6 @@
 import { applyDisconnectForfeit } from '../../shared/engine/util';
 import type { GameState, SolarSystemMap } from '../../shared/types/domain';
+import { isDurableObjectCodeUpdateError } from './code-update';
 import { scheduleArchiveCompletedMatch } from './match-archive';
 import type {
   PublishStateChangeOptions,
@@ -157,6 +158,9 @@ export const runGameDoAlarm = async (deps: GameDoAlarmDeps): Promise<void> => {
       }
     }
   } catch (err) {
+    if (isDurableObjectCodeUpdateError(err)) {
+      throw err;
+    }
     console.error('Alarm handler failed, rescheduling:', err);
     try {
       await deps.rescheduleAlarm();

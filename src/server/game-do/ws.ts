@@ -11,6 +11,7 @@ import {
 } from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
 import type { AuxMessage, GameStateActionMessage } from './actions';
+import { isDurableObjectCodeUpdateError } from './code-update';
 import { DISCONNECT_GRACE_MS } from './session';
 import { applySocketRateLimit, parseClientSocketMessage } from './socket';
 
@@ -112,6 +113,9 @@ export const handleGameDoWebSocketMessage = async (
   try {
     await dispatchPlayerSocketMessage(deps, ws, playerId, msg);
   } catch (error) {
+    if (isDurableObjectCodeUpdateError(error)) {
+      throw error;
+    }
     console.error('Unhandled websocket message error', error);
     // Preserve known error codes (auth, rate-limit, invalid input) when a
     // dispatcher threw a tagged error. Collapsing everything to

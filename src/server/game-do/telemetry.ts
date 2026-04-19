@@ -63,7 +63,8 @@ export const reportSideChannelFailure = (
     | 'live_registry_register_failed'
     | 'live_registry_deregister_failed'
     | 'mcp_observation_timeout'
-    | 'matchmaker_pairing_split',
+    | 'matchmaker_pairing_split'
+    | 'game_do_code_update_evicted',
   props: Record<string, unknown>,
 ): void => {
   // Always tail the failure so developer consoles surface it even without D1.

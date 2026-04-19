@@ -47,6 +47,7 @@ import {
   sendSocketMessage,
 } from './broadcast';
 import { parseCoachMessage, setCoachDirective } from './coach';
+import { isDurableObjectCodeUpdateError } from './code-update';
 import { type GameDoFetchDeps, handleGameDoFetch } from './fetch';
 import {
   handleInitRequest,
@@ -76,7 +77,7 @@ import {
   readAlarmDeadlines,
   readDisconnectedPlayer,
 } from './session';
-import { dispatchAuxMessage } from './socket';
+import { dispatchAuxMessage, parseClientSocketMessage } from './socket';
 import { StateWaiters } from './state-waiters';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 import {
@@ -102,6 +103,7 @@ export interface Env {
 }
 
 export class GameDO extends DurableObject<Env> {
+  private gameCodeCache: string | null = null;
   private currentStateCache: {
     gameId: import('../../shared/ids').GameId;
     state: GameState;
@@ -240,9 +242,10 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async getGameCode(): Promise<string> {
-    return (
-      (await this.storage.get<string>(GAME_DO_STORAGE_KEYS.gameCode)) ?? ''
-    );
+    const code =
+      (await this.storage.get<string>(GAME_DO_STORAGE_KEYS.gameCode)) ?? '';
+    this.gameCodeCache = code.length > 0 ? code : null;
+    return code;
   }
 
   private async getScenario() {
@@ -254,6 +257,37 @@ export class GameDO extends DurableObject<Env> {
 
   private async setGameCode(code: string): Promise<void> {
     await this.storage.put(GAME_DO_STORAGE_KEYS.gameCode, code);
+    this.gameCodeCache = code;
+  }
+
+  private reportCodeUpdateEviction(
+    entrypoint: 'webSocketMessage' | 'webSocketClose' | 'alarm',
+    props?: {
+      playerId?: PlayerId | null;
+      actionType?: string | null;
+    },
+    error?: unknown,
+  ): void {
+    const cachedState = this.currentStateCache?.state ?? null;
+    const cachedCode =
+      this.gameCodeCache ??
+      (this.currentStateCache?.gameId
+        ? String(this.currentStateCache.gameId).replace(/-m\d+$/, '')
+        : null);
+    reportSideChannelFailure(
+      { db: this.env.DB, waitUntil: (promise) => this.waitUntil(promise) },
+      'game_do_code_update_evicted',
+      {
+        entrypoint,
+        code: cachedCode,
+        gameId: this.currentStateCache?.gameId ?? null,
+        turn: cachedState?.turnNumber ?? null,
+        phase: cachedState?.phase ?? null,
+        playerId: props?.playerId ?? null,
+        actionType: props?.actionType ?? null,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    );
   }
 
   private async touchInactivity(): Promise<void> {
@@ -723,19 +757,64 @@ export class GameDO extends DurableObject<Env> {
     ws: WebSocket,
     message: string | ArrayBuffer,
   ): Promise<void> {
-    return handleGameDoWebSocketMessage(
-      this.createWebSocketMessageDeps(),
-      ws,
-      message,
-    );
+    try {
+      return await handleGameDoWebSocketMessage(
+        this.createWebSocketMessageDeps(),
+        ws,
+        message,
+      );
+    } catch (error) {
+      if (isDurableObjectCodeUpdateError(error)) {
+        const parsedActionType =
+          typeof message === 'string'
+            ? (() => {
+                const parsed = parseClientSocketMessage(message);
+                return parsed.ok ? parsed.value.type : null;
+              })()
+            : null;
+        this.reportCodeUpdateEviction(
+          'webSocketMessage',
+          {
+            playerId: this.getPlayerId(ws),
+            actionType: parsedActionType,
+          },
+          error,
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
   async webSocketClose(ws: WebSocket): Promise<void> {
-    return handleGameDoWebSocketClose(this.createWebSocketCloseDeps(), ws);
+    try {
+      return await handleGameDoWebSocketClose(
+        this.createWebSocketCloseDeps(),
+        ws,
+      );
+    } catch (error) {
+      if (isDurableObjectCodeUpdateError(error)) {
+        this.reportCodeUpdateEviction(
+          'webSocketClose',
+          { playerId: this.getPlayerId(ws) },
+          error,
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
   async alarm(): Promise<void> {
-    await runGameDoAlarm(this.createAlarmDeps());
+    try {
+      await runGameDoAlarm(this.createAlarmDeps());
+    } catch (error) {
+      if (isDurableObjectCodeUpdateError(error)) {
+        this.reportCodeUpdateEviction('alarm', undefined, error);
+        return;
+      }
+      throw error;
+    }
   }
 
   private async startTurnTimer(state: GameState): Promise<void> {

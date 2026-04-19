@@ -10,7 +10,6 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P0 — launch-blockers** (data integrity or scenario design, fix before any public traffic):
 
-- *DO close handler crashes after a code deploy* (Cost & abuse hardening section) — three unguarded handlers in `game-do.ts`. Continuous delivery means every deploy can lose in-flight matches.
 - *Matchmaker pairs the same agent identity into two simultaneous matches* (same section) — corrupts Glicko-2 sequential-update invariant on the public leaderboard.
 - *`evacuation` scenario near-unwinnable for P0* (AI behavior & rules conformance) — 3% P0 win rate at hard difficulty in 100-game sweep; matchmaker would systematically penalise the P0 seat on Glicko-2.
 - *Matchmaker assigns seats by queue order (no shuffle)* (AI behavior & rules conformance) — combined with the per-scenario seat balance, this lets a timing-aware agent farm seat advantages for systematic Glicko-2 gain.
@@ -290,40 +289,6 @@ A `POST /create` from an unauthenticated client creates a Durable Object that ne
 `POST /mcp` with a bad `Authorization: Bearer …` header and `POST /api/agent-token` with malformed JSON both return helpful structured error bodies but emit **zero `console.log` lines** (verified with `wrangler tail --format json`). Brute-force attempts on token verification or sustained malformed-payload probes would leave no observability trail unless someone happens to look at the Cloudflare request log per-IP. Add a `console.log` (gated behind a sample rate to avoid log spam) on the four-eyes authentication failure paths: invalid agent token, malformed JSON to token endpoints, and rate-limited rejections. These map directly to the abuse signals operators most want to see.
 
 **Files:** `src/server/index.ts`, `src/server/auth/`, `src/server/reporting.ts`, `docs/OBSERVABILITY.md`
-
-### CRITICAL: DO close handler crashes after a code deploy → match outcomes lost
-
-`wrangler tail` captured during a 2026-04-19 paired match:
-
-```
-TypeError: The Durable Object's code has been updated, this version can no longer access storage.
-  at async GameDO.getGameCode (index.js:45700:12)
-  at async Promise.all (index 0)
-  at async GameDO.getLatestGameId (index.js:45754:33)
-  at async GameDO.getCurrentGameState (index.js:45666:20)
-  at async handleGameDoWebSocketClose (index.js:45582:21)
-```
-
-When a Worker version rolls out while long-lived `GameDO` instances are still alive, Cloudflare evicts the old DO and any storage access from old code throws. With **continuous delivery** in effect, this exposure is permanent — every deploy can lose any in-flight match. Confirmed during the 2026-04-19 paired match (real production deploy, not a synthetic test).
-
-**Scope** — three DO entry methods are exposed, all unguarded at [src/server/game-do/game-do.ts:712-729](src/server/game-do/game-do.ts:712):
-
-- `webSocketClose(ws)` — calls `getCurrentGameState` → `setDisconnectMarker` → `broadcast(opponentStatus:disconnected)`. **Surfaced bug:** when this throws, the surviving player gets no disconnect notification until grace timeout, AND the match-archive trigger in the cascading cleanup never fires.
-- `webSocketMessage(ws, msg)` — drives all in-flight C2S actions; an evicted instance receiving an action mid-turn drops it silently.
-- `alarm()` — runs grace-timeout cleanup, archive triggering, and rescheduling. An evicted instance loses its alarm-driven side effects until the new instance reschedules.
-
-Match outcomes can be lost (no archive, no `match_rating` row, no R2 object) and Glicko-2 ratings will diverge from observed results. Rated leaderboard integrity is at risk on every deploy.
-
-**Concrete fix path** (in order of impact):
-
-1. Wrap each of the three methods in `try { ... } catch (err) { … }`. On `instanceof TypeError && /code has been updated/.test(err.message)`, structured-`console.error` the event with `gameId`, `code`, `phase`, `playerId` so operators can reconcile, then return rather than throw — the next interaction with the new instance hits the alarm path which re-derives state from storage.
-2. Add a regression test in `ws.test.ts` and `alarm.test.ts` mocking the storage to throw `TypeError("The Durable Object's code has been updated, this version can no longer access storage.")` — assert the handler returns instead of propagating, and that the next alarm/incoming-message reconciles correctly.
-3. (Optional, defence in depth) Add a `bootedAt` to each DO instance and refuse to write derived state from a handler whose `bootedAt` predates the latest projected state — catches a class of split-brain bugs beyond the eviction-throw shape.
-4. Document the residual loss surface (the action that triggered the throw is gone) in [OBSERVABILITY.md](./OBSERVABILITY.md) so operators know what to look for in `wrangler tail`.
-
-This is the **launch-blocker** finding from the 2026-04-19 pass. Found via R8.
-
-**Files:** `src/server/game-do/game-do.ts` (lines 712-729 — wrap the three handlers), `src/server/game-do/ws.ts`, `src/server/game-do/alarm.ts`, `src/server/game-do/archive.ts`, `src/server/game-do/ws.test.ts`, `src/server/game-do/alarm.test.ts`, `docs/OBSERVABILITY.md`
 
 ### Surrender silently disabled in `duel`; misleading "Logistics not enabled" error
 
