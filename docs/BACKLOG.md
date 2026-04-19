@@ -134,16 +134,29 @@ Found via R16. The same recipe also revealed that scenario *balance* and AI-tuni
 
 **Files:** `src/shared/scenarios/evacuation.ts` (or wherever the evac map / fleet definition lives — see [src/shared/scenarios/](src/shared/scenarios/)), `src/shared/ai/scenarios/evacuation.ts` (if scenario-specific AI heuristics exist), `scripts/simulate-ai.ts`
 
-### Material first-player advantage in `duel` and `biplanetary`
+### Per-scenario seat-balance gaps (100-game hard-vs-hard runs)
 
-Same simulation pass: duel 60/40, biplanetary 63/37 with P0 always going first. `--randomize-start` narrows duel to 55/44 but inflates avg turns from 6.6 to 11.2 — first move still meaningfully matters. Two paths:
+Re-ran the simulation harness at 100 games per scenario for tighter signal (2026-04-19). The earlier 30-game numbers were too noisy — biplanetary in particular flipped sign between samples, which is why this entry replaces the earlier "Material first-player advantage" note.
 
-- **Matchmaking-side**: randomize seat assignment per match (already partially the case for non-symmetric scenarios). Document the trade-off.
-- **Engine-side**: minor first-turn handicap for P0 (e.g. fewer fuel, smaller initial-velocity edge) tuned to bring 100-game P0 win-rate into 50±5%.
+| Scenario | P0% | P1% | Draws | Avg turns | Status |
+|----------|----:|----:|------:|----------:|--------|
+| **evacuation** | **3** | **97** | 0 | 2.5 | broken — see separate entry |
+| escape | 38 | 62 | 0 | 11.1 | asymmetric (intended?), but ±12pp |
+| biplanetary | 41 | 59 | 0 | 7.3 | mild P1 edge |
+| blockade | 43 | 57 | 0 | 7.1 | mild P1 edge |
+| interplanetaryWar | 45 | 53 | 2 | 33.8 | balanced ✓ |
+| convoy | 54 | 42 | 4 | 29.0 | balanced ✓ |
+| fleetAction | 59 | 35 | 6 | 33.0 | P0 edge + 6% timeouts |
+| duel | 59 | 41 | 0 | 6.2 | P0 edge |
+| grandTour | 50 | 25 | **25** | 156.6 | balanced-when-decided, but 25% timeout (see grandTour entry) |
 
-For the public leaderboard, even a 60/40 seat skew translates to systematic Glicko-2 drift if seat assignment isn't randomised. Confirm seat assignment is randomised in `MatchmakerDO` and that the `match_archive`/`match_rating` rows preserve which seat each player took (they appear to via `playerA`/`playerB` ordering, but worth a unit test).
+Action: pick a target band (50±10% is conventional) and tune the offending scenarios. duel + fleetAction need P0 weakening; biplanetary + blockade + escape need either P0 strengthening or scenario-side rebalancing. For matchmaking + ranked play, document the seat-assignment policy: random per match, or always-asymmetric-to-skill?
 
-**Files:** `src/server/matchmaker-do.ts`, `src/shared/scenarios/duel.ts`, `src/shared/scenarios/biplanetary.ts`, `src/shared/ai/`, `scripts/simulate-ai.ts`
+Confirm in `MatchmakerDO` that seat is randomised, and that `match_rating.player_a_key` / `player_b_key` ordering preserves which seat each player actually took.
+
+Implication for the launch-readiness snapshot: the *first-player advantage* line earlier was over-stated based on 30-game noise. The actual exposure is (a) evacuation (separate P0 entry) and (b) duel/fleetAction having ≥10pp P0 edge — meaningful but not catastrophic.
+
+**Files:** `src/server/matchmaker-do.ts`, `src/shared/scenarios/duel.ts`, `src/shared/scenarios/biplanetary.ts`, `src/shared/scenarios/escape.ts`, `src/shared/scenarios/blockade.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/ai/`, `scripts/simulate-ai.ts`
 
 ### High timeout rate in `grandTour` (23%) and `fleetAction` (20%)
 
@@ -252,17 +265,6 @@ Walking `events` after a 50-burst confirmed that **no row is written for `/creat
 A `POST /create` from an unauthenticated client creates a Durable Object that never gets joined. These rooms do not appear in `/api/matches?status=live` (which only counts pairs with a connected second player) and there is no public surface that exposes or counts them. After my probes I had ~24 orphan DOs that I had no way to enumerate or explicitly clean up — the alarm-driven cleanup in `GameDO` is the only sweep. Either expose an admin-only `/api/rooms?status=orphaned` count for monitoring, or document the alarm timer and orphan-eviction policy in [OBSERVABILITY.md](./OBSERVABILITY.md) so operators know what cost they're carrying.
 
 **Files:** `src/server/game-do/`, `src/server/live-registry-do.ts`, `docs/OBSERVABILITY.md`, `docs/SECURITY.md`
-
-### Silent `limit` caps differ across listing endpoints
-
-Observed 2026-04-19:
-
-- `GET /api/leaderboard?limit=99999` → response `limit: 200` (silently capped at 200, no warning).
-- `GET /api/matches?limit=99999` → response `limit: 100` (silently capped at 100, no warning).
-
-Two different caps in two endpoints serving similar paginated reads, neither documented in `agent.json`, neither surfaces a `Link: rel=next` or even an explicit `requested_limit` field — the only signal that the request was clamped is the difference between the request and the `limit` field in the response, which most clients won't compare. Either reject `limit > MAX` with 400 like the recent matches-filter fix does for `winner` / `scenario`, or echo the requested value alongside the applied one (e.g. `{ limit: 100, requestedLimit: 99999, capped: true }`). Pick one cap or document why they differ.
-
-**Files:** `src/server/matches-list.ts`, `src/server/leaderboard/`, `static/.well-known/agent.json`
 
 ### Worker logs no entry on auth-failure paths
 
