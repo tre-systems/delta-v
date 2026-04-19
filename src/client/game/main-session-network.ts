@@ -10,6 +10,7 @@ import type { ActionDeps } from './action-deps';
 import { setScenario, setWaitingScreenState } from './client-context-store';
 import type { ConnectionManager } from './connection';
 import type { HudController } from './hud-controller';
+import type { StoredLocalGameSession } from './local-session-store';
 import {
   handleServerMessage,
   type MessageHandlerDeps,
@@ -26,6 +27,7 @@ import {
   exitToMenuSession,
   type JoinGameSessionDeps,
   type LocalGameSessionDeps,
+  resumeLocalGameSession,
   type SpectateGameSessionDeps,
   startLocalGameSession,
 } from './session-controller';
@@ -176,6 +178,15 @@ export const startLocalGameFromMain = (
   deps.ui.overlay.hideGameOver();
   deps.ui.log.setLocalGame(true);
   startLocalGameSession(createMainLocalSessionDeps(deps), scenario);
+};
+
+export const resumeLocalGameFromMain = (
+  deps: MainNetworkDeps,
+  snapshot: StoredLocalGameSession,
+): void => {
+  deps.ui.overlay.hideGameOver();
+  deps.ui.log.setLocalGame(true);
+  resumeLocalGameSession(createMainLocalSessionDeps(deps), snapshot);
 };
 
 export const beginSpectateGameFromMain = (
