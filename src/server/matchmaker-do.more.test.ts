@@ -172,6 +172,83 @@ describe('MatchmakerDO additional coverage', () => {
     expect(initFetch).not.toHaveBeenCalled();
   });
 
+  it('isolates rendezvous-coded tickets from the public queue and pairs matching codes', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { matchmaker, initFetch, storage } = createMatchmaker();
+
+    const isolatedA = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'duel',
+          rendezvousCode: 'qa123',
+          player: {
+            playerKey: 'playeriso1',
+            username: 'Iso One',
+          },
+        }),
+      }),
+    );
+    await expect(isolatedA.json()).resolves.toMatchObject({
+      status: 'queued',
+      scenario: 'duel',
+    });
+
+    const publicSeat = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'duel',
+          player: {
+            playerKey: 'playerpub1',
+            username: 'Public One',
+          },
+        }),
+      }),
+    );
+    await expect(publicSeat.json()).resolves.toMatchObject({
+      status: 'queued',
+      scenario: 'duel',
+    });
+
+    const isolatedB = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'duel',
+          rendezvousCode: 'QA123',
+          player: {
+            playerKey: 'playeriso2',
+            username: 'Iso Two',
+          },
+        }),
+      }),
+    );
+    await expect(isolatedB.json()).resolves.toMatchObject({
+      status: 'matched',
+      scenario: 'duel',
+      code: expect.any(String),
+    });
+
+    expect(initFetch).toHaveBeenCalledTimes(1);
+    const queue = (await storage.get('quickMatchQueue')) as Array<{
+      player: { playerKey: string };
+      rendezvousCode: string | null;
+      status: string;
+    }>;
+    expect(
+      queue
+        .filter((entry) => entry.status === 'queued')
+        .map((entry) => ({
+          playerKey: entry.player.playerKey,
+          rendezvousCode: entry.rendezvousCode,
+        })),
+    ).toEqual([{ playerKey: 'playerpub1', rendezvousCode: null }]);
+  });
+
   it('returns a matched response when an already-matched player re-enqueues', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_000);
     const { matchmaker } = createMatchmaker();

@@ -70,6 +70,36 @@ describe('normalizeQuickMatchServerUrl', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('sends rendezvousCode when provided', async () => {
+    const fetchSpy = vi.fn(async () =>
+      Response.json({
+        status: 'queued',
+        ticket: 'TICKET',
+        scenario: 'duel',
+      }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await queueForMatch({
+      serverUrl: 'https://delta-v.example',
+      scenario: 'duel',
+      rendezvousCode: 'qa123',
+      username: 'Agent',
+      playerKey: 'agent_test_rendezvous',
+      waitForOpponent: false,
+      authorizationBearer: 'token',
+    });
+
+    const firstCall = fetchSpy.mock.calls[0] as unknown as [
+      string,
+      RequestInit | undefined,
+    ];
+    const body = JSON.parse(String(firstCall[1]?.body)) as {
+      rendezvousCode?: string;
+    };
+    expect(body.rendezvousCode).toBe('qa123');
+  });
+
   it('polls a queued ticket until it matches', async () => {
     const fetchSpy = vi
       .fn()

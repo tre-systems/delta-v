@@ -5,6 +5,7 @@ export const QUICK_MATCH_SCENARIO = 'duel';
 
 export interface QuickMatchRequest {
   scenario?: string;
+  rendezvousCode?: string;
   player: PublicPlayerProfile;
 }
 
