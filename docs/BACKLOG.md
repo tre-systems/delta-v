@@ -62,6 +62,26 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Each **###** is **remaining** work only (shipped details live in `git log` and tests).
 
+### Replay viewer: both fleets render the same colour for spectators
+
+In spectator mode the session controller calls `setPlayerId(ctx, -1)` (see [src/client/game/session-controller.ts:454](../src/client/game/session-controller.ts)). The renderer then evaluates `ship.owner === playerId` for every ship — `0 === -1` and `1 === -1` are both false, so **both fleets get the enemy colour** (orange). The replay is unwatchable because you can't tell whose ship is whose.
+
+**Fix:** In spectator/replay paths, colour ships by owner index directly (P0 = cyan, P1 = orange) instead of "yours vs theirs". Add a viewer-aware helper, e.g. `colourForShip(ship, viewerPlayerId)` that returns `cyan` when `viewerPlayerId === -1 ? ship.owner === 0 : ship.owner === viewerPlayerId`. Apply consistently across `src/client/renderer/ships.ts`, `src/client/renderer/minimap.ts`, `src/client/renderer/entities.ts`, `src/client/renderer/combat.ts`, `src/client/renderer/course.ts`. The HUD legend and game-over stat pills already distinguish "Fleet 1 / Fleet 2" in spectator mode (see [src/client/ui/screens.ts:326-331](../src/client/ui/screens.ts)) — extend that vocabulary to the canvas.
+
+**Files:** `src/client/renderer/ships.ts`, `src/client/renderer/minimap.ts`, `src/client/renderer/entities.ts`, `src/client/renderer/combat.ts`, `src/client/renderer/course.ts`, optional helper in `src/client/renderer/colours.ts` (new), tests in `src/client/renderer/*.test.ts`
+
+### Replay viewer: should autoplay on entry, not require a manual Play click
+
+Today the replay opens paused. A user clicking `Replay →` from `/matches` lands on event 1/N and has to find and press Play. Better: autoplay starts immediately on entry; the Pause button is the discovery affordance. Optional polish: a small `1×/2×/4×` speed control next to Play.
+
+**Files:** `src/client/game/replay-controller.ts`, `src/client/ui/replay-controls.ts` (or wherever the Play/Pause button is bound)
+
+### Replay viewer: play full movement and combat animations between events
+
+The current event-stream scrubbing jumps from one snapshot to the next. Movement, gravity deflections, ordnance launches, and combat hits should animate the way they do in a live match — that's most of the replay's entertainment value. Drive the same animation pipeline used by live `movementResult` / `combatResult` S2C messages: feed the projector's per-event delta into `applyClientGameState` and let the existing animation queue play it out, gated on the autoplay rate above.
+
+**Files:** `src/client/game/replay-controller.ts`, `src/client/renderer/renderer.ts` (animation queue entry), `src/client/game/state-transition.ts`, `src/shared/replay.ts` (if event-stream needs richer per-event payload to feed the animator)
+
 ### Contrast audit (quantified)
 
 Run WCAG contrast / readability measurements each release using [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md) § **Contrast & readability** and [A11Y.md](./A11Y.md); tune CSS from findings.
