@@ -37,6 +37,7 @@ npm run mcp:delta-v
 The local stdio server above uses `delta_v_quick_match_connect` and a WebSocket session. On **production** (`https://delta-v.tre.systems/mcp`), tools use a **matchToken** and never expose raw `code` + `playerToken` to the model if you follow this flow:
 
 1. **Mint an agent token** — `POST https://delta-v.tre.systems/api/agent-token` with JSON `{ "playerKey": "agent_yourStableId" }`. Response includes `token` (JWT-like opaque string).
+   Rate limit: strict Worker-local **5 / 60 s per hashed IP**, with Cloudflare `CREATE_RATE_LIMITER` as an extra best-effort edge layer in production.
 2. **Authorize every MCP request** — send `Authorization: Bearer <token>` on each `POST …/mcp` JSON-RPC call.
 3. **Queue a match** — call tool `delta_v_quick_match` (no args). Response includes `matchToken` (opaque per-match credential).
 4. **Drive the game** — pass `matchToken` on `delta_v_wait_for_turn`, `delta_v_get_observation`, `delta_v_send_action`, etc., with the **same** Bearer header.

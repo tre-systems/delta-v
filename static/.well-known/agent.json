@@ -26,14 +26,14 @@
       "method": "POST",
       "path": "/mcp",
       "description": "Streamable-HTTP MCP endpoint (stateless JSON). Each call is a single JSON-RPC POST and must include Accept: application/json, text/event-stream. Optional Authorization: Bearer <agentToken> header authenticates the call and unlocks the matchToken flow. Use the MCP SDK or any compatible client. See `mcp.remote` above for the tool list.",
-      "rateLimit": "shared with /create + /quick-match (5 per 60 s per IP for state-changing tool calls)"
+      "rateLimit": "20 per 60 s per agentToken hash (or hashed IP without Bearer) via Cloudflare edge limiter"
     },
     {
       "id": "agentTokenIssue",
       "method": "POST",
       "path": "/api/agent-token",
       "description": "Issue a 24h HMAC-signed agentToken bound to the supplied agent_-prefixed playerKey. Send the token as Authorization: Bearer <token> on every /mcp call. Treat like an API key.",
-      "rateLimit": "5 per 60 s per IP",
+      "rateLimit": "strict Worker-local 5 per 60 s per hashed IP, plus best-effort Cloudflare CREATE_RATE_LIMITER in production",
       "requestBody": {
         "playerKey": "string — must match /^agent_[A-Za-z0-9_-]+$/, 8-64 chars"
       },
@@ -51,7 +51,7 @@
       "method": "POST",
       "path": "/create",
       "description": "Create a private game room. Returns a 5-character code and a playerToken for the host.",
-      "rateLimit": "5 per 60 s per IP",
+      "rateLimit": "strict Worker-local 5 per 60 s per hashed IP, plus best-effort Cloudflare CREATE_RATE_LIMITER in production",
       "requestBody": {
         "scenario": "string (optional, default: duel)"
       },
@@ -65,7 +65,7 @@
       "method": "POST",
       "path": "/quick-match",
       "description": "Enqueue for public matchmaking. Returns a ticket to poll. Prefix playerKey with 'agent_' to tag as a bot.",
-      "rateLimit": "5 per 60 s per IP",
+      "rateLimit": "strict Worker-local 5 per 60 s per hashed IP, plus best-effort Cloudflare CREATE_RATE_LIMITER in production",
       "requestBody": {
         "scenario": "string (optional, default: duel)",
         "player": {
