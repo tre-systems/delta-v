@@ -105,7 +105,7 @@ All tools accept `sessionId` unless otherwise noted.
 | `delta_v_get_observation` | Agent observation payload | `sessionId`, include flags as above, `compactState?` (default **true** on local stdio/local HTTP — compact `state`; pass **false** for full `GameState`) | `AgentTurnInput`-compatible object |
 | `delta_v_wait_for_turn` | Block until actionable turn window | `sessionId`, `timeoutMs?`, same include flags + optional `compactState` (same local default as above) | same shape as `get_observation` |
 | `delta_v_get_events` | Read buffered event stream | `sessionId`, `afterEventId?`, `limit?`, `clear?` | `{ events[], bufferedRemaining }` |
-| `delta_v_send_action` | Submit C2S action | `sessionId`, `action`, optional `compactState` when `includeNextObservation` | `{ actionType }` (or richer action result when enabled, including `guardStatus`) |
+| `delta_v_send_action` | Submit C2S action | `sessionId`, `action`, optional `compactState` when `includeNextObservation` | `{ actionType }` (or richer action result when enabled, including `guardStatus`, `autoSkipLikely`) |
 | `delta_v_send_chat` | Send chat message | `sessionId`, `text` (alias: `message`) | `{ text }` |
 | `delta_v_close_session` | Close local MCP session | `sessionId` | `{ closed }` |
 
@@ -124,6 +124,7 @@ Notes:
 - **Solo quick match (local Worker):** with `DEV_MODE=1` (see `.dev.vars.example`), the matchmaker may pair a lone quick-match ticket with a synthetic dev bot after ~10s so one MCP client can reach `matched` without a second player. Production (`DEV_MODE=0`) still waits for a real opponent.
 - **Local MCP** now defaults `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action(...includeNextObservation)` to compact `state` output. Pass `compactState: false` to force the full `GameState`.
 - **Hosted MCP** still forwards optional `compactState` on `delta_v_get_observation` (query string), `delta_v_wait_for_turn`, and `delta_v_send_action` (JSON body) to the GAME DO — unchanged from the previous explicit opt-in behavior.
+- When `delta_v_send_action(...waitForResult=true)` returns `autoSkipLikely: true`, treat the returned `nextPhase` as transient and call `delta_v_wait_for_turn` instead of immediately chaining a skip for that phase.
 - **Hosted MCP** requires `Accept: application/json, text/event-stream` on every `POST /mcp` request, even though Delta-V currently returns the JSON response path rather than an SSE stream.
 - When `delta_v_send_action` waits for a result, accepted responses include `guardStatus` (`inSync` or `stalePhaseForgiven`) so agents can tell whether an expected-phase guard was forgiven even though the action went through.
 - `delta_v_wait_for_turn` throws on timeout and may return/reject when game reaches `gameOver`.

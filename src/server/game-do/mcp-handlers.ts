@@ -617,6 +617,10 @@ const handleActionRequest = async (
         after.state,
         playerId,
       );
+      const autoSkipLikely =
+        phaseChanged &&
+        after.state.phase !== 'gameOver' &&
+        after.state.activePlayer !== playerId;
       return json({
         ok: true,
         accepted: true,
@@ -627,6 +631,7 @@ const handleActionRequest = async (
         nextTurn: after.state.turnNumber,
         nextPhase: after.state.phase,
         nextActivePlayer: after.state.activePlayer,
+        autoSkipLikely,
         turnAdvanced,
         phaseChanged,
         effects,

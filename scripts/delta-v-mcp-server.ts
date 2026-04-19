@@ -987,6 +987,10 @@ server.registerTool(
           session.lastState,
           session.playerId,
         );
+        const autoSkipLikely =
+          phaseChanged &&
+          session.lastState.phase !== 'gameOver' &&
+          session.lastState.activePlayer !== session.playerId;
         return toolOk(
           `Action ${action.type} accepted (${effects.length} visible effect${effects.length === 1 ? '' : 's'}).`,
           {
@@ -1000,6 +1004,7 @@ server.registerTool(
             nextTurn: session.lastState.turnNumber,
             nextPhase: session.lastState.phase,
             nextActivePlayer: session.lastState.activePlayer,
+            autoSkipLikely,
             turnAdvanced,
             phaseChanged,
             effects,
