@@ -26,6 +26,7 @@ const createStorage = (initial: Record<string, string> = {}) => {
 const createDeps = () => {
   const track =
     vi.fn<(event: string, props?: Record<string, unknown>) => void>();
+  const fetchImpl = vi.fn<typeof fetch>();
   const deps: SessionApiDeps = {
     ctx: stubClientSession({
       scenario: 'biplanetary',
@@ -58,10 +59,13 @@ const createDeps = () => {
     setScenario: vi.fn<(scenario: string) => void>(),
     connect: vi.fn<(code: string) => void>(),
     track,
+    fetchImpl,
+    location: new URL('https://delta-v.test/') as unknown as Location,
   };
 
   return {
     deps,
+    fetchImpl,
     track,
   };
 };
@@ -72,11 +76,8 @@ describe('session-api telemetry', () => {
   });
 
   it('tracks create-game attempts and server failures', async () => {
-    const { deps, track } = createDeps();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('nope', { status: 500 })),
-    );
+    const { deps, fetchImpl, track } = createDeps();
+    fetchImpl.mockResolvedValue(new Response('nope', { status: 500 }));
 
     const api = createSessionApi(deps);
 
@@ -93,13 +94,10 @@ describe('session-api telemetry', () => {
   });
 
   it('tracks create-game timeouts distinctly', async () => {
-    const { deps, track } = createDeps();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new DOMException('Timed out', 'AbortError');
-      }),
-    );
+    const { deps, fetchImpl, track } = createDeps();
+    fetchImpl.mockImplementation(async () => {
+      throw new DOMException('Timed out', 'AbortError');
+    });
 
     const api = createSessionApi(deps);
 
@@ -122,12 +120,9 @@ describe('session-api telemetry', () => {
   });
 
   it('tracks join attempts and HTTP failures with reasons', async () => {
-    const { deps, track } = createDeps();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () => new Response('That game is already full', { status: 409 }),
-      ),
+    const { deps, fetchImpl, track } = createDeps();
+    fetchImpl.mockResolvedValue(
+      new Response('That game is already full', { status: 409 }),
     );
 
     const api = createSessionApi(deps);
@@ -152,7 +147,7 @@ describe('session-api telemetry', () => {
   });
 
   it('retries join without a stale token and prunes it from storage', async () => {
-    const { deps, track } = createDeps();
+    const { deps, fetchImpl, track } = createDeps();
     const storage = createStorage({
       'delta-v:tokens': JSON.stringify({
         ABCDE: { playerToken: 'stale-token', ts: Date.now() },
@@ -162,15 +157,11 @@ describe('session-api telemetry', () => {
       storage,
       now: () => Date.now(),
     });
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValueOnce(
-          new Response('Invalid player token', { status: 403 }),
-        )
-        .mockResolvedValueOnce(Response.json({ ok: true }, { status: 200 })),
-    );
+    fetchImpl
+      .mockResolvedValueOnce(
+        new Response('Invalid player token', { status: 403 }),
+      )
+      .mockResolvedValueOnce(Response.json({ ok: true }, { status: 200 }));
 
     const api = createSessionApi(deps);
     const result = await api.validateJoin('ABCDE', 'stale-token');
@@ -187,13 +178,10 @@ describe('session-api telemetry', () => {
   });
 
   it('returns a timeout error when join validation aborts', async () => {
-    const { deps, track } = createDeps();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new DOMException('Timed out', 'AbortError');
-      }),
-    );
+    const { deps, fetchImpl, track } = createDeps();
+    fetchImpl.mockImplementation(async () => {
+      throw new DOMException('Timed out', 'AbortError');
+    });
 
     const api = createSessionApi(deps);
     const result = await api.validateJoin('ABCDE', null);
@@ -213,7 +201,7 @@ describe('session-api telemetry', () => {
   });
 
   it('tracks replay fetch timeouts as timeout failures', async () => {
-    const { deps, track } = createDeps();
+    const { deps, fetchImpl, track } = createDeps();
     const storage = createStorage({
       'delta-v:tokens': JSON.stringify({
         ABCDE: { playerToken: 'player-token', ts: Date.now() },
@@ -223,12 +211,9 @@ describe('session-api telemetry', () => {
       storage,
       now: () => Date.now(),
     });
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new DOMException('Timed out', 'AbortError');
-      }),
-    );
+    fetchImpl.mockImplementation(async () => {
+      throw new DOMException('Timed out', 'AbortError');
+    });
 
     const api = createSessionApi(deps);
     const replay = await api.fetchReplay('ABCDE', 'GAME1');
@@ -241,16 +226,15 @@ describe('session-api telemetry', () => {
   });
 
   it('fetches an archived replay over the public spectator route without a token', async () => {
-    const { deps, track } = createDeps();
+    const { deps, fetchImpl, track } = createDeps();
     let lastUrl = '';
-    const fetchMock = vi.fn(async (url: string) => {
-      lastUrl = url;
+    fetchImpl.mockImplementation(async (input) => {
+      lastUrl = String(input);
       return {
         ok: true,
         json: async () => ({ gameId: 'ZNMC6-m1', entries: [] }),
-      };
+      } as Response;
     });
-    vi.stubGlobal('fetch', fetchMock);
 
     const api = createSessionApi(deps);
     const replay = await api.fetchArchivedReplay('ZNMC6', 'ZNMC6-m1');
@@ -267,13 +251,12 @@ describe('session-api telemetry', () => {
   });
 
   it('returns null and tracks a server failure when archived replay 404s', async () => {
-    const { deps, track } = createDeps();
-    const fetchMock = vi.fn(async () => ({
+    const { deps, fetchImpl, track } = createDeps();
+    fetchImpl.mockResolvedValue({
       ok: false,
       status: 404,
       json: async () => ({}),
-    }));
-    vi.stubGlobal('fetch', fetchMock);
+    } as Response);
 
     const api = createSessionApi(deps);
     const replay = await api.fetchArchivedReplay('MISSG', 'MISSG-m1');
@@ -287,20 +270,18 @@ describe('session-api telemetry', () => {
   });
 
   it('blocks quick match when another tab already holds the queue lock', async () => {
-    const { deps, track } = createDeps();
-    const fetchMock = vi.fn();
+    const { deps, fetchImpl, track } = createDeps();
     deps.quickMatchLock = {
       claim: vi.fn(() => ({ ok: false })),
       heartbeat: vi.fn(),
       release: vi.fn(),
     };
-    vi.stubGlobal('fetch', fetchMock);
 
     const api = createSessionApi(deps);
 
     await api.startQuickMatch();
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
     expect(track).toHaveBeenNthCalledWith(1, 'quick_match_attempted', {
       scenario: 'duel',
     });
