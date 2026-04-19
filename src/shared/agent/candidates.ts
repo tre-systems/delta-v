@@ -10,7 +10,10 @@ import {
   aiOrdnance,
   buildAIFleetPurchases,
 } from '../ai';
-import { evaluateOrdnanceLaunchIntercept } from '../ai/ordnance';
+import {
+  evaluateOrdnanceLaunchIntercept,
+  scoreOrdnanceInterceptTarget,
+} from '../ai/ordnance';
 import { SHIP_STATS } from '../constants';
 import { buildSolarSystemMap } from '../map-data';
 import type {
@@ -218,6 +221,8 @@ export const hasRecentOwnOrdnanceLaunch = (
       ord.turnsRemaining === 4,
   );
 
+const CONSECUTIVE_TORPEDO_HIGH_THREAT_SCORE = 45;
+
 export const isHighConfidenceConsecutiveOrdnanceAction = (
   state: GameState,
   playerId: PlayerId,
@@ -245,7 +250,27 @@ export const isHighConfidenceConsecutiveOrdnanceAction = (
     if (launch.ordnanceType === 'nuke') {
       return intercept.turnsToIntercept <= 2;
     }
-    return intercept.turnsToIntercept <= 3;
+    if (intercept.turnsToIntercept <= 2) {
+      return true;
+    }
+    if (
+      launch.ordnanceType === 'torpedo' &&
+      intercept.turnsToIntercept === 3 &&
+      intercept.targetShipId
+    ) {
+      const targetScore = scoreOrdnanceInterceptTarget(
+        state,
+        playerId,
+        launch.shipId,
+        intercept.targetShipId,
+        map,
+      );
+      return (
+        targetScore !== null &&
+        targetScore >= CONSECUTIVE_TORPEDO_HIGH_THREAT_SCORE
+      );
+    }
+    return false;
   });
 };
 
@@ -266,9 +291,6 @@ const prioritizeOrdnanceCandidates = (
       if (candidate.type === 'emplaceBase') {
         return { candidate, index, priority: 0 };
       }
-      if (candidate.type === 'skipOrdnance') {
-        return { candidate, index, priority: 1 };
-      }
       if (candidate.type === 'ordnance') {
         const highConfidence = isHighConfidenceConsecutiveOrdnanceAction(
           state,
@@ -276,7 +298,10 @@ const prioritizeOrdnanceCandidates = (
           candidate,
           map,
         );
-        return { candidate, index, priority: highConfidence ? 2 : 4 };
+        return { candidate, index, priority: highConfidence ? 1 : 4 };
+      }
+      if (candidate.type === 'skipOrdnance') {
+        return { candidate, index, priority: 2 };
       }
       return { candidate, index, priority: 3 };
     })
