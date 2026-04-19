@@ -181,6 +181,44 @@ export const createMainSessionShell = (
     clearTrails: () => args.renderer.clearTrails(),
     applyGameState: (state) => applyGameState(state),
     frameOnActivePlayer: (state) => args.renderer.frameOnActivePlayer(state),
+    presentReplayEntry: (entry, previousState, onAnimationsDone) => {
+      const message = entry.message;
+
+      if (message.type === 'movementResult') {
+        applyGameState(message.state);
+        if (message.events.length > 0) {
+          args.renderer.showMovementEvents(message.events);
+          args.ui.log.logMovementEvents(message.events, message.state.ships);
+        }
+        args.renderer.animateMovements(
+          message.movements,
+          message.ordnanceMovements,
+          onAnimationsDone,
+        );
+        return;
+      }
+
+      if (message.type === 'combatResult') {
+        applyGameState(message.state);
+        args.renderer.showCombatResults(message.results, previousState);
+        args.ui.log.logCombatResults(message.results, message.state.ships);
+        // Combat fx have their own internal duration; let it breathe.
+        setTimeout(onAnimationsDone, 1800);
+        return;
+      }
+
+      if (message.type === 'combatSingleResult') {
+        applyGameState(message.state);
+        args.renderer.showCombatResults([message.result], previousState);
+        args.ui.log.logCombatResults([message.result], message.state.ships);
+        setTimeout(onAnimationsDone, 1200);
+        return;
+      }
+
+      args.renderer.clearTrails();
+      applyGameState(message.state);
+      onAnimationsDone();
+    },
   });
 
   args.ui.overlay.bindReconnectStateSignal(

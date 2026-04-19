@@ -16,9 +16,19 @@ import { predictDestination } from '../../shared/movement';
 import type {
   GameState,
   PlayerId,
+  Ship,
   ShipMovement,
   SolarSystemMap,
 } from '../../shared/types/domain';
+import { isOwnShipForViewer, SPECTATOR_PLAYER_ID } from './colours';
+
+const isShipDetectedForViewer = (
+  ship: Pick<Ship, 'owner' | 'detected'>,
+  playerId: PlayerId,
+): boolean =>
+  (playerId as number) === SPECTATOR_PLAYER_ID ||
+  ship.owner === playerId ||
+  ship.detected === true;
 
 export interface CircleOverlayView {
   center: PixelCoord;
@@ -155,7 +165,7 @@ export const buildVelocityVectorViews = (
   for (const ship of state.ships) {
     if (
       ship.lifecycle !== 'active' ||
-      (ship.owner !== playerId && !ship.detected)
+      !isShipDetectedForViewer(ship, playerId)
     ) {
       continue;
     }
@@ -168,7 +178,7 @@ export const buildVelocityVectorViews = (
       continue;
     }
 
-    const isOwn = ship.owner === playerId;
+    const isOwn = isOwnShipForViewer(ship.owner, playerId);
     const speed = hexVecLength(ship.velocity);
     const color = isOwn
       ? 'rgba(79, 195, 247, 0.22)'
@@ -219,7 +229,7 @@ export const buildVelocityVectorViews = (
       continue;
     }
 
-    const isOwn = ordnance.owner === playerId;
+    const isOwn = isOwnShipForViewer(ordnance.owner, playerId);
     const color = isOwn ? 'rgba(79, 195, 247, 0.1)' : 'rgba(255, 152, 0, 0.1)';
 
     views.push({
@@ -252,11 +262,11 @@ export const buildShipTrailViews = (
 
     if (!ship) continue;
 
-    if (ship.owner !== playerId && !ship.detected) {
+    if (!isShipDetectedForViewer(ship, playerId)) {
       continue;
     }
 
-    const isOwn = ship.owner === playerId;
+    const isOwn = isOwnShipForViewer(ship.owner, playerId);
 
     views.push({
       points: trail.map((hex) => hexToPixel(hex, hexSize)),
@@ -287,7 +297,9 @@ export const buildOrdnanceTrailViews = (
     const ordnance = state.ordnance.find(
       (candidate) => candidate.id === ordnanceId,
     );
-    const isOwn = ordnance ? ordnance.owner === playerId : false;
+    const isOwn = ordnance
+      ? isOwnShipForViewer(ordnance.owner, playerId)
+      : false;
 
     views.push({
       points: trail.map((hex) => hexToPixel(hex, hexSize)),
@@ -370,7 +382,7 @@ export const buildMovementPathViews = (
 
     if (!ship) continue;
 
-    if (ship.owner !== playerId && !ship.detected) {
+    if (!isShipDetectedForViewer(ship, playerId)) {
       continue;
     }
 
@@ -379,10 +391,9 @@ export const buildMovementPathViews = (
     const totalSegments = movement.path.length - 1;
     const passedSegments = Math.floor(progress * totalSegments);
 
-    const color =
-      ship.owner === playerId
-        ? 'rgba(79, 195, 247, 0.22)'
-        : 'rgba(255, 152, 0, 0.22)';
+    const color = isOwnShipForViewer(ship.owner, playerId)
+      ? 'rgba(79, 195, 247, 0.22)'
+      : 'rgba(255, 152, 0, 0.22)';
 
     views.push({
       points: movement.path.map((hex) => hexToPixel(hex, hexSize)),
