@@ -1,6 +1,6 @@
 # Manual Test Plan
 
-Hands-on verification for release candidates and significant changes. Each section is self-contained — run only the ones relevant to what changed. Related docs: [SPEC.md](./SPEC.md) for game rules, [SIMULATION_TESTING.md](./SIMULATION_TESTING.md) for automated harnesses.
+Hands-on verification for release candidates and significant changes. Each section is self-contained — run only the ones relevant to what changed. Related docs: [SPEC.md](./SPEC.md) for game rules, [SIMULATION_TESTING.md](./SIMULATION_TESTING.md) for automated harnesses, [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md) for open-ended discovery passes (different intent — that doc helps you find unknown issues; this one verifies known requirements).
 
 ## Release gate
 
