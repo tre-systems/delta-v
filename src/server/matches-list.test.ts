@@ -100,6 +100,51 @@ describe('handleMatchesList', () => {
     expect(bind).toHaveBeenCalledWith(1234, 51);
   });
 
+  it('filters by scenario when requested', async () => {
+    const { db, prepare, bind } = mockDb([]);
+    await handleMatchesList(
+      new Request('https://example/api/matches?scenario=convoy'),
+      buildEnv(db),
+    );
+    expect(prepare.mock.calls[0][0] as string).toContain('ma.scenario = ?');
+    expect(bind).toHaveBeenCalledWith('convoy', 51);
+  });
+
+  it('filters by winner when requested', async () => {
+    const { db, prepare, bind } = mockDb([]);
+    await handleMatchesList(
+      new Request('https://example/api/matches?winner=1'),
+      buildEnv(db),
+    );
+    expect(prepare.mock.calls[0][0] as string).toContain('ma.winner = ?');
+    expect(bind).toHaveBeenCalledWith(1, 51);
+  });
+
+  it('filters draws via winner=draw', async () => {
+    const { db, prepare, bind } = mockDb([]);
+    await handleMatchesList(
+      new Request('https://example/api/matches?winner=draw'),
+      buildEnv(db),
+    );
+    expect(prepare.mock.calls[0][0] as string).toContain('ma.winner IS NULL');
+    expect(bind).toHaveBeenCalledWith(51);
+  });
+
+  it('composes before, scenario, and winner filters in binding order', async () => {
+    const { db, prepare, bind } = mockDb([]);
+    await handleMatchesList(
+      new Request(
+        'https://example/api/matches?before=1234&scenario=duel&winner=0',
+      ),
+      buildEnv(db),
+    );
+    const sql = prepare.mock.calls[0][0] as string;
+    expect(sql).toContain('ma.completed_at < ?');
+    expect(sql).toContain('ma.scenario = ?');
+    expect(sql).toContain('ma.winner = ?');
+    expect(bind).toHaveBeenCalledWith(1234, 'duel', 0, 51);
+  });
+
   it('ignores non-positive or malformed before values', async () => {
     const { db, prepare } = mockDb([]);
     await handleMatchesList(
@@ -107,6 +152,48 @@ describe('handleMatchesList', () => {
       buildEnv(db),
     );
     expect(prepare.mock.calls[0][0] as string).not.toContain('completed_at <');
+  });
+
+  it('rejects unknown scenarios instead of ignoring them', async () => {
+    const { db, prepare } = mockDb([]);
+    const response = await handleMatchesList(
+      new Request('https://example/api/matches?scenario=nonexistent'),
+      buildEnv(db),
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'invalid_query',
+      message: 'Unknown scenario: nonexistent',
+    });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid winner values', async () => {
+    const { db, prepare } = mockDb([]);
+    const response = await handleMatchesList(
+      new Request('https://example/api/matches?winner=banana'),
+      buildEnv(db),
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'invalid_query',
+      message: 'Invalid winner filter: banana. Expected 0, 1, or draw.',
+    });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported offset pagination', async () => {
+    const { db, prepare } = mockDb([]);
+    const response = await handleMatchesList(
+      new Request('https://example/api/matches?offset=50'),
+      buildEnv(db),
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'invalid_query',
+      message: 'Unsupported query parameter: offset. Use before pagination.',
+    });
+    expect(prepare).not.toHaveBeenCalled();
   });
 
   it('returns nextBefore when more results are available', async () => {

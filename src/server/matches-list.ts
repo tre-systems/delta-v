@@ -14,6 +14,7 @@
 // already publicly accessible with a known code, so exposing codes here
 // does not widen any security boundary beyond "replays are discoverable").
 
+import { isValidScenario, type ScenarioKey } from '../shared/map-data';
 import type { Env } from './env';
 
 const DEFAULT_LIMIT = 50;
@@ -45,6 +46,20 @@ export interface MatchListingResponse {
   nextBefore: number | null;
 }
 
+type MatchWinnerFilter = 0 | 1 | 'draw';
+type MatchesQueryError = {
+  status: 400;
+  body: {
+    error: 'invalid_query';
+    message: string;
+  };
+};
+
+const isQueryError = (
+  value: MatchWinnerFilter | ScenarioKey | null | MatchesQueryError,
+): value is MatchesQueryError =>
+  typeof value === 'object' && value !== null && 'status' in value;
+
 const parseLimit = (raw: string | null): number => {
   if (!raw) return DEFAULT_LIMIT;
   const parsed = Number.parseInt(raw, 10);
@@ -57,6 +72,72 @@ const parseBefore = (raw: string | null): number | null => {
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
   return parsed;
+};
+
+const parseScenario = (
+  raw: string | null,
+): ScenarioKey | null | MatchesQueryError => {
+  if (!raw) return null;
+  if (!isValidScenario(raw)) {
+    return {
+      status: 400,
+      body: {
+        error: 'invalid_query',
+        message: `Unknown scenario: ${raw}`,
+      },
+    };
+  }
+  return raw;
+};
+
+const parseWinner = (
+  raw: string | null,
+): MatchWinnerFilter | null | MatchesQueryError => {
+  if (!raw) return null;
+  if (raw === '0') return 0;
+  if (raw === '1') return 1;
+  if (raw === 'draw') return 'draw';
+  return {
+    status: 400,
+    body: {
+      error: 'invalid_query',
+      message: `Invalid winner filter: ${raw}. Expected 0, 1, or draw.`,
+    },
+  };
+};
+
+const parseFilters = (
+  url: URL,
+):
+  | {
+      limit: number;
+      before: number | null;
+      scenario: ScenarioKey | null;
+      winner: MatchWinnerFilter | null;
+    }
+  | MatchesQueryError => {
+  if (url.searchParams.has('offset')) {
+    return {
+      status: 400,
+      body: {
+        error: 'invalid_query',
+        message: 'Unsupported query parameter: offset. Use before pagination.',
+      },
+    };
+  }
+
+  const scenario = parseScenario(url.searchParams.get('scenario'));
+  if (isQueryError(scenario)) return scenario;
+
+  const winner = parseWinner(url.searchParams.get('winner'));
+  if (isQueryError(winner)) return winner;
+
+  return {
+    limit: parseLimit(url.searchParams.get('limit')),
+    before: parseBefore(url.searchParams.get('before')),
+    scenario,
+    winner,
+  };
 };
 
 // D1 row shape — reflects the CREATE TABLE in 0002_match_archive.sql
@@ -106,8 +187,11 @@ export const handleMatchesList = async (
   }
 
   const url = new URL(request.url);
-  const limit = parseLimit(url.searchParams.get('limit'));
-  const before = parseBefore(url.searchParams.get('before'));
+  const filters = parseFilters(url);
+  if ('status' in filters) {
+    return Response.json(filters.body, { status: filters.status });
+  }
+  const { limit, before, scenario, winner } = filters;
 
   // Fetch `limit + 1` rows so we can tell whether there's another page
   // without a separate COUNT query.
@@ -137,18 +221,30 @@ export const handleMatchesList = async (
     'LEFT JOIN player pa ON pa.player_key = mr.player_a_key ' +
     'LEFT JOIN player pb ON pb.player_key = mr.player_b_key';
 
-  const stmt = before
-    ? env.DB.prepare(
-        `SELECT ${SELECT_COLUMNS} ${JOINS} ` +
-          'WHERE ma.completed_at < ? ' +
-          'ORDER BY ma.completed_at DESC ' +
-          'LIMIT ?',
-      ).bind(before, fetchSize)
-    : env.DB.prepare(
-        `SELECT ${SELECT_COLUMNS} ${JOINS} ` +
-          'ORDER BY ma.completed_at DESC ' +
-          'LIMIT ?',
-      ).bind(fetchSize);
+  const whereClauses: string[] = [];
+  const bindings: unknown[] = [];
+  if (before) {
+    whereClauses.push('ma.completed_at < ?');
+    bindings.push(before);
+  }
+  if (scenario) {
+    whereClauses.push('ma.scenario = ?');
+    bindings.push(scenario);
+  }
+  if (winner === 0 || winner === 1) {
+    whereClauses.push('ma.winner = ?');
+    bindings.push(winner);
+  } else if (winner === 'draw') {
+    whereClauses.push('ma.winner IS NULL');
+  }
+
+  const whereSql =
+    whereClauses.length === 0 ? '' : ` WHERE ${whereClauses.join(' AND ')}`;
+  const stmt = env.DB.prepare(
+    `SELECT ${SELECT_COLUMNS} ${JOINS}${whereSql} ` +
+      'ORDER BY ma.completed_at DESC ' +
+      'LIMIT ?',
+  ).bind(...bindings, fetchSize);
 
   const { results } = await stmt.all<MatchArchiveRow>();
   const rows = (results ?? []).slice(0, limit).map(toListingRow);
