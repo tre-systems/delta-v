@@ -17,7 +17,7 @@ A pass typically takes 60-120 minutes of agent or human time and should produce 
 
 - [Toolkit](#toolkit)
 - [Lenses](#lenses-what-to-look-for)
-- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile/a11y · R11 fresh-start wipe · R12 doc-link sweep
+- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile/a11y · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep
 - [Workflow: probe → finding → backlog](#workflow-probe--finding--backlog)
 - [Anti-patterns](#anti-patterns)
 - [Pass log](#pass-log)
@@ -257,6 +257,25 @@ Open the SPA in a fresh profile, complete one matchmaking-paired game and one Pl
 
 For each persisted blob, ask: who owns it? When does it get pruned? What happens if the device is shared? Does it contain anything user-typed (callsign, real-name pattern)? Is any auth credential stored in plaintext localStorage? The 2026-04-19 pass surfaced unbounded `delta-v:tokens` accumulation and a `delta-v:player-profile` storing the raw callsign indefinitely.
 
+### R16. Simulation-harness balance sweep
+
+`scripts/simulate-ai.ts` is the existing AI-vs-AI engine harness (see [SIMULATION_TESTING.md](./SIMULATION_TESTING.md)). It's also the cheapest way to surface scenario-balance regressions without playing 100 games by hand.
+
+```bash
+npm run simulate -- all 30 --ci      # all 9 scenarios × 30 games, hard-vs-hard
+npm run simulate -- duel 100 --ci    # narrow a specific scenario for tighter signal
+npm run simulate -- duel 100 --randomize-start   # check seat-balance independence
+```
+
+Read the per-scenario block: P0 win%, P1 win%, draws/timeouts, average turns. Useful triage rules:
+
+- **P0 or P1 win-rate outside [40, 60]** at 100+ games → balance issue. The CI gate fires at 45-85% for P0 (deliberately wide), but tighter thresholds catch real drift earlier.
+- **Timeout rate above 5%** → the AI is stalemating; either the scenario lacks pressure or the turn cap is too short.
+- **Avg turns < 5** → the scenario is being decided too quickly to be interesting; first-player edge dominates.
+- **`Engine Crashes > 0`** → fail closed, file under Architecture & correctness.
+
+The 2026-04-19 sweep surfaced evacuation 96-3 and duel 60-40 from this single command. Run before any AI heuristic change and before any release.
+
 ### R15. Post-game pipeline cross-check
 
 After each completed paired match, verify the data landed in **all four** persistence stores within ~30 s:
@@ -338,3 +357,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | 2026-04-19 | agent (Opus 4.7) | End-to-end paired match → leaderboard verification; surfaced DO-deploy-eviction crash, surrender disabled in duel with wrong error, matchmaker double-pair, leaderboard test pollution | 4 |
 | 2026-04-19 | agent (Opus 4.7) | DO-eviction root-cause trace; PWA + tutorial + localStorage audit; favicon/apple-touch-icon gaps; on-device PII surface | 3 |
 | 2026-04-19 | agent (Opus 4.7) | Spectator/join-flow security probe — surfaced unauthenticated seat-hijack, missing spectator mode, local-game reload-loss, partial filter validation | 4 |
+| 2026-04-19 | agent (Opus 4.7) | Combat/ordnance rules conformance + simulation balance sweep — surfaced evacuation 96-3 P1 dominance, duel/biplanetary first-player edge, grandTour/fleetAction timeout rates | 4 |
