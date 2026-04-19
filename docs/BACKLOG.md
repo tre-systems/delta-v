@@ -10,7 +10,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P0 — launch-blockers** (data integrity or scenario design, fix before any public traffic):
 
-- *`evacuation` scenario near-unwinnable for P0* (AI behavior & rules conformance) — 3% P0 win rate at hard difficulty in 100-game sweep; matchmaker would systematically penalise the P0 seat on Glicko-2.
+- None currently pinned. Re-rank after each exploratory / QA pass.
 
 (Note: the seat-hijack / unauthenticated-join finding is **not** P0 — by product decision, frictionless start outweighs private-room auth. Listed under polish below for the spectator-misadvertisement and structured-rejection parts only.)
 
@@ -113,32 +113,12 @@ Tune candidate thresholds with simulation outcomes (especially scenario-specific
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
 
-### CRITICAL: `evacuation` scenario near-unwinnable for P0 — scenario-side, not AI-side
-
-`npm run simulate -- evacuation 30` across all four difficulty pairings (2026-04-19):
-
-| P0 | P1 | P0 win% | Avg turns |
-|----|----|---------|-----------|
-| hard | hard | 6.7% | 2.3 |
-| easy | easy | 10.0% | 3.7 |
-| **hard** | **easy** | **13.3%** | 2.6 |
-| easy | hard | 6.7% | 3.3 |
-
-P0 (transport + escort) wins 7-13% **regardless of which AI plays which seat** — even Hard-vs-Easy gives only 13%. Games end in 2-4 turns. This is **not** an AI-tuning issue — the scenario itself doesn't give P0 a survival path; the corsair (P1) reaches and disables the transport before it can escape. Fix is scenario-side: lengthen the route, slow the corsair, beef up the escort, or add a head start. Pick a target P0 rate (40-60% in the usual band) and adjust scenario constants until 100-game runs land inside it.
-
-For matchmaking + ranked play this is showstopping: whoever gets the P0 seat in evacuation systematically loses 90% of the time, devastating Glicko-2.
-
-Found via R16. The same recipe also revealed that scenario *balance* and AI-tuning live in different files — useful when triaging similar findings.
-
-**Files:** `src/shared/scenarios/evacuation.ts` (or wherever the evac map / fleet definition lives — see [src/shared/scenarios/](src/shared/scenarios/)), `src/shared/ai/scenarios/evacuation.ts` (if scenario-specific AI heuristics exist), `scripts/simulate-ai.ts`
-
 ### Per-scenario seat-balance gaps (100-game hard-vs-hard runs)
 
 Re-ran the simulation harness at 100 games per scenario for tighter signal (2026-04-19). The earlier 30-game numbers were too noisy — biplanetary in particular flipped sign between samples, which is why this entry replaces the earlier "Material first-player advantage" note.
 
 | Scenario | P0% | P1% | Draws | Avg turns | Status |
 |----------|----:|----:|------:|----------:|--------|
-| **evacuation** | **3** | **97** | 0 | 2.5 | broken — see separate entry |
 | escape | 38 | 62 | 0 | 11.1 | asymmetric (intended?), but ±12pp |
 | biplanetary | 41 | 59 | 0 | 7.3 | mild P1 edge |
 | blockade | 43 | 57 | 0 | 7.1 | mild P1 edge |
@@ -152,7 +132,7 @@ Action: pick a target band (50±10% is conventional) and tune the offending scen
 
 Seat assignment is now randomised in `MatchmakerDO`; keep `match_rating.player_a_key` / `player_b_key` ordering aligned to the actual seated side when touching pairing or archival logic.
 
-Implication for the launch-readiness snapshot: the *first-player advantage* line earlier was over-stated based on 30-game noise. The actual exposure is (a) evacuation (separate P0 entry) and (b) duel/fleetAction having ≥10pp P0 edge — meaningful but not catastrophic.
+Implication for the launch-readiness snapshot: the earlier *first-player advantage* line was over-stated based on 30-game noise. The remaining meaningful seat skews are duel/fleetAction on the P0 side and escape/biplanetary/blockade on the P1 side.
 
 **Files:** `src/server/matchmaker-do.ts`, `src/shared/scenarios/duel.ts`, `src/shared/scenarios/biplanetary.ts`, `src/shared/scenarios/escape.ts`, `src/shared/scenarios/blockade.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/ai/`, `scripts/simulate-ai.ts`
 

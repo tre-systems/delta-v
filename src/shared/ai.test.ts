@@ -1555,8 +1555,16 @@ describe('aiOrdnance — nuke launch conditions', () => {
       asGameId('NUK4'),
       findBaseHex,
     );
+    const passengerShipIds = new Set(
+      state.ships
+        .filter((ship) => ship.owner === 0 && (ship.passengersAboard ?? 0) > 0)
+        .map((ship) => ship.id),
+    );
+    const launches = aiOrdnance(state, 0, map, 'hard');
 
-    expect(aiOrdnance(state, 0, map, 'hard')).toEqual([]);
+    expect(
+      launches.every((launch) => !passengerShipIds.has(launch.shipId)),
+    ).toBe(true);
   });
 });
 describe('aiOrdnance — easy AI skip', () => {

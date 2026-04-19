@@ -105,6 +105,7 @@ test.describe('multiplayer smoke tests', () => {
     const contextB = await browser.newContext();
     const pageA = await contextA.newPage();
     const pageB = await contextB.newPage();
+    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
 
     const seedProfile = async (
       page: typeof pageA,
@@ -135,8 +136,8 @@ test.describe('multiplayer smoke tests', () => {
     };
 
     try {
-      await seedProfile(pageA, 'e2e-qm-player-a');
-      await seedProfile(pageB, 'e2e-qm-player-b');
+      await seedProfile(pageA, `qm-a-${uniqueSuffix}`);
+      await seedProfile(pageB, `qm-b-${uniqueSuffix}`);
 
       await pageA.goto('/', { waitUntil: 'domcontentloaded' });
       await pageB.goto('/', { waitUntil: 'domcontentloaded' });
