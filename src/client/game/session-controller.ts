@@ -111,6 +111,9 @@ export interface ArchivedReplaySessionDeps {
   startArchivedReplay: (
     timeline: import('../../shared/replay').ReplayTimeline,
   ) => void;
+  clearLog: () => void;
+  setChatEnabled: (enabled: boolean) => void;
+  logText: (text: string, cssClass?: string) => void;
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   exitToMenu: () => void;
   setScenario: (scenario: string) => void;
@@ -387,6 +390,9 @@ export const beginArchivedReplaySession = async (
 
   // Seed scenario so the UI's scenario label renders correctly.
   deps.setScenario(timeline.scenario);
+  deps.clearLog();
+  deps.setChatEnabled(false);
+  deps.logText(`Replay: ${timeline.gameId}`, 'log-system');
 
   // Apply the final state first — this populates gameState with the
   // match's endgame (winner, outcome, turn count) so the replay-controller
