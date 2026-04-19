@@ -19,15 +19,24 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 - *No security headers on responses* (Gameplay UX & matchmaking integrity) — no CSP, HSTS, X-Frame-Options, Referrer-Policy. Standard production hardening missing. User-typed callsigns in multiple render paths make CSP especially worthwhile.
 - *CORS policy on public APIs is undocumented and silent* (same section) — no `Access-Control-Allow-*` headers mean third-party agents and leaderboard embeds can't read JSON endpoints from browsers.
 - *Match-history "Replay →" links are broken for every listed match* (Gameplay UX & matchmaking integrity) — every click shows "Replay unavailable" toast; breaks a promoted feature on a page that tells users replays are available.
+- *`/healthz` body unpopulated* (Agent & MCP ergonomics) — `sha:null, bootedAt:"1970-01-01..."` (re-re-verified 2026-04-19). Deploy-gate monitors that compare `sha` against pipeline build will always pass.
+- *`/api/agent-token` rate limit barely fires* — 50-burst got 46 successes, 4 throttled (re-re-verified 2026-04-19). Documented 5/60s; actual ~45/60s per-IP per-colo.
+- *No reserved-name blocklist on `/api/claim-name`* — 2026-04-19: claimed `admin`, `administrator`, `system`, `test user` with no rejection. Add a blocklist (or at least reserve `admin`, `administrator`, `system`, `root`, `moderator`, `delta-v`, `deltav`) and return 409 with a clear `username_reserved` error.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
 
 - `POST /create` validates scenario (`invalid_payload`), empty body, and payload size (1024-byte cap via `payload_too_large`).
-- `/api/matches?limit=abc` / `?limit=99999` return 400 with `invalid_query`.
+- `/api/matches?limit=abc` / `?limit=99999` / `?status=bogus` / `?before=garbage` / `?winner=*` / `?scenario=*` return 400 with `invalid_query` — full filter validation now complete.
 - `/api/leaderboard?limit=abc` / `?limit=-1` / `?includeProvisional=garbage` return 400.
 - `/join/{code}` returns `{ok, scenario, seatStatus}` — matches the "room metadata" doc contract.
 - `delta_v_reconnect` shipped in local MCP (hosted parity still outstanding).
 - DO close handler no longer causing visible exceptions in tail during normal close (re-verify on next post-deploy pass).
+- Evacuation scenario balance fixed: 100-game sweep now 63/37 (was 3/97).
+- Matchmaker seat-shuffle shipped: `Math.random() < 0.5` in `matchEntries` at [src/server/matchmaker-do.ts:405](src/server/matchmaker-do.ts:405).
+- `/favicon.ico`, `/favicon.svg`, `/apple-touch-icon.png` now return 200 (no more favicon 404 noise, iOS home-screen icon works).
+- `Forget my callsign` control exists on the lobby and regenerates to an anonymous `Pilot XXXX` identity (confirmed 2026-04-19).
+- `delta-v:tokens` localStorage is now bounded (was 6 entries, now 0 — cleanup appears to be shipped).
+- `/api/matches` filter validation complete across all five params (`scenario`, `winner`, `limit`, `status`, `before`).
 
 **Confirmed working** (do not regress):
 
