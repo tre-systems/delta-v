@@ -42,18 +42,49 @@ export interface LeaderboardResponse {
   includeProvisional: boolean;
 }
 
+type LeaderboardQueryError = {
+  status: 400;
+  body: {
+    error: 'invalid_query';
+    message: string;
+  };
+};
+
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 200;
 
-const parseLimit = (raw: string | null): number => {
+const error = (message: string): LeaderboardQueryError => ({
+  status: 400,
+  body: {
+    error: 'invalid_query',
+    message,
+  },
+});
+
+const parseLimit = (raw: string | null): number | LeaderboardQueryError => {
   if (!raw) return DEFAULT_LIMIT;
+  if (!/^\d+$/.test(raw)) {
+    return error(
+      `Invalid limit: ${raw}. Expected an integer between 1 and ${MAX_LIMIT}.`,
+    );
+  }
   const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_LIMIT;
-  return Math.min(parsed, MAX_LIMIT);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > MAX_LIMIT) {
+    return error(
+      `Invalid limit: ${raw}. Expected an integer between 1 and ${MAX_LIMIT}.`,
+    );
+  }
+  return parsed;
 };
 
-const parseBool = (raw: string | null): boolean =>
-  raw === 'true' || raw === '1';
+const parseBool = (raw: string | null): boolean | LeaderboardQueryError => {
+  if (raw === null) return false;
+  if (raw === 'true' || raw === '1') return true;
+  if (raw === 'false' || raw === '0') return false;
+  return error(
+    `Invalid includeProvisional value: ${raw}. Expected true or false.`,
+  );
+};
 
 const toEntry = (row: PlayerRow): LeaderboardEntry => {
   const provisional = isProvisional({
@@ -159,10 +190,26 @@ export const handleLeaderboardQuery = async (
   }
 
   const url = new URL(request.url);
+  for (const key of url.searchParams.keys()) {
+    if (key !== 'limit' && key !== 'includeProvisional') {
+      return Response.json(error(`Unsupported query parameter: ${key}`).body, {
+        status: 400,
+      });
+    }
+  }
+
   const limit = parseLimit(url.searchParams.get('limit'));
+  if (typeof limit !== 'number') {
+    return Response.json(limit.body, { status: limit.status });
+  }
   const includeProvisional = parseBool(
     url.searchParams.get('includeProvisional'),
   );
+  if (typeof includeProvisional !== 'boolean') {
+    return Response.json(includeProvisional.body, {
+      status: includeProvisional.status,
+    });
+  }
 
   // Workers runtime exposes `caches.default`; the Node-based vitest env
   // does not. When the global is absent we fall back to the raw D1 path

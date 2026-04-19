@@ -91,15 +91,47 @@ describe('handleLeaderboardQuery', () => {
     expect(body.entries[0].username).toBe('P0');
   });
 
-  it('caps limit at 200', async () => {
+  it('rejects invalid limit values instead of silently capping', async () => {
     const { db, bind } = mockDb([]);
-    await handleLeaderboardQuery(
+    const res = await handleLeaderboardQuery(
       new Request(
         'https://w.test/api/leaderboard?limit=10000&includeProvisional=true',
       ),
       env(db),
     );
-    expect(bind).toHaveBeenCalledWith(200);
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      error: 'invalid_query',
+      message: 'Invalid limit: 10000. Expected an integer between 1 and 200.',
+    });
+    expect(bind).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed includeProvisional values', async () => {
+    const { db } = mockDb([]);
+    const res = await handleLeaderboardQuery(
+      new Request('https://w.test/api/leaderboard?includeProvisional=garbage'),
+      env(db),
+    );
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      error: 'invalid_query',
+      message:
+        'Invalid includeProvisional value: garbage. Expected true or false.',
+    });
+  });
+
+  it('rejects unsupported query parameters', async () => {
+    const { db } = mockDb([]);
+    const res = await handleLeaderboardQuery(
+      new Request('https://w.test/api/leaderboard?ofset=10'),
+      env(db),
+    );
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      error: 'invalid_query',
+      message: 'Unsupported query parameter: ofset',
+    });
   });
 
   it('rounds rating and rd for display', async () => {
