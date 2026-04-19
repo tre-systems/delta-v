@@ -43,7 +43,10 @@ import {
   findDirectionToward,
   pickNextCheckpoint,
 } from './ai/common';
-import { evaluateOrdnanceLaunchIntercept } from './ai/ordnance';
+import {
+  assessNukeBallisticToEnemy,
+  evaluateOrdnanceLaunchIntercept,
+} from './ai/ordnance';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import {
@@ -2060,6 +2063,45 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
     expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
   });
 
+  it('does not treat a second enemy stacked on the target hex as a lane blocker', () => {
+    const lead = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      cargoUsed: 0,
+    });
+    const screen = createTestShip({
+      id: asShipId('p0-screen'),
+      owner: 0,
+      type: 'corvette',
+      position: { q: 5, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const primary = createTestShip({
+      id: asShipId('p0-dn'),
+      owner: 0,
+      type: 'dreadnaught',
+      position: { q: 5, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const assessment = assessNukeBallisticToEnemy(
+      lead,
+      primary,
+      [],
+      [screen],
+      [],
+      EMPTY_SOLAR_MAP,
+      new Set(),
+    );
+
+    expect(assessment.hasIntercept).toBe(true);
+    expect(assessment.blockedByOtherEnemy).toBe(false);
+  });
+
   it('hard AI does not commit a nuke whose lane crosses map terrain before the primary target', () => {
     const lead = createTestShip({
       id: asShipId('p1-lead'),
@@ -2182,6 +2224,47 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
     });
     const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
     expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
+  });
+
+  it('does not treat enemy ordnance stacked on the target hex as a lane blocker', () => {
+    const lead = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      cargoUsed: 0,
+    });
+    const primary = createTestShip({
+      id: asShipId('p0-dn'),
+      owner: 0,
+      type: 'dreadnaught',
+      position: { q: 5, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const stackedEnemyTorpedo = {
+      id: asOrdnanceId('p0-t-stacked'),
+      type: 'torpedo' as const,
+      owner: 0 as const,
+      sourceShipId: primary.id,
+      position: { q: 5, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      lifecycle: 'active' as const,
+      turnsRemaining: 4,
+    };
+    const assessment = assessNukeBallisticToEnemy(
+      lead,
+      primary,
+      [],
+      [],
+      [stackedEnemyTorpedo],
+      EMPTY_SOLAR_MAP,
+      new Set(),
+    );
+
+    expect(assessment.hasIntercept).toBe(true);
+    expect(assessment.blockedByEnemyOrdnance).toBe(false);
   });
 
   it('hard AI skips a nuke when grouped anti-nuke geometry is too strong', () => {
