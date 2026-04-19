@@ -44,6 +44,7 @@ export {
   type QuickMatchArgs,
   type QuickMatchResult,
   queueForMatch,
+  requireMatchedQuickMatch,
 } from './quick-match';
 export {
   renderSpatialGrid,

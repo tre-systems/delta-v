@@ -4,6 +4,7 @@ import process from 'node:process';
 
 import {
   type QuickMatchResult,
+  requireMatchedQuickMatch,
   queueForMatch as sharedQueueForMatch,
 } from '../src/shared/agent';
 import { hexDistance } from '../src/shared/hex';
@@ -84,7 +85,7 @@ interface AgentReportResponse {
   };
 }
 
-type QueueMatch = QuickMatchResult;
+type QueueMatch = Extract<QuickMatchResult, { status: 'matched' }>;
 
 interface PlayerRunResult {
   code: number | null;
@@ -214,15 +215,17 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
 };
 
 const queueForMatch = async (config: Config): Promise<QueueMatch> =>
-  sharedQueueForMatch({
-    serverUrl: config.serverUrl,
-    scenario: config.scenario,
-    username: config.username,
-    playerKey: config.playerKey,
-    pollMs: config.pollMs,
-    // Effectively unbounded queue wait; the server's ticket TTL still bounds us.
-    timeoutMs: 60 * 60 * 1000,
-  });
+  requireMatchedQuickMatch(
+    await sharedQueueForMatch({
+      serverUrl: config.serverUrl,
+      scenario: config.scenario,
+      username: config.username,
+      playerKey: config.playerKey,
+      pollMs: config.pollMs,
+      // Effectively unbounded queue wait; the server's ticket TTL still bounds us.
+      timeoutMs: 60 * 60 * 1000,
+    }),
+  );
 
 const runPlayer = async (
   config: Config,

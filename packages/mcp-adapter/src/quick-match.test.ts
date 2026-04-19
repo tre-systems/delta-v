@@ -93,6 +93,41 @@ describe('queueRemoteMatch', () => {
     expect(calls.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('returns the queued ticket immediately when waitForOpponent is false', async () => {
+    const { env, calls } = buildEnv((req) => {
+      if (req.url.endsWith('/enqueue')) {
+        return Response.json({
+          status: 'queued',
+          ticket: 'TICKET',
+          scenario: 'duel',
+        });
+      }
+      return Response.json({
+        status: 'matched',
+        ticket: 'TICKET',
+        scenario: 'duel',
+        code: 'ABCDE',
+        playerToken: 'X'.repeat(32),
+      });
+    });
+
+    await expect(
+      queueRemoteMatch(env, {
+        scenario: 'duel',
+        username: 'tester',
+        playerKey: 'agent_test_wait_false',
+        waitForOpponent: false,
+      }),
+    ).resolves.toEqual({
+      status: 'queued',
+      ticket: 'TICKET',
+      scenario: 'duel',
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toContain('/enqueue');
+  });
+
   it('throws on expired ticket', async () => {
     const { env } = buildEnv((req) => {
       if (req.url.endsWith('/enqueue')) {

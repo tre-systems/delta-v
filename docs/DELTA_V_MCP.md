@@ -83,7 +83,7 @@ All tools accept `sessionId` unless otherwise noted.
 
 | Tool | Purpose | Key args | Returns |
 | --- | --- | --- | --- |
-| `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `username?`, `playerKey?` | `{ sessionId, code, playerId, playerToken, status }` |
+| `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `username?`, `playerKey?`, `waitForOpponent?` | matched: `{ sessionId, code, playerId, playerToken, status }`; queued mode: `{ status: "queued", ticket }` |
 | `delta_v_quick_match` | Local alias of `delta_v_quick_match_connect` (name parity with hosted MCP) | same args as above | same payload as above |
 | `delta_v_list_sessions` | List active local sessions | none | `{ sessions[] }` |
 | `delta_v_reconnect` | Reopen a dropped local WebSocket using the stored seat | `sessionId` | `{ reconnected, connectionStatus }` |
@@ -115,6 +115,7 @@ Notes:
 - `delta_v_get_events`, `delta_v_list_sessions`, `delta_v_reconnect`, and `delta_v_close_session` are local-session helpers (stdio MCP ownership model).
 - `delta_v_get_observation` is the preferred read surface for most agents; `delta_v_get_state` is lower-level.
 - During `fleetBuilding`, always send `fleetReady` explicitly if `state.phase === 'fleetBuilding'`. That phase is simultaneous, but it does not auto-submit on connect; `wait_for_turn` may legitimately return a fleet-building observation until both seats have sent `fleetReady`.
+- `delta_v_quick_match` / `delta_v_quick_match_connect` accept `waitForOpponent: false` to enqueue and return the ticket immediately instead of blocking for a full match.
 
 ## `delta_v_send_action` payload examples
 
