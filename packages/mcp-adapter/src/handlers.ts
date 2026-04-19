@@ -34,6 +34,7 @@ import {
 } from '../../../src/server/auth';
 import type { Env } from '../../../src/server/env';
 import { handleLeaderboardQuery } from '../../../src/server/leaderboard/query-route';
+import { handleLiveMatchesList } from '../../../src/server/live-matches-list';
 import { hashIp } from '../../../src/server/reporting';
 import {
   buildLeaderboardAgentsResourceDocument,
@@ -371,6 +372,72 @@ export const buildMcpServer = (
   );
 
   server.registerTool(
+    'delta_v_list_sessions',
+    {
+      description:
+        'List active hosted MCP sessions for the authenticated agent. Requires Authorization: Bearer <agentToken> so the adapter can discover seated live matches and mint fresh matchTokens.',
+    },
+    async () => {
+      if (agentIdentity === null) {
+        throw new Error(
+          'delta_v_list_sessions requires Authorization: Bearer <agentToken>.',
+        );
+      }
+      const authenticatedAgent: AgentIdentity = agentIdentity;
+      const live = await handleLiveMatchesList(env);
+      const body = (await live.json()) as {
+        matches?: Array<{ code: string; scenario: string; startedAt: number }>;
+      };
+      const secret = resolveAgentTokenSecret(env);
+      const sessions = await Promise.all(
+        (body.matches ?? []).map(async (match) => {
+          const response = await callDurableObject(env, match.code, {
+            url: `${SERVER_INTERNAL}/mcp/session-summary?playerKey=${encodeURIComponent(authenticatedAgent.payload.playerKey)}`,
+            method: 'GET',
+          });
+          if (!response.ok) {
+            return null;
+          }
+          const sessionBody = (await response.json()) as {
+            session?: {
+              code: string;
+              scenario: string;
+              playerId: number;
+              playerToken: string;
+              currentPhase: string | null;
+              turnNumber: number | null;
+              eventsBuffered: number;
+            };
+          };
+          if (!sessionBody.session) {
+            return null;
+          }
+          const { token: matchToken, expiresAt } = await issueMatchToken({
+            secret,
+            code: sessionBody.session.code,
+            playerToken: sessionBody.session.playerToken,
+            agentToken: authenticatedAgent.rawAgentToken,
+          });
+          return {
+            matchToken,
+            matchTokenExpiresAt: expiresAt,
+            code: sessionBody.session.code,
+            scenario: sessionBody.session.scenario,
+            playerId: sessionBody.session.playerId,
+            connectionStatus: 'open',
+            currentPhase: sessionBody.session.currentPhase,
+            turnNumber: sessionBody.session.turnNumber,
+            eventsBuffered: sessionBody.session.eventsBuffered,
+          };
+        }),
+      );
+      return ok('Listed hosted MCP sessions.', {
+        sessions: sessions.filter((session) => session !== null),
+      });
+    },
+  );
+
+  server.registerTool(
     'delta_v_get_state',
     {
       description: 'Fetch the latest game state for a seat.',
@@ -439,6 +506,36 @@ export const buildMcpServer = (
       const body = (await response.json()) as JsonRecord;
       if (!response.ok) fail(`wait_for_turn failed: ${JSON.stringify(body)}`);
       return ok(`wait_for_turn for ${target.code}.`, body);
+    },
+  );
+
+  server.registerTool(
+    'delta_v_get_events',
+    {
+      description:
+        'Read the Durable-Object-backed hosted event buffer for a match seat. Useful for reconnect/recovery when the caller wants append-only chat/state history between MCP requests.',
+      inputSchema: {
+        ...matchTargetSchema,
+        afterEventId: z.number().int().min(0).optional(),
+        limit: z.number().int().min(1).max(200).optional(),
+        clear: z.boolean().optional(),
+      },
+    },
+    async (args) => {
+      const target = await resolveMatchTarget(args, env, agentIdentity);
+      const response = await callDurableObject(env, target.code, {
+        url: `${SERVER_INTERNAL}/mcp/events?playerToken=${encodeURIComponent(target.playerToken)}`,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          afterEventId: args.afterEventId,
+          limit: args.limit,
+          clear: args.clear,
+        }),
+      });
+      const body = (await response.json()) as JsonRecord;
+      if (!response.ok) fail(`get_events failed: ${JSON.stringify(body)}`);
+      return ok(`Buffered events for ${target.code}.`, body);
     },
   );
 
@@ -515,6 +612,28 @@ export const buildMcpServer = (
       const body = (await response.json()) as JsonRecord;
       if (!response.ok) fail(`send_chat failed: ${JSON.stringify(body)}`);
       return ok(`Sent chat in ${target.code}.`, body);
+    },
+  );
+
+  server.registerTool(
+    'delta_v_close_session',
+    {
+      description:
+        'Clear the hosted MCP event buffer for this seat. This does not invalidate the underlying matchToken or alter the match itself; it only resets the Durable-Object-backed helper state.',
+      inputSchema: matchTargetSchema,
+    },
+    async (args) => {
+      const target = await resolveMatchTarget(args, env, agentIdentity);
+      const response = await callDurableObject(env, target.code, {
+        url: `${SERVER_INTERNAL}/mcp/close?playerToken=${encodeURIComponent(target.playerToken)}`,
+        method: 'POST',
+      });
+      const body = (await response.json()) as JsonRecord;
+      if (!response.ok) fail(`close_session failed: ${JSON.stringify(body)}`);
+      return ok(
+        `Cleared hosted session helper state for ${target.code}.`,
+        body,
+      );
     },
   );
 
