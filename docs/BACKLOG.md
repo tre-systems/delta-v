@@ -118,7 +118,9 @@ Further AI ordnance work vs the [2018 Triplanetary rulebook](../Triplanetary2018
 
 ### `recommendedIndex` over-suggests consecutive ordnance launches
 
-Tune candidate thresholds with simulation outcomes (especially scenario-specific target velocities / gravity lanes).
+**Done for this slice:** consecutive ordnance recommendations no longer blindly lose to `skipOrdnance`, and 3-turn follow-up torpedoes only stay ahead of skip when the intercept target is materially threatening under the same target-scoring model the AI already uses.
+
+**Remaining:** tune the remaining thresholds with simulation outcomes (especially scenario-specific target velocities / gravity lanes).
 
 **Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/agent/observation.ts`, `src/shared/agent/candidates.ts`, `src/shared/agent/candidate-labels.ts`
 

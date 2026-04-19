@@ -11,8 +11,10 @@ import {
 } from '../test-helpers';
 import type { GameState, SolarSystemMap } from '../types/domain';
 
+import { isHighConfidenceConsecutiveOrdnanceAction } from './candidates';
 import {
   allowedActionTypesForPhase,
+  buildActionForDifficulty,
   buildCandidates,
   buildLegalActionInfo,
   buildObservation,
@@ -150,6 +152,61 @@ describe('buildCandidates', () => {
       true,
     );
     expect(candidates[0].type).toBe('skipOrdnance');
+  });
+
+  it('keeps consecutive torpedoes recommended for high-threat three-turn intercepts', () => {
+    const consecutiveState = createTestState({
+      phase: 'ordnance',
+      activePlayer: 0,
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['torpedo'] },
+      ships: [
+        createTestShip({
+          id: asShipId('p0-frig'),
+          owner: 0,
+          type: 'frigate',
+          position: { q: 0, r: 0 },
+          velocity: { dq: 0, dr: 0 },
+          lifecycle: 'active',
+        }),
+        createTestShip({
+          id: asShipId('p1-dread'),
+          owner: 1,
+          type: 'dreadnaught',
+          position: { q: 5, r: 0 },
+          velocity: { dq: 0, dr: 0 },
+          lifecycle: 'active',
+        }),
+      ],
+      ordnance: [
+        createTestOrdnance({
+          id: asOrdnanceId('ord-prev'),
+          owner: 0,
+          sourceShipId: asShipId('p0-frig'),
+          turnsRemaining: 4,
+          lifecycle: 'active',
+        }),
+      ],
+    });
+
+    const candidate = buildActionForDifficulty(
+      consecutiveState,
+      0,
+      'hard',
+      EMPTY_SOLAR_MAP,
+    );
+    expect(candidate?.type).toBe('ordnance');
+    expect(
+      isHighConfidenceConsecutiveOrdnanceAction(
+        consecutiveState,
+        0,
+        candidate as Extract<typeof candidate, { type: 'ordnance' }>,
+        EMPTY_SOLAR_MAP,
+      ),
+    ).toBe(true);
+
+    const candidates = buildCandidates(consecutiveState, 0, EMPTY_SOLAR_MAP);
+    expect(candidates[0].type).toBe('ordnance');
   });
 });
 
