@@ -153,12 +153,6 @@ Navigating to `https://delta-v.tre.systems/?code=<dead>` correctly falls back to
 
 **Files:** `static/agent-playbook.json`, `.claude/skills/play/SKILL.md`, `docs/AGENT_SPEC.md`
 
-### `/join/{code}` returns `GAME_IN_PROGRESS` for completed games
-
-`GET /join/3GMTH` (game completed, turns=17, `completedAt` in the past) responds `{ code: "GAME_IN_PROGRESS", message: "Game not available" }`. For UIs distinguishing "full lobby", "live match", and "archived match" this blurs two cases. Add a `GAME_COMPLETED` discriminator so clients can route users to replay vs spectate vs full-match messaging.
-
-**Files:** `src/server/`
-
 ### Public `/api/matches` exposes user-typed usernames
 
 The matches JSON (public, unauthenticated) includes `winnerUsername` / `loserUsername` as the raw callsign the user typed at the lobby. Users entering real names, emails, or personal handles would have those published indefinitely in the public match log. Options: show only the agent playerKey prefix or a hashed handle for non-leaderboard matches, rate-limit per-IP, or warn users at the callsign input that the value will be published. (Pre-launch is the cheapest time to tighten this.)

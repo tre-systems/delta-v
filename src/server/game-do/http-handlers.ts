@@ -69,7 +69,7 @@ export const resolveJoinAttempt = async (
     return {
       ok: false,
       error: Response.json(
-        { code: ErrorCode.GAME_IN_PROGRESS, message: 'Game not available' },
+        { code: ErrorCode.GAME_COMPLETED, message: 'Game already completed' },
         { status: 410 },
       ),
     };

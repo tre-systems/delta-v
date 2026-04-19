@@ -1484,7 +1484,7 @@ describe('GameDO', () => {
     );
 
     expect(response.status).toBe(410);
-    expect(await response.text()).toContain('GAME_IN_PROGRESS');
+    expect(await response.text()).toContain('GAME_COMPLETED');
   });
 
   it('stores the acting player on enveloped events even after the turn advances', async () => {

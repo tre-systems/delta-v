@@ -26,6 +26,7 @@ const JOIN_ERROR_MESSAGES: Partial<Record<ErrorCode, string>> = {
   [ErrorCode.ROOM_NOT_FOUND]: 'No game found with that code',
   [ErrorCode.ROOM_FULL]: 'That game is already full',
   [ErrorCode.GAME_IN_PROGRESS]: 'That game has already started',
+  [ErrorCode.GAME_COMPLETED]: 'That game has already completed',
 };
 
 const parseJoinErrorResponse = async (
