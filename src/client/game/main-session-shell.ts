@@ -115,6 +115,33 @@ export const createMainSessionShell = (
     transitionToPhase();
   };
 
+  const presentReplayMovementEntry = (
+    message: Extract<S2C, { type: 'movementResult' }>,
+    onAnimationsDone: () => void,
+  ) => {
+    messageHandlerDeps.presentMovementResult(
+      message.state,
+      message.movements,
+      message.ordnanceMovements,
+      message.events,
+      onAnimationsDone,
+    );
+  };
+
+  const presentReplayCombatResults = (
+    previousState: GameState | null,
+    state: GameState,
+    results: Parameters<MessageHandlerDeps['presentCombatResults']>[2],
+    onAnimationsDone: () => void,
+  ) => {
+    const prior =
+      previousState ??
+      args.ctx.gameStateSignal.peek() ??
+      structuredClone(state);
+    messageHandlerDeps.presentCombatResults(prior, state, results, false);
+    setTimeout(onAnimationsDone, 1800);
+  };
+
   const handleMessage = (msg: S2C) => {
     handleServerMessageFromMain(messageHandlerDeps, msg, () =>
       replayController.onGameOverMessage(),
@@ -185,33 +212,27 @@ export const createMainSessionShell = (
       const message = entry.message;
 
       if (message.type === 'movementResult') {
-        applyGameState(message.state);
-        if (message.events.length > 0) {
-          args.renderer.showMovementEvents(message.events);
-          args.ui.log.logMovementEvents(message.events, message.state.ships);
-        }
-        args.renderer.animateMovements(
-          message.movements,
-          message.ordnanceMovements,
+        presentReplayMovementEntry(message, onAnimationsDone);
+        return;
+      }
+
+      if (message.type === 'combatResult') {
+        presentReplayCombatResults(
+          previousState,
+          message.state,
+          message.results,
           onAnimationsDone,
         );
         return;
       }
 
-      if (message.type === 'combatResult') {
-        applyGameState(message.state);
-        args.renderer.showCombatResults(message.results, previousState);
-        args.ui.log.logCombatResults(message.results, message.state.ships);
-        // Combat fx have their own internal duration; let it breathe.
-        setTimeout(onAnimationsDone, 1800);
-        return;
-      }
-
       if (message.type === 'combatSingleResult') {
-        applyGameState(message.state);
-        args.renderer.showCombatResults([message.result], previousState);
-        args.ui.log.logCombatResults([message.result], message.state.ships);
-        setTimeout(onAnimationsDone, 1200);
+        presentReplayCombatResults(
+          previousState,
+          message.state,
+          [message.result],
+          onAnimationsDone,
+        );
         return;
       }
 
