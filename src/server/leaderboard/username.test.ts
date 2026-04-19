@@ -79,6 +79,21 @@ describe('validateUsername', () => {
     });
   });
 
+  it('rejects reserved operator-facing names', () => {
+    expect(validateUsername('admin')).toEqual({
+      ok: false,
+      error: 'reserved',
+    });
+    expect(validateUsername('Delta-V')).toEqual({
+      ok: false,
+      error: 'reserved',
+    });
+    expect(validateUsername('test user')).toEqual({
+      ok: false,
+      error: 'reserved',
+    });
+  });
+
   it('is case-insensitive on the blocklist', () => {
     expect(validateUsername('RetArD')).toEqual({
       ok: false,

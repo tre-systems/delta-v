@@ -87,9 +87,10 @@ export const handleClaimName = async (
 
   const check = validateUsername(body.username);
   if (!check.ok) {
+    const status = check.error === 'reserved' ? 409 : 400;
     return Response.json(
       { ok: false, error: `username_${check.error}` },
-      { status: 400 },
+      { status },
     );
   }
 

@@ -4,7 +4,8 @@
 // server-authoritative moderation pass.
 //
 // Callers that already have a normalised username (e.g. trusted
-// internal flows) can skip straight to `isBlockedUsername`.
+// internal flows) can skip straight to `isBlockedUsername` /
+// `isReservedUsername`.
 
 import { normalizeUsername } from '../../shared/player';
 
@@ -23,7 +24,18 @@ const BLOCKED_SUBSTRINGS: readonly string[] = [
   'tranny',
 ];
 
-export type UsernameValidationError = 'invalid_format' | 'blocked';
+const RESERVED_USERNAMES: readonly string[] = [
+  'admin',
+  'administrator',
+  'system',
+  'root',
+  'moderator',
+  'delta-v',
+  'deltav',
+  'test user',
+];
+
+export type UsernameValidationError = 'invalid_format' | 'blocked' | 'reserved';
 
 export type UsernameValidation =
   | { ok: true; normalised: string }
@@ -34,10 +46,18 @@ export const isBlockedUsername = (username: string): boolean => {
   return BLOCKED_SUBSTRINGS.some((s) => lower.includes(s));
 };
 
+export const isReservedUsername = (username: string): boolean => {
+  const lower = username.toLowerCase();
+  return RESERVED_USERNAMES.includes(lower);
+};
+
 export const validateUsername = (raw: unknown): UsernameValidation => {
   const normalised = normalizeUsername(raw);
   if (!normalised) {
     return { ok: false, error: 'invalid_format' };
+  }
+  if (isReservedUsername(normalised)) {
+    return { ok: false, error: 'reserved' };
   }
   if (isBlockedUsername(normalised)) {
     return { ok: false, error: 'blocked' };

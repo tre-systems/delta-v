@@ -135,6 +135,18 @@ describe('handleClaimName', () => {
     expect(byKey.size).toBe(0);
   });
 
+  it('rejects reserved usernames with a conflict status', async () => {
+    const { db, byKey } = buildMockDb();
+    const res = await handleClaimName(
+      post({ playerKey: 'human_alpha-v1', username: 'admin' }),
+      env(db),
+    );
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('username_reserved');
+    expect(byKey.size).toBe(0);
+  });
+
   it('accepts usernames with spaces (aligns with Callsign UX)', async () => {
     const { db } = buildMockDb();
     const res = await handleClaimName(
