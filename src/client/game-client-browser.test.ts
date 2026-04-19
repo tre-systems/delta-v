@@ -4,6 +4,7 @@ import type { KeyboardAction } from './game/keyboard';
 import {
   bindGameClientBrowserEvents,
   bindServiceWorkerControllerReload,
+  type NavigatorGamepadsLike,
   type ServiceWorkerContainerLike,
 } from './game-client-browser';
 
@@ -163,5 +164,77 @@ describe('bindGameClientBrowserEvents', () => {
     expect(onOffline).not.toHaveBeenCalled();
     expect(onTooltipMove).not.toHaveBeenCalled();
     expect(onTooltipLeave).not.toHaveBeenCalled();
+  });
+
+  it('routes standard gamepad buttons through the existing action path', () => {
+    const onKeyboardAction = vi.fn();
+    const animationFrames: FrameRequestCallback[] = [];
+    let nextFrameId = 1;
+    const requestAnimationFrameLike = vi.fn(
+      (callback: FrameRequestCallback) => {
+        animationFrames.push(callback);
+        return nextFrameId++;
+      },
+    );
+    const cancelAnimationFrameLike = vi.fn();
+    const button = (pressed = false) => ({ pressed, value: pressed ? 1 : 0 });
+    const buttons = Array.from({ length: 16 }, () => button(false));
+    const gamepad = {
+      connected: true,
+      buttons,
+    };
+    const navigatorLike: NavigatorGamepadsLike = {
+      getGamepads: () => [gamepad],
+    };
+    const getGamepadShortcut = vi.fn(() => ({
+      directAction: createKeyboardAction(),
+    }));
+
+    const dispose = bindGameClientBrowserEvents({
+      canvas: document.getElementById('gameCanvas') as HTMLCanvasElement,
+      helpCloseBtn: document.getElementById('helpCloseBtn') as HTMLElement,
+      helpBtn: document.getElementById('helpBtn') as HTMLElement,
+      soundBtn: document.getElementById('soundBtn') as HTMLElement,
+      getKeyboardAction: vi.fn(() => createKeyboardAction()),
+      getGamepadShortcut,
+      onKeyboardAction,
+      onToggleHelp: vi.fn(),
+      onToggleSound: vi.fn(),
+      onTooltipMove: vi.fn(),
+      onTooltipLeave: vi.fn(),
+      onOffline: vi.fn(),
+      onOnline: vi.fn(),
+      navigatorLike,
+      requestAnimationFrameLike,
+      cancelAnimationFrameLike,
+    });
+
+    expect(animationFrames).toHaveLength(1);
+
+    buttons[0] = button(true);
+    buttons[4] = button(true);
+    buttons[15] = button(true);
+    animationFrames[0](0);
+
+    expect(getGamepadShortcut).toHaveBeenCalledWith('confirm');
+    expect(getGamepadShortcut).toHaveBeenCalledWith('previousShip');
+    expect(getGamepadShortcut).toHaveBeenCalledWith('nextTarget');
+    expect(onKeyboardAction).toHaveBeenCalledTimes(3);
+
+    animationFrames[1](16);
+    expect(onKeyboardAction).toHaveBeenCalledTimes(3);
+
+    buttons[0] = button(false);
+    buttons[4] = button(false);
+    buttons[15] = button(false);
+    animationFrames[2](32);
+    buttons[1] = button(true);
+    animationFrames[3](48);
+
+    expect(getGamepadShortcut).toHaveBeenCalledWith('cancel');
+    expect(onKeyboardAction).toHaveBeenCalledTimes(4);
+
+    dispose();
+    expect(cancelAnimationFrameLike).toHaveBeenCalledTimes(1);
   });
 });

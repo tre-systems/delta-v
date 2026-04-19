@@ -98,9 +98,11 @@ Remaining audit: session UI effects / reactive wiring, telemetry-driven copy, an
 
 **Done (phase 2):** combat **`{` / `}`** cycles legal attackers for the selected target, updates planning on the same command path, recenters on the attacking stack, and makes mixed-hex attacker selection reachable without pointer-only clicks.
 
-**Remaining:** richer gamepad binding on the same command path, and other tactical picks still pointer-first.
+**Done (phase 3):** standard-mapped gamepads now drive the same command path: **A/B** confirm/cancel, **LB/RB** cycle ships, **D-pad** cycles combat targets/attackers, and **X/Y/Start/Back** map to log/focus-help/mute shortcuts without inventing a separate controller input stack.
 
-**Files:** `src/client/game/keyboard.ts`, `src/client/game/input-events.ts`, `src/client/game/input.ts`, `src/client/game/combat.ts`, `src/client/ui/hud.ts`, `static/index.html`
+**Remaining:** other tactical picks that are still pointer-first.
+
+**Files:** `src/client/game-client-browser.ts`, `src/client/game/client-runtime.ts`, `src/client/game/input-events.ts`, `src/client/game/input.ts`, `src/client/game/combat.ts`, `src/client/ui/hud.ts`, `static/index.html`
 
 ### Burn-arrow tap targets (verification)
 

@@ -23,6 +23,20 @@ import { buildGameRoute } from './session-links';
 import type { ClientSession } from './session-model';
 
 type BrowserToastType = 'error' | 'info' | 'success';
+type GamepadShortcutControl =
+  | 'confirm'
+  | 'cancel'
+  | 'previousShip'
+  | 'nextShip'
+  | 'previousTarget'
+  | 'nextTarget'
+  | 'previousAttacker'
+  | 'nextAttacker'
+  | 'toggleLog'
+  | 'focusNearestEnemy'
+  | 'focusOwnFleet'
+  | 'toggleHelp'
+  | 'toggleMute';
 
 // Deps for wiring browser-level events (keyboard, sound, tooltip, online/offline)
 type BrowserBindingDeps = {
@@ -41,6 +55,75 @@ type BrowserBindingDeps = {
   onToggleHelp: () => void;
   onUpdateSoundButton: () => void;
   showToast: (message: string, type: BrowserToastType) => void;
+};
+
+const getGamepadShortcutAction = (
+  deps: Pick<
+    BrowserBindingDeps,
+    'getState' | 'getMap' | 'hasGameState' | 'getGameState' | 'getPlanningState'
+  >,
+  control: GamepadShortcutControl,
+): KeyboardAction => {
+  const planning = deps.getPlanningState();
+  const gameState = deps.getGameState();
+  const context = {
+    state: deps.getState(),
+    hasGameState: deps.hasGameState(),
+    typingInInput: false,
+    combatTargetId: planning.combatTargetId,
+    queuedAttackCount: planning.queuedAttacks.length,
+    torpedoAccelActive: planning.torpedoAccel !== null,
+    torpedoAimingActive: planning.torpedoAimingActive,
+    allShipsAcknowledged: (() => {
+      if (!gameState) return false;
+      return getOrderableShipsForPlayer(
+        gameState,
+        gameState.activePlayer,
+      ).every(
+        (ship) =>
+          ship.damage.disabledTurns > 0 ||
+          planning.acknowledgedShips.has(ship.id),
+      );
+    })(),
+    allOrdnanceShipsAcknowledged: (() => {
+      if (!gameState) return true;
+      return getOrdnanceActionableShipIds(
+        gameState,
+        gameState.activePlayer,
+        deps.getMap(),
+      ).every((shipId) => planning.acknowledgedOrdnanceShips.has(shipId));
+    })(),
+    hasSelectedShip: planning.selectedShipId !== null,
+  } satisfies Parameters<typeof deriveKeyboardAction>[0];
+
+  switch (control) {
+    case 'confirm':
+      return deriveKeyboardAction(context, { key: 'Enter', shiftKey: false });
+    case 'cancel':
+      return deriveKeyboardAction(context, { key: 'Escape', shiftKey: false });
+    case 'previousShip':
+      return deriveKeyboardAction(context, { key: 'Tab', shiftKey: true });
+    case 'nextShip':
+      return deriveKeyboardAction(context, { key: 'Tab', shiftKey: false });
+    case 'previousTarget':
+      return deriveKeyboardAction(context, { key: '[', shiftKey: false });
+    case 'nextTarget':
+      return deriveKeyboardAction(context, { key: ']', shiftKey: false });
+    case 'previousAttacker':
+      return deriveKeyboardAction(context, { key: '{', shiftKey: false });
+    case 'nextAttacker':
+      return deriveKeyboardAction(context, { key: '}', shiftKey: false });
+    case 'toggleLog':
+      return deriveKeyboardAction(context, { key: 'l', shiftKey: false });
+    case 'focusNearestEnemy':
+      return deriveKeyboardAction(context, { key: 'e', shiftKey: false });
+    case 'focusOwnFleet':
+      return deriveKeyboardAction(context, { key: 'h', shiftKey: false });
+    case 'toggleHelp':
+      return deriveKeyboardAction(context, { key: '/', shiftKey: false });
+    case 'toggleMute':
+      return deriveKeyboardAction(context, { key: 'm', shiftKey: false });
+  }
 };
 
 const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
@@ -84,6 +167,9 @@ const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
         { key: event.key, shiftKey: event.shiftKey },
       ),
     onKeyboardAction: (action) => deps.onKeyboardAction(action),
+    getGamepadShortcut: (control) => ({
+      directAction: getGamepadShortcutAction(deps, control),
+    }),
     onToggleHelp: () => deps.onToggleHelp(),
     onToggleSound: () => {
       setMuted(!isMuted());
