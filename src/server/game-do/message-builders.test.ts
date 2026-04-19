@@ -12,6 +12,7 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import type { CombatResult } from '../../shared/types/domain';
+import { buildActionAccepted, buildActionRejected } from './action-guards';
 import {
   resolveCombatBroadcast,
   resolveMovementBroadcast,
@@ -40,10 +41,12 @@ const normalizeStateEnvelope = (value: unknown): unknown => {
 
   if (value && typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value).map(([key, entry]) => [
-        key,
-        key === 'state' ? '__STATE__' : normalizeStateEnvelope(entry),
-      ]),
+      Object.entries(value)
+        .filter(([, entry]) => entry !== undefined)
+        .map(([key, entry]) => [
+          key,
+          key === 'state' ? '__STATE__' : normalizeStateEnvelope(entry),
+        ]),
     );
   }
 
@@ -271,6 +274,32 @@ describe('S2C state-bearing payload fixtures', () => {
 
     expect(normalizeStateEnvelope(msg)).toEqual(
       transportFixtures.s2c.stateUpdateWithTransferEvents,
+    );
+  });
+
+  it('actionAccepted payload matches the reviewed wire fixture', () => {
+    const msg = buildActionAccepted(
+      'stalePhaseForgiven',
+      state,
+      { expectedPhase: 'combat', idempotencyKey: 'abc' },
+      1,
+    );
+
+    expect(normalizeStateEnvelope(msg)).toEqual(
+      transportFixtures.s2c.actionAccepted,
+    );
+  });
+
+  it('actionRejected payload matches the reviewed wire fixture', () => {
+    const msg = buildActionRejected(
+      { reason: 'staleTurn', message: 'turn drift' },
+      state,
+      { expectedTurn: 99, idempotencyKey: 'abc' },
+      1,
+    );
+
+    expect(normalizeStateEnvelope(msg)).toEqual(
+      transportFixtures.s2c.actionRejected,
     );
   });
 
