@@ -4,6 +4,38 @@ Outstanding tasks only — **no release log** (use `git log` for shipped work). 
 
 The sections below are grouped by theme but ordered within each group by priority. Gameplay-feel items (P1) translate most directly into a better player experience; architecture-solidity items (P2) unblock confident iteration on P1.
 
+## Launch-readiness snapshot (2026-04-19)
+
+Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md) pass log). Update or remove this section when the listed items are resolved or reassessed.
+
+**P0 — launch-blockers** (data integrity at risk, fix before any public traffic):
+
+- *DO close handler crashes after a code deploy* (Cost & abuse hardening section) — three unguarded handlers in `game-do.ts`. Continuous delivery means every deploy can lose in-flight matches.
+- *Matchmaker pairs the same agent identity into two simultaneous matches* (same section) — corrupts Glicko-2 sequential-update invariant on the public leaderboard.
+
+**P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
+
+- *Liveness endpoint payload is unpopulated* (Agent & MCP ergonomics) — `sha:null`, `bootedAt:1970-01-01` makes deploy gating useless.
+- *Surrender silently disabled in duel; misleading "Logistics not enabled" error* (Cost & abuse hardening) — players can't quit a duel.
+- *Public `/api/matches` exposes user-typed usernames* (Agent & MCP ergonomics) — needs lobby warning before public traffic.
+- *Documented rate limits significantly understate observed protection* (Cost & abuse hardening) — `/create` and `/api/agent-token` allow 5-7× the documented per-IP cap.
+- *`POST /create` accepts unknown scenarios and arbitrary payloads* (same section) — DoS surface.
+- *`delta-v:tokens` localStorage accumulates without cleanup* (same section) — token cache grows unbounded; tokens never invalidated server-side on archive.
+
+**Confirmed working** (do not regress):
+
+- End-to-end pipeline: matchmaking → game → `match_archive` → R2 archive → `match_rating` → `/api/leaderboard`.
+- Glicko-2 calculations behave correctly under sequential updates.
+- D1 `events` payloads contain no PII (UUID `anon_id`, hashed `ip_hash`).
+- `wrangler tail` redacts `?playerToken=REDACTED`.
+- Tutorial fires on first Play-vs-AI, persists `tutorial_done` across reloads.
+- PWA manifest, service worker, masked icons all wired correctly.
+- 2251 unit tests pass; lint + typecheck clean.
+- All 8 scenarios launch from the Play-vs-AI lobby without console errors.
+- Validation quality on `/api/claim-name` and `/api/agent-token` is the gold standard for the rest of the API.
+
+---
+
 ## Gameplay UX & matchmaking integrity
 
 Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Each **###** is **remaining** work only (shipped details live in `git log` and tests).
@@ -116,7 +148,6 @@ Hosted MCP: add `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_
 
 Four papercuts hit while pairing a local MCP agent against a human browser seat (duel, production server):
 
-- **Misleading `nextPhase` in `send_action` response.** After `skipOrdnance` the close-loop response reported `nextPhase: combat, nextActivePlayer: 1`, but the combat phase auto-resolved (no attackers in range) and the opponent's astrogation slipped in before the agent's follow-up `skipCombat` arrived, producing a `wrongActivePlayer` rejection. Consider flagging likely auto-skip phases in the response (`autoSkipLikely: true`) or surfacing the post-auto-resolution phase so agents can `wait_for_turn` instead of firing a doomed skip.
 - **Thin candidate set.** Turn-1 astrogation labelled candidates only offered NE / NE+overload / coast; other directions and fuel-vs-overload trade-offs were invisible without hand-rolling actions. Widen `labeledCandidates` coverage for opening turns.
 
 **Files:** `scripts/delta-v-mcp-server.ts`, `packages/mcp-adapter/src/handlers.ts`, `src/shared/agent/`, `src/shared/types/protocol.ts`, `.claude/skills/play/SKILL.md`

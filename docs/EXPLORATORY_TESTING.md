@@ -218,6 +218,79 @@ After the wipe, verify with the same snapshot query in R4 (all four tables shoul
 
 Walk every URL referenced from `README.md`, `docs/`, `/.well-known/agent.json`, `agent-playbook.json`, and the `/agents` page. Fetch each and confirm 200. Broken outbound links and 404s on documented internal paths (the original symptom that surfaced the missing `/healthz` and `/sitemap.xml` in the first pass) are doc-rot findings even when the underlying behaviour is unchanged.
 
+### R13. Worker-tail exception triage
+
+The single highest-yield probe in the 2026-04-19 pass. Run `wrangler tail delta-v --format json` for the duration of a paired-match session, then post-filter for any chunk with non-empty `exceptions[]`:
+
+```python
+import json, re
+with open('tail.log') as f: raw = f.read()
+chunks = re.split(r'(?<=\n})\n(?=\{)', raw)
+for c in chunks:
+    try: d = json.loads(c)
+    except: continue
+    for e in d.get('exceptions', []):
+        print('---', e.get('name'), '---')
+        print(e.get('message'))
+        print(e.get('stack'))
+```
+
+Even outcomes that look successful from the client side (game completed, archive landed) can mask thrown exceptions in DO close handlers, alarm handlers, or async logging paths. The 2026-04-19 pass surfaced `TypeError: The Durable Object's code has been updated, this version can no longer access storage.` only because of this filter. Continuous delivery means **every exploratory pass should include this recipe** — a deploy may have just landed.
+
+Also worth grepping for: any `name` other than expected error classes; any `stack` with `at async ...` paths into `archive`, `match-archive`, or `live-registry`; any `outcome: "exception"` chunk.
+
+### R14. Client-side state audit (localStorage / sessionStorage / IDB / caches / SW)
+
+Open the SPA in a fresh profile, complete one matchmaking-paired game and one Play-vs-AI game, then enumerate everything the client persisted:
+
+```javascript
+({
+  localStorage_keys: Object.keys(localStorage),
+  sessionStorage_keys: Object.keys(sessionStorage),
+  cookies: document.cookie,
+  indexedDBs: await indexedDB.databases?.() ?? [],
+  caches: await Promise.all((await caches.keys()).map(async n => ({n, count: (await (await caches.open(n)).keys()).length}))),
+  sw: (await navigator.serviceWorker.getRegistration())?.active?.scriptURL,
+  manifest: await (await fetch('/site.webmanifest')).json(),
+})
+```
+
+For each persisted blob, ask: who owns it? When does it get pruned? What happens if the device is shared? Does it contain anything user-typed (callsign, real-name pattern)? Is any auth credential stored in plaintext localStorage? The 2026-04-19 pass surfaced unbounded `delta-v:tokens` accumulation and a `delta-v:player-profile` storing the raw callsign indefinitely.
+
+### R15. Post-game pipeline cross-check
+
+After each completed paired match, verify the data landed in **all four** persistence stores within ~30 s:
+
+```bash
+GAME_ID=XXXXX-m1   # from the /api/matches?status=live response or the close-loop send_action result
+
+# 1. Match metadata in D1
+npx wrangler d1 execute delta-v-telemetry --remote --command \
+  "SELECT * FROM match_archive WHERE game_id='$GAME_ID';"
+
+# 2. Glicko-2 delta in D1
+npx wrangler d1 execute delta-v-telemetry --remote --command \
+  "SELECT * FROM match_rating WHERE game_id='$GAME_ID';"
+
+# 3. Updated rows in player table
+npx wrangler d1 execute delta-v-telemetry --remote --command \
+  "SELECT player_key, username, rating, rd, games_played, last_match_at \
+   FROM player WHERE last_match_at > (strftime('%s','now','-2 minutes')*1000) \
+   ORDER BY last_match_at DESC;"
+
+# 4. Full event-stream archive in R2
+npx wrangler r2 object get delta-v-match-archive/matches/$GAME_ID.json --pipe --remote | head -c 500
+```
+
+Plus the public surfaces:
+
+```bash
+curl -s "https://delta-v.tre.systems/api/matches?limit=5" | python3 -m json.tool
+curl -s "https://delta-v.tre.systems/api/leaderboard?includeProvisional=true&limit=5" | python3 -m json.tool
+```
+
+Any of these returning empty for a game that completed in the UI is a finding — most likely a thrown exception (see R13) interrupted the archive cascade. The 2026-04-19 pass found the `match_archive` row appeared eventually (after ~90 s, once the alarm path reconciled) — *eventual* archival is acceptable but worth measuring; *missing* archival is a bug.
+
 ---
 
 ## Workflow: probe → finding → backlog
