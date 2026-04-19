@@ -197,12 +197,6 @@ Surfaced once per 100-game duel run (`Mutual destruction — last attacker loses
 
 Gaps in local vs hosted MCP parity, first-class resources, and structured rejection surfaces for autonomous play.
 
-### Ship MCP resources: match log, replay
-
-[AGENT_SPEC.md lines 91–96](../AGENT_SPEC.md) now has `game://rules/current`, `game://rules/{scenario}`, and `game://leaderboard/agents` shipped. Remaining resource work is `game://matches/{id}/observation`, `game://matches/{id}/log`, and `game://matches/{id}/replay` so agents can fetch live match state and append-only logs as first-class resources instead of bespoke tool/HTTP calls.
-
-**Files:** `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts`, `static/.well-known/agent.json`, `src/shared/agent/`
-
 ### Structured action-rejection reasons
 
 **Done for this slice:** submitter-only `actionAccepted` now carries `guardStatus: inSync | stalePhaseForgiven` so local MCP, hosted MCP, browser clients, and agent scripts can distinguish forgiven phase drift from fully in-sync submissions without overloading `actionRejected`.

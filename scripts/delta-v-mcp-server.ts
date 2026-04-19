@@ -4,6 +4,7 @@ import process from 'node:process';
 
 import {
   McpServer,
+  ResourceTemplate,
   StdioServerTransport,
   z,
 } from '@delta-v/mcp-adapter/runtime';
@@ -12,12 +13,21 @@ import WebSocket from 'ws';
 import {
   type AgentTurnInput,
   buildLeaderboardAgentsResourceDocument,
+  buildMatchLogResourceDocument,
+  buildMatchObservationResourceDocument,
+  buildMatchReplayResourceDocument,
   buildObservation,
   computeActionEffects,
   LEADERBOARD_AGENTS_URI,
   type LeaderboardAgentEntry,
   leaderboardAgentsResource,
   listRulesResources,
+  MATCH_LOG_URI_TEMPLATE,
+  MATCH_OBSERVATION_URI_TEMPLATE,
+  MATCH_REPLAY_URI_TEMPLATE,
+  matchLogUri,
+  matchObservationUri,
+  matchReplayUri,
   normalizeQuickMatchServerUrl,
   pollQuickMatchTicket,
   queueForMatch,
@@ -26,6 +36,7 @@ import {
   shapeObservationState,
 } from '../src/shared/agent';
 import { patchTransportWithSerializedSends } from '../src/shared/mcp-stdio-serialized-send';
+import type { ReplayTimeline } from '../src/shared/replay';
 import type { GameState } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
 
@@ -123,6 +134,19 @@ const buildWsUrl = (
   const httpBase = normalizeQuickMatchServerUrl(serverUrl);
   const wsBase = httpBase.replace(/^http/, 'ws');
   return `${wsBase}/ws/${code}?playerToken=${encodeURIComponent(playerToken)}`;
+};
+
+const buildReplayUrl = (
+  serverUrl: string,
+  code: string,
+  playerToken: string,
+): string => {
+  const url = new URL(
+    `/replay/${code}`,
+    normalizeQuickMatchServerUrl(serverUrl),
+  );
+  url.searchParams.set('playerToken', playerToken);
+  return url.toString();
 };
 
 const waitForOpen = async (ws: WebSocket): Promise<void> =>
@@ -382,6 +406,71 @@ const inferSurrenderShipIds = (session: DeltaVSession, action: C2S): C2S => {
   };
 };
 
+const buildLocalMatchObservationResource = (session: DeltaVSession): string => {
+  if (!session.lastState) {
+    throw new Error(
+      `Session ${session.sessionId} has no state yet; cannot read observation resource.`,
+    );
+  }
+  if (session.playerId === null) {
+    throw new Error(
+      `Session ${session.sessionId} has not received welcome/playerId yet; cannot read observation resource.`,
+    );
+  }
+  const observation = buildObservation(session.lastState, session.playerId, {
+    gameCode: session.code,
+    includeSummary: true,
+    includeLegalActionInfo: true,
+    includeCandidateLabels: true,
+  });
+  return JSON.stringify(
+    buildMatchObservationResourceDocument(
+      session.sessionId,
+      shapeObservationForTool(observation, true),
+    ),
+    null,
+    2,
+  );
+};
+
+const buildLocalMatchLogResource = (session: DeltaVSession): string =>
+  JSON.stringify(
+    buildMatchLogResourceDocument(
+      session.sessionId,
+      session.events.map((event) => ({
+        id: event.id,
+        receivedAt: event.receivedAt,
+        type: event.message.type,
+        message: event.message,
+      })),
+      session.nextEventId - 1,
+      session.events.length,
+    ),
+    null,
+    2,
+  );
+
+const buildLocalMatchReplayResource = async (
+  session: DeltaVSession,
+): Promise<string> => {
+  const response = await fetch(
+    buildReplayUrl(session.serverUrl, session.code, session.playerToken),
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load replay for session ${session.sessionId}: HTTP ${response.status}`,
+    );
+  }
+  return JSON.stringify(
+    buildMatchReplayResourceDocument(
+      session.sessionId,
+      (await response.json()) as ReplayTimeline,
+    ),
+    null,
+    2,
+  );
+};
+
 const server = new McpServer(
   {
     name: 'delta-v-mcp',
@@ -464,6 +553,114 @@ for (const resource of listRulesResources()) {
               null,
               2,
             ),
+          },
+        ],
+      };
+    },
+  );
+}
+
+{
+  const template = new ResourceTemplate(MATCH_OBSERVATION_URI_TEMPLATE, {
+    list: async () => ({
+      resources: [...sessions.values()].map((session) => ({
+        name: `delta-v-match-observation-${session.sessionId}`,
+        title: `Match Observation ${session.code}`,
+        uri: matchObservationUri(session.sessionId),
+        mimeType: RULES_RESOURCE_MIME_TYPE,
+      })),
+    }),
+  });
+  server.registerResource(
+    'delta-v-match-observation',
+    template,
+    {
+      title: 'Match Observation',
+      description:
+        'Current agent observation for a live local MCP session. Uses sessionId/matchToken as {id}.',
+      mimeType: RULES_RESOURCE_MIME_TYPE,
+    },
+    async (_uri, variables) => {
+      const id = String(variables.id ?? '');
+      const session = getSessionOrThrow(id);
+      return {
+        contents: [
+          {
+            uri: matchObservationUri(id),
+            mimeType: RULES_RESOURCE_MIME_TYPE,
+            text: buildLocalMatchObservationResource(session),
+          },
+        ],
+      };
+    },
+  );
+}
+
+{
+  const template = new ResourceTemplate(MATCH_LOG_URI_TEMPLATE, {
+    list: async () => ({
+      resources: [...sessions.values()].map((session) => ({
+        name: `delta-v-match-log-${session.sessionId}`,
+        title: `Match Log ${session.code}`,
+        uri: matchLogUri(session.sessionId),
+        mimeType: RULES_RESOURCE_MIME_TYPE,
+      })),
+    }),
+  });
+  server.registerResource(
+    'delta-v-match-log',
+    template,
+    {
+      title: 'Match Log',
+      description:
+        'Buffered append-only event log for a live local MCP session. Uses sessionId/matchToken as {id}.',
+      mimeType: RULES_RESOURCE_MIME_TYPE,
+    },
+    async (_uri, variables) => {
+      const id = String(variables.id ?? '');
+      const session = getSessionOrThrow(id);
+      return {
+        contents: [
+          {
+            uri: matchLogUri(id),
+            mimeType: RULES_RESOURCE_MIME_TYPE,
+            text: buildLocalMatchLogResource(session),
+          },
+        ],
+      };
+    },
+  );
+}
+
+{
+  const template = new ResourceTemplate(MATCH_REPLAY_URI_TEMPLATE, {
+    list: async () => ({
+      resources: [...sessions.values()].map((session) => ({
+        name: `delta-v-match-replay-${session.sessionId}`,
+        title: `Match Replay ${session.code}`,
+        uri: matchReplayUri(session.sessionId),
+        mimeType: RULES_RESOURCE_MIME_TYPE,
+      })),
+    }),
+  });
+  server.registerResource(
+    'delta-v-match-replay',
+    template,
+    {
+      title: 'Match Replay',
+      description:
+        'Latest replay timeline for a live local MCP session. Uses sessionId/matchToken as {id}.',
+      mimeType: RULES_RESOURCE_MIME_TYPE,
+    },
+    async (_uri, variables) => {
+      const id = String(variables.id ?? '');
+      const session = getSessionOrThrow(id);
+      return {
+        contents: [
+          {
+            uri: matchReplayUri(id),
+            mimeType: RULES_RESOURCE_MIME_TYPE,
+            text: await buildLocalMatchReplayResource(session),
           },
         ],
       };
