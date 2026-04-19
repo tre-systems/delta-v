@@ -395,6 +395,38 @@ export type GameStateActionRunner = <Success extends { state: GameState }>(
   },
 ) => Promise<void>;
 
+const mapEngineErrorToActionRejectedReason = (
+  code: ErrorCode,
+): ActionRejectedMessage['reason'] | null => {
+  switch (code) {
+    case ErrorCode.INVALID_PHASE:
+      return 'invalidPhase';
+    case ErrorCode.NOT_YOUR_TURN:
+      return 'notYourTurn';
+    case ErrorCode.INVALID_PLAYER:
+      return 'invalidPlayer';
+    case ErrorCode.INVALID_SHIP:
+      return 'invalidShip';
+    case ErrorCode.INVALID_TARGET:
+      return 'invalidTarget';
+    case ErrorCode.INVALID_SELECTION:
+      return 'invalidSelection';
+    case ErrorCode.INVALID_INPUT:
+      return 'invalidInput';
+    case ErrorCode.NOT_ALLOWED:
+      return 'notAllowed';
+    case ErrorCode.RESOURCE_LIMIT:
+      return 'resourceLimit';
+    case ErrorCode.STATE_CONFLICT:
+      return 'stateConflict';
+    case ErrorCode.ROOM_NOT_FOUND:
+    case ErrorCode.ROOM_FULL:
+    case ErrorCode.GAME_IN_PROGRESS:
+    case ErrorCode.GAME_COMPLETED:
+      return null;
+  }
+};
+
 export const runGameStateAction = async <
   Success extends {
     state: GameState;
@@ -443,6 +475,22 @@ export const runGameStateAction = async <
   }
 
   if ('error' in result) {
+    const rejectionReason = mapEngineErrorToActionRejectedReason(
+      result.error.code,
+    );
+    if (rejectionReason) {
+      deps.sendActionRejected(
+        buildActionRejected(
+          {
+            reason: rejectionReason,
+            message: result.error.message,
+          },
+          gameState,
+          undefined,
+        ),
+      );
+      return;
+    }
     deps.sendError(result.error.message, result.error.code);
     return;
   }
