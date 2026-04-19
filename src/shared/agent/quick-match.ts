@@ -9,6 +9,7 @@ import type { QuickMatchResponse } from '../matchmaking';
 export interface QuickMatchArgs {
   serverUrl: string;
   scenario: string;
+  rendezvousCode?: string;
   username: string;
   playerKey: string;
   pollMs?: number;
@@ -157,6 +158,7 @@ export const queueForMatch = async (
       headers,
       body: JSON.stringify({
         scenario: args.scenario,
+        rendezvousCode: args.rendezvousCode,
         player: {
           playerKey: args.playerKey,
           username: args.username,

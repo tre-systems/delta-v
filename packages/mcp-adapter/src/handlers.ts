@@ -478,6 +478,7 @@ export const buildMcpServer = (
 
   const quickMatchInputSchema = {
     scenario: z.string().optional(),
+    rendezvousCode: z.string().min(3).max(16).optional(),
     username: z.string().min(2).max(20).optional(),
     playerKey: z.string().min(8).max(64).optional(),
     waitForOpponent: z.boolean().optional(),
@@ -487,6 +488,7 @@ export const buildMcpServer = (
 
   const quickMatchHandler = async (args: {
     scenario?: string;
+    rendezvousCode?: string;
     username?: string;
     playerKey?: string;
     waitForOpponent?: boolean;
@@ -506,6 +508,7 @@ export const buildMcpServer = (
     );
     const matched = await queueRemoteMatch(env, {
       scenario: args.scenario ?? 'duel',
+      rendezvousCode: args.rendezvousCode,
       username,
       playerKey,
       waitForOpponent: args.waitForOpponent,
@@ -521,6 +524,7 @@ export const buildMcpServer = (
           status: 'queued',
           ticket: matched.ticket,
           scenario: matched.scenario,
+          rendezvousCode: args.rendezvousCode ?? null,
           playerKey,
         },
       );
@@ -538,6 +542,7 @@ export const buildMcpServer = (
         matchToken,
         matchTokenExpiresAt: expiresAt,
         scenario: matched.scenario,
+        rendezvousCode: args.rendezvousCode ?? null,
         ticket: matched.ticket,
         playerKey,
       });

@@ -20,6 +20,7 @@ type QueueStatus = 'queued' | 'matched';
 interface QueueEntry {
   ticket: string;
   scenario: string;
+  rendezvousCode: string | null;
   player: PublicPlayerProfile;
   /** Set on enqueue when the Worker verified an agent Bearer for this playerKey. */
   leaderboardAgentVerified?: boolean;
@@ -97,9 +98,27 @@ const isRetainableMatchedEntry = (entry: QueueEntry, now: number): boolean =>
   entry.matched !== undefined &&
   now - entry.lastSeenAt <= MATCH_RESULT_TTL_MS;
 
+const normalizeRendezvousCode = (raw: unknown): string | null | undefined => {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  const normalized = raw.trim().toUpperCase();
+  if (!/^[A-Z0-9]{3,16}$/.test(normalized)) {
+    return null;
+  }
+  return normalized;
+};
+
 const normalizeQuickMatchRequest = (
   raw: unknown,
-): { scenario: string; player: PublicPlayerProfile } | null => {
+): {
+  scenario: string;
+  rendezvousCode: string | null;
+  player: PublicPlayerProfile;
+} | null => {
   if (
     raw === null ||
     typeof raw !== 'object' ||
@@ -115,8 +134,11 @@ const normalizeQuickMatchRequest = (
     username?: unknown;
   };
   const playerKey = normalizePlayerKey(playerRaw.playerKey);
+  const rendezvousCode = normalizeRendezvousCode(
+    (raw as { rendezvousCode?: unknown }).rendezvousCode,
+  );
 
-  if (!playerKey) {
+  if (!playerKey || rendezvousCode === null) {
     return null;
   }
 
@@ -133,6 +155,7 @@ const normalizeQuickMatchRequest = (
 
   return {
     scenario,
+    rendezvousCode: rendezvousCode ?? null,
     player: {
       playerKey,
       username:
@@ -502,7 +525,8 @@ export class MatchmakerDO extends DurableObject<Env> {
     const existingIndex = entries.findIndex(
       (entry) =>
         entry.player.playerKey === parsed.player.playerKey &&
-        entry.scenario === parsed.scenario,
+        entry.scenario === parsed.scenario &&
+        entry.rendezvousCode === parsed.rendezvousCode,
     );
 
     if (existingIndex >= 0) {
@@ -527,7 +551,8 @@ export class MatchmakerDO extends DurableObject<Env> {
       (entry) =>
         isActiveQueueEntry(entry, now) &&
         entry.player.playerKey !== parsed.player.playerKey &&
-        entry.scenario === parsed.scenario,
+        entry.scenario === parsed.scenario &&
+        entry.rendezvousCode === parsed.rendezvousCode,
     );
 
     // Reject new enqueues once storage is saturated. The cap counts
@@ -548,6 +573,7 @@ export class MatchmakerDO extends DurableObject<Env> {
     entries.push({
       ticket,
       scenario: parsed.scenario,
+      rendezvousCode: parsed.rendezvousCode,
       player: parsed.player,
       leaderboardAgentVerified,
       queuedAt: now,
@@ -632,6 +658,7 @@ export class MatchmakerDO extends DurableObject<Env> {
         const botEntry: QueueEntry = {
           ticket: botTicket,
           scenario: current.scenario,
+          rendezvousCode: current.rendezvousCode,
           player: buildBotProfile(ticket),
           queuedAt: now,
           lastSeenAt: now,

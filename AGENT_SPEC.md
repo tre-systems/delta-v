@@ -487,7 +487,7 @@ Threat model and mitigations: [SECURITY.md](./docs/SECURITY.md).
 ### 12.1 MCP (recommended)
 
 **Local:** `npm run mcp:delta-v` — stdio transport, owns per-session WebSockets and an event buffer (exposes `delta_v_list_sessions`, `delta_v_get_events`, `delta_v_reconnect`, `delta_v_close_session` on top of the common toolset).
-For two-seat local automation, queue both seats with `delta_v_quick_match_connect({ waitForOpponent: false })`, then resolve/connect them with `delta_v_pair_quick_match_tickets`.
+For two-seat local automation, queue both seats with `delta_v_quick_match_connect({ waitForOpponent: false, rendezvousCode: "QA123" })`, then resolve/connect them with `delta_v_pair_quick_match_tickets`. Hosted and local quick match both isolate queue traffic by `(scenario, rendezvousCode)` when that code is present, so test traffic does not collide with the public pool.
 
 **Remote:** `https://delta-v.tre.systems/mcp` — streamable HTTP, no install. The GAME DO now persists hosted seat event buffers, so remote MCP also supports `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` for authenticated agents.
 

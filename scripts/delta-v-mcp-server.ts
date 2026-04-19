@@ -687,6 +687,7 @@ const httpHandlers = new Map<string, (args: any) => Promise<any>>();
 const QUICK_MATCH_CONNECT_SCHEMA = {
   serverUrl: z.string().optional(),
   scenario: z.string().optional(),
+  rendezvousCode: z.string().min(3).max(16).optional(),
   username: z.string().min(2).max(20).optional(),
   playerKey: z.string().min(8).max(64).optional(),
   waitForOpponent: z.boolean().optional(),
@@ -737,6 +738,7 @@ const createConnectedQuickMatchSession = async (args: {
 const handleQuickMatchConnect = async (args: {
   serverUrl?: string;
   scenario?: string;
+  rendezvousCode?: string;
   username?: string;
   playerKey?: string;
   waitForOpponent?: boolean;
@@ -757,6 +759,7 @@ const handleQuickMatchConnect = async (args: {
   const matched = await queueForMatch({
     serverUrl,
     scenario,
+    rendezvousCode: args.rendezvousCode,
     username: args.username ?? 'Agent',
     playerKey,
     waitForOpponent: args.waitForOpponent,
@@ -772,6 +775,7 @@ const handleQuickMatchConnect = async (args: {
         scenario: matched.scenario,
         ticket: matched.ticket,
         playerKey,
+        rendezvousCode: args.rendezvousCode ?? null,
         status: 'queued',
         connected: false,
         sessionId: null,
@@ -798,6 +802,7 @@ const handleQuickMatchConnect = async (args: {
       code: matched.code,
       ticket: matched.ticket,
       playerKey,
+      rendezvousCode: args.rendezvousCode ?? null,
       connectionStatus: session.connectionStatus,
       connected: true,
     },
