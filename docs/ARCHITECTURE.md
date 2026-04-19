@@ -1,10 +1,8 @@
 # Delta-V Architecture & Design Document
 
-Delta-V is an online multiplayer space combat and racing game. This document describes the current architecture, core systems, major design patterns, and the highest-value follow-ups.
+The module inventory, data flow, and Durable-Object model for the Delta-V server and shared engine. Read this to learn how a request becomes authoritative state and how state becomes bytes on the wire. Game rules live in [SPEC.md](./SPEC.md); wire format lives in [PROTOCOL.md](./PROTOCOL.md); conventions live in [CODING_STANDARDS.md](./CODING_STANDARDS.md); contributor workflow lives in [CONTRIBUTING.md](./CONTRIBUTING.md); open work lives in [BACKLOG.md](./BACKLOG.md); and the *why* behind the design choices lives in [patterns/](../patterns/README.md).
 
 The authoritative server model is event-sourced: the Durable Object persists a match-scoped event stream plus checkpoints, and recovers authoritative state from checkpoint + event tail (not from a separate persisted `gameState` snapshot slot).
-
-Document boundary: gameplay rules and protocol examples live in [SPEC.md](./SPEC.md), coding conventions live in [CODING_STANDARDS.md](./CODING_STANDARDS.md), contributor workflow lives in [CONTRIBUTING.md](./CONTRIBUTING.md), open work lives in [BACKLOG.md](./BACKLOG.md), and the deeper walk-through of *why* patterns look the way they do lives in [patterns/](../patterns/README.md).
 
 ## Quick Navigation
 
