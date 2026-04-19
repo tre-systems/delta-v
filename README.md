@@ -63,6 +63,7 @@ Doc index by purpose:
 | [PRIVACY_TECHNICAL.md](./docs/PRIVACY_TECHNICAL.md) | What the stack stores (technical, not legal) |
 | [MANUAL_TEST_PLAN.md](./docs/MANUAL_TEST_PLAN.md) | Release / regression manual checks |
 | [SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) | Headless AI simulation and websocket load harness |
+| [EXPLORATORY_TESTING.md](./docs/EXPLORATORY_TESTING.md) | Open-ended discovery-pass toolkit and probe recipes |
 | [REVIEW_PLAN.md](./docs/REVIEW_PLAN.md) | Recurring cross-cutting review checklist |
 | [COORDINATED_RELEASE_CHECKLIST.md](./docs/COORDINATED_RELEASE_CHECKLIST.md) | Protocol/schema version bump steps |
 | [BACKLOG.md](./docs/BACKLOG.md) | Remaining actionable work, in priority order |
