@@ -253,12 +253,6 @@ Confirmed 2026-04-19: `POST /create` returns a 5-char code from a 32-char alphab
 
 **Files:** —
 
-### Local Play-vs-AI games lose progress on tab reload
-
-Reproduced 2026-04-19: started Bi-Planetary via Play-vs-AI, advanced to turn 2, hit `location.reload()` — landed back at the lobby with no "restore" prompt. Multiplayer matches surface a "Your fleet and plotted burns are saved — restoring the match state" message (verified earlier this week), but local games don't, even though localStorage already holds enough state (`delta-v:player-profile`, `aiDifficulty`, etc.) to attempt restore. Either persist the local-game snapshot to localStorage on each turn submission, or surface a "Continue last local game?" lobby card if the SPA detects an in-progress local state.
-
-**Files:** `src/client/game/local-runtime.ts` (or wherever local-mode game state lives), `src/client/game/client-runtime.ts`, `src/client/ui/lobby.ts` (continue prompt)
-
 ## Architecture & correctness
 
 ### Deterministic initial publication path

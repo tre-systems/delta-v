@@ -10,6 +10,7 @@ import {
 import type { ReplayTimeline } from '../../shared/replay';
 import { ErrorCode, type GameState } from '../../shared/types/domain';
 import { TOAST } from '../messages/toasts';
+import type { StoredLocalGameSession } from './local-session-store';
 import {
   type ArchivedReplaySessionDeps,
   beginArchivedReplaySession,
@@ -21,6 +22,7 @@ import {
   exitToMenuSession,
   type JoinGameSessionDeps,
   type LocalGameSessionDeps,
+  resumeLocalGameSession,
   type SpectateGameSessionDeps,
   startLocalGameSession,
 } from './session-controller';
@@ -383,6 +385,41 @@ describe('session-controller', () => {
     expect(deps.calls.logScenarioBriefing).toHaveLength(1);
     expect(deps.calls.setState).toEqual([['playing_astrogation']]);
     expect(deps.calls.runLocalAI).toBeUndefined();
+  });
+
+  it('restores a local game session from a stored snapshot', () => {
+    const deps = createLocalGameDeps();
+    const restoredState = createState({
+      scenario: 'duel',
+      activePlayer: 0,
+      turnNumber: 3,
+      phase: 'astrogation',
+    });
+    const snapshot: StoredLocalGameSession = {
+      version: 1,
+      scenario: 'duel',
+      aiDifficulty: 'easy',
+      playerId: 1,
+      gameState: restoredState,
+      updatedAt: 1234,
+    };
+
+    resumeLocalGameSession(deps, snapshot);
+
+    expect(deps.ctx.isLocalGame).toBe(true);
+    expect(deps.ctx.spectatorMode).toBe(false);
+    expect(deps.ctx.scenario).toBe('duel');
+    expect(deps.ctx.playerId).toBe(1);
+    expect(deps.ctx.aiDifficulty).toBe('easy');
+    expect(deps.calls.clearTrails).toHaveLength(1);
+    expect(deps.calls.clearLog).toHaveLength(1);
+    expect(deps.calls.setChatEnabled).toEqual([[false]]);
+    expect(deps.calls.logText).toEqual([['Restored vs AI (easy) — Duel']]);
+    expect(deps.calls.trackGameCreated).toBeUndefined();
+    expect(deps.calls.applyGameState).toEqual([[restoredState]]);
+    expect(deps.calls.logScenarioBriefing).toHaveLength(1);
+    expect(deps.calls.setState).toEqual([['playing_opponentTurn']]);
+    expect(deps.calls.runLocalAI).toEqual([[]]);
   });
 
   it('validates and stores player tokens when joining a multiplayer room', async () => {

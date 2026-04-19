@@ -21,6 +21,7 @@ export const TOAST = {
     gameCreateTimeout: 'Game creation timed out. Try again.',
     gameCreateNetwork: 'Network error — check your connection.',
     gameCreateFailed: 'Failed to create game. Try again.',
+    localGameRestored: 'Restored your local AI match.',
   },
   clientRuntime: {
     offline: "You're offline — check your connection",

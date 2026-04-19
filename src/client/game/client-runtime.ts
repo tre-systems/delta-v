@@ -109,6 +109,7 @@ export const autoJoinFromUrl = (
   joinGame: (code: string, playerToken: string | null) => void,
   spectateGame: (code: string) => void,
   viewArchivedReplay: (code: string, gameId: string) => void,
+  resumeLocalGame: () => boolean,
   setMenuState: () => void,
 ): void => {
   const urlParams = new URLSearchParams(window.location.search);
@@ -135,6 +136,9 @@ export const autoJoinFromUrl = (
     } else {
       joinGame(code, playerToken);
     }
+    return;
+  }
+  if (resumeLocalGame()) {
     return;
   }
   history.replaceState(null, '', '/');
@@ -174,6 +178,7 @@ type SetupClientRuntimeInput = {
   interactions: RuntimeInteractions;
   updateTooltip: (x: number, y: number) => void;
   onUpdateSoundButton: () => void;
+  resumeLocalGame: () => boolean;
   setMenuState: () => void;
 };
 
@@ -188,6 +193,7 @@ export const setupClientRuntime = ({
   interactions,
   updateTooltip,
   onUpdateSoundButton,
+  resumeLocalGame,
   setMenuState,
 }: SetupClientRuntimeInput): (() => void) => {
   renderer.setMap(map);
@@ -232,6 +238,7 @@ export const setupClientRuntime = ({
       interactions.showToast(TOAST.spectator.urlWatchOnly, 'info');
     },
     (code, gameId) => interactions.viewArchivedReplay(code, gameId),
+    resumeLocalGame,
     setMenuState,
   );
 

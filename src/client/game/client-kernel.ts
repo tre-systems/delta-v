@@ -3,6 +3,7 @@ import type { GameState, PlayerId } from '../../shared/types/domain';
 import { playWarning } from '../audio';
 import { byId, clearHTML } from '../dom';
 import { createInputHandler } from '../input';
+import { TOAST } from '../messages/toasts';
 import type { Dispose } from '../reactive';
 import { createRenderer } from '../renderer/renderer';
 import { track } from '../telemetry';
@@ -14,9 +15,14 @@ import { setAIDifficulty } from './client-context-store';
 import { setupClientRuntime } from './client-runtime';
 import { resetCombatState as resetCombat } from './combat-actions';
 import { createHudController } from './hud-controller';
+import {
+  attachLocalGameSessionPersistence,
+  loadStoredLocalGameSession,
+} from './local-session-store';
 import { renderTransferPanel } from './logistics-ui';
 import { createMainInteractionController } from './main-interactions';
 import type { MainNetworkDeps } from './main-session-network';
+import { resumeLocalGameFromMain } from './main-session-network';
 import { createMainSessionShell } from './main-session-shell';
 import type { ClientState } from './phase';
 import { createPlayerProfileService } from './player-profile-service';
@@ -53,6 +59,10 @@ export const createGameClient = () => {
   const sessionTokens = createSessionTokenService({
     storage: localStorage,
   });
+  const disposeLocalGameSessionPersistence = attachLocalGameSessionPersistence(
+    localStorage,
+    ctx,
+  );
 
   const canvas = byId<HTMLCanvasElement>('gameCanvas');
   const renderer = createRenderer(canvas, ctx.planningState);
@@ -192,6 +202,18 @@ export const createGameClient = () => {
     trackEvent: (event, props) => track(event, props),
   });
 
+  const resumeLocalGame = (): boolean => {
+    const snapshot = loadStoredLocalGameSession(localStorage);
+
+    if (!snapshot) {
+      return false;
+    }
+
+    resumeLocalGameFromMain(networkDeps, snapshot);
+    interactions.showToast(TOAST.session.localGameRestored, 'info');
+    return true;
+  };
+
   const input = createInputHandler(canvas, renderer.camera, (event) =>
     interactions.handleInput(event),
   );
@@ -207,6 +229,7 @@ export const createGameClient = () => {
     interactions,
     updateTooltip: (x, y) => hud.updateTooltip(x, y),
     onUpdateSoundButton: () => hud.updateSoundButton(),
+    resumeLocalGame,
     setMenuState: () => setState('menu'),
   });
 
@@ -215,6 +238,7 @@ export const createGameClient = () => {
     showToast: interactions.showToast,
     dispose() {
       disposeSessionSubscriptions?.();
+      disposeLocalGameSessionPersistence();
       connection.close();
       turnTimer.stop();
       disposeBrowserEvents();
