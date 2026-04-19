@@ -11,12 +11,52 @@ export interface LocationReloadLike {
   reload(): void;
 }
 
+type GamepadShortcut =
+  | { key: string; shiftKey?: boolean }
+  | { directAction: KeyboardAction };
+
+type GamepadControl =
+  | 'confirm'
+  | 'cancel'
+  | 'previousShip'
+  | 'nextShip'
+  | 'previousTarget'
+  | 'nextTarget'
+  | 'previousAttacker'
+  | 'nextAttacker'
+  | 'toggleLog'
+  | 'focusNearestEnemy'
+  | 'focusOwnFleet'
+  | 'toggleHelp'
+  | 'toggleMute';
+
+type GamepadButtonLike = {
+  pressed: boolean;
+  value?: number;
+};
+
+type GamepadLike = {
+  buttons: ArrayLike<GamepadButtonLike>;
+  connected?: boolean;
+};
+
+export interface NavigatorGamepadsLike {
+  getGamepads?: () => ArrayLike<GamepadLike | null>;
+}
+
+export type RequestAnimationFrameLike = (
+  callback: FrameRequestCallback,
+) => number;
+
+export type CancelAnimationFrameLike = (handle: number) => void;
+
 export interface GameClientBrowserEventDeps {
   canvas: HTMLCanvasElement;
   helpCloseBtn: HTMLElement;
   helpBtn: HTMLElement;
   soundBtn: HTMLElement;
   getKeyboardAction: (event: KeyboardEvent) => KeyboardAction;
+  getGamepadShortcut?: (control: GamepadControl) => GamepadShortcut;
   onKeyboardAction: (action: KeyboardAction) => void;
   onToggleHelp: () => void;
   onToggleSound: () => void;
@@ -25,8 +65,31 @@ export interface GameClientBrowserEventDeps {
   onOffline: () => void;
   onOnline: () => void;
   documentLike?: Document;
+  navigatorLike?: NavigatorGamepadsLike;
+  requestAnimationFrameLike?: RequestAnimationFrameLike;
+  cancelAnimationFrameLike?: CancelAnimationFrameLike;
   windowLike?: Window;
 }
+
+const GAMEPAD_BUTTON_TO_CONTROL: ReadonlyArray<
+  readonly [index: number, control: GamepadControl]
+> = [
+  [0, 'confirm'],
+  [1, 'cancel'],
+  [2, 'toggleLog'],
+  [3, 'focusNearestEnemy'],
+  [4, 'previousShip'],
+  [5, 'nextShip'],
+  [8, 'toggleMute'],
+  [9, 'toggleHelp'],
+  [12, 'previousAttacker'],
+  [13, 'nextAttacker'],
+  [14, 'previousTarget'],
+  [15, 'nextTarget'],
+];
+
+const isPressed = (button: GamepadButtonLike | null | undefined): boolean =>
+  Boolean(button && (button.pressed || (button.value ?? 0) > 0.5));
 
 export const bindServiceWorkerControllerReload = (
   serviceWorker: ServiceWorkerContainerLike,
@@ -58,7 +121,35 @@ export const bindGameClientBrowserEvents = (
 ): Dispose => {
   const scope = createDisposalScope();
   const documentLike = deps.documentLike ?? document;
+  const navigatorLike = deps.navigatorLike ?? navigator;
+  const requestAnimationFrameLike =
+    deps.requestAnimationFrameLike ?? requestAnimationFrame;
+  const cancelAnimationFrameLike =
+    deps.cancelAnimationFrameLike ?? cancelAnimationFrame;
   const windowLike = deps.windowLike ?? window;
+  let gamepadFrameId: number | null = null;
+  let pressedControls = new Set<GamepadControl>();
+
+  const dispatchAction = (action: KeyboardAction): void => {
+    if (action.kind === 'none') {
+      return;
+    }
+    deps.onKeyboardAction(action);
+  };
+
+  const dispatchGamepadShortcut = (shortcut: GamepadShortcut): void => {
+    if ('directAction' in shortcut) {
+      dispatchAction(shortcut.directAction);
+      return;
+    }
+
+    dispatchAction(
+      deps.getKeyboardAction({
+        key: shortcut.key,
+        shiftKey: shortcut.shiftKey ?? false,
+      } as KeyboardEvent),
+    );
+  };
 
   withScope(scope, () => {
     listen(
@@ -84,7 +175,7 @@ export const bindGameClientBrowserEvents = (
         if (action.preventDefault) {
           keyboardEvent.preventDefault();
         }
-        deps.onKeyboardAction(action);
+        dispatchAction(action);
       },
       { capture: true },
     );
@@ -99,7 +190,41 @@ export const bindGameClientBrowserEvents = (
     listen(deps.canvas, 'mouseleave', () => deps.onTooltipLeave());
     listen(windowLike, 'offline', () => deps.onOffline());
     listen(windowLike, 'online', () => deps.onOnline());
+
+    const getGamepadShortcut = deps.getGamepadShortcut;
+
+    if (getGamepadShortcut && typeof navigatorLike.getGamepads === 'function') {
+      const pollGamepads = () => {
+        const nextPressed = new Set<GamepadControl>();
+        const gamepads = navigatorLike.getGamepads?.() ?? [];
+
+        for (const gamepad of Array.from(gamepads)) {
+          if (!gamepad || gamepad.connected === false) {
+            continue;
+          }
+
+          for (const [index, control] of GAMEPAD_BUTTON_TO_CONTROL) {
+            if (isPressed(gamepad.buttons[index])) {
+              nextPressed.add(control);
+              if (!pressedControls.has(control)) {
+                dispatchGamepadShortcut(getGamepadShortcut(control));
+              }
+            }
+          }
+        }
+
+        pressedControls = nextPressed;
+        gamepadFrameId = requestAnimationFrameLike(pollGamepads);
+      };
+
+      gamepadFrameId = requestAnimationFrameLike(pollGamepads);
+    }
   });
 
-  return () => scope.dispose();
+  return () => {
+    if (gamepadFrameId !== null) {
+      cancelAnimationFrameLike(gamepadFrameId);
+    }
+    scope.dispose();
+  };
 };
