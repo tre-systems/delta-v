@@ -25,6 +25,21 @@ export interface JoinAttemptSuccess {
   seatOpen: [boolean, boolean];
 }
 
+type JoinSeatStatus = 'host-only' | 'open' | 'full';
+
+const deriveJoinSeatStatus = ({
+  playerTokens,
+  seatOpen,
+}: {
+  playerTokens: RoomConfig['playerTokens'];
+  seatOpen: JoinAttemptSuccess['seatOpen'];
+}): JoinSeatStatus => {
+  if (playerTokens[1] === null) {
+    return 'host-only';
+  }
+  return seatOpen.some(Boolean) ? 'open' : 'full';
+};
+
 type ResolveJoinDeps = {
   getRoomConfig: () => Promise<RoomConfig | null>;
   isRoomArchived: () => Promise<boolean>;
@@ -169,7 +184,17 @@ export const handleJoinCheckRequest = async (
   const joinAttempt = await deps.resolveJoinAttempt(playerToken);
 
   return joinAttempt.ok
-    ? Response.json({ ok: true }, { status: 200 })
+    ? Response.json(
+        {
+          ok: true,
+          scenario: joinAttempt.value.roomConfig.scenario,
+          seatStatus: deriveJoinSeatStatus({
+            playerTokens: joinAttempt.value.roomConfig.playerTokens,
+            seatOpen: joinAttempt.value.seatOpen,
+          }),
+        },
+        { status: 200 },
+      )
     : joinAttempt.error;
 };
 

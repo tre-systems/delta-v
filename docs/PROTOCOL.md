@@ -26,7 +26,7 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 | `/create` | POST | Generate a 5-char room code + creator reconnect token; lock the scenario |
 | `/quick-match` | POST | Enqueue a matchmaking ticket |
 | `/quick-match/:ticket` | GET | Poll ticket state (`waiting`, `matched`, `expired`) |
-| `/join/:code` | GET | Preflight join / reconnect validation |
+| `/join/:code` | GET | Preflight join / reconnect validation; returns `{ ok, scenario, seatStatus }` on success |
 | `/replay/:code` | GET | Authenticated replay for a specific match |
 | `/ws/:code` | GET (upgrade) | WebSocket upgrade to the room's `GameDO` |
 | `/api/agent-token` | POST | Issue 24 h HMAC-signed `agentToken`; optional `claim: {username}` binds the agent to a leaderboard row (see [AGENT_SPEC.md](../AGENT_SPEC.md)) |
@@ -53,6 +53,7 @@ Rate limits for each route: [SECURITY.md#3-rate-limiting-architecture](./SECURIT
    → { code, playerToken, ... }
 
 2. GET /join/{code}?playerToken=X        (optional preflight)
+   → `{ ok: true, scenario, seatStatus }` when the room exists
 
 3. GET /replay/{code}?playerToken=X&gameId=Y
    → authenticated replay fetch, projected from checkpoint + event stream
