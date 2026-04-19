@@ -119,8 +119,8 @@ export interface SessionApiDeps {
   setScenario: (scenario: string) => void;
   connect: (code: string) => void;
   track: (event: string, props?: Record<string, unknown>) => void;
-  fetchImpl?: typeof fetch;
-  location?: Location;
+  fetchImpl: typeof fetch;
+  location: Location;
 }
 
 const delay = (ms: number): Promise<void> =>
@@ -160,8 +160,8 @@ const webStorage = (
 };
 
 export const createSessionApi = (deps: SessionApiDeps) => {
-  const fetchImpl = deps.fetchImpl ?? fetch;
-  const location = deps.location ?? window.location;
+  const fetchImpl = deps.fetchImpl;
+  const location = deps.location;
   let quickMatchTicket: string | null = null;
   let quickMatchPlayerKey: string | null = null;
   let quickMatchQueuedAtMs: number | null = null;

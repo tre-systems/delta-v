@@ -28,7 +28,7 @@ export interface ConnectionDeps {
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   exitToMenu: () => void;
   trackEvent: (event: string, props?: Record<string, unknown>) => void;
-  webSocketCtor?: typeof WebSocket;
+  webSocketCtor: typeof WebSocket;
 }
 
 export interface ConnectionManager {
@@ -94,7 +94,7 @@ const parseServerPayload = (
 export const createConnectionManager = (
   deps: ConnectionDeps,
 ): ConnectionManager => {
-  const WebSocketCtor = deps.webSocketCtor ?? WebSocket;
+  const WebSocketCtor = deps.webSocketCtor;
   const runtime: ConnectionRuntime = {
     ws: null,
     pingInterval: null,
