@@ -23,7 +23,7 @@ import {
   buildPublicCorsPreflightResponse,
 } from './response-headers';
 
-const WORKER_BOOTED_AT_MS = Date.now();
+const WORKER_BOOTED_AT = new Date().toISOString();
 
 export type { CreateRateLimiterBinding, Env } from './env';
 
@@ -204,6 +204,42 @@ const resolveWorkerSha = (env: Env): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const resolveBuildAssetSha = async (
+  request: Request,
+  env: Env,
+): Promise<string | null> => {
+  try {
+    const assetUrl = new URL('/version.json', request.url);
+    const response = await env.ASSETS.fetch(
+      new Request(assetUrl.toString(), {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      }),
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as {
+      assetsHash?: unknown;
+      packageVersion?: unknown;
+    };
+    const candidate =
+      typeof payload.assetsHash === 'string' &&
+      payload.assetsHash.trim().length > 0
+        ? payload.assetsHash
+        : typeof payload.packageVersion === 'string' &&
+            payload.packageVersion.trim().length > 0
+          ? payload.packageVersion
+          : null;
+
+    return candidate?.trim() ?? null;
+  } catch {
+    return null;
+  }
+};
+
 const readResponseErrorCode = async (
   response: Response,
 ): Promise<string | null> => {
@@ -269,10 +305,12 @@ export default {
           url.pathname === '/status') &&
         request.method === 'GET'
       ) {
+        const sha =
+          resolveWorkerSha(env) ?? (await resolveBuildAssetSha(request, env));
         return Response.json({
           ok: true,
-          sha: resolveWorkerSha(env),
-          bootedAt: new Date(WORKER_BOOTED_AT_MS).toISOString(),
+          sha,
+          bootedAt: WORKER_BOOTED_AT,
         });
       }
 

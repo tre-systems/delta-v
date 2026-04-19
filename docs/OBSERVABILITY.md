@@ -89,7 +89,7 @@ Emitted from `src/server/game-do/telemetry.ts` (`reportLifecycleEvent`, `reportS
 
 Static **`GET /version.json`** (built into `dist/` at bundle time) exposes `{ packageVersion, assetsHash }` for support — it is not written to D1.
 
-Health probes live on **`GET /healthz`** with supported aliases **`/health`** and **`/status`**. The payload is `{ ok, sha, bootedAt }`, where `sha` resolves from Worker deploy metadata (`CF_VERSION_METADATA.id`, then `CF_PAGES_COMMIT_SHA`, then `GIT_COMMIT_SHA`) and `bootedAt` is stamped once at Worker module load.
+Health probes live on **`GET /healthz`** with supported aliases **`/health`** and **`/status`**. The payload is `{ ok, sha, bootedAt }`, where `sha` resolves from Worker deploy metadata (`CF_VERSION_METADATA.id`, then `CF_PAGES_COMMIT_SHA`, then `GIT_COMMIT_SHA`, then bundled `/version.json` `assetsHash`) and `bootedAt` is stamped once at Worker module load.
 
 Worker entrypoint observability also records two abuse-focused signals:
 
