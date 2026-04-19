@@ -360,3 +360,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | 2026-04-19 | agent (Opus 4.7) | Combat/ordnance rules conformance + simulation balance sweep — surfaced evacuation 96-3 P1 dominance, duel/biplanetary first-player edge, grandTour/fleetAction timeout rates | 4 |
 | 2026-04-19 | agent (Opus 4.7) | AI difficulty stratification sweep, matchmaker seat-assignment code read, reserved-name blocklist gap, re-verification of shipped P1 fixes | 3 |
 | 2026-04-19 | agent (Opus 4.7) | Post-fix sweep confirmed evacuation rebalanced + seat shuffle shipped; security-header + CORS audit | 2 |
+| 2026-04-19 | agent (Opus 4.7) | Match-history page replay link probe — surfaced broken promise ("Replay →" shows unavailable toast for every match) | 1 |
