@@ -1,11 +1,12 @@
 # Delta-V MCP Reference
 
-This document is the MCP server/tool reference only.
+The canonical tool-and-transport reference for the Delta-V MCP server. Lists transports (local stdio / hosted HTTP / local HTTP), every tool and its args, host configuration, and rate limits — the page an agent author consults while wiring things up.
 
-For onboarding and workflow:
+Related docs:
 
-- [`AGENTS.md`](./AGENTS.md) (quick start + tuning workflow)
-- [`AGENT_SPEC.md`](../AGENT_SPEC.md) (deep protocol/architecture, lives at repo root)
+- [`AGENTS.md`](./AGENTS.md) — quick start, integration-path choice, tuning workflow.
+- [`AGENT_SPEC.md`](../AGENT_SPEC.md) — deep protocol and design reference.
+- [`SECURITY.md`](./SECURITY.md) — remote MCP token model and canonical rate-limit table.
 
 ## Transports
 
