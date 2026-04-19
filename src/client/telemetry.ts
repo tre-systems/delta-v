@@ -12,7 +12,58 @@ export interface StorageLike {
   setItem(key: string, value: string): void;
 }
 
+type TelemetryEventType = 'error' | 'unhandledrejection';
+
+interface TelemetryRuntime {
+  fetchImpl: typeof fetch;
+  getStorage: () => StorageLike | null;
+  getLocationHref: () => string;
+  getUserAgent: () => string;
+  addGlobalListener: (
+    type: TelemetryEventType,
+    listener: (event: Event) => void,
+  ) => void;
+  createUuid: () => string;
+}
+
 const ANON_ID_KEY = 'deltav_anon_id';
+
+const createDefaultRuntime = (): TelemetryRuntime => ({
+  fetchImpl: globalThis.fetch.bind(globalThis),
+  getStorage: () => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage;
+      }
+    } catch {
+      /* private mode / unsupported storage */
+    }
+
+    return null;
+  },
+  getLocationHref: () => window.location.href,
+  getUserAgent: () => navigator.userAgent,
+  addGlobalListener: (type, listener) => {
+    window.addEventListener(type, listener);
+  },
+  createUuid: () => crypto.randomUUID(),
+});
+
+let telemetryRuntime = createDefaultRuntime();
+
+export const configureTelemetryRuntime = (
+  overrides: Partial<TelemetryRuntime>,
+): void => {
+  telemetryRuntime = {
+    ...telemetryRuntime,
+    ...overrides,
+  };
+};
+
+export const resetTelemetryRuntimeForTests = (): void => {
+  telemetryRuntime = createDefaultRuntime();
+  cachedAnonId = null;
+};
 
 export const getOrCreateAnonId = (storage: StorageLike): string => {
   try {
@@ -20,12 +71,12 @@ export const getOrCreateAnonId = (storage: StorageLike): string => {
 
     if (existing) return existing;
 
-    const id = crypto.randomUUID();
+    const id = telemetryRuntime.createUuid();
     storage.setItem(ANON_ID_KEY, id);
     return id;
   } catch {
     // Fallback for incognito / storage disabled
-    return crypto.randomUUID();
+    return telemetryRuntime.createUuid();
   }
 };
 
@@ -35,36 +86,37 @@ const resolveAnonId = (): string => {
   if (cachedAnonId) {
     return cachedAnonId;
   }
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      cachedAnonId = getOrCreateAnonId(window.localStorage);
-      return cachedAnonId;
-    }
-  } catch {
-    /* private mode / unsupported storage */
+
+  const storage = telemetryRuntime.getStorage();
+  if (storage) {
+    cachedAnonId = getOrCreateAnonId(storage);
+    return cachedAnonId;
   }
-  cachedAnonId = crypto.randomUUID();
+
+  cachedAnonId = telemetryRuntime.createUuid();
   return cachedAnonId;
 };
 
 const post = (path: string, body: Record<string, unknown>): void => {
   try {
-    fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...body,
-        anonId: resolveAnonId(),
-        ts: Date.now(),
-      }),
-      keepalive: true,
-    }).catch((err) => {
-      warnOnce(
-        `telemetry.post.${path}`,
-        `telemetry delivery failed for ${path} (further failures suppressed)`,
-        err,
-      );
-    });
+    telemetryRuntime
+      .fetchImpl(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...body,
+          anonId: resolveAnonId(),
+          ts: Date.now(),
+        }),
+        keepalive: true,
+      })
+      .catch((err) => {
+        warnOnce(
+          `telemetry.post.${path}`,
+          `telemetry delivery failed for ${path} (further failures suppressed)`,
+          err,
+        );
+      });
   } catch (err) {
     // Never let telemetry break the app; surface the first occurrence so
     // developers can diagnose bundle/network issues instead of a silent void.
@@ -91,22 +143,27 @@ export const reportError = (
   post('/error', {
     error,
     ...context,
-    url: window.location.href,
-    ua: navigator.userAgent,
+    url: telemetryRuntime.getLocationHref(),
+    ua: telemetryRuntime.getUserAgent(),
   });
 };
 
 export const installGlobalErrorHandlers = (): void => {
-  window.addEventListener('error', (e) => {
-    reportError(e.message, {
-      source: e.filename,
-      line: e.lineno,
-      col: e.colno,
+  telemetryRuntime.addGlobalListener('error', (e) => {
+    const errorEvent = e as ErrorEvent;
+    reportError(errorEvent.message, {
+      source: errorEvent.filename,
+      line: errorEvent.lineno,
+      col: errorEvent.colno,
     });
   });
 
-  window.addEventListener('unhandledrejection', (e) => {
-    const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
+  telemetryRuntime.addGlobalListener('unhandledrejection', (e) => {
+    const rejectionEvent = e as PromiseRejectionEvent;
+    const msg =
+      rejectionEvent.reason instanceof Error
+        ? rejectionEvent.reason.message
+        : String(rejectionEvent.reason);
     reportError(msg, { type: 'unhandledrejection' });
   });
 };
