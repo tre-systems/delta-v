@@ -264,18 +264,6 @@ Two different caps in two endpoints serving similar paginated reads, neither doc
 
 **Files:** `src/server/matches-list.ts`, `src/server/leaderboard/`, `static/.well-known/agent.json`
 
-### `/join/{code}` success response missing documented metadata
-
-`/agents` and `agent.json` describe `GET /join/{code}` as returning "room metadata". Empirically:
-
-- Joinable room → `{ "ok": true }` only — no scenario, no host info, no fleet-building state.
-- Unjoinable (in-progress) → rich `{ code: "GAME_IN_PROGRESS", message: ... }`.
-- Unknown code → 404.
-
-Either drop the "metadata" claim from the docs or actually return scenario, room creation timestamp, and seat status (`open`, `full`, `host-only`) so a join UI can render the lobby card without reconnecting first.
-
-**Files:** `src/server/room-routes.ts`, `static/.well-known/agent.json`, `static/agents.html`
-
 ### Worker logs no entry on auth-failure paths
 
 `POST /mcp` with a bad `Authorization: Bearer …` header and `POST /api/agent-token` with malformed JSON both return helpful structured error bodies but emit **zero `console.log` lines** (verified with `wrangler tail --format json`). Brute-force attempts on token verification or sustained malformed-payload probes would leave no observability trail unless someone happens to look at the Cloudflare request log per-IP. Add a `console.log` (gated behind a sample rate to avoid log spam) on the four-eyes authentication failure paths: invalid agent token, malformed JSON to token endpoints, and rate-limited rejections. These map directly to the abuse signals operators most want to see.

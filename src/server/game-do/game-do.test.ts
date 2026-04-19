@@ -315,7 +315,11 @@ describe('GameDO', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    expect(await response.json()).toEqual({
+      ok: true,
+      scenario: 'biplanetary',
+      seatStatus: 'host-only',
+    });
     expect(await ctx.storage.get('roomConfig')).toEqual(roomConfig);
   });
   it('accepts a stored player token even while the old socket is still open', async () => {
