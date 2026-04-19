@@ -37,4 +37,32 @@ describe('normalizeQuickMatchServerUrl', () => {
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it('returns the queued ticket immediately when waitForOpponent is false', async () => {
+    const fetchSpy = vi.fn(async () =>
+      Response.json({
+        status: 'queued',
+        ticket: 'TICKET',
+        scenario: 'duel',
+      }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(
+      queueForMatch({
+        serverUrl: 'https://delta-v.example',
+        scenario: 'duel',
+        username: 'Agent',
+        playerKey: 'agent_test_wait_false',
+        waitForOpponent: false,
+        authorizationBearer: 'token',
+      }),
+    ).resolves.toEqual({
+      status: 'queued',
+      ticket: 'TICKET',
+      scenario: 'duel',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
 });

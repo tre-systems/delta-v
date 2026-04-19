@@ -13,6 +13,7 @@ export interface QuickMatchArgs {
   playerKey: string;
   pollMs?: number;
   timeoutMs?: number;
+  waitForOpponent?: boolean;
   /**
    * When omitted and `playerKey` starts with `agent_`, a token is minted via
    * POST /api/agent-token then sent as Authorization on `/quick-match`.
@@ -20,11 +21,30 @@ export interface QuickMatchArgs {
   authorizationBearer?: string;
 }
 
-export interface QuickMatchResult {
-  code: string;
-  playerToken: string;
-  ticket: string;
-}
+export type QuickMatchResult =
+  | {
+      status: 'queued';
+      ticket: string;
+      scenario: string;
+    }
+  | {
+      status: 'matched';
+      code: string;
+      playerToken: string;
+      ticket: string;
+      scenario: string;
+    };
+
+export const requireMatchedQuickMatch = (
+  result: QuickMatchResult,
+): Extract<QuickMatchResult, { status: 'matched' }> => {
+  if (result.status !== 'matched') {
+    throw new Error(
+      `Quick-match did not return a seat; still queued on ticket ${result.ticket}`,
+    );
+  }
+  return result;
+};
 
 const DEFAULT_POLL_MS = 1000;
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -59,6 +79,7 @@ export const queueForMatch = async (
   const serverUrl = normalizeQuickMatchServerUrl(args.serverUrl);
   const pollMs = args.pollMs ?? DEFAULT_POLL_MS;
   const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const waitForOpponent = args.waitForOpponent ?? true;
   if (!isValidScenario(args.scenario)) {
     throw new Error(`Unknown scenario: ${args.scenario}`);
   }
@@ -106,14 +127,24 @@ export const queueForMatch = async (
 
   if (enqueue.status === 'matched') {
     return {
+      status: 'matched',
       code: enqueue.code,
       playerToken: enqueue.playerToken,
       ticket: enqueue.ticket,
+      scenario: enqueue.scenario,
     };
   }
 
   if (enqueue.status !== 'queued') {
     throw new Error(`Unexpected quick-match status: ${enqueue.status}`);
+  }
+
+  if (!waitForOpponent) {
+    return {
+      status: 'queued',
+      ticket: enqueue.ticket,
+      scenario: enqueue.scenario,
+    };
   }
 
   const startedAt = Date.now();
@@ -129,9 +160,11 @@ export const queueForMatch = async (
     );
     if (poll.status === 'matched') {
       return {
+        status: 'matched',
         code: poll.code,
         playerToken: poll.playerToken,
         ticket: poll.ticket,
+        scenario: poll.scenario,
       };
     }
     if (poll.status === 'expired') {

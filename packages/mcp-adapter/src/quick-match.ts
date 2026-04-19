@@ -18,16 +18,24 @@ export interface QuickMatchArgs {
   playerKey: string;
   pollMs?: number;
   timeoutMs?: number;
+  waitForOpponent?: boolean;
   /** When true, enqueue carries the internal verified-agent header for leaderboard isAgent. */
   verifiedLeaderboardAgent?: boolean;
 }
 
-export interface QuickMatchResult {
-  code: string;
-  playerToken: string;
-  ticket: string;
-  scenario: string;
-}
+export type QuickMatchResult =
+  | {
+      status: 'queued';
+      ticket: string;
+      scenario: string;
+    }
+  | {
+      status: 'matched';
+      code: string;
+      playerToken: string;
+      ticket: string;
+      scenario: string;
+    };
 
 const MATCHMAKER_BASE = 'https://matchmaker.internal';
 
@@ -80,6 +88,13 @@ export const queueRemoteMatch = async (
     );
   }
   const ticket = enqueued.ticket;
+  if (args.waitForOpponent === false) {
+    return {
+      status: 'queued',
+      ticket,
+      scenario: enqueued.scenario,
+    };
+  }
   const pollMs = args.pollMs ?? 750;
   const deadline = Date.now() + (args.timeoutMs ?? 60_000);
 
@@ -94,6 +109,7 @@ export const queueRemoteMatch = async (
     const body = (await status.json()) as QuickMatchResponse;
     if (body.status === 'matched') {
       return {
+        status: 'matched',
         code: body.code,
         playerToken: body.playerToken,
         ticket,
