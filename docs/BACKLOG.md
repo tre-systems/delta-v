@@ -16,11 +16,8 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
-- *Liveness endpoint payload is unpopulated* (Agent & MCP ergonomics) — `sha:null`, `bootedAt:1970-01-01` makes deploy gating useless.
-- *Surrender silently disabled in duel; misleading "Logistics not enabled" error* (Cost & abuse hardening) — players can't quit a duel.
 - *Public `/api/matches` exposes user-typed usernames* (Agent & MCP ergonomics) — needs lobby warning before public traffic.
 - *Documented rate limits significantly understate observed protection* (Cost & abuse hardening) — `/create` and `/api/agent-token` allow 5-7× the documented per-IP cap.
-- *`POST /create` accepts unknown scenarios and arbitrary payloads* (same section) — DoS surface.
 - *`delta-v:tokens` localStorage accumulates without cleanup* (same section) — token cache grows unbounded; tokens never invalidated server-side on archive.
 
 **Confirmed working** (do not regress):
@@ -249,17 +246,6 @@ A `POST /create` from an unauthenticated client creates a Durable Object that ne
 `POST /mcp` with a bad `Authorization: Bearer …` header and `POST /api/agent-token` with malformed JSON both return helpful structured error bodies but emit **zero `console.log` lines** (verified with `wrangler tail --format json`). Brute-force attempts on token verification or sustained malformed-payload probes would leave no observability trail unless someone happens to look at the Cloudflare request log per-IP. Add a `console.log` (gated behind a sample rate to avoid log spam) on the four-eyes authentication failure paths: invalid agent token, malformed JSON to token endpoints, and rate-limited rejections. These map directly to the abuse signals operators most want to see.
 
 **Files:** `src/server/index.ts`, `src/server/auth/`, `src/server/reporting.ts`, `docs/OBSERVABILITY.md`
-
-### Surrender silently disabled in `duel`; misleading "Logistics not enabled" error
-
-`POST` action `{"type":"surrender"}` against a duel scenario returns `{"error":"Logistics not enabled for this scenario"}` (verified 2026-04-19; test `mcp-handlers.test.ts:648` enshrines this). Two distinct issues:
-
-1. **Behavioural**: surrender is a fundamental "I quit" mechanic. Disabling it in `duel` (and possibly other scenarios) leaves the only out as drifting/dying. `/agent-playbook.json` `phaseActionMap.astrogation.legalC2S` lists `surrender` unconditionally, so an agent following the documented contract gets rejected.
-2. **UX/wording**: the rejection message names the wrong subsystem. An agent looking at the logistics phase to debug will find nothing; the actual issue is scenario-level surrender allow-listing. Either always allow surrender (recommended), or return `{error:"surrender_not_allowed", message:"Surrender is not enabled for scenario duel"}` so the message matches the action.
-
-Cross-references the doc-vs-behaviour drift item in **Agent & MCP ergonomics**.
-
-**Files:** `src/shared/engine/logistics.ts`, `src/server/game-do/actions.ts`, `static/agent-playbook.json`, `src/server/game-do/mcp-handlers.test.ts` (update assertion)
 
 ### Leaderboard pollution from exploratory test traffic
 
