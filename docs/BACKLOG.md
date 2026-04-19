@@ -275,6 +275,8 @@ Hide clone-sensitive engine mutators behind non-exported modules, extend import-
 
 Tighten scenario/body registries around closed keys; brand ship / ordnance identifiers so lookup-heavy paths stop depending on plain `string` (wire `isHexKey` coverage exists in Vitest — extend to call sites and registries).
 
+**Done for this slice:** the server create/init protocol path now preserves validated `ScenarioKey` values through `parseCreatePayload`, `parseInitPayload`, `RoomConfig`, and the public room/http handlers instead of widening them back to plain `string` immediately after validation.
+
 **Files:** `src/shared/hex.ts`, `src/shared/ids.ts`, `src/shared/map-data.ts`, `src/shared/types/domain.ts`, `src/server/room-routes.ts`, `src/server/game-do/http-handlers.ts`, `src/client/game/main-session-network.ts`
 
 ---
