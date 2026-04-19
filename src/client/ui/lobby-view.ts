@@ -75,6 +75,13 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const copyButtonTextSignal = signal('Copy Link');
   const copySpectateTextSignal = signal('Copy Observer Link (view-only)');
   const queueElapsedTick = signal(0);
+  const defaultFetch = globalThis.fetch.bind(globalThis);
+  const postClaimImpl = deps.postClaimName ?? postClaimName;
+  const postClaim: (opts: {
+    playerKey: string;
+    username: string;
+  }) => Promise<ClaimNameResult> = (opts) =>
+    postClaimImpl({ ...opts, fetchImpl: defaultFetch });
 
   const createBtn = byId<HTMLButtonElement>('createBtn');
   const quickMatchBtn = byId<HTMLButtonElement>('quickMatchBtn');
@@ -301,7 +308,6 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       // before queueing so status and toasts reflect the response.
       const normalised = deps.setPlayerName(playerNameInput.value);
       playerNameInput.value = normalised;
-      const postClaim = deps.postClaimName ?? postClaimName;
       void (async () => {
         const result = await requestClaim(postClaim);
         applyClaimResult(result);
@@ -354,7 +360,11 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       callsignStatusEl.className = `menu-profile-status status-${tone}`;
     };
 
-    const fetchRank = deps.fetchPlayerRank ?? fetchPlayerRank;
+    const fetchRankImpl = deps.fetchPlayerRank ?? fetchPlayerRank;
+    const fetchRank: (opts: {
+      playerKey: string;
+    }) => ReturnType<typeof fetchPlayerRank> = (opts) =>
+      fetchRankImpl({ ...opts, fetchImpl: defaultFetch });
 
     const formatRankText = (r: {
       rating: number;
@@ -376,7 +386,10 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     };
 
     const requestClaim = async (
-      postClaim: typeof postClaimName,
+      postClaim: (opts: {
+        playerKey: string;
+        username: string;
+      }) => Promise<ClaimNameResult>,
     ): Promise<ClaimNameResult> => {
       const username = deps.getPlayerName();
       const playerKey = deps.getPlayerKey();
@@ -419,7 +432,12 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       }
     };
 
-    const runClaim = (postClaim: typeof postClaimName): void => {
+    const runClaim = (
+      postClaim: (opts: {
+        playerKey: string;
+        username: string;
+      }) => Promise<ClaimNameResult>,
+    ): void => {
       void requestClaim(postClaim).then(applyClaimResult);
     };
 
@@ -449,7 +467,6 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       if (normalised === prior && callsignStatusEl?.textContent) {
         return;
       }
-      const postClaim = deps.postClaimName ?? postClaimName;
       runClaim(postClaim);
     };
 
