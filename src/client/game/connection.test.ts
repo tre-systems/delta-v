@@ -109,6 +109,7 @@ const createDeps = () => {
     showToast,
     exitToMenu,
     trackEvent,
+    webSocketCtor: FakeWebSocket as unknown as typeof WebSocket,
   };
 
   return {
