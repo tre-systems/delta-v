@@ -8,10 +8,11 @@ The sections below are grouped by theme but ordered within each group by priorit
 
 Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md) pass log). Update or remove this section when the listed items are resolved or reassessed.
 
-**P0 — launch-blockers** (data integrity, fix before any public traffic):
+**P0 — launch-blockers** (data integrity or scenario design, fix before any public traffic):
 
 - *DO close handler crashes after a code deploy* (Cost & abuse hardening section) — three unguarded handlers in `game-do.ts`. Continuous delivery means every deploy can lose in-flight matches.
 - *Matchmaker pairs the same agent identity into two simultaneous matches* (same section) — corrupts Glicko-2 sequential-update invariant on the public leaderboard.
+- *`evacuation` scenario near-unwinnable for P0* (AI behavior & rules conformance) — 3.3% P0 win rate at hard difficulty in 30-game sweep; matchmaker would systematically penalise the P0 seat on Glicko-2.
 
 (Note: the seat-hijack / unauthenticated-join finding is **not** P0 — by product decision, frictionless start outweighs private-room auth. Listed under polish below for the spectator-misadvertisement and structured-rejection parts only.)
 
@@ -113,6 +114,47 @@ Tune candidate thresholds with simulation outcomes (especially scenario-specific
 **Remaining:** same-stack edge cases beyond launch-hex stacking, deeper gravity-edge assertions (beyond open-map determinism smoke), optional `game-engine.test.ts` integration seeds.
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
+
+### CRITICAL: `evacuation` scenario near-unwinnable for P0 (3.3% win rate at hard)
+
+`npm run simulate -- all 30 --ci` (2026-04-19, hard-vs-hard) produced:
+
+| Scenario | P0 win% | P1 win% | Draws/Timeouts | Avg turns |
+|----------|---------|---------|----------------|-----------|
+| **evacuation** | **3.3%** | **96.7%** | 0 | — |
+| biplanetary | 63.3% | 36.7% | 0 | ~7 |
+| duel | 60.0% | 40.0% | 0 | 6.6 |
+| grandTour | 53.3% | 23.3% | 23.3% | 164 |
+| fleetAction | 46.7% | 33.3% | 20.0% | 31 |
+
+Evacuation is essentially a 96-3 sweep for the corsair (P1) against the transport+escort (P0). Even granting that asymmetric scenarios are *expected* to be asymmetric, this width gap suggests either the AI's pacing for the transport is broken or the scenario design needs a numeric tweak (cargo size, escape distance, escort firepower). For ranked play this would skew Glicko-2 wildly based on seat assignment alone. Action: pick a target P0 win rate (40-60% is the usual band) and tune AI scoring or scenario constants until 100-game runs land inside it.
+
+Found via R-new (simulation harness sweep — not yet in EXPLORATORY_TESTING.md, will add).
+
+**Files:** `src/shared/ai/`, `src/shared/scenarios/evacuation.ts` (or wherever evac scenario constants live), `scripts/simulate-ai.ts`
+
+### Material first-player advantage in `duel` and `biplanetary`
+
+Same simulation pass: duel 60/40, biplanetary 63/37 with P0 always going first. `--randomize-start` narrows duel to 55/44 but inflates avg turns from 6.6 to 11.2 — first move still meaningfully matters. Two paths:
+
+- **Matchmaking-side**: randomize seat assignment per match (already partially the case for non-symmetric scenarios). Document the trade-off.
+- **Engine-side**: minor first-turn handicap for P0 (e.g. fewer fuel, smaller initial-velocity edge) tuned to bring 100-game P0 win-rate into 50±5%.
+
+For the public leaderboard, even a 60/40 seat skew translates to systematic Glicko-2 drift if seat assignment isn't randomised. Confirm seat assignment is randomised in `MatchmakerDO` and that the `match_archive`/`match_rating` rows preserve which seat each player took (they appear to via `playerA`/`playerB` ordering, but worth a unit test).
+
+**Files:** `src/server/matchmaker-do.ts`, `src/shared/scenarios/duel.ts`, `src/shared/scenarios/biplanetary.ts`, `src/shared/ai/`, `scripts/simulate-ai.ts`
+
+### High timeout rate in `grandTour` (23%) and `fleetAction` (20%)
+
+Same sweep — almost a quarter of grandTour and a fifth of fleetAction games hit the simulation turn-limit without resolving. For grandTour the 164-turn average suggests the scenario is genuinely long; for fleetAction 31 turns is reasonable but a fifth still timing out points to AI stalemate (both fleets coast indefinitely with neither willing to commit). Either lower the turn limit and add a tiebreak (sum of remaining ship-cost? closest-to-objective?), or tune the AI's cohesion pressure so it forces engagement before the limit.
+
+**Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenarios/grand-tour.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/engine/victory.ts` (tiebreak)
+
+### "Mutual destruction — last attacker loses" tiebreak feels arbitrary
+
+Surfaced once per 100-game duel run (`Mutual destruction — last attacker loses!`). The current rule punishes the player whose attack triggered the simultaneous wipeout, which can feel unfair to the attacker (they were "winning until they weren't"). At minimum, the game-over screen should explain the rule clearly; ideally, consider a different tiebreak (e.g. coin flip with both players notified, or a draw outcome). Low frequency means this is polish, not P0/P1.
+
+**Files:** `src/shared/engine/victory.ts`, `src/client/ui/game-over.ts`, `docs/SPEC.md`
 
 ---
 
