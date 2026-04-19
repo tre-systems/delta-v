@@ -155,13 +155,13 @@ Re-ran the simulation harness at 100 games per scenario for tighter signal (2026
 | duel | 59 | 41 | 0 | 6.2 | P0 edge |
 | grandTour | 50 | 25 | **25** | 156.6 | balanced-when-decided, but 25% timeout (see grandTour entry) |
 
-**Done for this slice:** fleetAction now overrides AI closing pressure upward (`combatClosingWeight` / `combatCloseBonus`) so the fleets commit earlier; a fresh 40-game hard-vs-hard sample moved it from 15% timeouts / 70-turn average to 10% timeouts / 46-turn average without reviving the old P0 blowout.
+**Done for this slice:** fleetAction now overrides AI closing pressure upward (`combatClosingWeight` / `combatCloseBonus`) so the fleets commit earlier; a fresh 40-game hard-vs-hard sample moved it from 15% timeouts / 70-turn average to 10% timeouts / 46-turn average without reviving the old P0 blowout. Duel now also suppresses combat-closing pressure completely at the scenario-override layer; a fresh 60-game hard-vs-hard sample landed at 50/50 with the average fight lengthened to 7.4 turns.
 
-Action: pick a target band (50±10% is conventional) and tune the offending scenarios. duel still needs P0 weakening; biplanetary + blockade + escape need either P0 strengthening or scenario-side rebalancing. Re-measure fleetAction on a larger seeded sweep before calling it done. For matchmaking + ranked play, document the seat-assignment policy: random per match, or always-asymmetric-to-skill?
+Action: pick a target band (50±10% is conventional) and tune the offending scenarios. biplanetary + blockade + escape still need either P0 strengthening or scenario-side rebalancing. Re-measure fleetAction and duel on larger seeded sweeps before calling them done. For matchmaking + ranked play, document the seat-assignment policy: random per match, or always-asymmetric-to-skill?
 
 Seat assignment is now randomised in `MatchmakerDO`; keep `match_rating.player_a_key` / `player_b_key` ordering aligned to the actual seated side when touching pairing or archival logic.
 
-Implication for the launch-readiness snapshot: the earlier *first-player advantage* line was over-stated based on 30-game noise. The remaining meaningful seat skews are duel/fleetAction on the P0 side and escape/biplanetary/blockade on the P1 side.
+Implication for the launch-readiness snapshot: the earlier *first-player advantage* line was over-stated based on 30-game noise. After the latest duel/fleetAction tuning, the remaining meaningful seat skews appear to be escape/biplanetary/blockade on the P1 side plus any residual fleetAction drift that survives a larger seeded sweep.
 
 **Files:** `src/server/matchmaker-do.ts`, `src/shared/scenarios/duel.ts`, `src/shared/scenarios/biplanetary.ts`, `src/shared/scenarios/escape.ts`, `src/shared/scenarios/blockade.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/ai/`, `scripts/simulate-ai.ts`
 
@@ -191,7 +191,7 @@ Two intertwined problems:
 1. **Normal ≈ Hard.** `normal-vs-hard` gives 62/38 in P0's favour and `hard-vs-normal` gives 64/36 — i.e. the seat bias swamps the difficulty signal. A player picking "Hard" over "Normal" in *Play vs AI* gets ~4 percentage points of edge net of seat. From the player's perspective the difficulty selector is largely cosmetic.
 2. **First-player bias depends on difficulty.** `hard-vs-hard` → P0=60% (forward bias). `easy-vs-easy` → P0=36% (**reversed bias**). The same pattern reproduces on biplanetary (Hard-vs-Hard P0=63%, Easy-vs-Easy P0=33%). So the seat advantage isn't a fixed first-mover bonus — it's emergent from the AI heuristics, and the Easy AI plays *worse* as the initiator. For matchmaking with random seat assignment among Hard-vs-Hard matches the leaderboard skew will persist; for the *Play vs AI* difficulty selector to be meaningful, the gap between tiers needs to be larger than the seat skew (~20pp).
 
-**Done for this slice:** widened the risk split in astrogation lookahead and combat commitment so Normal and Hard no longer collapse to the exact same duel outcomes on the same seeds; a quick 30-game sample moved `normal-vs-normal` to 70/30 while `hard-vs-hard` landed at 50/50.
+**Done for this slice:** widened the risk split in astrogation lookahead and combat commitment so Normal and Hard no longer collapse to the exact same duel outcomes on the same seeds; the follow-up duel override then held `hard-vs-hard` at 50/50 on a 60-game sample while leaving a visible behavior gap between tiers.
 
 **Remaining:** hold that spread across larger seeded sweeps, keep reducing seat bias in the same-difficulty ladders, add a "play first vs second" heuristic to Easy so it does not invert the bias, and optionally expose per-difficulty expectations in the difficulty selector copy.
 
