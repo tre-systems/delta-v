@@ -30,6 +30,7 @@ Telemetry/error collection, server-side diagnostics, and match-archive storage. 
 - `POST /api/claim-name` (human) and `POST /api/agent-token` with `{ claim: { username } }` (agent) bind a client-held `playerKey` to a user-chosen `username` in D1 `player`. `is_agent` is set from the verified agent flow, not from the `playerKey` prefix alone.
 - D1 `match_rating` stores one row per rated match (`game_id`, both `player_key`s, winner, and Glicko-2 before/after snapshots). Rows are keyed on `game_id` so replays / retries are idempotent via `INSERT OR IGNORE`.
 - Public API (`GET /api/leaderboard`, `GET /api/leaderboard/me`) exposes only `username`, rating triple, `games_played`, `distinct_opponents`, `last_match_at`, and `is_agent`; `playerKey` is never returned in responses.
+- Public API `GET /api/matches` does not expose usernames; the public match log includes only match metadata plus replay-identifying room/game ids.
 
 ## Operational note
 
