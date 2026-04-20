@@ -134,16 +134,13 @@ Revisit burn/overload hit targets only if playtesting reports misses at very sma
 
 ### Homepage layout: cluttered menu hides the "cool stuff"
 
-Exploratory pass 2026-04-20: the main menu piles primary CTAs (Quick Match, Create Private, Play vs AI + difficulty) on top of what should be *inviting surface* — Leaderboard and Recent Matches render as small underlined text links, easily overlooked; HUD TEXT size settings occupy a huge two-button row at the bottom; Buy-me-a-coffee, Build-a-Bot, and Privacy sit in the same visual band. First-time visitors get a settings-heavy impression and can't see that live match data and a live ranking table exist.
+**Done for this slice:** the menu no longer hides the social/discovery surfaces behind tiny text links. Leaderboard and Recent Matches now sit as discover tiles, the private-code path lives behind a disclosure, and the old footer clutter has been demoted into slim footer actions instead of competing with the primary CTAs.
 
-**Intent:**
+**Done for this slice:** the difficulty row now explains the intended Easy/Normal/Hard play-style gap directly in the menu, so the selector is less opaque even if the tier win-rate gap stays moderate.
 
-- Promote Leaderboard and Recent Matches to card-style tiles with a live preview (e.g., top 3 ranked callsigns; 3 most recent matches with scenario + winner), not plain underline links. These are the game's social proof surfaces.
-- Demote HUD TEXT scale, Privacy & data, Buy me a coffee, Build a Bot to a single slim footer row (and move HUD scale to an in-game `?` help / settings drawer where it actually matters).
-- Collapse "Play vs AI" + DIFFICULTY + hint into a single primary button; difficulty can live inside the AI scenario-picker modal.
-- Keep "OR / GAME CODE + JOIN" but tuck under a `Join a private match` disclosure; it's a less common flow than Quick Match or AI.
+**Remaining:** only revisit this if playtesting still says the home screen feels too settings-heavy or the AI difficulty selector needs a stronger modal-driven presentation. That would be a larger product design pass, not a launch blocker.
 
-**Files:** `static/index.html`, `static/styles/menu.css`, `src/client/ui/lobby-view.ts`, `static/leaderboard.html` (for the embed preview), `src/server/matches-list.ts` (for a top-N endpoint if we go with live preview data)
+**Files:** `static/index.html`, `static/styles/components.css`, `src/client/ui/lobby-view.ts`
 
 ---
 
@@ -246,7 +243,7 @@ That snapshot is now partially stale. Fresh 120-game `duel` mirrors on 2026-04-2
 So the worst same-difficulty seat-bias inversion has largely been fixed. The real remaining problem is narrower:
 
 1. **Normal ≈ Hard.** Fresh 120-game cross-tier sweeps on 2026-04-20 moved in the right direction after weakening Normal's closing pressure / torpedo reach / lookahead bias: `hard-vs-normal` now comes back `44.2/55.0/0.8` and `normal-vs-hard` `46.7/52.5/0.8`. Hard now wins in both seat orders, but the edge is still moderate rather than emphatic.
-2. **Tier expectations are still implicit.** Easy/Normal/Hard now differ more in style than in raw win rate. That is better than the old seat-driven instability, but it still leaves the difficulty selector somewhat opaque unless we either widen the gap further or explain the intended behavior differences in UI copy.
+2. **Tier expectations needed explicit copy.** Easy/Normal/Hard now differ more in style than in raw win rate. That is better than the old seat-driven instability, but it still needed the menu to explain those intended behavior differences directly.
 
 **Done for this slice:** widened the risk split in astrogation lookahead and combat commitment so Normal and Hard no longer collapse to the exact same duel outcomes on the same seeds; the follow-up duel override then held `hard-vs-hard` at 50/50 on a 60-game sample while leaving a visible behavior gap between tiers.
 
@@ -254,7 +251,9 @@ So the worst same-difficulty seat-bias inversion has largely been fixed. The rea
 
 **Done for this slice:** Normal is now slightly less decisive by default (shorter torpedo reach, lower lookahead bias, lower close-combat bonus, higher roll floor), which preserved healthier same-tier mirrors (`normal-vs-normal` 46.7/53.3, `hard-vs-hard` 50/50 in fresh 120-game duel sweeps) while finally giving Hard a real edge in both seat orders.
 
-**Remaining:** the main follow-up here is product clarity, not urgent AI surgery: either accept the current moderate Hard edge and explain the intended play-style gap in the difficulty selector copy, or widen the Hard-vs-Normal gap one last notch if playtesting still says the tiers feel too similar.
+**Done for this slice:** the menu difficulty selector now explains the intended tier behavior directly (Easy = forgiving / learning, Normal = balanced duel, Hard = punishing pressure), so the remaining issue is no longer hidden product semantics.
+
+**Remaining:** only widen the Hard-vs-Normal gap again if real playtesting still says the tiers feel too similar despite the stronger menu copy.
 
 **Files:** `src/shared/ai/config.ts`, `src/shared/ai/`, `src/client/ui/lobby.ts` (difficulty selector copy), `scripts/simulate-ai.ts`
 
