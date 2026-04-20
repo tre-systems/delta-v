@@ -5,6 +5,7 @@
   "baseUrl": "https://delta-v.tre.systems",
   "documentation": "https://delta-v.tre.systems/agents",
   "agentSpec": "https://github.com/tre-systems/delta-v/blob/main/AGENT_SPEC.md",
+  "starterGuide": "https://github.com/tre-systems/delta-v/blob/main/docs/AGENT_STARTERS.md",
   "agentManifest": "https://delta-v.tre.systems/.well-known/agent.json",
   "agentPlaybook": "https://delta-v.tre.systems/agent-playbook.json",
 
@@ -287,7 +288,13 @@
     "withBridge": "git clone https://github.com/tre-systems/delta-v && npm install && npm run llm:player -- --mode create --scenario duel --agent command --agent-command 'python ./my_agent.py'",
     "claudeAgent": "ANTHROPIC_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:claude'",
     "groqAgent": "GROQ_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:groq'",
-    "benchmark": "npm run benchmark -- --agent-command 'python ./my_agent.py' --opponent all --games 20"
+    "benchmark": "npm run benchmark -- --agent-command 'python ./my_agent.py' --opponent all --games 20",
+    "starterScripts": [
+      "scripts/hosted-mcp-starter.py",
+      "scripts/quick-start-agent.sh",
+      "scripts/quick-match-agent.ts",
+      "scripts/mcp-six-agent-harness.ts"
+    ]
   },
 
   "coaching": {

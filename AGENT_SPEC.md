@@ -6,6 +6,7 @@ This spec defines how autonomous agents (scripts, LLMs, RL models, humans-in-loo
 
 Related docs:
 
+- [docs/AGENT_STARTERS.md](./docs/AGENT_STARTERS.md) — packaged starter scripts and minimal entry points
 - [docs/AGENTS.md](./docs/AGENTS.md) — practical quick start and implementation checklist
 - [docs/DELTA_V_MCP.md](./docs/DELTA_V_MCP.md) — MCP tool catalog and host configuration
 - [docs/PROTOCOL.md](./docs/PROTOCOL.md) — wire format, state shapes, hex math
