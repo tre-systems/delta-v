@@ -61,8 +61,6 @@ export const TOAST = {
     orbitalBaseEmplaced: 'Orbital base emplaced!',
     noDetectedEnemies: 'No detected enemies',
     combatTargetBlocked: 'Selected target is blocked or has no legal attackers',
-    torpedoAimingIntro:
-      'Torpedo aiming: choose an adjacent hex for boost, or queue again for a straight shot',
   },
 };
 
