@@ -95,6 +95,7 @@ export const createActionDeps = (args: ActionDepsArgs) => {
     getMap: args.getMap,
     planningState: args.planningState,
     showToast,
+    logText,
   }));
 
   const getOrdnanceDeps = createCachedValue<OrdnanceActionDeps>(() => ({
