@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TOAST, toastJoinInvalidCode } from '../messages/toasts';
+import { signal } from '../reactive';
 import { createLobbyView } from './lobby-view';
 
 const installFixture = () => {
@@ -18,6 +19,10 @@ const installFixture = () => {
     <button class="btn-difficulty" data-difficulty="hard">Hard</button>
     <button id="joinBtn">Join</button>
     <input id="codeInput" />
+    <div id="menuOfflineBanner" hidden></div>
+    <a id="leaderboardLink" class="menu-online-only" href="/leaderboard">Leaderboard</a>
+    <a id="matchesLink" class="menu-online-only" href="/matches">Recent matches</a>
+    <a id="agentsLink" class="menu-online-only" href="/agents">Build a Bot</a>
     <button id="copyBtn">Copy Link</button>
     <button id="copySpectateBtn">Copy Spectate Link</button>
     <button id="cancelWaitingBtn">Cancel search</button>
@@ -390,6 +395,105 @@ describe('LobbyView', () => {
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
     );
     expect(showToast).toHaveBeenCalledWith(toastJoinInvalidCode(5), 'error');
+  });
+
+  it('disables online-only lobby controls while offline', () => {
+    const onlineSignal = signal(false);
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 1',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
+      onlineSignal,
+    });
+
+    expect(
+      (document.getElementById('quickMatchBtn') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (document.getElementById('createBtn') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (document.getElementById('codeInput') as HTMLInputElement).disabled,
+    ).toBe(true);
+    expect(
+      (document.getElementById('joinBtn') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      document.getElementById('menuOfflineBanner')?.hasAttribute('hidden'),
+    ).toBe(false);
+
+    for (const id of ['leaderboardLink', 'matchesLink', 'agentsLink']) {
+      const link = document.getElementById(id) as HTMLAnchorElement;
+      expect(link.getAttribute('aria-disabled')).toBe('true');
+      expect(link.getAttribute('tabindex')).toBe('-1');
+      expect(link.getAttribute('title')).toBe('Unavailable while offline');
+    }
+  });
+
+  it('re-enables online-only lobby controls when connectivity returns', () => {
+    const onlineSignal = signal(false);
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 1',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
+      onlineSignal,
+    });
+
+    onlineSignal.value = true;
+
+    expect(
+      (document.getElementById('quickMatchBtn') as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(
+      (document.getElementById('createBtn') as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(
+      (document.getElementById('codeInput') as HTMLInputElement).disabled,
+    ).toBe(false);
+    expect(
+      document.getElementById('menuOfflineBanner')?.hasAttribute('hidden'),
+    ).toBe(true);
+
+    for (const id of ['leaderboardLink', 'matchesLink', 'agentsLink']) {
+      const link = document.getElementById(id) as HTMLAnchorElement;
+      expect(link.hasAttribute('aria-disabled')).toBe(false);
+      expect(link.hasAttribute('tabindex')).toBe(false);
+      expect(link.hasAttribute('title')).toBe(false);
+    }
   });
 
   it('removes button listeners on dispose', () => {
