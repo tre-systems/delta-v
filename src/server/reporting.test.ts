@@ -5,6 +5,7 @@ import {
   buildReportingCorsHeaders,
   EVENTS_RETENTION_MS,
   isErrorReportRateLimited,
+  isReportingOriginAllowed,
   isTelemetryReportRateLimited,
   purgeOldEvents,
   resolveReportingAllowedOrigin,
@@ -50,6 +51,20 @@ describe('resolveReportingAllowedOrigin', () => {
     const req = new Request('https://delta-v.tre.systems/telemetry');
     const headers = buildReportingCorsHeaders(req);
     expect(headers.Vary).toBe('Origin');
+  });
+});
+
+describe('isReportingOriginAllowed', () => {
+  it('allows missing Origin for same-origin or non-browser callers', () => {
+    const req = new Request('https://delta-v.tre.systems/telemetry');
+    expect(isReportingOriginAllowed(req)).toBe(true);
+  });
+
+  it('rejects explicit third-party origins', () => {
+    const req = new Request('https://delta-v.tre.systems/telemetry', {
+      headers: { Origin: 'https://evil.example' },
+    });
+    expect(isReportingOriginAllowed(req)).toBe(false);
   });
 });
 

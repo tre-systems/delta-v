@@ -1088,6 +1088,25 @@ describe('/error endpoint', () => {
 
     expect(response.status).toBe(400);
   });
+
+  it('rejects explicit third-party origins with 403', async () => {
+    const { env } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/error', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: 'https://evil.example',
+        },
+        body: JSON.stringify({ error: 'test error' }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(403);
+  });
 });
 
 describe('/telemetry endpoint', () => {
@@ -1220,6 +1239,25 @@ describe('/telemetry endpoint', () => {
     expect(response.status).toBe(204);
     const body = await response.text();
     expect(body).toBe('');
+  });
+
+  it('rejects explicit third-party origins with 403', async () => {
+    const { env } = createEnv();
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/telemetry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: 'https://evil.example',
+        },
+        body: JSON.stringify({ event: 'test' }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(403);
   });
 });
 
