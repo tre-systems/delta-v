@@ -178,7 +178,10 @@ export type KeyboardPlanningSnapshot = Pick<
   Pick<AstrogationPlanningView, 'acknowledgedShips'> &
   Pick<
     OrdnancePlanningView,
-    'torpedoAimingActive' | 'torpedoAccel' | 'acknowledgedOrdnanceShips'
+    | 'torpedoAimingActive'
+    | 'torpedoAccel'
+    | 'torpedoAccelSteps'
+    | 'acknowledgedOrdnanceShips'
   > &
   Pick<CombatPlanningView, 'combatTargetId' | 'queuedAttacks'>;
 export type InteractivePlanningSnapshot = PlanningSelectionView &
