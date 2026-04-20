@@ -38,6 +38,10 @@ export interface HudViewModel {
   turn: number;
   phase: GameState['phase'];
   isMyTurn: boolean;
+  /** True for the replay/watch-only viewer (playerId === -1). */
+  isSpectator: boolean;
+  /** Player whose turn it is — used for spectator-framed labels like "P1 ASTROGATION". */
+  activePlayer: PlayerId;
   myShips: Ship[];
   selectedId: string | null;
   fuel: number;

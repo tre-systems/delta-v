@@ -235,6 +235,10 @@ export interface HUDInput {
   turn: number;
   phase: string;
   isMyTurn: boolean;
+  /** Replay/watch-only viewer — hides player-framed HUD fields. */
+  isSpectator: boolean;
+  /** Player whose turn it currently is; used for spectator turn labels. */
+  activePlayer: 0 | 1;
   fuel: number;
   maxFuel: number;
   hasBurns: boolean;
@@ -274,6 +278,8 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     turn,
     phase,
     isMyTurn,
+    isSpectator,
+    activePlayer,
     fuel,
     maxFuel,
     hasBurns,
@@ -302,13 +308,20 @@ export const buildHUDView = (input: HUDInput): HUDView => {
       ? objectiveBearingDeg
       : null;
 
+  const phaseText = isSpectator
+    ? `P${activePlayer + 1} ${phase.toUpperCase()}`
+    : isMyTurn
+      ? phase.toUpperCase()
+      : "OPPONENT'S TURN";
+
   return {
     turnText: `Turn ${turn}`,
-    phaseText: isMyTurn ? phase.toUpperCase() : "OPPONENT'S TURN",
+    phaseText,
     objectiveText: objective,
     objectiveCompassDegrees,
-    fuelGaugeText:
-      showOrdnance && cargoMax > 0
+    fuelGaugeText: isSpectator
+      ? ''
+      : showOrdnance && cargoMax > 0
         ? `Cargo: ${cargoFree}/${cargoMax}${getOrdnanceCapacityHint(cargoFree)}`
         : speed > 0
           ? `Fuel: ${fuel}/${maxFuel} \u00b7 Speed ${speed} (${fuelToStop} to stop)`

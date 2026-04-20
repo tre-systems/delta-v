@@ -285,10 +285,14 @@ export const deriveHudViewModel = (
         : 'Target: Enemy nuke'
       : null;
 
+  const isSpectator = playerId < 0;
+
   return {
     turn: state.turnNumber,
     phase: state.phase,
-    isMyTurn: state.activePlayer === playerId,
+    isMyTurn: !isSpectator && state.activePlayer === playerId,
+    isSpectator,
+    activePlayer: state.activePlayer,
     myShips,
     selectedId: selectedShip?.id ?? null,
     fuel: selectedShip?.fuel ?? 0,
