@@ -129,7 +129,13 @@ export const submitRoomJoin = async (
   page: Page,
   roomCode: string,
 ): Promise<void> => {
-  await page.fill('[data-testid="codeInput"]', roomCode);
+  const codeInput = page.locator('[data-testid="codeInput"]');
+  if (!(await codeInput.isVisible().catch(() => false))) {
+    await page.click('details.menu-disclosure > summary');
+    await codeInput.waitFor({ state: 'visible' });
+  }
+
+  await codeInput.fill(roomCode);
   await page.click('[data-testid="joinBtn"]');
 };
 
