@@ -1004,7 +1004,7 @@
 .menu-footer {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 0.8rem 1.2rem;
   padding-top: 0.6rem;
@@ -1033,6 +1033,7 @@
 }
 
 .menu-footer-disclosure {
+  flex: 0 0 auto;
   font-size: 0.7rem;
   color: rgba(159, 181, 196, 0.75);
 }
@@ -1057,9 +1058,35 @@
   margin-bottom: 0.4rem;
 }
 
+.menu-footer-disclosure[open] {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 0.75rem;
+  margin-top: 0.15rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .menu-footer-disclosure .menu-note,
 .menu-footer-disclosure .hud-scale-row {
   margin-top: 0.3rem;
+}
+
+.menu-footer-disclosure[open] .menu-note,
+.menu-footer-disclosure[open] .hud-scale-row {
+  width: min(100%, 30rem);
+  margin-top: 0;
+}
+
+.menu-footer-disclosure[open] .menu-note {
+  padding-top: 0.15rem;
+  text-align: center;
+}
+
+.menu-footer-disclosure[open] .hud-scale-row {
+  padding-top: 0;
+  border-top: none;
 }
 
 /* The "Join a private match" disclosure sits as a quiet row by default;
