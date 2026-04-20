@@ -84,6 +84,15 @@ export const queueRemoteMatch = async (
     );
   }
   const enqueued = (await enqueueResponse.json()) as QuickMatchResponse;
+  if (enqueued.status === 'matched') {
+    return {
+      status: 'matched',
+      code: enqueued.code,
+      playerToken: enqueued.playerToken,
+      ticket: enqueued.ticket,
+      scenario: enqueued.scenario,
+    };
+  }
   if (enqueued.status !== 'queued') {
     throw new Error(
       `unexpected enqueue status: ${'status' in enqueued ? enqueued.status : 'unknown'}`,
