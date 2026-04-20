@@ -912,6 +912,36 @@ describe('server index worker', () => {
 
     expect(assetsFetch).toHaveBeenCalledWith(request);
     expect(await response.text()).toBe('asset ok');
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('serves version.json as uncached deploy metadata', async () => {
+    const assetsFetch = vi.fn(async (request: Request) => {
+      const url = new URL(request.url);
+      if (url.pathname === '/version.json') {
+        return Response.json({
+          packageVersion: '0.1.0',
+          assetsHash: 'asset-sha-123',
+        });
+      }
+      return new Response('asset ok');
+    });
+    const { env } = createEnv(undefined, {
+      ASSETS: { fetch: assetsFetch },
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/version.json'),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    await expect(response.json()).resolves.toEqual({
+      packageVersion: '0.1.0',
+      assetsHash: 'asset-sha-123',
+    });
   });
 
   it('serves root icon aliases from existing static assets', async () => {
