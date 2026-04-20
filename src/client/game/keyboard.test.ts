@@ -14,6 +14,7 @@ const createContext = (
     selectedShipCanOverload: false,
     selectedShipBurnDirection: null,
     selectedShipOverloadDirection: null,
+    selectedShipWeakGravityChoices: null,
     combatTargetId: null,
     queuedAttackCount: 0,
     torpedoAccelActive: false,
@@ -262,6 +263,19 @@ describe('game-client-keyboard', () => {
       preventDefault: false,
       shipId: 'ship-0',
       direction: null,
+    });
+
+    expect(
+      actionFor('g', {
+        state: 'playing_astrogation',
+        selectedShipId: 'ship-0',
+        selectedShipWeakGravityChoices: { '10,-7': true },
+      }),
+    ).toEqual({
+      kind: 'setWeakGravityChoices',
+      preventDefault: false,
+      shipId: 'ship-0',
+      choices: { '10,-7': true },
     });
 
     expect(actionFor('0', { state: 'playing_astrogation' })).toEqual({

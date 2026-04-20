@@ -1,6 +1,8 @@
 import { CODE_LENGTH, SHIP_STATS } from '../../shared/constants';
 import { getOrderableShipsForPlayer } from '../../shared/engine/util';
+import { hexKey } from '../../shared/hex';
 import { normalizePlayerToken, normalizeRoomCode } from '../../shared/ids';
+import { computeCourse } from '../../shared/movement';
 import type { SolarSystemMap } from '../../shared/types/domain';
 import { initAudio, isMuted, setMuted } from '../audio';
 import { byId, hide } from '../dom';
@@ -57,6 +59,47 @@ type BrowserBindingDeps = {
   showToast: (message: string, type: BrowserToastType) => void;
 };
 
+const deriveSelectedShipWeakGravityToggleChoices = (
+  gameState: ReturnType<BrowserBindingDeps['getGameState']>,
+  map: ReturnType<BrowserBindingDeps['getMap']>,
+  planning: KeyboardPlanningSnapshot,
+): Record<string, boolean> | null => {
+  const selectedShip =
+    gameState?.ships.find((ship) => ship.id === planning.selectedShipId) ??
+    null;
+
+  if (!selectedShip) return null;
+
+  const burn = planning.burns.get(selectedShip.id) ?? null;
+
+  if (burn === null || selectedShip.damage.disabledTurns > 0) {
+    return null;
+  }
+
+  const weakGravityChoices =
+    planning.weakGravityChoices.get(selectedShip.id) ?? {};
+  const course = computeCourse(selectedShip, burn, map, {
+    overload: planning.overloads.get(selectedShip.id) ?? null,
+    weakGravityChoices,
+    destroyedBases: gameState?.destroyedBases ?? [],
+  });
+
+  const weakEffects = course.enteredGravityEffects.filter(
+    (gravityEffect) => gravityEffect.strength === 'weak',
+  );
+
+  if (weakEffects.length !== 1) {
+    return null;
+  }
+
+  const key = hexKey(weakEffects[0].hex);
+
+  return {
+    ...weakGravityChoices,
+    [key]: !weakGravityChoices[key],
+  };
+};
+
 const getGamepadShortcutAction = (
   deps: Pick<
     BrowserBindingDeps,
@@ -69,6 +112,14 @@ const getGamepadShortcutAction = (
   const selectedShip =
     gameState?.ships.find((ship) => ship.id === planning.selectedShipId) ??
     null;
+  const selectedShipWeakGravityChoices =
+    gameState && deps.getMap()
+      ? deriveSelectedShipWeakGravityToggleChoices(
+          gameState,
+          deps.getMap(),
+          planning,
+        )
+      : null;
   const context = {
     state: deps.getState(),
     hasGameState: deps.hasGameState(),
@@ -90,6 +141,7 @@ const getGamepadShortcutAction = (
       selectedShip !== null
         ? (planning.overloads.get(selectedShip.id) ?? null)
         : null,
+    selectedShipWeakGravityChoices,
     combatTargetId: planning.combatTargetId,
     queuedAttackCount: planning.queuedAttacks.length,
     torpedoAccelActive: planning.torpedoAccel !== null,
@@ -157,6 +209,19 @@ const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
     getKeyboardAction: (event) =>
       deriveKeyboardAction(
         {
+          selectedShipWeakGravityChoices: (() => {
+            const gs = deps.getGameState?.();
+            const map = deps.getMap();
+            const planning = deps.getPlanningState();
+
+            if (!gs || !map) return null;
+
+            return deriveSelectedShipWeakGravityToggleChoices(
+              gs,
+              map,
+              planning,
+            );
+          })(),
           state: deps.getState(),
           hasGameState: deps.hasGameState(),
           typingInInput: event.target instanceof HTMLInputElement,

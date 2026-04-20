@@ -22,6 +22,7 @@ export interface KeyboardShortcutContext {
   selectedShipCanOverload: boolean;
   selectedShipBurnDirection: number | null;
   selectedShipOverloadDirection: number | null;
+  selectedShipWeakGravityChoices: Record<string, boolean> | null;
   combatTargetId: string | null;
   queuedAttackCount: number;
   torpedoAccelActive: boolean;
@@ -70,6 +71,12 @@ export type KeyboardAction =
       preventDefault: false;
       shipId: string;
       direction: number | null;
+    }
+  | {
+      kind: 'setWeakGravityChoices';
+      preventDefault: false;
+      shipId: string;
+      choices: Record<string, boolean>;
     }
   | { kind: 'setBurnDirection'; preventDefault: false; direction: number }
   | { kind: 'clearSelectedBurn'; preventDefault: false }
@@ -258,6 +265,20 @@ export const deriveKeyboardAction = (
       shipId: context.selectedShipId,
       direction:
         context.selectedShipOverloadDirection === direction ? null : direction,
+    };
+  }
+
+  if (
+    lowerKey === 'g' &&
+    context.state === 'playing_astrogation' &&
+    context.selectedShipId &&
+    context.selectedShipWeakGravityChoices
+  ) {
+    return {
+      kind: 'setWeakGravityChoices',
+      preventDefault: false,
+      shipId: context.selectedShipId,
+      choices: context.selectedShipWeakGravityChoices,
     };
   }
 
