@@ -6,6 +6,16 @@ import type { CreateRateLimiterBinding } from './env';
 // scripts a free channel to wake the rate-limited D1 insert path.
 const DEFAULT_ALLOWED_ORIGIN = 'https://delta-v.tre.systems';
 
+export const isReportingOriginAllowed = (request: Request): boolean => {
+  const origin = request.headers.get('Origin');
+  if (!origin) return true;
+  return (
+    origin === DEFAULT_ALLOWED_ORIGIN ||
+    origin.startsWith('http://localhost') ||
+    origin.startsWith('http://127.0.0.1')
+  );
+};
+
 export const resolveReportingAllowedOrigin = (request: Request): string => {
   const origin = request.headers.get('Origin');
   if (!origin) return DEFAULT_ALLOWED_ORIGIN;
@@ -360,6 +370,14 @@ export const handleReport = async (
   label: string,
 ): Promise<{ response: Response; payload?: Record<string, unknown> }> => {
   const headers = buildReportingCorsHeaders(request);
+  if (!isReportingOriginAllowed(request)) {
+    return {
+      response: new Response('Origin not allowed', {
+        status: 403,
+        headers,
+      }),
+    };
+  }
   const contentType = request.headers.get('content-type');
 
   if (!contentType?.includes('application/json')) {
@@ -415,13 +433,14 @@ export const handleReport = async (
     };
   }
 
-  logFn(`[${label}]`, payload);
+  const scrubbed = scrubReportPayload(payload);
+  logFn(`[${label}]`, scrubbed);
 
   return {
     response: new Response(null, {
       status: 204,
       headers,
     }),
-    payload,
+    payload: scrubbed,
   };
 };
