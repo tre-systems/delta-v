@@ -22,6 +22,8 @@ export interface KeyboardShortcutContext {
   queuedAttackCount: number;
   torpedoAccelActive: boolean;
   torpedoAimingActive: boolean;
+  torpedoAccelDirection: number | null;
+  torpedoAccelSteps: 1 | 2 | null;
   allShipsAcknowledged: boolean;
   allOrdnanceShipsAcknowledged: boolean;
   hasSelectedShip: boolean;
@@ -53,6 +55,12 @@ export type KeyboardAction =
       preventDefault: false;
       ordnanceType: OrdnanceType;
     }
+  | {
+      kind: 'setTorpedoAccel';
+      preventDefault: false;
+      direction: number | null;
+      steps: 1 | 2 | null;
+    }
   | { kind: 'setBurnDirection'; preventDefault: false; direction: number }
   | { kind: 'clearSelectedBurn'; preventDefault: false }
   | { kind: 'skipShipBurn'; preventDefault: true }
@@ -71,6 +79,22 @@ export type KeyboardAction =
 
 const createNoopAction = (): KeyboardAction => {
   return { kind: 'none', preventDefault: false };
+};
+
+const cycleTorpedoAcceleration = (
+  currentDirection: number | null,
+  currentSteps: 1 | 2 | null,
+  clickedDirection: number,
+): { direction: number | null; steps: 1 | 2 | null } => {
+  if (currentDirection !== clickedDirection) {
+    return { direction: clickedDirection, steps: 1 };
+  }
+
+  if (currentSteps === 1) {
+    return { direction: clickedDirection, steps: 2 };
+  }
+
+  return { direction: null, steps: null };
 };
 
 export const deriveKeyboardAction = (
@@ -206,6 +230,25 @@ export const deriveKeyboardAction = (
   if (
     input.key >= '1' &&
     input.key <= '6' &&
+    context.state === 'playing_ordnance' &&
+    context.torpedoAimingActive
+  ) {
+    const next = cycleTorpedoAcceleration(
+      context.torpedoAccelDirection,
+      context.torpedoAccelSteps,
+      Number.parseInt(input.key, 10) - 1,
+    );
+    return {
+      kind: 'setTorpedoAccel',
+      preventDefault: false,
+      direction: next.direction,
+      steps: next.steps,
+    };
+  }
+
+  if (
+    input.key >= '1' &&
+    input.key <= '6' &&
     context.state === 'playing_astrogation'
   ) {
     return {
@@ -217,6 +260,14 @@ export const deriveKeyboardAction = (
 
   if (input.key === '0' && context.state === 'playing_astrogation') {
     return { kind: 'clearSelectedBurn', preventDefault: false };
+  }
+
+  if (
+    input.key === '0' &&
+    context.state === 'playing_ordnance' &&
+    context.torpedoAimingActive
+  ) {
+    return { kind: 'clearTorpedoAcceleration', preventDefault: false };
   }
 
   if (lowerKey === 's' && context.state === 'playing_astrogation') {

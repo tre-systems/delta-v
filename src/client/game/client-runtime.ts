@@ -74,6 +74,8 @@ const getGamepadShortcutAction = (
     queuedAttackCount: planning.queuedAttacks.length,
     torpedoAccelActive: planning.torpedoAccel !== null,
     torpedoAimingActive: planning.torpedoAimingActive,
+    torpedoAccelDirection: planning.torpedoAccel,
+    torpedoAccelSteps: planning.torpedoAccelSteps,
     allShipsAcknowledged: (() => {
       if (!gameState) return false;
       return getOrderableShipsForPlayer(
@@ -142,6 +144,8 @@ const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
           queuedAttackCount: deps.getPlanningState().queuedAttacks.length,
           torpedoAccelActive: deps.getPlanningState().torpedoAccel !== null,
           torpedoAimingActive: deps.getPlanningState().torpedoAimingActive,
+          torpedoAccelDirection: deps.getPlanningState().torpedoAccel,
+          torpedoAccelSteps: deps.getPlanningState().torpedoAccelSteps,
           allShipsAcknowledged: (() => {
             const gs = deps.getGameState?.();
             if (!gs) return false;
