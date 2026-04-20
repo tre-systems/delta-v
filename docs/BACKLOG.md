@@ -158,6 +158,26 @@ Exploratory pass 2026-04-20: today [`src/client/game/client-runtime.ts:181`](../
 
 **Files:** `src/client/game-client-browser.ts`, `src/client/game/client-runtime.ts`, `src/client/ui/lobby-view.ts`, `src/client/ui/overlay-view.ts` (for the banner), possibly a new `src/client/connectivity.ts`
 
+### Help button hidden behind the replay bar on narrow screens
+
+Exploratory pass 2026-04-20 verified on production (sha `0b6ba1da`): during a replay viewed on a ~660×1432 viewport, the floating `?` help button at `bottom: 0.75rem + var(--safe-bottom)` sits in the same band as the replay bar (`bottom: calc(1rem + var(--safe-bottom))`) and ends up visually covered. On even narrower screens (phone portrait) the collision is certain. Options: shift the floating buttons upward whenever the replay bar is visible (add a CSS class on `<body>` while the bar is active and have `.help-btn` / `.sound-btn` / `.exit-game-btn` bump `bottom` by the bar's height), or stack the replay bar higher so it clears the right-rail icons.
+
+**Files:** `static/styles/overlays.css`, `src/client/ui/overlay-view.ts` (toggle a class on the body when the bar is active)
+
+### Floating `×` exit button is redundant during replay/gameOver
+
+Exploratory pass 2026-04-20: `exitGameBtn` (the floating `×` added to HUD mode) is visible during archived-replay playback because the replay viewer maps to the `hud` screen mode. The replay bottom bar already has its own `EXIT` button, so spectators see two exit affordances stacked on the right side. Add a second screen mode — `hudPlaying` vs `hudSpectating` — or gate `exitGameBtn` on `gameOver === false` in `buildScreenVisibility`. The functional click path is unchanged; this is purely a visual-noise cleanup.
+
+**Files:** `src/client/ui/screens.ts`, `src/client/ui/visibility.ts`
+
+### Static HTML responses ship without security headers
+
+`curl -D- https://delta-v.tre.systems/` and `/matches`, `/leaderboard`, `/agents` return with **no** `Content-Security-Policy`, `X-Frame-Options`, `Strict-Transport-Security`, `Referrer-Policy`, `Permissions-Policy`, or `X-Content-Type-Options`. The Worker's response-headers middleware (`applyResponseHeaders` in [src/server/response-headers.ts](../src/server/response-headers.ts)) is bypassed when Cloudflare Assets serves the fallback static HTML. API endpoints (`/api/leaderboard`, `/healthz`) do return the full header set. The main user-facing surface is therefore iframe-able from anywhere, which is a click-jacking risk, and has no CSP guard.
+
+**Fix:** route static HTML through the Worker, or add a `_headers` asset file the Assets runtime will apply, or set headers at the Cloudflare Rules layer. Easiest: add a fall-through in `src/server/index.ts` that fetches the asset and wraps the response through `applyResponseHeaders` before returning.
+
+**Files:** `src/server/index.ts`, `src/server/response-headers.ts`, possibly `wrangler.toml`
+
 ---
 
 ## AI behavior & rules conformance
@@ -178,7 +198,9 @@ Further AI ordnance work vs the [2018 Triplanetary rulebook](../Triplanetary2018
 
 **Done for this slice:** when both torpedo and nuke geometry are viable, Hard now compares expected net target value instead of only score floors, so expensive nukes no longer beat cheaper torpedoes on marginal capital targets just because the target is "strong enough."
 
-**Remaining:** **`simulate:duel-sweep`**-driven threshold tables tied to measurement runs (rulebook: nuke **300 MCr** vs torpedo **20 MCr**, **2:1** anti-nuke table, detonation on lane contacts).
+**Done for this slice:** Hard now uses measured threshold tables instead of a single flat nuke gate. The required anti-nuke survival floor steps up by intercept window (`1T`: 0.16 / 0.18, `2T`: 0.22 / 0.26, `3T+`: 0.30 / 0.34 for direct vs torpedo-viable shots), and the target-score floor steps up alongside it (`70/82/94` direct, `122/132/144` when a torpedo is already viable). That keeps point-blank shots available while making longer expensive lanes prove more value before they outrank torpedoes.
+
+**Remaining:** keep validating those tables against broader scenario sweeps; if a future `simulate:duel-sweep` run shows late-turn hard nukes still over-firing, tighten the `3T+` rows first.
 
 **Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`, `src/shared/engine/combat.ts`
 
@@ -224,6 +246,8 @@ Implication for the launch-readiness snapshot: the earlier *first-player advanta
 `grandTour` no longer records null timeouts in the simulation harness: when the phase cap trips in a checkpoint race, `scripts/simulate-ai.ts` now resolves a progress tiebreak from visited checkpoint count, surviving ships, and estimated remaining tour distance. A fresh 30-game hard-vs-hard sample came back `46.7/53.3` with **0** timeouts, `4` progress-tiebreak wins, `4` full race completions, and a reduced average length of `102.2` turns. `fleetAction` has improved after the closing-pressure override, but still times out often enough to need another larger seeded sweep before dropping the item.
 
 Follow-up seeded sweep 2026-04-20 (`8` base seeds × `30` games = `240` total) still showed `28` timeouts (`11.7%`) and wide seed variance (`39.3%` to `70.4%` P0 decided-win rate, ~`55.2` average turns overall). So this is still a live tuning item, not just a remeasurement chore.
+
+Re-ran another 240-game hard-vs-hard sample on 2026-04-20 after the latest ordnance-threshold tranche: `102/106/32` (`42.5/44.2`, `13.3%` timeouts, `59.9` average turns). That confirms this item is still open and also that "just make fleets close harder" is not a safe blind fix — one attempted stronger-closing override regressed badly and was reverted immediately.
 
 **Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenario-definitions.ts`, `src/shared/engine/victory.ts` (tiebreak)
 
