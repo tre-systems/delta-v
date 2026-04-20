@@ -70,6 +70,31 @@ export const buildPublicCorsPreflightResponse = (
   });
 };
 
+const resolveCacheControlOverride = (pathname: string): string | null => {
+  if (
+    pathname === '/version.json' ||
+    pathname === '/health' ||
+    pathname === '/healthz' ||
+    pathname === '/status'
+  ) {
+    return 'no-store';
+  }
+
+  if (
+    pathname === '/' ||
+    pathname === '/agents' ||
+    pathname === '/agents/' ||
+    pathname === '/matches' ||
+    pathname === '/matches/' ||
+    pathname === '/leaderboard' ||
+    pathname === '/leaderboard/'
+  ) {
+    return 'no-store';
+  }
+
+  return null;
+};
+
 export const applyResponseHeaders = (
   request: Request,
   response: Response,
@@ -113,6 +138,11 @@ export const applyResponseHeaders = (
         headers.set(key, value);
       }
     }
+  }
+
+  const cacheControlOverride = resolveCacheControlOverride(url.pathname);
+  if (cacheControlOverride !== null) {
+    headers.set('Cache-Control', cacheControlOverride);
   }
 
   return new Response(response.body, {
