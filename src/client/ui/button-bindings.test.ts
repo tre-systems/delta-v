@@ -29,7 +29,7 @@ describe('ui-button-bindings', () => {
       { id: 'replayBarNextBtn', event: { type: 'replayNext' } },
       { id: 'replayBarEndBtn', event: { type: 'replayEnd' } },
       { id: 'replayBarSpeedBtn', event: { type: 'replayCycleSpeed' } },
-      { id: 'replayBarExitBtn', event: { type: 'toggleReplay' } },
+      { id: 'replayBarExitBtn', event: { type: 'exitReplay' } },
       { id: 'exitBtn', event: { type: 'exit' } },
       { id: 'exitGameBtn', event: { type: 'exit' } },
     ]);

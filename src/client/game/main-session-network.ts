@@ -270,3 +270,8 @@ export const exitToMenuFromMain = (deps: MainNetworkDeps): void => {
   deps.abortInflightArchivedReplayFetch?.();
   exitToMenuSession(createMainExitSessionDeps(deps));
 };
+
+export const exitArchivedReplayFromMain = (deps: MainNetworkDeps): void => {
+  deps.abortInflightArchivedReplayFetch?.();
+  exitToMenuSession(createMainExitSessionDeps(deps, '/matches'));
+};
