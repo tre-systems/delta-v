@@ -18,6 +18,10 @@ export interface KeyboardShortcutContext {
   state: ClientState;
   hasGameState: boolean;
   typingInInput: boolean;
+  selectedShipId: string | null;
+  selectedShipCanOverload: boolean;
+  selectedShipBurnDirection: number | null;
+  selectedShipOverloadDirection: number | null;
   combatTargetId: string | null;
   queuedAttackCount: number;
   torpedoAccelActive: boolean;
@@ -61,6 +65,12 @@ export type KeyboardAction =
       direction: number | null;
       steps: 1 | 2 | null;
     }
+  | {
+      kind: 'setOverloadDirection';
+      preventDefault: false;
+      shipId: string;
+      direction: number | null;
+    }
   | { kind: 'setBurnDirection'; preventDefault: false; direction: number }
   | { kind: 'clearSelectedBurn'; preventDefault: false }
   | { kind: 'skipShipBurn'; preventDefault: true }
@@ -96,6 +106,8 @@ const cycleTorpedoAcceleration = (
 
   return { direction: null, steps: null };
 };
+
+const OVERLOAD_DIRECTION_KEYS = ['!', '@', '#', '$', '%', '^'] as const;
 
 export const deriveKeyboardAction = (
   context: KeyboardShortcutContext,
@@ -224,6 +236,28 @@ export const deriveKeyboardAction = (
       kind: 'launchOrdnance',
       preventDefault: false,
       ordnanceType: 'nuke',
+    };
+  }
+
+  if (
+    OVERLOAD_DIRECTION_KEYS.includes(
+      input.key as (typeof OVERLOAD_DIRECTION_KEYS)[number],
+    ) &&
+    context.state === 'playing_astrogation' &&
+    context.selectedShipId &&
+    context.selectedShipCanOverload &&
+    context.selectedShipBurnDirection !== null
+  ) {
+    const direction = OVERLOAD_DIRECTION_KEYS.indexOf(
+      input.key as (typeof OVERLOAD_DIRECTION_KEYS)[number],
+    );
+
+    return {
+      kind: 'setOverloadDirection',
+      preventDefault: false,
+      shipId: context.selectedShipId,
+      direction:
+        context.selectedShipOverloadDirection === direction ? null : direction,
     };
   }
 
