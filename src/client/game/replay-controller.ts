@@ -267,7 +267,7 @@ export const createReplayController = (
     shownOutcomeForIndex = null;
   };
 
-  const closeActiveReplay = (exitArchivedToMenu: boolean) => {
+  const closeActiveReplay = (exitToMatches: boolean) => {
     if (!replayTimeline || replayIndex === null) {
       return;
     }
@@ -279,16 +279,14 @@ export const createReplayController = (
       );
     }
 
-    const shouldExitArchived =
-      exitArchivedToMenu && replaySourceKind === 'archived';
     stopPlay();
-    if (!shouldExitArchived && replaySourceState) {
+    if (!exitToMatches && replaySourceState) {
       deps.clearTrails();
       deps.applyGameState(replaySourceState);
     }
     clearReplay();
     updateOverlay();
-    if (shouldExitArchived) {
+    if (exitToMatches) {
       deps.exitArchivedReplayToMenu();
     }
   };
