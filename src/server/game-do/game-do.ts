@@ -556,6 +556,7 @@ export class GameDO extends DurableObject<Env> {
       touchInactivity: () => this.touchInactivity(),
       acceptWebSocket: (server, tags) => this.acceptWebSocket(server, tags),
       getRoomConfig: () => this.getRoomConfig(),
+      getSpectatorCount: () => this.getWebSockets('spectator').length,
     };
   }
 

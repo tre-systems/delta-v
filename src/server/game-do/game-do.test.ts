@@ -299,6 +299,27 @@ describe('GameDO', () => {
       globalThis.Response = OriginalResponse;
     }
   });
+  it('rejects spectator websocket upgrades when the room spectator cap is reached', async () => {
+    const ctx = createCtx();
+    await ctx.storage.put('roomConfig', {
+      code: 'ABCDE',
+      scenario: 'biplanetary',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+    });
+    for (let index = 0; index < 8; index++) {
+      ctx.acceptWebSocket(createSocket(), ['spectator']);
+    }
+    const game = createGameDO(ctx);
+    const response = await game.fetch(
+      new Request('https://room.internal/ws/ABCDE?viewer=spectator', {
+        headers: { Upgrade: 'websocket' },
+      }),
+    );
+
+    expect(response.status).toBe(429);
+    expect(await response.text()).toBe('Spectator capacity reached');
+    expect(ctx.getWebSockets('spectator')).toHaveLength(8);
+  });
   it('supports join preflight checks without mutating room tokens', async () => {
     const ctx = createCtx();
     const roomConfig = {

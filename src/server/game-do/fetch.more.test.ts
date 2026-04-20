@@ -88,6 +88,7 @@ const makeDeps = (
   touchInactivity: vi.fn(),
   acceptWebSocket: vi.fn(),
   getRoomConfig: vi.fn().mockResolvedValue(structuredClone(roomConfig)),
+  getSpectatorCount: vi.fn().mockReturnValue(0),
   ...overrides,
 });
 
