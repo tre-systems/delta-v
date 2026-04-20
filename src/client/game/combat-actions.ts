@@ -29,6 +29,7 @@ export interface CombatActionDeps {
   getMap: () => SolarSystemMap;
   planningState: PlanningSelectionStore & CombatPlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
+  logText: (text: string) => void;
 }
 
 export const clearCombatSelection = (deps: CombatActionDeps) => {
@@ -151,7 +152,7 @@ export const confirmSingleAttack = (deps: CombatActionDeps) => {
       return;
     }
 
-    deps.showToast(TOAST.gameplay.combatTargetBlocked, 'error');
+    deps.logText(TOAST.gameplay.combatTargetBlocked);
     return;
   }
 

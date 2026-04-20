@@ -168,6 +168,7 @@ const createDeps = (overrides?: {
     planningState,
   };
   const showToast = vi.fn<CommandRouterDeps['ui']['overlay']['showToast']>();
+  const combatLogText = vi.fn<(text: string) => void>();
   const toggleLog = vi.fn<CommandRouterDeps['ui']['log']['toggle']>();
   const renderer = {
     centerOnHex: vi.fn<(position: { q: number; r: number }) => void>(),
@@ -194,6 +195,7 @@ const createDeps = (overrides?: {
       getMap: () => map,
       planningState: ctx.planningState,
       showToast,
+      logText: combatLogText,
     },
     ordnanceDeps: {
       getGameState: () => ctx.getGameState(),
