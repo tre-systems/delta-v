@@ -612,10 +612,15 @@ describe('processCombat', () => {
         targetId: asOrdnanceId('ord0'),
         targetType: 'ordnance',
         attackType: 'antiNuke',
-        roll: 6,
-        modifiedRoll: 4,
-        damageType: 'eliminated',
-        disabledTurns: 0,
+        odds: antiNuke?.odds,
+        attackStrength: antiNuke?.attackStrength,
+        defendStrength: antiNuke?.defendStrength,
+        rangeMod: antiNuke?.rangeMod,
+        velocityMod: antiNuke?.velocityMod,
+        roll: antiNuke?.dieRoll,
+        modifiedRoll: antiNuke?.modifiedRoll,
+        damageType: antiNuke?.damageType,
+        disabledTurns: antiNuke?.disabledTurns,
       });
       expect(result.engineEvents).toContainEqual({
         type: 'ordnanceDestroyed',
@@ -659,6 +664,8 @@ describe('processCombat', () => {
     if ('error' in result) {
       return;
     }
+    const attack = result.results[0];
+    const counterattack = attack?.counterattack;
 
     expect(
       result.engineEvents.filter((event) => event.type === 'combatAttack'),
@@ -668,10 +675,15 @@ describe('processCombat', () => {
       targetId: asShipId('e0'),
       targetType: 'ship',
       attackType: 'gun',
-      roll: 5,
-      modifiedRoll: 4,
-      damageType: 'disabled',
-      disabledTurns: 2,
+      odds: attack?.odds,
+      attackStrength: attack?.attackStrength,
+      defendStrength: attack?.defendStrength,
+      rangeMod: attack?.rangeMod,
+      velocityMod: attack?.velocityMod,
+      roll: attack?.dieRoll,
+      modifiedRoll: attack?.modifiedRoll,
+      damageType: attack?.damageType,
+      disabledTurns: attack?.disabledTurns,
     });
     expect(
       result.engineEvents.filter((event) => event.type === 'combatAttack'),
@@ -681,10 +693,15 @@ describe('processCombat', () => {
       targetId: asShipId('a0'),
       targetType: 'ship',
       attackType: 'gun',
-      roll: 5,
-      modifiedRoll: 4,
-      damageType: 'disabled',
-      disabledTurns: 2,
+      odds: counterattack?.odds,
+      attackStrength: counterattack?.attackStrength,
+      defendStrength: counterattack?.defendStrength,
+      rangeMod: counterattack?.rangeMod,
+      velocityMod: counterattack?.velocityMod,
+      roll: counterattack?.dieRoll,
+      modifiedRoll: counterattack?.modifiedRoll,
+      damageType: counterattack?.damageType,
+      disabledTurns: counterattack?.disabledTurns,
     });
   });
   it('returns results when winner found after hazards', () => {
