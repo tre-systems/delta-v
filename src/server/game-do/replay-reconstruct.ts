@@ -149,15 +149,13 @@ const toCombatResults = (events: EngineEvent[]): CombatResult[] => {
       targetId: event.targetId,
       targetType: event.targetType,
       attackType: event.attackType,
-      // Engine event doesn't preserve the original odds/strength/range-mod
-      // detail. The client only uses these for log formatting — fall back to
-      // reasonable placeholders that still read correctly ("d6 -> modified
-      // roll → DAMAGE").
-      odds: '—',
-      attackStrength: 0,
-      defendStrength: 0,
-      rangeMod: 0,
-      velocityMod: 0,
+      // Older archived engine events predate combat context on
+      // `combatAttack`. Fall back to placeholders for those replays.
+      odds: event.odds ?? '—',
+      attackStrength: event.attackStrength ?? 0,
+      defendStrength: event.defendStrength ?? 0,
+      rangeMod: event.rangeMod ?? 0,
+      velocityMod: event.velocityMod ?? 0,
       dieRoll: event.roll,
       modifiedRoll: event.modifiedRoll,
       damageType: event.damageType,

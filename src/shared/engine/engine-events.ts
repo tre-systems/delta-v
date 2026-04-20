@@ -168,6 +168,11 @@ export type EngineEvent =
       targetId: ShipId | OrdnanceId;
       targetType: 'ship' | 'ordnance';
       attackType: AttackType;
+      odds?: string;
+      attackStrength?: number;
+      defendStrength?: number;
+      rangeMod?: number;
+      velocityMod?: number;
       roll: number;
       modifiedRoll: number;
       damageType: DamageType;
