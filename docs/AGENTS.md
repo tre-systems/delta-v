@@ -23,7 +23,7 @@ npm run mcp:delta-v
 
 2) Agent loop:
 
-- `delta_v_quick_match_connect`
+- `delta_v_quick_match` (`delta_v_quick_match_connect` is a compatibility alias)
 - `delta_v_wait_for_turn`
 - pick candidate (or custom action)
 - `delta_v_send_action`
@@ -38,9 +38,14 @@ The local stdio server above uses `delta_v_quick_match_connect` and a WebSocket 
 
 1. **Mint an agent token** — `POST https://delta-v.tre.systems/api/agent-token` with JSON `{ "playerKey": "agent_yourStableId" }`. Response includes `token` (JWT-like opaque string).
    Rate limit: strict Worker-local **5 / 60 s per hashed IP**, with Cloudflare `CREATE_RATE_LIMITER` as an extra best-effort edge layer in production.
-2. **Authorize every MCP request** — send `Authorization: Bearer <token>` on each `POST …/mcp` JSON-RPC call.
+2. **Authorize every MCP request** — send `Authorization: Bearer <token>` on each `POST …/mcp` JSON-RPC call, plus `Accept: application/json, text/event-stream`.
 3. **Queue a match** — call tool `delta_v_quick_match` (no args). Response includes `matchToken` (opaque per-match credential).
 4. **Drive the game** — pass `matchToken` on `delta_v_wait_for_turn`, `delta_v_get_observation`, `delta_v_send_action`, etc., with the **same** Bearer header.
+
+Quick pacing notes:
+
+- Treat `delta_v_send_action(...waitForResult=true)` with `autoSkipLikely: true` as a hint to `delta_v_wait_for_turn`, not to immediately chain the returned `nextPhase`.
+- If the first actionable observation is still `fleetBuilding`, you still need to send `fleetReady` explicitly, often with `purchases: []`.
 
 Details, token lifetimes, and failure modes: [SECURITY.md](./SECURITY.md) (remote MCP token model) and [DELTA_V_MCP.md](./DELTA_V_MCP.md). Deep protocol: [AGENT_SPEC.md](../AGENT_SPEC.md).
 

@@ -107,13 +107,15 @@
       "id": "replay",
       "method": "GET",
       "path": "/replay/{code}",
-      "description": "Fetch full replay timeline for a completed game. Optional query params: playerToken, gameId.",
-      "rateLimit": "100 per 60 s per IP",
+      "description": "Fetch a completed-match replay timeline. Public archived replays use ?viewer=spectator&gameId=ROOMCODE-mN; private/authenticated callers may use playerToken instead.",
+      "rateLimit": "250 per 60 s per IP",
       "response": {
-        "gameId": "string (UUID)",
-        "roomCode": "string",
+        "gameId": "string (roomCode-mN, e.g. ABCDE-m1)",
+        "roomCode": "string (5 chars)",
+        "matchNumber": "number",
         "scenario": "string",
-        "timeline": "array of { phase, state: GameState }"
+        "createdAt": "number (ms since epoch)",
+        "entries": "array of replay entries { sequence, recordedAt, turn, phase, message }"
       }
     },
     {
@@ -145,6 +147,7 @@
       { "type": "chat",              "when": "Player sent chat",                      "keyFields": "playerId, text" },
       { "type": "opponentStatus",    "when": "Opponent disconnected or reconnected",  "keyFields": "status, graceDeadlineMs?" },
       { "type": "error",             "when": "Server error",                          "keyFields": "message, code?" },
+      { "type": "actionAccepted",    "when": "Submitter action accepted after ActionGuards check", "keyFields": "guardStatus, expected, actual, idempotencyKey?" },
       { "type": "actionRejected",    "when": "Submitted action failed its ActionGuards check", "keyFields": "reason, message, expected, actual, state, idempotencyKey?" },
       { "type": "pong",              "when": "Ping reply",                            "keyFields": "t" }
     ],
@@ -180,6 +183,10 @@
   "mcp": {
     "description": "The preferred integration path for autonomous agents. Both local (stdio) and remote (HTTP, no install) MCP endpoints are shipping. Remote uses stateless JSON over POST /mcp.",
     "localCommand": "npm run mcp:delta-v",
+    "preferredQuickMatchTool": "delta_v_quick_match",
+    "toolAliases": {
+      "delta_v_quick_match_connect": "Compatibility alias for delta_v_quick_match on both local and hosted MCP."
+    },
     "remote": {
       "url": "https://delta-v.tre.systems/mcp",
       "transport": "streamable-http",
@@ -191,6 +198,7 @@
       },
       "tools": [
         "delta_v_quick_match",
+        "delta_v_quick_match_connect",
         "delta_v_list_sessions",
         "delta_v_get_state",
         "delta_v_get_observation",
@@ -202,6 +210,7 @@
       ]
     },
     "tools": [
+      "delta_v_quick_match",
       "delta_v_quick_match_connect",
       "delta_v_pair_quick_match_tickets",
       "delta_v_list_sessions",
@@ -222,7 +231,7 @@
       "game://matches/{id}/replay"
     ],
     "actionResult": {
-      "description": "delta_v_send_action({ waitForResult: true }) blocks until the next state-bearing S2C or actionRejected and returns an ActionResult: { accepted, turnApplied, phaseApplied, nextTurn, nextPhase, effects[], nextObservation? }. Pass includeNextObservation: true to embed a fresh observation (same v2 toggles as delta_v_get_observation).",
+      "description": "delta_v_send_action({ waitForResult: true }) blocks until the next state-bearing S2C or actionRejected and returns an ActionResult: { accepted, reason?, guardStatus?, turnApplied, phaseApplied, nextTurn, nextPhase, effects[], autoSkipLikely?, nextObservation? }. Pass includeNextObservation: true to embed a fresh observation (same v2 toggles as delta_v_get_observation).",
       "effectKinds": [
         "shipDestroyed",
         "shipDisabled",
@@ -266,16 +275,15 @@
   "autonomousLoop": {
     "description": "Recommended high-level turn loop for autonomous agents.",
     "steps": [
-      "Queue with POST /quick-match and a stable player.playerKey prefixed by agent_",
-      "Poll GET /quick-match/{ticket} until status=matched",
-      "Connect websocket /ws/{code}?playerToken=...",
-      "On each state message, act only when phase + activePlayer permit",
-      "Send one legal C2S action for the exact current phase"
+      "Hosted MCP (preferred): POST /api/agent-token once, then call delta_v_quick_match and drive the match with delta_v_wait_for_turn / delta_v_send_action using matchToken.",
+      "If delta_v_send_action returns autoSkipLikely=true, call delta_v_wait_for_turn instead of chaining the returned nextPhase immediately.",
+      "During fleetBuilding, always send fleetReady explicitly if the observation still reports that phase.",
+      "Raw protocol fallback: queue with POST /quick-match, poll GET /quick-match/{ticket} until matched, then connect websocket /ws/{code}?playerToken=..."
     ]
   },
 
   "quickStart": {
-    "noCloneRequired": "Point any MCP client at https://delta-v.tre.systems/mcp; call delta_v_quick_match then drive with delta_v_wait_for_turn / delta_v_send_action. Or POST /quick-match directly and poll until matched, then connect WebSocket if you prefer raw protocol.",
+    "noCloneRequired": "Point any MCP client at https://delta-v.tre.systems/mcp, send Accept: application/json, text/event-stream on every POST /mcp request, mint an agentToken via POST /api/agent-token, then call delta_v_quick_match and drive the match with delta_v_wait_for_turn / delta_v_send_action using matchToken. delta_v_quick_match_connect is a compatibility alias.",
     "withBridge": "git clone https://github.com/tre-systems/delta-v && npm install && npm run llm:player -- --mode create --scenario duel --agent command --agent-command 'python ./my_agent.py'",
     "claudeAgent": "ANTHROPIC_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:claude'",
     "groqAgent": "GROQ_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:groq'",

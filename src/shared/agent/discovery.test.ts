@@ -20,6 +20,10 @@ const readJson = <T>(relPath: string): T => {
 };
 
 interface AgentManifest {
+  endpoints?: Array<{
+    id?: string;
+    rateLimit?: string;
+  }>;
   scenarios: Array<{
     id: string;
     name: string;
@@ -32,6 +36,10 @@ interface AgentManifest {
   };
   mcp?: {
     resources?: string[];
+    preferredQuickMatchTool?: string;
+    remote?: {
+      tools?: string[];
+    };
     tools: string[];
   };
 }
@@ -81,6 +89,7 @@ const EXPECTED_S2C_TYPES = [
   'rematchPending',
   'chat',
   'error',
+  'actionAccepted',
   'actionRejected',
   'pong',
   'opponentStatus',
@@ -124,8 +133,25 @@ describe('.well-known/agent.json', () => {
     expect(manifest.mcp?.tools).toContain('delta_v_wait_for_turn');
   });
 
+  it('advertises the canonical quick-match tool and compatibility alias', () => {
+    expect(manifest.mcp?.preferredQuickMatchTool).toBe('delta_v_quick_match');
+    expect(manifest.mcp?.tools).toContain('delta_v_quick_match');
+    expect(manifest.mcp?.tools).toContain('delta_v_quick_match_connect');
+    expect(manifest.mcp?.remote?.tools).toContain('delta_v_quick_match');
+    expect(manifest.mcp?.remote?.tools).toContain(
+      'delta_v_quick_match_connect',
+    );
+  });
+
   it('advertises the local quick-match pairing helper', () => {
     expect(manifest.mcp?.tools).toContain('delta_v_pair_quick_match_tickets');
+  });
+
+  it('documents the archived replay endpoint rate limit', () => {
+    const replayEndpoint = manifest.endpoints?.find((endpoint) => {
+      return endpoint.id === 'replay';
+    });
+    expect(replayEndpoint?.rateLimit).toContain('250');
   });
 
   it('advertises the shipped MCP rules resources', () => {
