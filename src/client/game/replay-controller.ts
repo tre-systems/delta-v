@@ -323,6 +323,15 @@ export const createReplayController = (
         return;
       }
 
+      // Replay playback temporarily flips client state to
+      // `playing_movementAnim` while each movement entry animates, then
+      // our wrapReplayDone continuation flips it back to 'gameOver'. This
+      // is part of replay, not a context exit — preserve the timeline or
+      // playback dies mid-entry.
+      if (replayTimeline !== null && state === 'playing_movementAnim') {
+        return;
+      }
+
       clearReplay();
       controlsSignal.value = createHiddenReplayControls();
     },
