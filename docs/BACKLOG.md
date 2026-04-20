@@ -140,6 +140,32 @@ Revisit burn/overload hit targets only if playtesting reports misses at very sma
 
 **Files:** `src/client/renderer/course.ts`, `src/client/renderer/vectors.ts`, `src/client/game/input.ts`, `src/client/input-interaction.ts`
 
+### Homepage layout: cluttered menu hides the "cool stuff"
+
+Exploratory pass 2026-04-20: the main menu piles primary CTAs (Quick Match, Create Private, Play vs AI + difficulty) on top of what should be *inviting surface* — Leaderboard and Recent Matches render as small underlined text links, easily overlooked; HUD TEXT size settings occupy a huge two-button row at the bottom; Buy-me-a-coffee, Build-a-Bot, and Privacy sit in the same visual band. First-time visitors get a settings-heavy impression and can't see that live match data and a live ranking table exist.
+
+**Intent:**
+
+- Promote Leaderboard and Recent Matches to card-style tiles with a live preview (e.g., top 3 ranked callsigns; 3 most recent matches with scenario + winner), not plain underline links. These are the game's social proof surfaces.
+- Demote HUD TEXT scale, Privacy & data, Buy me a coffee, Build a Bot to a single slim footer row (and move HUD scale to an in-game `?` help / settings drawer where it actually matters).
+- Collapse "Play vs AI" + DIFFICULTY + hint into a single primary button; difficulty can live inside the AI scenario-picker modal.
+- Keep "OR / GAME CODE + JOIN" but tuck under a `Join a private match` disclosure; it's a less common flow than Quick Match or AI.
+
+**Files:** `static/index.html`, `static/styles/menu.css`, `src/client/ui/lobby-view.ts`, `static/leaderboard.html` (for the embed preview), `src/server/matches-list.ts` (for a top-N endpoint if we go with live preview data)
+
+### Offline UX: online-only actions should disable, not just toast
+
+Exploratory pass 2026-04-20: today [`src/client/game/client-runtime.ts:181`](../src/client/game/client-runtime.ts) shows a toast when the `online`/`offline` window event fires, but the menu itself stays interactive. Tapping Quick Match / Create Private / Join / Leaderboard / Recent Matches while offline fails opaquely (network error) rather than being surfaced as "not available without a connection".
+
+**Intent:**
+
+- Gate online-only buttons on a reactive `isOnline` signal (fed by `navigator.onLine` + the existing `online`/`offline` listeners in [`src/client/game-client-browser.ts:191-192`](../src/client/game-client-browser.ts)). Disable Quick Match, Create Private Match, Join, Leaderboard, Recent Matches, Build a Bot when offline.
+- Show a compact offline banner ("You're offline — local AI still available") above the menu so the reason for disabling is explained once rather than via a disappearing toast.
+- Re-enable automatically on `online` event — no refresh required.
+- Preserve Play vs AI (local) and How to Play (static content) as always-enabled so the page is still useful on a plane.
+
+**Files:** `src/client/game-client-browser.ts`, `src/client/game/client-runtime.ts`, `src/client/ui/lobby-view.ts`, `src/client/ui/overlay-view.ts` (for the banner), possibly a new `src/client/connectivity.ts`
+
 ---
 
 ## AI behavior & rules conformance
@@ -284,6 +310,79 @@ Confirmed 2026-04-19: `POST /create` returns a 5-char code from a 32-char alphab
 **Decision (2026-04-19, product):** this is *not* a launch-blocker. Frictionless start (no login, share-and-join) outweighs private-room hijack defence. Document the trade-off and skip auth/captcha/invite-token work; revisit only if real-world griefing is observed post-launch. The actually-actionable bit that remains is the bare 1006 close shape on a full room when no player token or spectator flag is provided.
 
 **Files:** —
+
+### Cap or gate live spectator fanout
+
+Second-pass review (2026-04-20): live room codes are exposed through `/api/matches?status=live`, and any caller can then open `WebSocket(/ws/<code>?viewer=spectator)` with no auth. Every state-bearing broadcast fans out to all spectator sockets, so a distributed attacker can cheaply turn a few active matches into a bandwidth/CPU multiplier. Decide whether live spectators stay public; if they do, add at least a per-room spectator cap and cheap abuse visibility, or require an explicit spectator invite/token before opening the socket.
+
+**Files:** `src/server/index.ts`, `src/server/live-registry-do.ts`, `src/server/game-do/fetch.ts`, `src/server/game-do/broadcast.ts`
+
+### Make hosted MCP event buffering opt-in
+
+Second-pass review (2026-04-20): hosted MCP seat buffering currently appends per-seat events on every state change and broadcast, even for browser-only games that never call hosted MCP session helpers. The current `read-modify-write` buffer in Durable Object storage turns normal gameplay into extra storage IO/serialization cost. Defer buffer writes until a hosted MCP session helper is actually used for that room/seat, or move the buffer to a cheaper append-friendly structure.
+
+**Files:** `src/server/game-do/game-do.ts`, `src/server/game-do/mcp-session-state.ts`, `src/server/game-do/mcp-handlers.ts`
+
+### Add a fallback `/mcp` limiter when the binding is missing
+
+Second-pass review (2026-04-20): `/mcp` currently becomes effectively unthrottled if `MCP_RATE_LIMITER` is absent, because `enforceMcpRateLimit()` returns `null` and there is no Worker-local fallback bucket. That makes the most expensive public surface (25-second waits, matchmaking, MCP resources, hosted session helpers) rely entirely on deployment correctness. Mirror the strict per-isolate fallback model already used for `/create` / `/api/agent-token` so a missing binding does not silently remove all protection.
+
+**Files:** `packages/mcp-adapter/src/handlers.ts`, `wrangler.toml`, `docs/SECURITY.md`
+
+### Tighten public telemetry / error ingestion
+
+Second-pass review (2026-04-20): `/telemetry` and `/error` accept arbitrary JSON POSTs from any non-browser caller; CORS only restricts browser reads, not writes. The current path also logs the raw payload before any deeper filtering and then writes accepted events to D1. Decide whether these endpoints are truly public. If not, require a lightweight first-party proof (shared nonce, token, or strict origin gate) and trim/scrub logged payloads so the routes stop acting as cheap public log-write sinks.
+
+**Files:** `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`, `docs/OBSERVABILITY.md`
+
+### Add archive retention / tiering
+
+Second-pass review (2026-04-20): completed matches are written permanently to R2 plus `match_archive`, but there is no retention, compaction, or cold-storage policy. If usage grows, storage cost grows monotonically even if active traffic stays flat. Define the intended retention window and whether older archives stay hot, move to cheaper storage, or have their heavier replay payloads compacted.
+
+**Files:** `src/server/game-do/match-archive.ts`, `src/server/game-do/archive-storage.ts`, `docs/OBSERVABILITY.md`
+
+### Reject oversized WebSocket frames before parse
+
+Second-pass review (2026-04-20): player sockets enforce message count but not frame size before `JSON.parse()`. Validation later limits chat length and structured payload shape, but that does not protect the Worker from one or two oversized frames consuming disproportionate CPU/memory first. Add a raw byte/char cap on incoming frames and close or reject before parse.
+
+**Files:** `src/server/game-do/ws.ts`, `src/server/game-do/socket.ts`, `src/shared/protocol.ts`
+
+### Clear the transitive `hono` advisory in the MCP adapter chain
+
+`npm audit --omit=dev` still reports `GHSA-458j-xx4x-4375` through `@modelcontextprotocol/sdk -> hono`. The current codebase does not appear to use the affected JSX SSR path, so this is not the top security issue, but it should still be tracked as dependency hygiene and cleared when the MCP SDK chain updates.
+
+**Files:** `package.json`, `packages/mcp-adapter/package.json`
+
+## Telemetry & observability
+
+### `events` table is write-only from the app — analysis relies on ad-hoc SQL
+
+Exploratory pass 2026-04-20: the [`events` D1 table](../migrations/0001_create_events.sql) is written by `src/server/reporting.ts` (browser `/telemetry` + `/error` ingest) and `src/server/game-do/telemetry.ts` (server-side turn/fleet/action events), but **no application code reads it back**. There is no admin endpoint, no scheduled aggregation, no dashboard. The data is only queryable via `wrangler d1 execute` SQL one-liners, which means it doesn't currently drive any decisions.
+
+To turn this telemetry into something useful for "analysing issues and improving the game once there are many players", we need at minimum:
+- A small internal `/api/metrics` endpoint (auth-gated) that returns common aggregates: daily-active matches, scenario play mix, AI difficulty distribution, first-turn-completion rate, WS error rate, reconnect success rate, average turn duration per scenario.
+- Documented SQL recipes for the top 10 analyses (engagement, funnel, balance, infra health). Drop into [OBSERVABILITY.md](./OBSERVABILITY.md).
+- Optional: scheduled export to R2 / BigQuery for longer-horizon analysis when D1 retention trimming kicks in.
+
+**Files:** `src/server/reporting.ts`, new `src/server/metrics-route.ts`, `docs/OBSERVABILITY.md`
+
+### Telemetry coverage gaps — no signal for spectator / replay engagement
+
+Exploratory pass 2026-04-20: the existing `trackEvent` calls cover matchmaking lifecycle, turn/fleet actions, WS errors, and reconnect churn (`quick_match_*`, `game_over`, `turn_completed`, `ws_connect_error`, `reconnect_succeeded`). What's missing is any signal for **post-match and discovery surfaces**:
+
+- No `leaderboard_viewed`, `leaderboard_row_clicked` — can't tell if anyone uses the leaderboard.
+- No `matches_list_viewed`, `match_replay_opened`, `replay_reached_end`, `replay_exited_early {atProgress, atTurn}` — can't tell if replays are watched, abandoned at turn 2, or watched to completion.
+- No `replay_speed_changed {to}` — can't tell if the 2x/4x buttons are used.
+- No `scenario_selected {scenario, from: 'ai'|'private'}` — we lose the scenario-popularity signal at the menu level (only the final `ai_game_started` fires, by which point the user already committed).
+- No connection-quality metric over a session (RTT, out-of-order frames). We log `ws_invalid_message` but not steady-state health.
+
+**Files:** `src/client/game/main-session-shell.ts`, `src/client/game/replay-controller.ts`, `src/client/leaderboard/*.ts`, `static/matches.html`, `static/leaderboard.html`
+
+### `match_rating` keeps pre/post rating columns write-only — keep as audit trail, document intent
+
+Exploratory pass 2026-04-20: [`match_rating.pre_rating_a/b`, `post_rating_a/b`](../migrations/0004_leaderboard.sql) are populated on every rated match but no query reads them. That's intentional for now — they form a rating-history audit trail for future features (player profile "recent matches" graph, admin anti-cheat review, balance analysis). Document that intent in the migration or a short note in [OBSERVABILITY.md](./OBSERVABILITY.md) so future maintainers don't see them as dead schema and drop them in a cleanup pass.
+
+**Files:** `migrations/0004_leaderboard.sql`, `docs/OBSERVABILITY.md`
 
 ## Architecture & correctness
 
