@@ -282,8 +282,11 @@ export const AI_CONFIG: Readonly<
     gravityEscapeWeight: 4,
     gravityNavWeight: 6,
     gravityCombatProximity: 5,
-    combatClosingWeight: 3,
-    combatCloseBonus: 40,
+    // Keep Normal visibly less decisive than Hard. A smaller closing bonus
+    // plus shorter torpedo reach makes the tier more range-cautious without
+    // reopening the old same-tier seat inversion.
+    combatClosingWeight: 2,
+    combatCloseBonus: 25,
     combatCloseRange: 3,
     combatImprovementWeight: 5,
     combatVelocityPenalty: 2,
@@ -311,7 +314,7 @@ export const AI_CONFIG: Readonly<
     boundaryVelocityPenalty: 20,
     easyRandomBurnProbability: 0,
     distributeInterceptTargets: false,
-    torpedoRange: 7,
+    torpedoRange: 6,
     mineRange: 4,
     ordnanceSkipChance: 0,
     nukeStrengthRange: 6,
@@ -322,7 +325,7 @@ export const AI_CONFIG: Readonly<
     nukeThreatBase: 18,
     nukeThreatWeight: 8,
     nukeThreatRange: 6,
-    minRollThreshold: 2,
+    minRollThreshold: 3,
     singleAttackOnly: false,
     maxDreadnaughts: 0,
     maxTorches: 0,

@@ -37,4 +37,19 @@ describe('resolveAIConfig', () => {
     resolveAIConfig('hard', { combatClosingWeight: 99 });
     expect(AI_CONFIG.hard.combatClosingWeight).toBe(before);
   });
+
+  it('keeps normal materially less decisive than hard on core combat knobs', () => {
+    expect(AI_CONFIG.normal.combatClosingWeight).toBeLessThan(
+      AI_CONFIG.hard.combatClosingWeight,
+    );
+    expect(AI_CONFIG.normal.combatCloseBonus).toBeLessThan(
+      AI_CONFIG.hard.combatCloseBonus,
+    );
+    expect(AI_CONFIG.normal.torpedoRange).toBeLessThan(
+      AI_CONFIG.hard.torpedoRange,
+    );
+    expect(AI_CONFIG.normal.minRollThreshold).toBeGreaterThan(
+      AI_CONFIG.hard.minRollThreshold,
+    );
+  });
 });
