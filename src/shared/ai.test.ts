@@ -68,6 +68,7 @@ import { computeCourse } from './movement';
 import {
   createTestShip,
   createTestState,
+  driftingEnemyWouldBeHitByBallistic,
   driftingEnemyWouldBeHitByOpenSpaceBallistic,
   EMPTY_SOLAR_MAP,
 } from './test-helpers';
@@ -2265,6 +2266,122 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
 
     expect(assessment.hasIntercept).toBe(true);
     expect(assessment.blockedByEnemyOrdnance).toBe(false);
+  });
+
+  it('finds a real-map nuke intercept that only exists because gravity bends the lane', () => {
+    const gravityMap = buildSolarSystemMap();
+    const lead = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: -5, r: 5 },
+      velocity: { dq: 1, dr: 0 },
+      cargoUsed: 0,
+    });
+    const primary = createTestShip({
+      id: asShipId('p0-dn'),
+      owner: 0,
+      type: 'dreadnaught',
+      position: { q: -3, r: 5 },
+      velocity: { dq: 1, dr: 0 },
+      cargoUsed: 0,
+    });
+
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        ordnanceStart: lead.position,
+        ordnanceVelocity: { ...lead.velocity },
+        enemyStart: primary.position,
+        enemyVelocity: primary.velocity,
+      }),
+    ).toBe(false);
+
+    expect(
+      driftingEnemyWouldBeHitByBallistic({
+        map: gravityMap,
+        ordnanceStart: lead.position,
+        ordnanceVelocity: { ...lead.velocity },
+        enemyStart: primary.position,
+        enemyVelocity: primary.velocity,
+      }),
+    ).toBe(true);
+
+    const state = createTestState({
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['nuke'] },
+      ships: [primary, lead],
+    });
+    const assessment = evaluateOrdnanceLaunchIntercept(
+      state,
+      1,
+      {
+        shipId: lead.id,
+        ordnanceType: 'nuke',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
+      gravityMap,
+    );
+    expect(assessment.hasIntercept).toBe(true);
+    expect(assessment.targetShipId).toBe(primary.id);
+  });
+
+  it('rejects a real-map nuke intercept when gravity pulls the lane off an empty-space hit', () => {
+    const gravityMap = buildSolarSystemMap();
+    const lead = createTestShip({
+      id: asShipId('p1-lead'),
+      owner: 1,
+      type: 'frigate',
+      position: { q: -5, r: 5 },
+      velocity: { dq: 1, dr: 0 },
+      cargoUsed: 0,
+    });
+    const primary = createTestShip({
+      id: asShipId('p0-dn'),
+      owner: 0,
+      type: 'dreadnaught',
+      position: { q: 1, r: 2 },
+      velocity: { dq: -1, dr: 1 },
+      cargoUsed: 0,
+    });
+
+    expect(
+      driftingEnemyWouldBeHitByOpenSpaceBallistic({
+        ordnanceStart: lead.position,
+        ordnanceVelocity: { ...lead.velocity },
+        enemyStart: primary.position,
+        enemyVelocity: primary.velocity,
+      }),
+    ).toBe(true);
+
+    expect(
+      driftingEnemyWouldBeHitByBallistic({
+        map: gravityMap,
+        ordnanceStart: lead.position,
+        ordnanceVelocity: { ...lead.velocity },
+        enemyStart: primary.position,
+        enemyVelocity: primary.velocity,
+      }),
+    ).toBe(false);
+
+    const state = createTestState({
+      turnNumber: 4,
+      scenarioRules: { allowedOrdnanceTypes: ['nuke'] },
+      ships: [primary, lead],
+    });
+    const assessment = evaluateOrdnanceLaunchIntercept(
+      state,
+      1,
+      {
+        shipId: lead.id,
+        ordnanceType: 'nuke',
+        torpedoAccel: null,
+        torpedoAccelSteps: null,
+      },
+      gravityMap,
+    );
+    expect(assessment.hasIntercept).toBe(false);
+    expect(assessment.targetShipId).toBeNull();
   });
 
   it('hard AI skips a nuke when grouped anti-nuke geometry is too strong', () => {
