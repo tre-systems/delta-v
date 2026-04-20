@@ -112,6 +112,12 @@ export const keyboardActionToCommand = (
         shipId: action.shipId,
         direction: action.direction,
       };
+    case 'setWeakGravityChoices':
+      return {
+        type: 'setWeakGravityChoices',
+        shipId: action.shipId,
+        choices: action.choices,
+      };
     case 'setBurnDirection':
       return { type: 'setBurnDirection', direction: action.direction };
     case 'clearSelectedBurn':
