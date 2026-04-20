@@ -45,6 +45,8 @@ interface AgentManifest {
 }
 
 interface AgentPlaybook {
+  preferredTransport?: string;
+  minimalTurnLoop?: string[];
   phaseActionMap: Record<
     string,
     {
@@ -209,5 +211,19 @@ describe('agent-playbook.json', () => {
     expect(playbook.phaseActionMap.ordnance.simultaneous).toBe(false);
     expect(playbook.phaseActionMap.combat.simultaneous).toBe(false);
     expect(playbook.phaseActionMap.logistics.simultaneous).toBe(false);
+  });
+
+  it('describes an MCP-first minimal turn loop with raw fallback', () => {
+    expect(playbook.preferredTransport).toBe('mcp');
+    expect(playbook.minimalTurnLoop?.[0]).toContain('delta_v_quick_match');
+    expect(playbook.minimalTurnLoop?.join(' ')).toContain(
+      'delta_v_wait_for_turn',
+    );
+    expect(playbook.minimalTurnLoop?.join(' ')).toContain(
+      'delta_v_send_action',
+    );
+    expect(playbook.minimalTurnLoop?.join(' ')).toContain(
+      'Raw protocol fallback',
+    );
   });
 });

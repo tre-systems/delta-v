@@ -1,17 +1,35 @@
 {
   "name": "Delta-V Agent Playbook",
-  "version": 2,
+  "version": 3,
   "baseUrl": "https://delta-v.tre.systems",
   "description": "Machine-readable guidance for autonomous Delta-V agents.",
+  "preferredTransport": "mcp",
   "minimalTurnLoop": [
-    "POST /quick-match with player.playerKey (prefix agent_) and player.username",
-    "GET /quick-match/{ticket} every 500ms-2s until status=matched",
-    "Connect websocket: /ws/{code}?playerToken={playerToken}",
-    "On each S2C state message (gameStart/stateUpdate/movementResult/combatResult), inspect state.phase and state.activePlayer",
-    "If state.phase is simultaneous (fleetBuilding), submit action once per turn",
-    "If state.phase is sequential (astrogation/ordnance/combat/logistics), only act when state.activePlayer == your playerId",
-    "Send one legal C2S action for the current phase; avoid duplicate sends for the same turn+phase",
-    "When state.phase=gameOver or S2C gameOver arrives, stop action loop"
+    "Preferred MCP path: call delta_v_quick_match (compat alias: delta_v_quick_match_connect) and keep the returned matchToken/sessionId.",
+    "Call delta_v_wait_for_turn to block until your seat is actionable.",
+    "If state.phase is fleetBuilding, submit fleetReady once per seat; later phases are sequential by activePlayer.",
+    "Pick candidates[recommendedIndex] or build one custom legal C2S action.",
+    "Call delta_v_send_action with waitForResult=true; if autoSkipLikely=true, go back to delta_v_wait_for_turn instead of chaining nextPhase.",
+    "When state.phase=gameOver or outcome is present, stop the loop and call delta_v_close_session.",
+    "Raw protocol fallback: POST /quick-match, poll GET /quick-match/{ticket}, connect /ws/{code}?playerToken={playerToken}, and respect phase + activePlayer yourself."
+  ],
+  "starterScripts": [
+    {
+      "path": "scripts/hosted-mcp-starter.py",
+      "purpose": "Minimal hosted MCP bot (Python stdlib only)"
+    },
+    {
+      "path": "scripts/quick-start-agent.sh",
+      "purpose": "One-command bridge starter against the live server"
+    },
+    {
+      "path": "scripts/quick-match-agent.ts",
+      "purpose": "Live queue bot with optional post-game review"
+    },
+    {
+      "path": "scripts/mcp-six-agent-harness.ts",
+      "purpose": "Concurrent hosted MCP regression harness"
+    }
   ],
   "phaseActionMap": {
     "fleetBuilding": {
