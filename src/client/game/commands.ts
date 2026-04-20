@@ -106,6 +106,12 @@ export const keyboardActionToCommand = (
         direction: action.direction,
         steps: action.steps,
       };
+    case 'setOverloadDirection':
+      return {
+        type: 'setOverloadDirection',
+        shipId: action.shipId,
+        direction: action.direction,
+      };
     case 'setBurnDirection':
       return { type: 'setBurnDirection', direction: action.direction };
     case 'clearSelectedBurn':

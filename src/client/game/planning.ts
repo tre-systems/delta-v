@@ -175,7 +175,7 @@ export type KeyboardPlanningSnapshot = Pick<
   ShipSelectionView,
   'selectedShipId'
 > &
-  Pick<AstrogationPlanningView, 'acknowledgedShips'> &
+  Pick<AstrogationPlanningView, 'acknowledgedShips' | 'burns' | 'overloads'> &
   Pick<
     OrdnancePlanningView,
     | 'torpedoAimingActive'

@@ -10,6 +10,10 @@ const createContext = (
     state: 'menu',
     hasGameState: false,
     typingInInput: false,
+    selectedShipId: null,
+    selectedShipCanOverload: false,
+    selectedShipBurnDirection: null,
+    selectedShipOverloadDirection: null,
     combatTargetId: null,
     queuedAttackCount: 0,
     torpedoAccelActive: false,
@@ -229,6 +233,35 @@ describe('game-client-keyboard', () => {
       kind: 'setBurnDirection',
       preventDefault: false,
       direction: 4,
+    });
+
+    expect(
+      actionFor('!', {
+        state: 'playing_astrogation',
+        selectedShipId: 'ship-0',
+        selectedShipCanOverload: true,
+        selectedShipBurnDirection: 4,
+      }),
+    ).toEqual({
+      kind: 'setOverloadDirection',
+      preventDefault: false,
+      shipId: 'ship-0',
+      direction: 0,
+    });
+
+    expect(
+      actionFor('!', {
+        state: 'playing_astrogation',
+        selectedShipId: 'ship-0',
+        selectedShipCanOverload: true,
+        selectedShipBurnDirection: 4,
+        selectedShipOverloadDirection: 0,
+      }),
+    ).toEqual({
+      kind: 'setOverloadDirection',
+      preventDefault: false,
+      shipId: 'ship-0',
+      direction: null,
     });
 
     expect(actionFor('0', { state: 'playing_astrogation' })).toEqual({
