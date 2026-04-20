@@ -36,6 +36,25 @@ describe('GameLogView', () => {
     expect(chatRow.hasAttribute('hidden')).toBe(false);
   });
 
+  it('hides the floating exit button while desktop chat is active', () => {
+    const view = createGameLogView({ onChat: vi.fn() });
+
+    view.setChatEnabled(true);
+    view.setScreenMode('hud');
+
+    expect(document.body.classList.contains('game-log-chat-active')).toBe(true);
+
+    view.toggle();
+    expect(document.body.classList.contains('game-log-chat-active')).toBe(
+      false,
+    );
+
+    view.dispose();
+    expect(document.body.classList.contains('game-log-chat-active')).toBe(
+      false,
+    );
+  });
+
   it('collapses to latest bar and expands on toggle', () => {
     Object.defineProperty(window, 'innerWidth', { value: 400, writable: true });
     const view = createGameLogView({ onChat: vi.fn() });

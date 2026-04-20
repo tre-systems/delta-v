@@ -117,6 +117,80 @@ describe('LobbyView', () => {
     expect(toggleHelpOverlay).toHaveBeenCalledTimes(1);
   });
 
+  it('skips the initial rank lookup for untouched anonymous callsigns', () => {
+    const fetchPlayerRank = vi.fn();
+
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot 5678',
+      setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 5678',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
+      fetchPlayerRank,
+    });
+
+    expect(fetchPlayerRank).not.toHaveBeenCalled();
+  });
+
+  it('fetches the current rank on boot for claimed callsigns', () => {
+    const fetchPlayerRank = vi.fn(async () => ({
+      ok: true as const,
+      player: {
+        username: 'Reyes',
+        rating: 1520,
+        rd: 120,
+        gamesPlayed: 12,
+        provisional: false,
+        rank: 4,
+      },
+    }));
+
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Reyes',
+      setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Reyes',
+          isAgent: false,
+          rating: 1520,
+          rd: 120,
+          gamesPlayed: 12,
+        },
+        renamed: false,
+      }),
+      fetchPlayerRank,
+    });
+
+    expect(fetchPlayerRank).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerKey: 'humankey12345678',
+      }),
+    );
+  });
+
   it('emits multiplayer and single-player scenario events', () => {
     const emit = vi.fn();
     const showMenu = vi.fn();
