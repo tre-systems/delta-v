@@ -516,7 +516,9 @@
 .help-btn,
 .sound-btn {
   position: fixed;
-  right: 0.75rem;
+  /* Sit to the left of the 230px game-log panel so the floating icons
+   * never overlap log entries or the chat input row. */
+  right: calc(var(--hud-edge-right) + 230px + 0.5rem);
   z-index: 5;
   display: flex;
   align-items: center;
@@ -567,15 +569,10 @@
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-/* While the replay bar is visible (spectator/replay mode), shift the
- * floating right-rail icons left of the game log so they don't sit on
- * top of the log entries, and hide the in-HUD exit button — the replay
- * bar has its own EXIT. */
-body.replay-bar-active .help-btn,
-body.replay-bar-active .sound-btn {
-  right: calc(var(--hud-edge-right) + 230px + 0.5rem);
-}
-
+/* Lift the floating right-rail icons above the replay bar so they
+ * don't collide with it, and hide the in-HUD exit button — the replay
+ * bar has its own EXIT. Horizontal positioning left of the log is
+ * already covered by the base .help-btn / .sound-btn rule. */
 body.replay-bar-active .help-btn {
   bottom: calc(4.25rem + var(--safe-bottom));
 }

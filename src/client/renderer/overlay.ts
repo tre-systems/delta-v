@@ -287,7 +287,16 @@ export const renderTorpedoGuidance = ({
   // no modal "aiming mode" toggle. Clicking a direction sets the boost
   // aim; the TORPEDO button commits the launch with whatever aim is
   // currently selected (coast by default).
-  if (!SHIP_STATS[ship.type]?.canLaunchTorpedoes) return;
+  const stats = SHIP_STATS[ship.type];
+  if (!stats?.canLaunchTorpedoes) return;
+  // Hide the aim halos when the ship cannot actually commit a torpedo
+  // (cargo full, disabled, landed, resupplied, etc.) — otherwise the
+  // player sees controls for an unreachable action.
+  const TORPEDO_MASS = 20;
+  if (stats.cargo - ship.cargoUsed < TORPEDO_MASS) return;
+  if (ship.damage.disabledTurns > 0) return;
+  if (ship.lifecycle !== 'active') return;
+  if (ship.resuppliedThisTurn) return;
 
   const shipPos = hexToPixel(ship.position, hexSize);
   const accel = planningState.torpedoAccel;
