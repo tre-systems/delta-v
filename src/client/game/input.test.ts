@@ -246,10 +246,12 @@ describe('game client input helpers', () => {
     });
   });
 
-  it('ignores adjacent torpedo-aim clicks until aiming mode is active', () => {
+  it('arms torpedo aim from an adjacent hex click when a torpedo-capable ship is selected', () => {
     const state = createState({ phase: 'ordnance' });
     const clickHex = hexAdd({ q: 0, r: 0 }, HEX_DIRECTIONS[0]);
 
+    // No "aiming mode" gate anymore: clicking an adjacent halo while a
+    // corvette/frigate is selected sets the boost direction directly.
     expect(
       resolveOrdnanceClick(
         state,
@@ -257,7 +259,7 @@ describe('game client input helpers', () => {
         createPlanning({ selectedShipId: 'ship-0' }),
         clickHex,
       ),
-    ).toEqual({ type: 'none' });
+    ).toMatchObject({ type: 'torpedoAccel' });
   });
 
   it('selects an operational ship during ordnance and clears pending torpedo accel', () => {
