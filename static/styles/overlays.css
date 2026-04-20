@@ -570,15 +570,18 @@ body.replay-bar-active .sound-btn {
 }
 
 body.replay-bar-active .exit-game-btn {
-  display: none;
+  display: none !important;
+  pointer-events: none;
 }
 
 body.game-over-shell-active .exit-game-btn {
-  display: none;
+  display: none !important;
+  pointer-events: none;
 }
 
 body.game-log-chat-active .exit-game-btn {
-  display: none;
+  display: none !important;
+  pointer-events: none;
 }
 
 .help-btn:hover,
