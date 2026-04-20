@@ -166,6 +166,28 @@ describe('handleMcpHttpRequest abuse protections', () => {
     expect(callArg?.key.startsWith('ip:')).toBe(true);
   });
 
+  it('falls back to a Worker-local MCP rate limit when the binding is missing', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const buildRequest = () =>
+      new Request('https://w.test/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json,text/event-stream',
+          'cf-connecting-ip': '2.2.2.2',
+        },
+        body: JSON.stringify(initializeBody),
+      });
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const response = await handleMcpHttpRequest(buildRequest(), env);
+      expect(response.status).toBe(200);
+    }
+
+    const blocked = await handleMcpHttpRequest(buildRequest(), env);
+    expect(blocked.status).toBe(429);
+  });
+
   it('derives the MCP rate-limit key from the agentToken hash when present', async () => {
     const limit = vi.fn(async () => ({ success: false }));
     const env = {

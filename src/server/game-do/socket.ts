@@ -12,6 +12,7 @@ import type { AuxMessage } from './actions';
 export const WS_MSG_RATE_LIMIT = 10;
 export const WS_MSG_RATE_WINDOW_MS = 1_000;
 export const CHAT_RATE_LIMIT_MS = 500;
+export const WS_MAX_MESSAGE_BYTES = 8 * 1024;
 
 interface RateWindow {
   count: number;
@@ -45,6 +46,13 @@ export const applySocketRateLimit = (
 };
 
 export const parseClientSocketMessage = (message: string): Result<C2S> => {
+  if (message.length > WS_MAX_MESSAGE_BYTES) {
+    return {
+      ok: false,
+      error: `Message exceeds the ${WS_MAX_MESSAGE_BYTES}-byte limit`,
+    };
+  }
+
   let raw: unknown;
   try {
     raw = JSON.parse(message);

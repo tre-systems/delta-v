@@ -70,6 +70,14 @@ import { queueRemoteMatch } from './quick-match';
 // burn server CPU on parsing. Kept below Cloudflare's Worker request
 // body cap so this rejection short-circuits transport-level handling.
 const MCP_MAX_BODY_BYTES = 16 * 1024;
+const MCP_RATE_LIMIT = 20;
+const MCP_RATE_LIMIT_WINDOW_MS = 60_000;
+const MCP_RATE_LIMIT_MAP_MAX_KEYS = 2000;
+
+const mcpRateLimitMap = new Map<
+  string,
+  { count: number; windowStart: number }
+>();
 
 const SERVER_INTERNAL = 'https://game.internal';
 
@@ -919,6 +927,26 @@ const tooManyMcpRequestsResponse = (): Response =>
     headers: { 'Retry-After': '60' },
   });
 
+const isMcpRateLimitedInMemory = (key: string): boolean => {
+  const now = Date.now();
+  if (mcpRateLimitMap.size > MCP_RATE_LIMIT_MAP_MAX_KEYS) {
+    for (const [currentKey, value] of mcpRateLimitMap) {
+      if (now - value.windowStart >= MCP_RATE_LIMIT_WINDOW_MS) {
+        mcpRateLimitMap.delete(currentKey);
+      }
+    }
+  }
+
+  const existing = mcpRateLimitMap.get(key);
+  if (!existing || now - existing.windowStart >= MCP_RATE_LIMIT_WINDOW_MS) {
+    mcpRateLimitMap.set(key, { count: 1, windowStart: now });
+    return false;
+  }
+
+  existing.count += 1;
+  return existing.count > MCP_RATE_LIMIT;
+};
+
 // Rate-limit key: bind to the agentToken when available (a legitimate
 // agent uses one token across calls, so this blocks single-agent spam),
 // otherwise fall back to the hashed client IP for unauthenticated / legacy
@@ -936,10 +964,13 @@ const enforceMcpRateLimit = async (
   env: Env,
   request: Request,
 ): Promise<Response | null> => {
-  if (!env.MCP_RATE_LIMITER) return null;
   const key = await deriveRateLimitKey(request);
+  const localBlocked = isMcpRateLimitedInMemory(key);
+  if (!env.MCP_RATE_LIMITER) {
+    return localBlocked ? tooManyMcpRequestsResponse() : null;
+  }
   const { success } = await env.MCP_RATE_LIMITER.limit({ key });
-  return success ? null : tooManyMcpRequestsResponse();
+  return localBlocked || !success ? tooManyMcpRequestsResponse() : null;
 };
 
 const enforceMcpBodySize = async (
