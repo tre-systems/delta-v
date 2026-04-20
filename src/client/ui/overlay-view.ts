@@ -437,8 +437,12 @@ export const createOverlayView = (
       visible(replayStatusEl, replayAvailable);
 
       // When replay is active, game-over shell visibility is handled by
-      // gameOverShellVisible; show the compact bottom bar only.
-      if (replayControlsEnabled && replayView.active) {
+      // gameOverShellVisible; show the compact bottom bar only. We also
+      // tag the <body> so CSS can (a) bump the right-rail floating
+      // buttons up above the bar and (b) hide the redundant in-HUD exit
+      // button — the replay bar already has its own EXIT.
+      const replayBarActive = replayControlsEnabled && replayView.active;
+      if (replayBarActive) {
         show(replayBarEl, 'flex');
         text(replayBarStatusEl, replayView.statusText);
         replayBarStartBtn.disabled = !replayView.canStart;
@@ -464,6 +468,7 @@ export const createOverlayView = (
       } else {
         hide(replayBarEl);
       }
+      document.body.classList.toggle('replay-bar-active', replayBarActive);
 
       if (!replayAvailable) {
         return;

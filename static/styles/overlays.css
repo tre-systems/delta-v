@@ -558,6 +558,21 @@
   line-height: 1;
 }
 
+/* While the replay bar is visible (spectator/replay mode), lift the
+ * floating right-rail icons so they don't collide with the bar, and
+ * hide the in-HUD exit button — the replay bar has its own EXIT. */
+body.replay-bar-active .help-btn {
+  bottom: calc(4.25rem + var(--safe-bottom));
+}
+
+body.replay-bar-active .sound-btn {
+  bottom: calc(6.75rem + var(--safe-bottom));
+}
+
+body.replay-bar-active .exit-game-btn {
+  display: none;
+}
+
 .help-btn:hover,
 .sound-btn:hover,
 .exit-game-btn:hover {

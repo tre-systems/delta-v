@@ -1,0 +1,13 @@
+# Security headers applied to every static asset served by Cloudflare
+# Workers Assets. Worker-served routes (e.g. /api/*) apply the same set
+# via src/server/response-headers.ts — keep these two paths in sync.
+#
+# Docs: https://developers.cloudflare.com/workers/static-assets/headers/
+
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://delta-v.tre.systems wss://delta-v.tre.systems ws://delta-v.tre.systems; img-src 'self' data:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
