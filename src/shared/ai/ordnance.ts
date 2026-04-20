@@ -66,12 +66,50 @@ const NUKE_COST_MCR = 300;
 const TORPEDO_COST_MCR = 20;
 const TORPEDO_EXPECTED_DISABLE_FRACTION =
   (0 + 1 + 1 + 1 + 2 + 3) / 6 / DAMAGE_ELIMINATION_THRESHOLD;
+const HARD_NUKE_REACH_THRESHOLDS = {
+  direct: [0.16, 0.22, 0.3],
+  torpedoViable: [0.18, 0.26, 0.34],
+} as const;
+const HARD_NUKE_SCORE_FLOOR_STEPS = {
+  direct: [NUKE_SCORE_FLOOR, 82, 94],
+  torpedoViable: [NUKE_SCORE_FLOOR_WHEN_TORPEDO_VIABLE, 132, 144],
+} as const;
 
 export type LaunchInterceptAssessment = {
   hasIntercept: boolean;
   turnsToIntercept: number;
   targetShipId: Ship['id'] | null;
 };
+
+const clampInterceptWindowIndex = (turnsToIntercept: number): 0 | 1 | 2 => {
+  if (turnsToIntercept <= 1) return 0;
+  if (turnsToIntercept <= 2) return 1;
+  return 2;
+};
+
+export const resolveHardNukeReachThreshold = (
+  turnsToIntercept: number,
+  torpedoAlsoViable: boolean,
+): number =>
+  torpedoAlsoViable
+    ? HARD_NUKE_REACH_THRESHOLDS.torpedoViable[
+        clampInterceptWindowIndex(turnsToIntercept)
+      ]
+    : HARD_NUKE_REACH_THRESHOLDS.direct[
+        clampInterceptWindowIndex(turnsToIntercept)
+      ];
+
+export const resolveHardNukeScoreFloor = (
+  turnsToIntercept: number,
+  torpedoAlsoViable: boolean,
+): number =>
+  torpedoAlsoViable
+    ? HARD_NUKE_SCORE_FLOOR_STEPS.torpedoViable[
+        clampInterceptWindowIndex(turnsToIntercept)
+      ]
+    : HARD_NUKE_SCORE_FLOOR_STEPS.direct[
+        clampInterceptWindowIndex(turnsToIntercept)
+      ];
 
 const projectBallisticStep = (
   position: HexCoord,
@@ -761,9 +799,15 @@ export const aiOrdnance = (
       const torpedoAlsoViable =
         canLaunchTorpedo &&
         Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange;
-      const nukeScoreFloor = torpedoAlsoViable
-        ? NUKE_SCORE_FLOOR_WHEN_TORPEDO_VIABLE
-        : NUKE_SCORE_FLOOR;
+      const nukeScoreFloor =
+        difficulty === 'hard'
+          ? resolveHardNukeScoreFloor(
+              nukeIntercept.turnsToIntercept,
+              torpedoAlsoViable,
+            )
+          : torpedoAlsoViable
+            ? NUKE_SCORE_FLOOR_WHEN_TORPEDO_VIABLE
+            : NUKE_SCORE_FLOOR;
       const targetStrategicValue = estimateStrategicTargetValue(
         bestEnemy,
         bestEnemyTarget.score,
@@ -784,9 +828,19 @@ export const aiOrdnance = (
           bestEnemyCurrentDist <= cfg.nukeStrengthRange) ||
         ((bestEnemy.passengersAboard ?? 0) > 0 &&
           bestEnemyCurrentDist <= cfg.nukeStrengthRange);
+      const requiredNukeReachProbability =
+        difficulty === 'hard' && cfg.nukeMinReachProbability > 0
+          ? Math.max(
+              cfg.nukeMinReachProbability,
+              resolveHardNukeReachThreshold(
+                nukeIntercept.turnsToIntercept,
+                torpedoAlsoViable,
+              ),
+            )
+          : cfg.nukeMinReachProbability;
       const antiNukeGateOk =
-        cfg.nukeMinReachProbability <= 0 ||
-        nukeReachSurvival >= cfg.nukeMinReachProbability;
+        requiredNukeReachProbability <= 0 ||
+        nukeReachSurvival >= requiredNukeReachProbability;
       const expectedDamageGateOk =
         !torpedoAlsoViable || nukeExpectedNetValue >= torpedoExpectedNetValue;
 

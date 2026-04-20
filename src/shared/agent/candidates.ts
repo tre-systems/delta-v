@@ -221,7 +221,7 @@ export const hasRecentOwnOrdnanceLaunch = (
       ord.turnsRemaining === 4,
   );
 
-const CONSECUTIVE_TORPEDO_HIGH_THREAT_SCORE = 45;
+const CONSECUTIVE_TORPEDO_HIGH_THREAT_SCORE = 52;
 
 export const isHighConfidenceConsecutiveOrdnanceAction = (
   state: GameState,
