@@ -115,6 +115,17 @@ export const createMainSessionShell = (
     transitionToPhase();
   };
 
+  // During replay playback the live presentation helpers flip the client
+  // state to `playing_movementAnim` (see `presentMovementResult`), which
+  // hides the replay bar and spectator HUD (they only render when the
+  // client is in `gameOver`). Wrap the animation completion so we restore
+  // the spectator-safe state before the controller schedules the next
+  // entry.
+  const wrapReplayDone = (onAnimationsDone: () => void) => () => {
+    setState('gameOver');
+    onAnimationsDone();
+  };
+
   const presentReplayMovementEntry = (
     message: Extract<S2C, { type: 'movementResult' }>,
     onAnimationsDone: () => void,
@@ -124,7 +135,7 @@ export const createMainSessionShell = (
       message.movements,
       message.ordnanceMovements,
       message.events,
-      onAnimationsDone,
+      wrapReplayDone(onAnimationsDone),
     );
   };
 
@@ -139,7 +150,7 @@ export const createMainSessionShell = (
       args.ctx.gameStateSignal.peek() ??
       structuredClone(state);
     messageHandlerDeps.presentCombatResults(prior, state, results, false);
-    setTimeout(onAnimationsDone, 1800);
+    setTimeout(wrapReplayDone(onAnimationsDone), 1800);
   };
 
   const handleMessage = (msg: S2C) => {
