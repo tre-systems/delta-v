@@ -273,7 +273,7 @@ Gaps in local vs hosted MCP parity, first-class resources, and structured reject
 
 **Done for this slice:** engine validation/resource failures that are still submitter-scoped now map into typed `actionRejected` reasons instead of collapsing to a generic `error` transport message.
 
-**Remaining:** extend the structured rejection coverage to any remaining engine-invalid paths that still escape through generic `error` (room/runtime errors like `ROOM_NOT_FOUND` and `GAME_IN_PROGRESS` are still intentionally on the plain error channel).
+**Done for this slice:** the remaining room/runtime failures (`ROOM_NOT_FOUND`, `ROOM_FULL`, `GAME_IN_PROGRESS`) are now explicitly covered as intentional plain-error cases, so all engine-invalid submitter-scoped failures are on the structured `actionRejected` path and only true room/runtime conditions stay on the generic error channel.
 
 **Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/protocol.ts`, `src/shared/protocol.ts`, `scripts/delta-v-mcp-server.ts`, `src/client/game/client-message-plans.ts`
 
