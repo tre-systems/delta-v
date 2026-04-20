@@ -1,5 +1,6 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
+import { buildDefaultUsername } from '../../shared/player';
 import { byId, cls, hide, listen, setTrustedHTML, show, text } from '../dom';
 import { isClientFeatureEnabled } from '../feature-flags';
 import {
@@ -219,6 +220,11 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     pendingAIGameSignal.value = false;
   };
 
+  const hasClaimedCallsign = (): boolean => {
+    const playerKey = deps.getPlayerKey();
+    return deps.getPlayerName() !== buildDefaultUsername(playerKey);
+  };
+
   // True when the current URL will boot the client into a non-menu view
   // (spectator, live join, archived replay). In that case the menu is
   // never shown on initial load, so the best-effort rank lookup below
@@ -386,6 +392,10 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     };
 
     const refreshRank = () => {
+      if (!hasClaimedCallsign()) {
+        return;
+      }
+
       const playerKey = deps.getPlayerKey();
       void fetchRank({ playerKey }).then((result) => {
         if (!result.ok) return;
