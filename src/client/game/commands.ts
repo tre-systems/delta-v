@@ -100,6 +100,12 @@ export const keyboardActionToCommand = (
       return { type: 'adjustCombatStrength', delta: action.delta };
     case 'launchOrdnance':
       return { type: 'launchOrdnance', ordType: action.ordnanceType };
+    case 'setTorpedoAccel':
+      return {
+        type: 'setTorpedoAccel',
+        direction: action.direction,
+        steps: action.steps,
+      };
     case 'setBurnDirection':
       return { type: 'setBurnDirection', direction: action.direction };
     case 'clearSelectedBurn':

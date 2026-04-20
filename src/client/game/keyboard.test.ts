@@ -14,6 +14,8 @@ const createContext = (
     queuedAttackCount: 0,
     torpedoAccelActive: false,
     torpedoAimingActive: false,
+    torpedoAccelDirection: null,
+    torpedoAccelSteps: null,
     allShipsAcknowledged: false,
     allOrdnanceShipsAcknowledged: false,
     hasSelectedShip: false,
@@ -171,6 +173,56 @@ describe('game-client-keyboard', () => {
       kind: 'launchOrdnance',
       preventDefault: false,
       ordnanceType: 'mine',
+    });
+
+    expect(
+      actionFor('3', {
+        state: 'playing_ordnance',
+        torpedoAimingActive: true,
+      }),
+    ).toEqual({
+      kind: 'setTorpedoAccel',
+      preventDefault: false,
+      direction: 2,
+      steps: 1,
+    });
+
+    expect(
+      actionFor('3', {
+        state: 'playing_ordnance',
+        torpedoAimingActive: true,
+        torpedoAccelDirection: 2,
+        torpedoAccelSteps: 1,
+      }),
+    ).toEqual({
+      kind: 'setTorpedoAccel',
+      preventDefault: false,
+      direction: 2,
+      steps: 2,
+    });
+
+    expect(
+      actionFor('3', {
+        state: 'playing_ordnance',
+        torpedoAimingActive: true,
+        torpedoAccelDirection: 2,
+        torpedoAccelSteps: 2,
+      }),
+    ).toEqual({
+      kind: 'setTorpedoAccel',
+      preventDefault: false,
+      direction: null,
+      steps: null,
+    });
+
+    expect(
+      actionFor('0', {
+        state: 'playing_ordnance',
+        torpedoAimingActive: true,
+      }),
+    ).toEqual({
+      kind: 'clearTorpedoAcceleration',
+      preventDefault: false,
     });
 
     expect(actionFor('5', { state: 'playing_astrogation' })).toEqual({
