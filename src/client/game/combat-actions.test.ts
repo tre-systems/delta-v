@@ -107,6 +107,7 @@ const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
   const planningState = createPlanningStore();
   const state = createState();
   const showToast = vi.fn<CombatActionDeps['showToast']>();
+  const logText = vi.fn<CombatActionDeps['logText']>();
   const transport: GameTransport = {
     submitAstrogation: vi.fn(),
     submitCombat: vi.fn(),
@@ -132,6 +133,7 @@ const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
     getMap: () => map,
     planningState,
     showToast,
+    logText,
   } satisfies CombatActionDeps;
 
   return {
@@ -275,9 +277,9 @@ describe('combat action helpers', () => {
 
     expect(deps.transport.endCombat).not.toHaveBeenCalled();
     expect(deps.transport.submitSingleCombat).not.toHaveBeenCalled();
-    expect(deps.showToast).toHaveBeenLastCalledWith(
+    expect(deps.showToast).not.toHaveBeenCalled();
+    expect(deps.logText).toHaveBeenLastCalledWith(
       'Selected target is blocked or has no legal attackers',
-      'error',
     );
   });
 
