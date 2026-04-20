@@ -165,6 +165,10 @@ const buildLeaderboardResponse = async (
 
   const rows = (results ?? [])
     .filter((row) => !isReservedTestUsername(row.username))
+    // A claimed callsign with zero completed games isn't useful on the
+    // ladder (rating is the default 1500 ±350). Suppress them so the
+    // provisional list only shows players who have actually played.
+    .filter((row) => row.games_played > 0)
     .map(toEntry);
   const filtered = includeProvisional
     ? rows

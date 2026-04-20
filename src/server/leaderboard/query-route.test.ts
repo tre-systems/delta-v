@@ -77,6 +77,20 @@ describe('handleLeaderboardQuery', () => {
     expect(body.entries[1].provisional).toBe(true);
   });
 
+  it('hides claimed callsigns that have never played, even in provisional view', async () => {
+    const { db } = mockDb([
+      row({ username: 'Actual', rating: 1500, rd: 120, games_played: 3 }),
+      // Claimed callsign with no completed games — rating still default.
+      row({ username: 'Lurker', rating: 1500, rd: 350, games_played: 0 }),
+    ]);
+    const res = await handleLeaderboardQuery(
+      new Request('https://w.test/api/leaderboard?includeProvisional=true'),
+      env(db),
+    );
+    const body = (await res.json()) as LeaderboardResponse;
+    expect(body.entries.map((e) => e.username)).toEqual(['Actual']);
+  });
+
   it('filters reserved exploratory usernames from the public leaderboard', async () => {
     const { db } = mockDb([
       row({ username: 'QA_Probe_A', rating: 1800, rd: 80 }),

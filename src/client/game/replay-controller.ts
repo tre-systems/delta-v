@@ -186,12 +186,29 @@ export const createReplayController = (
     };
   };
 
+  let shownOutcomeForIndex: number | null = null;
+
   const clearReplay = () => {
     stopPlay();
     replayTimeline = null;
     replayIndex = null;
     replaySourceState = null;
     selectedReplayGameId = null;
+    shownOutcomeForIndex = null;
+  };
+
+  const maybeAnnounceOutcome = (entry: ReplayEntry, index: number) => {
+    if (!replayTimeline) return;
+    const isLast = index === replayTimeline.entries.length - 1;
+    const outcome = entry.message.state.outcome;
+    if (!isLast || !outcome || shownOutcomeForIndex === index) return;
+    shownOutcomeForIndex = index;
+    const winnerLabel = `Player ${outcome.winner + 1}`;
+    deps.logText(
+      `Replay ended — ${winnerLabel} wins: ${outcome.reason}`,
+      'log-status',
+    );
+    deps.showToast(`${winnerLabel} wins — ${outcome.reason}`, 'info');
   };
 
   // Apply a single replay entry. When `animateContinuation` is supplied we
@@ -211,12 +228,14 @@ export const createReplayController = (
     if (animateContinuation) {
       deps.presentReplayEntry(entry, previousState, animateContinuation);
       deps.frameOnActivePlayer(entry.message.state);
+      maybeAnnounceOutcome(entry, index);
       return;
     }
 
     deps.clearTrails();
     deps.applyGameState(entry.message.state);
     deps.frameOnActivePlayer(entry.message.state);
+    maybeAnnounceOutcome(entry, index);
   };
 
   const scheduleNextEntry = (token: number) => {
@@ -259,6 +278,7 @@ export const createReplayController = (
 
     if (replayIndex >= maxIndex) {
       replayIndex = 0;
+      shownOutcomeForIndex = null;
       pendingAnimationToken = token;
       applyReplayEntry(replayIndex, () => {
         if (pendingAnimationToken !== token) return;

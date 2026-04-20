@@ -22,6 +22,8 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   turn: 1,
   phase: 'astrogation',
   isMyTurn: true,
+  isSpectator: false,
+  activePlayer: 0,
   fuel: 10,
   maxFuel: 10,
   hasBurns: false,
@@ -253,6 +255,21 @@ describe('ui hud helpers', () => {
       statusText: null,
       skipCombatVisible: false,
       confirmVisible: false,
+    });
+
+    expect(
+      buildHUDView(
+        buildInput({
+          turn: 5,
+          phase: 'astrogation',
+          isMyTurn: false,
+          isSpectator: true,
+          activePlayer: 1,
+        }),
+      ),
+    ).toMatchObject({
+      phaseText: 'P2 ASTROGATION',
+      fuelGaugeText: '',
     });
 
     expect(
