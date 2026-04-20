@@ -170,14 +170,6 @@ Exploratory pass 2026-04-20: `exitGameBtn` (the floating `×` added to HUD mode)
 
 **Files:** `src/client/ui/screens.ts`, `src/client/ui/visibility.ts`
 
-### Static HTML responses ship without security headers
-
-`curl -D- https://delta-v.tre.systems/` and `/matches`, `/leaderboard`, `/agents` return with **no** `Content-Security-Policy`, `X-Frame-Options`, `Strict-Transport-Security`, `Referrer-Policy`, `Permissions-Policy`, or `X-Content-Type-Options`. The Worker's response-headers middleware (`applyResponseHeaders` in [src/server/response-headers.ts](../src/server/response-headers.ts)) is bypassed when Cloudflare Assets serves the fallback static HTML. API endpoints (`/api/leaderboard`, `/healthz`) do return the full header set. The main user-facing surface is therefore iframe-able from anywhere, which is a click-jacking risk, and has no CSP guard.
-
-**Fix:** route static HTML through the Worker, or add a `_headers` asset file the Assets runtime will apply, or set headers at the Cloudflare Rules layer. Easiest: add a fall-through in `src/server/index.ts` that fetches the asset and wraps the response through `applyResponseHeaders` before returning.
-
-**Files:** `src/server/index.ts`, `src/server/response-headers.ts`, possibly `wrangler.toml`
-
 ---
 
 ## AI behavior & rules conformance
@@ -340,42 +332,6 @@ Confirmed 2026-04-19: `POST /create` returns a 5-char code from a 32-char alphab
 **Decision (2026-04-19, product):** this is *not* a launch-blocker. Frictionless start (no login, share-and-join) outweighs private-room hijack defence. Document the trade-off and skip auth/captcha/invite-token work; revisit only if real-world griefing is observed post-launch. The actually-actionable bit that remains is the bare 1006 close shape on a full room when no player token or spectator flag is provided.
 
 **Files:** —
-
-### Cap or gate live spectator fanout
-
-Second-pass review (2026-04-20): live room codes are exposed through `/api/matches?status=live`, and any caller can then open `WebSocket(/ws/<code>?viewer=spectator)` with no auth. Every state-bearing broadcast fans out to all spectator sockets, so a distributed attacker can cheaply turn a few active matches into a bandwidth/CPU multiplier. Decide whether live spectators stay public; if they do, add at least a per-room spectator cap and cheap abuse visibility, or require an explicit spectator invite/token before opening the socket.
-
-**Files:** `src/server/index.ts`, `src/server/live-registry-do.ts`, `src/server/game-do/fetch.ts`, `src/server/game-do/broadcast.ts`
-
-### Make hosted MCP event buffering opt-in
-
-Second-pass review (2026-04-20): hosted MCP seat buffering currently appends per-seat events on every state change and broadcast, even for browser-only games that never call hosted MCP session helpers. The current `read-modify-write` buffer in Durable Object storage turns normal gameplay into extra storage IO/serialization cost. Defer buffer writes until a hosted MCP session helper is actually used for that room/seat, or move the buffer to a cheaper append-friendly structure.
-
-**Files:** `src/server/game-do/game-do.ts`, `src/server/game-do/mcp-session-state.ts`, `src/server/game-do/mcp-handlers.ts`
-
-### Add a fallback `/mcp` limiter when the binding is missing
-
-Second-pass review (2026-04-20): `/mcp` currently becomes effectively unthrottled if `MCP_RATE_LIMITER` is absent, because `enforceMcpRateLimit()` returns `null` and there is no Worker-local fallback bucket. That makes the most expensive public surface (25-second waits, matchmaking, MCP resources, hosted session helpers) rely entirely on deployment correctness. Mirror the strict per-isolate fallback model already used for `/create` / `/api/agent-token` so a missing binding does not silently remove all protection.
-
-**Files:** `packages/mcp-adapter/src/handlers.ts`, `wrangler.toml`, `docs/SECURITY.md`
-
-### Tighten public telemetry / error ingestion
-
-Second-pass review (2026-04-20): `/telemetry` and `/error` accept arbitrary JSON POSTs from any non-browser caller; CORS only restricts browser reads, not writes. The current path also logs the raw payload before any deeper filtering and then writes accepted events to D1. Decide whether these endpoints are truly public. If not, require a lightweight first-party proof (shared nonce, token, or strict origin gate) and trim/scrub logged payloads so the routes stop acting as cheap public log-write sinks.
-
-**Files:** `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`, `docs/OBSERVABILITY.md`
-
-### Add archive retention / tiering
-
-Second-pass review (2026-04-20): completed matches are written permanently to R2 plus `match_archive`, but there is no retention, compaction, or cold-storage policy. If usage grows, storage cost grows monotonically even if active traffic stays flat. Define the intended retention window and whether older archives stay hot, move to cheaper storage, or have their heavier replay payloads compacted.
-
-**Files:** `src/server/game-do/match-archive.ts`, `src/server/game-do/archive-storage.ts`, `docs/OBSERVABILITY.md`
-
-### Reject oversized WebSocket frames before parse
-
-Second-pass review (2026-04-20): player sockets enforce message count but not frame size before `JSON.parse()`. Validation later limits chat length and structured payload shape, but that does not protect the Worker from one or two oversized frames consuming disproportionate CPU/memory first. Add a raw byte/char cap on incoming frames and close or reject before parse.
-
-**Files:** `src/server/game-do/ws.ts`, `src/server/game-do/socket.ts`, `src/shared/protocol.ts`
 
 ### Clear the transitive `hono` advisory in the MCP adapter chain
 
