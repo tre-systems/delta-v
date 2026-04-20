@@ -591,9 +591,10 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
       if (difficultyHintEl) {
         const lines: Record<AIDifficulty, string> = {
-          easy: 'AI uses a lighter search — good for learning openings.',
-          normal: 'Balanced AI search depth for most players.',
-          hard: 'Deeper search and sharper heuristics — expect punishing punts.',
+          easy: 'Forgiving openings and lighter pressure — best for learning the map and turn flow.',
+          normal:
+            'Balanced pressure and cleaner mistakes — the default duel for most players.',
+          hard: 'Longer-range threats and tighter punish windows — expect the AI to press advantages.',
         };
         text(difficultyHintEl, lines[diff]);
       }

@@ -339,11 +339,32 @@
   padding: 0.55rem 0.45rem;
   font-size: 0.72rem;
   letter-spacing: 0.1em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
   --btn-color: #a8b8d2;
   --btn-border: rgba(142, 176, 235, 0.14);
   --btn-border-hover: rgba(142, 176, 235, 0.28);
   --btn-bg: rgba(255, 255, 255, 0.02);
   --btn-bg-hover: rgba(255, 255, 255, 0.05);
+}
+
+#menu .difficulty-tier {
+  display: block;
+}
+
+#menu .difficulty-tier-note {
+  display: block;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: rgba(199, 212, 234, 0.72);
+}
+
+#menu .btn-difficulty.active .difficulty-tier-note {
+  color: rgba(235, 244, 255, 0.88);
 }
 
 #menu .btn-difficulty.active {
