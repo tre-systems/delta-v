@@ -341,6 +341,10 @@ export const createOverlayView = (
     toastTimers.clear();
     autoDismissByToastId.clear();
     toastsSignal.value = [];
+    document.body.classList.remove(
+      'replay-bar-active',
+      'game-over-shell-active',
+    );
     scope.dispose();
     hide(reconnectOverlayEl);
     hide(opponentDisconnectEl);
@@ -426,6 +430,7 @@ export const createOverlayView = (
         gameOverEl.classList.remove('game-over-enter');
       }
 
+      document.body.classList.toggle('game-over-shell-active', shellVisible);
       gameOverShellWasVisible = shellVisible;
     });
 

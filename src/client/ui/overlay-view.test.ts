@@ -42,6 +42,7 @@ const installFixture = () => {
     <div id="replayBarProgress">
       <div id="replayBarProgressFill"></div>
     </div>
+    <button id="exitGameBtn"></button>
     <div id="reconnectOverlay" hidden></div>
     <div id="reconnectText"></div>
     <div id="reconnectAttempt"></div>
@@ -103,6 +104,9 @@ describe('OverlayView', () => {
     );
     expect(document.getElementById('gameOverReason')?.textContent).toContain(
       'Fleet eliminated!',
+    );
+    expect(document.body.classList.contains('game-over-shell-active')).toBe(
+      true,
     );
 
     const rematchBtn = document.getElementById(
@@ -242,6 +246,10 @@ describe('OverlayView', () => {
     expect(
       (document.getElementById('replayNextBtn') as HTMLButtonElement).disabled,
     ).toBe(false);
+    expect(document.body.classList.contains('replay-bar-active')).toBe(true);
+    expect(document.body.classList.contains('game-over-shell-active')).toBe(
+      false,
+    );
   });
 
   it('shows toast and phase alert with timed cleanup', () => {
