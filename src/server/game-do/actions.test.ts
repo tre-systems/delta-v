@@ -78,24 +78,25 @@ describe('runGameStateAction', () => {
     expect(deps.sendError).not.toHaveBeenCalled();
   });
 
-  it('keeps non-actionable room/runtime errors on the error channel', async () => {
+  it.each([
+    ErrorCode.GAME_IN_PROGRESS,
+    ErrorCode.ROOM_NOT_FOUND,
+    ErrorCode.ROOM_FULL,
+  ] as const)('keeps %s on the plain error channel', async (code) => {
     const deps = createDeps();
 
     await runGameStateAction(
       deps,
       async () => ({
         error: {
-          code: ErrorCode.GAME_IN_PROGRESS,
-          message: 'Game still in progress',
+          code,
+          message: 'Room/runtime error',
         },
       }),
       async () => {},
     );
 
     expect(deps.sendActionRejected).not.toHaveBeenCalled();
-    expect(deps.sendError).toHaveBeenCalledWith(
-      'Game still in progress',
-      ErrorCode.GAME_IN_PROGRESS,
-    );
+    expect(deps.sendError).toHaveBeenCalledWith('Room/runtime error', code);
   });
 });
