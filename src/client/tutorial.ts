@@ -59,7 +59,7 @@ const STEPS: TutorialStep[] = [
   {
     id: 'welcome',
     phase: 'astrogation',
-    text: 'Welcome! Your ship is on a planet — pick a burn direction next turn so you do not drift wrong-way. (You keep velocity between turns; details live in Help.)',
+    text: 'Welcome! Astrogation is about burns and drift — pick a ship and choose a burn direction so it does not coast the wrong way. (You keep velocity between turns; details live in Help.)',
   },
   {
     id: 'select-ship',
