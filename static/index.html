@@ -103,9 +103,18 @@
           <div class="difficulty-group">
             <div class="difficulty-label" id="difficultyLabel">Difficulty</div>
             <div id="difficultySelect" class="difficulty-select" role="radiogroup" aria-labelledby="difficultyLabel">
-              <button type="button" class="btn btn-difficulty" data-difficulty="easy" role="radio" aria-checked="false">Easy</button>
-              <button type="button" class="btn btn-difficulty active" data-difficulty="normal" role="radio" aria-checked="true">Normal</button>
-              <button type="button" class="btn btn-difficulty" data-difficulty="hard" role="radio" aria-checked="false">Hard</button>
+              <button type="button" class="btn btn-difficulty" data-difficulty="easy" role="radio" aria-checked="false">
+                <span class="difficulty-tier">Easy</span>
+                <span class="difficulty-tier-note">Learns the ropes</span>
+              </button>
+              <button type="button" class="btn btn-difficulty active" data-difficulty="normal" role="radio" aria-checked="true">
+                <span class="difficulty-tier">Normal</span>
+                <span class="difficulty-tier-note">Balanced duel</span>
+              </button>
+              <button type="button" class="btn btn-difficulty" data-difficulty="hard" role="radio" aria-checked="false">
+                <span class="difficulty-tier">Hard</span>
+                <span class="difficulty-tier-note">Punishes mistakes</span>
+              </button>
             </div>
             <p id="difficultyHint" class="difficulty-hint" aria-live="polite"></p>
           </div>
