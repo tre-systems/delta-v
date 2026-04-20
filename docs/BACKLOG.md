@@ -247,9 +247,9 @@ Implication for the launch-readiness snapshot: the earlier *first-player advanta
 
 Follow-up seeded sweep 2026-04-20 (`8` base seeds × `30` games = `240` total) still showed `28` timeouts (`11.7%`) and wide seed variance (`39.3%` to `70.4%` P0 decided-win rate, ~`55.2` average turns overall). So this was still a live tuning item, not just a remeasurement chore.
 
-**Done for this slice:** the fleet-builder no longer optimizes `fleetAction` into near-all-corvette swarms that can barely carry ordnance. It now rewards mixed warship fleets with real torpedo capacity, which moved a fresh 240-game hard-vs-hard sample to `120/100/20` (`50.0/41.7`, `8.3%` timeouts, `44.8` average turns). That is a material improvement from the earlier `102/106/32` (`13.3%` timeouts, `59.9` turns) sample on the old doctrine.
+**Done for this slice:** the fleet-builder no longer optimizes `fleetAction` into near-all-corvette swarms that can barely carry ordnance. It now rewards mixed warship fleets with real torpedo capacity, and the scenario-local closing override is stronger (`combatClosingWeight: 5`, `combatCloseBonus: 75`) so those fleets commit sooner once they enter range. A fresh 240-game hard-vs-hard sample moved to `121/101/18` (`50.4/42.1`, `7.5%` timeouts, `46.4` average turns), which is still materially better than the earlier `102/106/32` (`13.3%` timeouts, `59.9` turns) sample on the old doctrine.
 
-**Remaining:** decide whether `8.3%` is low enough to close this item or whether we want one more pass to push the timeout rate below ~`5%` without reviving seat skew.
+**Remaining:** decide whether `7.5%` is low enough to close this item or whether we want one more pass to push the timeout rate below ~`5%` without reviving seat skew.
 
 **Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenario-definitions.ts`, `src/shared/engine/victory.ts` (tiebreak)
 
