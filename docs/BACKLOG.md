@@ -188,7 +188,9 @@ Further AI ordnance work vs the [2018 Triplanetary rulebook](../Triplanetary2018
 
 **Done for this slice:** same-stack blocker regressions are now covered directly in the nuke-lane assessor, so enemies or enemy ordnance stacked on the intended target hex no longer count as premature blockers.
 
-**Remaining:** deeper gravity-edge assertions (beyond open-map determinism smoke), optional `game-engine.test.ts` integration seeds.
+**Done for this slice:** gravity-aware ballistic fixtures now cover real-map divergence too: one shipped solar-map case where gravity bends a nuke into a hit that does not exist on the empty map, and one where gravity pulls an apparent empty-space hit off target. The shared test helper now models ballistic motion for both ordnance and drifting targets with entered-gravity effects instead of only open-space drift.
+
+**Remaining:** optional `game-engine.test.ts` integration seeds if we later want end-to-end replay/engine coverage on top of the current ordnance helper + AI regression layer.
 
 **Files:** `src/shared/ai.test.ts`, `src/shared/test-helpers.ts`, `src/shared/test-helpers.test.ts`, optional `src/shared/engine/game-engine.test.ts`
 
@@ -220,6 +222,8 @@ Implication for the launch-readiness snapshot: the earlier *first-player advanta
 ### High timeout rate in `fleetAction`
 
 `grandTour` no longer records null timeouts in the simulation harness: when the phase cap trips in a checkpoint race, `scripts/simulate-ai.ts` now resolves a progress tiebreak from visited checkpoint count, surviving ships, and estimated remaining tour distance. A fresh 30-game hard-vs-hard sample came back `46.7/53.3` with **0** timeouts, `4` progress-tiebreak wins, `4` full race completions, and a reduced average length of `102.2` turns. `fleetAction` has improved after the closing-pressure override, but still times out often enough to need another larger seeded sweep before dropping the item.
+
+Follow-up seeded sweep 2026-04-20 (`8` base seeds × `30` games = `240` total) still showed `28` timeouts (`11.7%`) and wide seed variance (`39.3%` to `70.4%` P0 decided-win rate, ~`55.2` average turns overall). So this is still a live tuning item, not just a remeasurement chore.
 
 **Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenario-definitions.ts`, `src/shared/engine/victory.ts` (tiebreak)
 
