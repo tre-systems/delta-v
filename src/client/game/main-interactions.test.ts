@@ -136,6 +136,7 @@ const createController = () => {
   const replayController = {
     selectMatch: vi.fn(),
     toggleReplay: vi.fn(async () => {}),
+    exitReplay: vi.fn(),
     stepReplay: vi.fn(),
   };
   const sessionApi = {
@@ -374,6 +375,7 @@ describe('main-interactions', () => {
         direction: 'prev',
       })
       .mockReturnValueOnce({ kind: 'toggleReplay' })
+      .mockReturnValueOnce({ kind: 'exitReplay' })
       .mockReturnValueOnce({
         kind: 'replayNav',
         direction: 'end',
@@ -401,6 +403,7 @@ describe('main-interactions', () => {
     controller.handleUIEvent({ type: 'confirm' });
     controller.handleUIEvent({ type: 'replayMatchPrev' });
     controller.handleUIEvent({ type: 'toggleReplay' });
+    controller.handleUIEvent({ type: 'exitReplay' });
     controller.handleUIEvent({ type: 'replayEnd' });
     controller.handleUIEvent({ type: 'chat', text: 'hello' });
     controller.handleUIEvent({ type: 'backToMenu' });
@@ -422,6 +425,7 @@ describe('main-interactions', () => {
     });
     expect(deps.replayController.selectMatch).toHaveBeenCalledWith('prev');
     expect(deps.replayController.toggleReplay).toHaveBeenCalledOnce();
+    expect(deps.replayController.exitReplay).toHaveBeenCalledOnce();
     expect(deps.replayController.stepReplay).toHaveBeenCalledWith('end');
     expect(transport.sendChat).toHaveBeenCalledWith('hello');
     expect(deps.trackEvent).toHaveBeenCalledWith('scenario_browsed');

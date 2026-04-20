@@ -123,6 +123,9 @@ describe('game-client-ui-event-router', () => {
     expect(resolveUIEventPlan({ type: 'toggleReplay' })).toEqual({
       kind: 'toggleReplay',
     });
+    expect(resolveUIEventPlan({ type: 'exitReplay' })).toEqual({
+      kind: 'exitReplay',
+    });
     expect(resolveUIEventPlan({ type: 'replayEnd' })).toEqual({
       kind: 'replayNav',
       direction: 'end',
