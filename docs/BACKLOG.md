@@ -233,11 +233,11 @@ Re-ran the simulation harness at 100 games per scenario for tighter signal (2026
 
 **Done for this slice:** fleetAction now overrides AI closing pressure upward (`combatClosingWeight` / `combatCloseBonus`) so the fleets commit earlier; a fresh 40-game hard-vs-hard sample moved it from 15% timeouts / 70-turn average to 10% timeouts / 46-turn average without reviving the old P0 blowout. Duel now also suppresses combat-closing pressure completely at the scenario-override layer; a fresh 60-game hard-vs-hard sample landed at 50/50 with the average fight lengthened to 7.4 turns. Escape now starts the Terra-side enforcer corvette one lane back instead of directly on the fugitive launch hex; a fresh 100-game hard-vs-hard sample moved it from 35/65 to 49/51 with no timeouts.
 
-Action: pick a target band (50±10% is conventional) and tune the offending scenarios. biplanetary + blockade still need either P0 strengthening or scenario-side rebalancing. Re-measure fleetAction and duel on larger seeded sweeps before calling them done. For matchmaking + ranked play, document the seat-assignment policy: random per match, or always-asymmetric-to-skill?
+Action: pick a target band (50±10% is conventional) and tune the offending scenarios. biplanetary + blockade still need either P0 strengthening or scenario-side rebalancing. Duel and fleetAction have both moved back into the target band on later seeded sweeps, so the main remaining seat-balance focus is the mild P1 lean in those two scenario families rather than a broad first-player problem. For matchmaking + ranked play, document the seat-assignment policy: random per match, or always-asymmetric-to-skill?
 
 Seat assignment is now randomised in `MatchmakerDO`; keep `match_rating.player_a_key` / `player_b_key` ordering aligned to the actual seated side when touching pairing or archival logic.
 
-Implication for the launch-readiness snapshot: the earlier *first-player advantage* line was over-stated based on 30-game noise. After the latest duel/fleetAction/escape tuning, the remaining meaningful seat skews appear to be biplanetary/blockade on the P1 side plus any residual fleetAction drift that survives a larger seeded sweep.
+Implication for the launch-readiness snapshot: the earlier *first-player advantage* line was over-stated based on 30-game noise. After the latest duel/fleetAction/escape tuning and broader 120- to 240-game follow-up sweeps, the remaining meaningful seat skews appear to be biplanetary/blockade on the P1 side plus any residual interplanetaryWar variance we see on future larger runs.
 
 **Files:** `src/server/matchmaker-do.ts`, `src/shared/scenarios/duel.ts`, `src/shared/scenarios/biplanetary.ts`, `src/shared/scenarios/escape.ts`, `src/shared/scenarios/blockade.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/ai/`, `scripts/simulate-ai.ts`
 
@@ -249,13 +249,13 @@ Follow-up seeded sweep 2026-04-20 (`8` base seeds × `30` games = `240` total) s
 
 **Done for this slice:** the fleet-builder no longer optimizes `fleetAction` into near-all-corvette swarms that can barely carry ordnance. It now rewards mixed warship fleets with real torpedo capacity, and the scenario-local closing override is stronger (`combatClosingWeight: 5`, `combatCloseBonus: 75`) so those fleets commit sooner once they enter range. A fresh 240-game hard-vs-hard sample moved to `121/101/18` (`50.4/42.1`, `7.5%` timeouts, `46.4` average turns), which is still materially better than the earlier `102/106/32` (`13.3%` timeouts, `59.9` turns) sample on the old doctrine.
 
-**Remaining:** decide whether `7.5%` is low enough to close this item or whether we want one more pass to push the timeout rate below ~`5%` without reviving seat skew.
+**Remaining:** this is now close to "good enough" rather than a clear launch-readiness issue. Only revisit if future larger seeded sweeps drift back above ~`8–10%` timeouts or reintroduce a strong P0 blowout.
 
 **Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenario-definitions.ts`, `src/shared/engine/victory.ts` (tiebreak)
 
-### AI difficulty tiers under-differentiate; first-player bias flips with difficulty
+### AI difficulty tiers still under-differentiate
 
-Diagonal sweep on `duel`, 50 games per cell:
+Earlier diagonal sweep on `duel`, 50 games per cell:
 
 | P0 | P1 | P0 win% | Avg turns |
 |----|----|---------|-----------|
@@ -268,16 +268,24 @@ Diagonal sweep on `duel`, 50 games per cell:
 | easy | normal | 50.0% | 5.9 |
 | easy | hard | 40.0% | 7.6 |
 
-Two intertwined problems:
+That snapshot is now partially stale. Fresh 120-game `duel` mirrors on 2026-04-20 came back much closer to neutral:
 
-1. **Normal ≈ Hard.** `normal-vs-hard` gives 62/38 in P0's favour and `hard-vs-normal` gives 64/36 — i.e. the seat bias swamps the difficulty signal. A player picking "Hard" over "Normal" in *Play vs AI* gets ~4 percentage points of edge net of seat. From the player's perspective the difficulty selector is largely cosmetic.
-2. **First-player bias depends on difficulty.** `hard-vs-hard` → P0=60% (forward bias). `easy-vs-easy` → P0=36% (**reversed bias**). The same pattern reproduces on biplanetary (Hard-vs-Hard P0=63%, Easy-vs-Easy P0=33%). So the seat advantage isn't a fixed first-mover bonus — it's emergent from the AI heuristics, and the Easy AI plays *worse* as the initiator. For matchmaking with random seat assignment among Hard-vs-Hard matches the leaderboard skew will persist; for the *Play vs AI* difficulty selector to be meaningful, the gap between tiers needs to be larger than the seat skew (~20pp).
+| P0 | P1 | P0 win% | Avg turns |
+|----|----|---------|-----------|
+| easy | easy | 47.5% | 6.7 |
+| normal | normal | 49.2% | 7.7 |
+| hard | hard | 46.7% | 8.9 |
+
+So the worst same-difficulty seat-bias inversion has largely been fixed. The real remaining problem is narrower:
+
+1. **Normal ≈ Hard.** Fresh 120-game cross-tier sweeps still show only a modest Hard edge: `hard-vs-normal` came back `44.2/55.0/0.8` and `normal-vs-hard` `46.7/53.3`, which means the difficulty selector is better than before but still not separated enough to feel decisive.
+2. **Tier expectations are still implicit.** Easy/Normal/Hard now differ more in style than in raw win rate. That is better than the old seat-driven instability, but it still leaves the difficulty selector somewhat opaque unless we either widen the gap further or explain the intended behavior differences in UI copy.
 
 **Done for this slice:** widened the risk split in astrogation lookahead and combat commitment so Normal and Hard no longer collapse to the exact same duel outcomes on the same seeds; the follow-up duel override then held `hard-vs-hard` at 50/50 on a 60-game sample while leaving a visible behavior gap between tiers.
 
 **Done for this slice:** Easy no longer applies its random-burn sabotage on turn 1, so the worst "first player is weaker on Easy" inversion is gone. A fresh 60-game `easy-vs-easy` duel sample moved from the old `36/64` reversal to `56.7/43.3`.
 
-**Remaining:** hold that spread across larger seeded sweeps, keep reducing seat bias in the same-difficulty ladders, and optionally expose per-difficulty expectations in the difficulty selector copy.
+**Remaining:** preserve the healthier same-tier balance, then either widen the Hard-vs-Normal gap a bit further or make the intended per-tier behavior explicit in the difficulty selector copy.
 
 **Files:** `src/shared/ai/config.ts`, `src/shared/ai/`, `src/client/ui/lobby.ts` (difficulty selector copy), `scripts/simulate-ai.ts`
 
