@@ -47,6 +47,12 @@ From `migrations/0001_create_events.sql`:
   - `replay_fetch_failed` with `{ reason, gameId, status? }`
   - `replay_fetch_succeeded` with `{ gameId }`
   - `archived_replay_fetch_failed` / `archived_replay_fetch_succeeded` with `{ gameId, ... }`
+  - `leaderboard_viewed` with `{ includeProvisional, entries }`
+  - `matches_list_viewed` with `{ entries, hasMore }`
+  - `match_replay_opened` with `{ gameId, roomCode, matchNumber, scenario, source }`
+  - `replay_reached_end` with `{ gameId, roomCode, matchNumber, scenario, atIndex, atTurn, progress, source }`
+  - `replay_exited_early` with `{ gameId, roomCode, matchNumber, scenario, atIndex, atTurn, progress, source }`
+  - `replay_speed_changed` with `{ speed }`
   - `game_over` with `{ won, reason, scenario, mode, turn? }`
   - `server_error_received` with `{ message, code? }`
   - `action_rejected_received` with `{ reason, expectedTurn?, expectedPhase?, actualTurn, actualPhase, activePlayer }` (browser path when ActionGuards reject)
@@ -201,6 +207,46 @@ WHERE event = 'game_created'
 GROUP BY scenario
 ORDER BY n DESC;
 
+-- Discovery-surface views (last 7 days)
+SELECT event, COUNT(*) AS n
+FROM events
+WHERE event IN ('leaderboard_viewed', 'matches_list_viewed')
+  AND ts > (strftime('%s','now') - 7 * 86400) * 1000
+GROUP BY event
+ORDER BY n DESC;
+
+-- Replay funnel (last 7 days): opened vs completed vs early exits.
+SELECT event, COUNT(*) AS n
+FROM events
+WHERE event IN (
+  'match_replay_opened',
+  'replay_reached_end',
+  'replay_exited_early'
+)
+  AND ts > (strftime('%s','now') - 7 * 86400) * 1000
+GROUP BY event
+ORDER BY n DESC;
+
+-- Replay abandonment by turn/progress (last 7 days)
+SELECT
+  json_extract(props, '$.scenario') AS scenario,
+  ROUND(AVG(CAST(json_extract(props, '$.progress') AS REAL)), 3) AS avg_progress,
+  ROUND(AVG(CAST(json_extract(props, '$.atTurn') AS REAL)), 1) AS avg_turn,
+  COUNT(*) AS exits
+FROM events
+WHERE event = 'replay_exited_early'
+  AND ts > (strftime('%s','now') - 7 * 86400) * 1000
+GROUP BY scenario
+ORDER BY exits DESC;
+
+-- Replay speed usage (last 7 days)
+SELECT json_extract(props, '$.speed') AS speed, COUNT(*) AS n
+FROM events
+WHERE event = 'replay_speed_changed'
+  AND ts > (strftime('%s','now') - 7 * 86400) * 1000
+GROUP BY speed
+ORDER BY CAST(speed AS REAL);
+
 -- Disconnects and reconnects (last 24h)
 SELECT event, COUNT(*) AS n
 FROM events
@@ -279,6 +325,24 @@ WHERE event = 'turn_timeout_fired'
   AND ts > (strftime('%s','now') - 7 * 86400) * 1000
 GROUP BY phase
 ORDER BY n DESC;
+
+-- Rating-history audit trail: one row per rated match, with pre/post
+-- ratings preserved even after archived match metadata ages out.
+SELECT
+  game_id,
+  created_at,
+  player_a_key,
+  pre_rating_a,
+  post_rating_a,
+  player_b_key,
+  pre_rating_b,
+  post_rating_b,
+  winner_key
+FROM match_rating
+WHERE player_a_key = 'player_key_here'
+   OR player_b_key = 'player_key_here'
+ORDER BY created_at DESC
+LIMIT 20;
 ```
 
 ## Workers log filters
@@ -306,4 +370,5 @@ User-facing policy copy is out of scope here; align any public privacy text with
 - No built-in **dashboards** or **alerts** — use Cloudflare + D1 exports or third-party tools. Operational D1 queries are documented above.
 - **Rate limits:** canonical table in [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture); optional cross-edge WAF if distributed abuse is observed.
 - **Retention:** `events` rows older than 30 days are deleted daily by `purgeOldEvents` (cron `0 4 * * *` in `wrangler.toml`). Other tables (`match_archive`, `player`, `match_rating`, R2 archives) have no automatic TTL — see [SECURITY.md § Data retention](./SECURITY.md#data-retention-d1-r2-do).
+- **`match_rating` intent:** `pre_rating_*` / `post_rating_*` are intentionally kept as an audit/history trail for future player-profile charts, admin anti-cheat review, and balance analysis. They are not dead schema just because the current public app does not read them yet.
 - **Sampling** or caps can be added in `src/server/index.ts` before `insertEvent` if volume grows.

@@ -16,7 +16,9 @@
 -- `match_rating` records one row per rated match. Writes use game_id
 -- PRIMARY KEY so a replay or retry of the same match is an idempotent
 -- no-op via INSERT OR IGNORE. Rows remain even if the matching
--- match_archive row ages out.
+-- match_archive row ages out. The pre/post rating columns are kept as
+-- a rating-history audit trail for future profile/admin/balance tools
+-- even though the public app does not query them yet.
 
 CREATE TABLE player (
   player_key          TEXT    PRIMARY KEY,
