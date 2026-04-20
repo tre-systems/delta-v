@@ -15,6 +15,7 @@ import {
 } from '../../shared/replay';
 import type { GameState, Phase } from '../../shared/types/domain';
 import type { Checkpoint } from './archive';
+import { buildReplayMessageFromEvents } from './replay-reconstruct';
 
 const map = buildSolarSystemMap();
 
@@ -74,6 +75,95 @@ export const getProjectedCurrentState = (
 ): GameState | null =>
   projectCurrentStateFromStream(eventStreamTail, checkpoint);
 
+// Events that are part of one movement-resolution or combat-resolution
+// batch. Grouping these together lets us reconstruct live-style
+// `movementResult`/`combatResult` payloads so archived replays animate
+// like a live match. Non-grouping events (game lifecycle, phase changes,
+// fleet commits, logistics transfers, etc.) stay as their own entries
+// so the replay cadence still reflects discrete user-facing actions.
+const MOVEMENT_GROUP_TYPES: ReadonlySet<string> = new Set([
+  'shipMoved',
+  'shipLanded',
+  'shipCrashed',
+  'shipDestroyed',
+  'shipCaptured',
+  'shipResupplied',
+  'ordnanceLaunched',
+  'ordnanceMoved',
+  'ordnanceDetonated',
+  'ordnanceDestroyed',
+  'ordnanceExpired',
+  'ramming',
+  'asteroidDestroyed',
+  'baseDestroyed',
+  'identityRevealed',
+  'checkpointVisited',
+]);
+
+const COMBAT_GROUP_TYPES: ReadonlySet<string> = new Set([
+  'combatAttack',
+  'shipDestroyed',
+  'ordnanceDestroyed',
+  'baseDestroyed',
+]);
+
+type BatchKind = 'movement' | 'combat' | null;
+
+const classifyEvent = (eventType: string): BatchKind => {
+  if (
+    eventType === 'shipMoved' ||
+    eventType === 'ordnanceMoved' ||
+    eventType === 'ordnanceLaunched'
+  ) {
+    return 'movement';
+  }
+  if (eventType === 'combatAttack') {
+    return 'combat';
+  }
+  return null;
+};
+
+const canExtendBatch = (kind: BatchKind, eventType: string): boolean => {
+  if (kind === 'movement') return MOVEMENT_GROUP_TYPES.has(eventType);
+  if (kind === 'combat') return COMBAT_GROUP_TYPES.has(eventType);
+  return false;
+};
+
+// Group consecutive envelopes that belong to the same movement or combat
+// resolution (shared `ts` + `actor`). Events that don't fit the current
+// batch kind get their own entry so per-turn lifecycle events (game
+// created, phase change, turn advance, orders committed) still show as
+// distinct replay steps.
+const groupEnvelopesByBatch = (
+  envelopes: EventEnvelope[],
+): EventEnvelope[][] => {
+  const batches: EventEnvelope[][] = [];
+  let currentKind: BatchKind = null;
+
+  for (const envelope of envelopes) {
+    const last = batches[batches.length - 1];
+    const eventType = envelope.event.type;
+    const eventKind = classifyEvent(eventType);
+
+    const canExtend =
+      last !== undefined &&
+      last[0].ts === envelope.ts &&
+      last[0].actor === envelope.actor &&
+      currentKind !== null &&
+      (eventKind === currentKind || canExtendBatch(currentKind, eventType));
+
+    if (canExtend && last) {
+      last.push(envelope);
+      continue;
+    }
+
+    batches.push([envelope]);
+    currentKind = eventKind;
+  }
+
+  return batches;
+};
+
 const toReplayEntriesFromStream = (
   eventStream: EventEnvelope[],
   checkpoint: Checkpoint | null,
@@ -86,13 +176,13 @@ const toReplayEntriesFromStream = (
       ? eventStream.filter((envelope) => envelope.seq > checkpoint.seq)
       : eventStream;
   const useCheckpointFallback = checkpoint !== null && !hasFullHistory;
-  const entries = useCheckpointFallback
+  const entries: ReplayEntry[] = useCheckpointFallback
     ? [toCheckpointReplayEntry(checkpoint)]
     : [];
   let currentState = useCheckpointFallback ? checkpoint.state : null;
 
-  for (const envelope of replayStream) {
-    const projected = projectGameStateFromStream([envelope], map, currentState);
+  for (const batch of groupEnvelopesByBatch(replayStream)) {
+    const projected = projectGameStateFromStream(batch, map, currentState);
 
     if (!projected.ok) {
       continue;
@@ -103,27 +193,21 @@ const toReplayEntriesFromStream = (
       currentState === null ? null : JSON.stringify(currentState);
     const nextSerialized = JSON.stringify(nextState);
 
+    const previousState = currentState;
     currentState = nextState;
 
     if (previousSerialized === nextSerialized) {
       continue;
     }
 
-    entries.push(
-      toReplayEntry(
-        entries.length + 1,
-        entries.length === 0
-          ? {
-              type: 'gameStart',
-              state: nextState,
-            }
-          : {
-              type: 'stateUpdate',
-              state: nextState,
-            },
-        envelope.ts,
-      ),
+    const message = buildReplayMessageFromEvents(
+      batch.map((envelope) => envelope.event),
+      nextState,
+      previousState,
+      entries.length === 0,
     );
+
+    entries.push(toReplayEntry(entries.length + 1, message, batch[0].ts));
   }
 
   return entries;

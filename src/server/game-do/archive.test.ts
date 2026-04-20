@@ -208,7 +208,7 @@ describe('match-scoped event stream', () => {
       storage,
       asGameId('LEN-m1'),
       0,
-      { type: 'shipLanded', shipId: asShipId('s1') },
+      { type: 'shipLanded', shipId: asShipId('s1'), landedAt: 'Mars' },
       { type: 'shipResupplied', shipId: asShipId('s1'), source: 'base' },
     );
 
@@ -277,6 +277,7 @@ describe('match-scoped event stream', () => {
       ...Array.from({ length: 70 }, (_, index) => ({
         type: 'shipLanded' as const,
         shipId: asShipId(`s${index}`),
+        landedAt: 'Mars',
       })),
     );
 
@@ -300,6 +301,7 @@ describe('match-scoped event stream', () => {
       ...Array.from({ length: 70 }, (_, index) => ({
         type: 'shipLanded' as const,
         shipId: asShipId(`tail-${index}`),
+        landedAt: 'Mars',
       })),
     );
 
@@ -336,6 +338,7 @@ describe('match-scoped event stream', () => {
     await appendEnvelopedEvents(storage, asGameId('LEGACY-m1'), 0, {
       type: 'shipLanded',
       shipId: asShipId('legacy-ship'),
+      landedAt: 'Mars',
     });
 
     const stream = await getEventStream(storage, asGameId('LEGACY-m1'));

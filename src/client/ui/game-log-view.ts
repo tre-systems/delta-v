@@ -314,13 +314,19 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
 
     const visibilitySignal = computed(() => {
       const mode = screenModeSignal.value;
+      const copy = latestBarCopySignal.value;
+      const hasCopy = copy.text.trim().length > 0;
 
       if (mode === 'hud') {
         const expanded = expandedSignal.value;
 
         return {
           gameLog: expanded ? 'flex' : 'none',
-          latestBar: expanded ? 'none' : 'block',
+          // Hide the collapsed latest-bar while there's nothing to show
+          // (fresh replays before the first movement/combat entry,
+          // pre-fleet-building). When the user explicitly expands the
+          // panel we still surface it so they can see the empty state.
+          latestBar: expanded ? 'none' : hasCopy ? 'block' : 'none',
         };
       }
 

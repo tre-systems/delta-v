@@ -168,6 +168,7 @@ export const resolveMovementPhase = (
       engineEvents.push({
         type: 'shipLanded',
         shipId: ship.id,
+        landedAt: course.landedAt,
       });
       applyResupply(ship, state, map, engineEvents);
     }
