@@ -1,4 +1,4 @@
-import { CODE_LENGTH } from '../../shared/constants';
+import { CODE_LENGTH, SHIP_STATS } from '../../shared/constants';
 import { getOrderableShipsForPlayer } from '../../shared/engine/util';
 import { normalizePlayerToken, normalizeRoomCode } from '../../shared/ids';
 import type { SolarSystemMap } from '../../shared/types/domain';
@@ -66,10 +66,30 @@ const getGamepadShortcutAction = (
 ): KeyboardAction => {
   const planning = deps.getPlanningState();
   const gameState = deps.getGameState();
+  const selectedShip =
+    gameState?.ships.find((ship) => ship.id === planning.selectedShipId) ??
+    null;
   const context = {
     state: deps.getState(),
     hasGameState: deps.hasGameState(),
     typingInInput: false,
+    selectedShipId: planning.selectedShipId,
+    selectedShipCanOverload:
+      selectedShip !== null &&
+      planning.burns.get(selectedShip.id) !== null &&
+      planning.burns.get(selectedShip.id) !== undefined &&
+      Boolean(SHIP_STATS[selectedShip.type]?.canOverload) &&
+      selectedShip.fuel >= 2 &&
+      !selectedShip.overloadUsed &&
+      selectedShip.damage.disabledTurns === 0,
+    selectedShipBurnDirection:
+      selectedShip !== null
+        ? (planning.burns.get(selectedShip.id) ?? null)
+        : null,
+    selectedShipOverloadDirection:
+      selectedShip !== null
+        ? (planning.overloads.get(selectedShip.id) ?? null)
+        : null,
     combatTargetId: planning.combatTargetId,
     queuedAttackCount: planning.queuedAttacks.length,
     torpedoAccelActive: planning.torpedoAccel !== null,
@@ -140,6 +160,38 @@ const bindMainBrowserEvents = (deps: BrowserBindingDeps): (() => void) =>
           state: deps.getState(),
           hasGameState: deps.hasGameState(),
           typingInInput: event.target instanceof HTMLInputElement,
+          selectedShipId: deps.getPlanningState().selectedShipId,
+          selectedShipCanOverload: (() => {
+            const gs = deps.getGameState?.();
+            const planning = deps.getPlanningState();
+            const selectedShip =
+              gs?.ships.find((ship) => ship.id === planning.selectedShipId) ??
+              null;
+
+            if (!selectedShip) return false;
+
+            const burn = planning.burns.get(selectedShip.id) ?? null;
+
+            return (
+              burn !== null &&
+              Boolean(SHIP_STATS[selectedShip.type]?.canOverload) &&
+              selectedShip.fuel >= 2 &&
+              !selectedShip.overloadUsed &&
+              selectedShip.damage.disabledTurns === 0
+            );
+          })(),
+          selectedShipBurnDirection: (() => {
+            const planning = deps.getPlanningState();
+            return planning.selectedShipId
+              ? (planning.burns.get(planning.selectedShipId) ?? null)
+              : null;
+          })(),
+          selectedShipOverloadDirection: (() => {
+            const planning = deps.getPlanningState();
+            return planning.selectedShipId
+              ? (planning.overloads.get(planning.selectedShipId) ?? null)
+              : null;
+          })(),
           combatTargetId: deps.getPlanningState().combatTargetId,
           queuedAttackCount: deps.getPlanningState().queuedAttacks.length,
           torpedoAccelActive: deps.getPlanningState().torpedoAccel !== null,
