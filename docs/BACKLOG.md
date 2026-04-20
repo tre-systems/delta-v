@@ -17,7 +17,8 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 (Note: the seat-hijack / unauthenticated-join finding is **not** P0 — by product decision, frictionless start outweighs private-room auth. Listed under polish below for the spectator-misadvertisement and structured-rejection parts only.)
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
-- None currently pinned. Re-rank after each exploratory / QA pass.
+
+- **Grand Tour AI stalls in Mercury gravity well.** Reported 2026-04-20 mid-match. The AI corvette races toward Mercury (2nd checkpoint, no base), exhausts fuel on arrival, and then cannot continue — with `fuel === 0` the astrogation candidate set collapses to a single coast option and the ship loops in orbit for the rest of the game. Likely fixes: (a) in [pickNextCheckpoint](../src/shared/ai/common.ts) bias toward base-body checkpoints (Venus / Terra / Mars / Callisto) when current fuel is below the round-trip threshold to the next non-base; (b) tighten the `fuelForTrip` reservation at [astrogation.ts:616](../src/shared/ai/astrogation.ts) to include "enough to reach the next *base* after the target", not just the target; (c) when stranded with zero fuel in a gravity well, fall through to a surrender action so the race resolves on the player's clock instead of running out the turn counter. Needs a simulation regression test before shipping.
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
 
