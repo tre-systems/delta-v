@@ -3,6 +3,7 @@
 // Pure functions extracted from Renderer — no class
 // state dependencies.
 
+import { SHIP_STATS } from '../../shared/constants';
 import {
   HEX_DIRECTIONS,
   type HexCoord,
@@ -282,7 +283,11 @@ export const renderTorpedoGuidance = ({
 
   if (!ship || ship.lifecycle !== 'active') return;
 
-  if (!planningState.torpedoAimingActive) return;
+  // Halos are live whenever the selected ship *could* launch a torpedo —
+  // no modal "aiming mode" toggle. Clicking a direction sets the boost
+  // aim; the TORPEDO button commits the launch with whatever aim is
+  // currently selected (coast by default).
+  if (!SHIP_STATS[ship.type]?.canLaunchTorpedoes) return;
 
   const shipPos = hexToPixel(ship.position, hexSize);
   const accel = planningState.torpedoAccel;

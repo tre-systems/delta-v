@@ -168,11 +168,11 @@ describe('HUDChromeView', () => {
     ) as HTMLButtonElement;
 
     expect(nextBtn.hasAttribute('hidden')).toBe(false);
-    expect(nextBtn.textContent).toBe('SKIP SHIP');
+    expect(nextBtn.textContent).toBe('SKIP');
     expect(nextBtn.disabled).toBe(false);
-    expect(confirmBtn.hasAttribute('hidden')).toBe(false);
-    expect(confirmBtn.textContent).toBe('CONFIRM PHASE');
-    expect(confirmBtn.disabled).toBe(true);
+    // CONFIRM PHASE was removed — launches + skips auto-confirm when the
+    // last ship is acknowledged.
+    expect(confirmBtn.hasAttribute('hidden')).toBe(true);
 
     view.update(
       buildInput({
@@ -187,7 +187,7 @@ describe('HUDChromeView', () => {
     );
 
     expect(nextBtn.hasAttribute('hidden')).toBe(true);
-    expect(confirmBtn.disabled).toBe(false);
+    expect(confirmBtn.hasAttribute('hidden')).toBe(true);
   });
 
   it('updates HUD chrome helpers and applies movement presentation overrides', async () => {

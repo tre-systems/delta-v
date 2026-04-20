@@ -5,7 +5,6 @@ import type {
   PlayerId,
   SolarSystemMap,
 } from '../../shared/types/domain';
-import { TOAST } from '../messages/toasts';
 import {
   getFirstUnacknowledgedOrdnanceActionableShipId,
   getOrdnanceActionableShipIds,
@@ -56,14 +55,11 @@ export const queueOrdnanceLaunch = (
 
   if (!gameState || deps.getClientState() !== 'playing_ordnance') return;
 
-  // Torpedoes need a direction pick first
-  if (ordType === 'torpedo' && !deps.planningState.torpedoAimingActive) {
-    deps.planningState.clearTorpedoAcceleration();
-    deps.planningState.setTorpedoAimingActive(true);
-    deps.logText(TOAST.gameplay.torpedoAimingIntro);
-    return;
-  }
-
+  // Torpedo boost direction is set by clicking a halo on the canvas;
+  // pressing TORPEDO always commits the launch with whatever aim is
+  // currently selected (default: coast / no boost). There's no modal
+  // "aiming mode" — the halos are live whenever a torpedo-capable ship
+  // is selected.
   const plan = resolveOrdnanceLaunchPlan(
     gameState,
     deps.planningState,

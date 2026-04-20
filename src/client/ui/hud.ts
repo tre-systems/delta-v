@@ -215,11 +215,11 @@ const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
   if (summary.ready.length === 0 && summary.blocked.length === 0) {
     return isMobile
       ? 'No ordnance actions available'
-      : 'No ordnance actions available \u00b7 Use Skip Ship (S)';
+      : 'No ordnance actions available \u00b7 press Skip (S)';
   }
 
   if (summary.ready.length === 0) {
-    segments.push(isMobile ? 'Use SKIP SHIP' : 'Use Skip Ship (S)');
+    segments.push(isMobile ? 'Press SKIP' : 'Press Skip (S)');
   } else if (
     !isMobile &&
     launchTorpedoState.visible &&
@@ -426,24 +426,18 @@ export const buildHUDView = (input: HUDInput): HUDView => {
           disabled: !input.astrogationCtx.hasSelection,
           opacity: input.astrogationCtx.hasSelection ? '1' : '0.4',
           title: input.astrogationCtx.hasSelection
-            ? 'Acknowledge this ship and move on'
+            ? 'This ship skips ordnance this turn'
             : 'Select a ship first',
-          label: 'SKIP SHIP',
+          label: 'SKIP',
           className: 'btn btn-secondary',
         }
       : createHiddenLabelButton(),
-    confirmOrdnance: showOrdnance
-      ? {
-          visible: true,
-          disabled: !input.allOrdnanceShipsAcknowledged,
-          opacity: input.allOrdnanceShipsAcknowledged ? '1' : '0.4',
-          title: input.allOrdnanceShipsAcknowledged
-            ? 'Submit queued launches and end ordnance'
-            : 'Acknowledge every actionable ship first',
-          label: 'CONFIRM PHASE',
-          className: 'btn btn-confirm',
-        }
-      : createHiddenLabelButton(),
+    // CONFIRM PHASE used to sit next to SKIP, but every launch and every
+    // skip already auto-advances + auto-confirms when the last ship is
+    // done (see `queueOrdnanceLaunch` / `skipOrdnanceShip` in
+    // ordnance-actions.ts). The extra button was always either disabled
+    // or redundant with whatever click just happened.
+    confirmOrdnance: createHiddenLabelButton(),
     queuedOrdnanceType: showOrdnance
       ? (input.queuedOrdnanceType ?? null)
       : null,

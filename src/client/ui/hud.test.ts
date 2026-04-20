@@ -121,12 +121,13 @@ describe('ui hud helpers', () => {
       nextOrdnance: {
         visible: true,
         disabled: false,
-        label: 'SKIP SHIP',
+        label: 'SKIP',
       },
       confirmOrdnance: {
-        visible: true,
-        disabled: true,
-        label: 'CONFIRM PHASE',
+        // CONFIRM PHASE was removed — launches + skips auto-confirm when
+        // the last ship is acknowledged (see ordnance-actions.ts).
+        visible: false,
+        label: '',
       },
     });
 
@@ -221,7 +222,7 @@ describe('ui hud helpers', () => {
         }),
       ),
     ).toMatchObject({
-      statusText: 'Blocked: Mine: needs a course change · Use Skip Ship (S)',
+      statusText: 'Blocked: Mine: needs a course change · Press Skip (S)',
     });
   });
 

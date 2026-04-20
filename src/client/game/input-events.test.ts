@@ -299,7 +299,7 @@ describe('interpretInput', () => {
       ]);
     });
 
-    it('does not arm torpedo acceleration until aiming mode is active', () => {
+    it('arms torpedo acceleration from an adjacent click (no aiming-mode gate)', () => {
       const state = createState({ phase: 'ordnance' });
       const torpHex = hexAdd({ q: 0, r: 0 }, HEX_DIRECTIONS[0]);
 
@@ -311,7 +311,10 @@ describe('interpretInput', () => {
         createPlanning({ selectedShipId: 'ship-0' }),
       );
 
-      expect(cmds).toEqual([]);
+      // Torpedo-capable ship selected + click on adjacent halo → aim set.
+      expect(cmds).toEqual([
+        { type: 'setTorpedoAccel', direction: 0, steps: 1 },
+      ]);
     });
 
     it('selects ship and clears torpedo accel', () => {
