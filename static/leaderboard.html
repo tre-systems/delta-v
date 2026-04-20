@@ -67,6 +67,23 @@
       text-transform: uppercase;
     }
 
+    .header-home {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      text-decoration: none;
+      color: inherit;
+      border-radius: 4px;
+      padding: 2px 4px;
+      margin: -2px -4px;
+      transition: opacity 0.12s;
+    }
+    .header-home:hover,
+    .header-home:focus-visible {
+      opacity: 0.85;
+      outline: none;
+    }
+
     .header-sep { color: var(--muted); font-size: 0.85rem; }
     .header-page { font-size: 0.95rem; color: var(--muted-strong); }
 
@@ -244,8 +261,10 @@
 <body>
 
 <header class="page-header">
-  <img src="/favicon.svg" alt="" class="header-logo" aria-hidden="true">
-  <span class="header-title">Delta-V</span>
+  <a href="/" class="header-home" aria-label="Delta-V home">
+    <img src="/favicon.svg" alt="" class="header-logo" aria-hidden="true">
+    <span class="header-title">Delta-V</span>
+  </a>
   <span class="header-sep">/</span>
   <span class="header-page">Leaderboard</span>
   <a href="/" class="header-back">← Play</a>

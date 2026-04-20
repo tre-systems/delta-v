@@ -21,6 +21,7 @@ describe('ui-screens', () => {
       fleetBuilding: 'none',
       helpBtn: 'none',
       soundBtn: 'none',
+      exitGameBtn: 'none',
       helpOverlay: 'none',
     });
   });
@@ -32,6 +33,7 @@ describe('ui-screens', () => {
       gameLog: 'none',
       helpBtn: 'flex',
       soundBtn: 'flex',
+      exitGameBtn: 'flex',
     });
   });
 

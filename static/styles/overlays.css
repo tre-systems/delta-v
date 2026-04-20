@@ -514,7 +514,8 @@
 }
 
 .help-btn,
-.sound-btn {
+.sound-btn,
+.exit-game-btn {
   position: fixed;
   right: 0.75rem;
   z-index: 5;
@@ -548,11 +549,26 @@
   line-height: 1;
 }
 
+.exit-game-btn {
+  bottom: calc(0.75rem + 5rem + var(--safe-bottom));
+  padding: 0;
+  font-size: 1rem;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1;
+}
+
 .help-btn:hover,
-.sound-btn:hover {
+.sound-btn:hover,
+.exit-game-btn:hover {
   color: var(--accent);
   border-color: var(--border-strong);
   background: var(--panel-hover);
+}
+
+.exit-game-btn:hover {
+  color: var(--danger);
+  border-color: rgba(255, 138, 138, 0.26);
 }
 
 .sound-btn.muted {
@@ -1032,6 +1048,29 @@ h2.game-over-neutral {
   gap: 0.65rem;
   padding: 0.45rem 0.55rem 0.45rem 0.45rem;
   border-radius: 22px;
+  /* Never exceed viewport — the EXIT button was getting clipped on
+   * narrow screens when the bar overflowed its centered anchor. */
+  max-width: calc(100vw - 1rem);
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+/* On narrow screens the "TURN N · P1 COMBAT" status text duplicates
+ * the turn label that already sits in the progress-wrap and was
+ * pushing the EXIT button off the right edge. Drop it under 560px so
+ * every control stays visible and tappable. */
+@media (max-width: 560px) {
+  .replay-bar-status {
+    display: none;
+  }
+  .replay-bar {
+    gap: 0.4rem;
+    padding: 0.4rem 0.45rem;
+    border-radius: 18px;
+  }
+  .replay-bar-progress-wrap {
+    padding: 0 0.3rem;
+  }
 }
 
 .replay-bar-nav {
@@ -1464,7 +1503,8 @@ h2.game-over-neutral {
   }
 
   .help-btn,
-  .sound-btn {
+  .sound-btn,
+  .exit-game-btn {
     backdrop-filter: none;
     background: var(--panel-strong);
   }

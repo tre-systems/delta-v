@@ -20,6 +20,8 @@ export interface UIScreenVisibility {
   fleetBuilding: 'none' | 'flex';
   helpBtn: 'none' | 'flex';
   soundBtn: 'none' | 'flex';
+  /** In-game "exit to menu" floating button; hud mode only. */
+  exitGameBtn: 'none' | 'flex';
   helpOverlay: 'none' | 'flex';
 }
 
@@ -128,6 +130,7 @@ const HIDDEN_VISIBILITY: UIScreenVisibility = {
   fleetBuilding: 'none',
   helpBtn: 'none',
   soundBtn: 'none',
+  exitGameBtn: 'none',
   helpOverlay: 'none',
 };
 
@@ -163,6 +166,7 @@ export const buildScreenVisibility = (
         shipList: 'flex',
         helpBtn: 'flex',
         soundBtn: 'flex',
+        exitGameBtn: 'flex',
       };
 
     case 'fleetBuilding':
