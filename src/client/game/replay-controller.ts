@@ -232,7 +232,6 @@ export const createReplayController = (
       `Replay ended — ${winnerLabel} wins: ${outcome.reason}`,
       'log-status',
     );
-    deps.showToast(`${winnerLabel} wins — ${outcome.reason}`, 'info');
   };
 
   // Apply a single replay entry. When `animateContinuation` is supplied we
