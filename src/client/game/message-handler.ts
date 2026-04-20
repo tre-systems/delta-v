@@ -296,7 +296,7 @@ const applyActionRejectedPlan: ClientMessagePlanHandler<'actionRejected'> = (
         : plan.reason === 'wrongActivePlayer'
           ? TOAST.actionRejected.wrongActivePlayer
           : plan.message;
-  deps.ui.overlay.showToast(hint, 'info');
+  deps.ui.log.logText(hint, 'log-system');
 };
 
 const applyChatPlan: ClientMessagePlanHandler<'chat'> = (deps, plan): void => {
