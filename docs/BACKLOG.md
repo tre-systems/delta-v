@@ -70,14 +70,6 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Each **###** is **remaining** work only (shipped details live in `git log` and tests).
 
-### Replay combat log shows `[Odds: —]` placeholder instead of real odds/mods
-
-Archived replays now reconstruct live-style `combatResult` messages from the engine event stream (see [src/server/game-do/replay-reconstruct.ts](../src/server/game-do/replay-reconstruct.ts) shipped 2026-04-20), so dice rolls and damage outcomes show correctly. But the engine `combatAttack` event only preserves the final `roll` + `modifiedRoll` — not the pre-combat `attackStrength`, `defendStrength`, `rangeMod`, `velocityMod`, or pre-computed `odds` string. The reconstructor fills those with placeholders (`0` / `'—'`), so replay log lines read **`Corvette fired on Corvette [Odds: —] → Roll: 5 → DISABLED (2T)`** instead of **`Corvette fired on Corvette [8 vs 8, range -1, vel -0, odds 1:1] → Roll: 5 → DISABLED (2T)`**.
-
-**Fix:** Extend the `combatAttack` engine event in [src/shared/engine/engine-events.ts](../src/shared/engine/engine-events.ts) to carry `attackStrength`, `defendStrength`, `rangeMod`, `velocityMod`, and the computed `odds` string. Populate the new fields at emission sites in `src/shared/engine/combat.ts`. Update the `ordnanceDetonated` event similarly if torpedo/nuke log lines ever need the same precision. Add migration notes for pre-landing replays in [replay-reconstruct.ts](../src/server/game-do/replay-reconstruct.ts) (fall back to placeholders for old events).
-
-**Files:** `src/shared/engine/engine-events.ts`, `src/shared/engine/combat.ts`, `src/server/game-do/replay-reconstruct.ts`, tests in `src/shared/engine/combat.test.ts` and `src/server/game-do/replay-reconstruct.test.ts`
-
 ### Play-vs-AI Turn 1 Ordnance phase unresponsive (needs manual repro)
 
 During exploratory testing 2026-04-19 via Claude-in-Chrome MCP, a Play-vs-AI (Duel scenario) session got stuck on Turn 1 Ordnance: SKIP SHIP / CONFIRM PHASE buttons didn't respond to programmatic `.click()`, only to physical clicks via the MCP computer tool. Eventually the canvas renderer froze (screenshot calls timed out; `document.querySelector('canvas')` stayed responsive). Could be a real bug (event handler blocking on `isTrusted` or similar) **or** an artefact of the CDP-driven tab not being the foreground window (`document.hidden === true` inside the MCP tab — see note below). The code path goes `src/client/ui/events.ts → ui-event-router.ts → command-router.ts → action-deps.ts`.

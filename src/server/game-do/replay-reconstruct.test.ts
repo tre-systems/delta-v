@@ -119,6 +119,11 @@ describe('buildReplayMessageFromEvents', () => {
         targetId: asShipId('p1s0'),
         targetType: 'ship',
         attackType: 'gun',
+        odds: '1:1',
+        attackStrength: 8,
+        defendStrength: 8,
+        rangeMod: 1,
+        velocityMod: 0,
         roll: 5,
         modifiedRoll: 4,
         damageType: 'disabled',
@@ -139,10 +144,48 @@ describe('buildReplayMessageFromEvents', () => {
     expect(message.results[0]).toMatchObject({
       attackerIds: ['p0s0'],
       targetId: 'p1s0',
+      odds: '1:1',
+      attackStrength: 8,
+      defendStrength: 8,
+      rangeMod: 1,
+      velocityMod: 0,
       dieRoll: 5,
       modifiedRoll: 4,
       damageType: 'disabled',
       disabledTurns: 2,
+    });
+  });
+
+  it('falls back to placeholders for archived combatAttack events without combat context', () => {
+    const events: EngineEvent[] = [
+      {
+        type: 'combatAttack',
+        attackerIds: [asShipId('p0s0')],
+        targetId: asShipId('p1s0'),
+        targetType: 'ship',
+        attackType: 'gun',
+        roll: 4,
+        modifiedRoll: 3,
+        damageType: 'none',
+        disabledTurns: 0,
+      },
+    ];
+
+    const message = buildReplayMessageFromEvents(
+      events,
+      blankState(),
+      null,
+      false,
+    );
+
+    expect(message.type).toBe('combatResult');
+    if (message.type !== 'combatResult') return;
+    expect(message.results[0]).toMatchObject({
+      odds: '—',
+      attackStrength: 0,
+      defendStrength: 0,
+      rangeMod: 0,
+      velocityMod: 0,
     });
   });
 
