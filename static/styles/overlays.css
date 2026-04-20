@@ -573,6 +573,10 @@ body.replay-bar-active .exit-game-btn {
   display: none;
 }
 
+body.game-over-shell-active .exit-game-btn {
+  display: none;
+}
+
 .help-btn:hover,
 .sound-btn:hover,
 .exit-game-btn:hover {

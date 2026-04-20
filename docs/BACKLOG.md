@@ -145,31 +145,6 @@ Exploratory pass 2026-04-20: the main menu piles primary CTAs (Quick Match, Crea
 
 **Files:** `static/index.html`, `static/styles/menu.css`, `src/client/ui/lobby-view.ts`, `static/leaderboard.html` (for the embed preview), `src/server/matches-list.ts` (for a top-N endpoint if we go with live preview data)
 
-### Offline UX: online-only actions should disable, not just toast
-
-Exploratory pass 2026-04-20: today [`src/client/game/client-runtime.ts:181`](../src/client/game/client-runtime.ts) shows a toast when the `online`/`offline` window event fires, but the menu itself stays interactive. Tapping Quick Match / Create Private / Join / Leaderboard / Recent Matches while offline fails opaquely (network error) rather than being surfaced as "not available without a connection".
-
-**Intent:**
-
-- Gate online-only buttons on a reactive `isOnline` signal (fed by `navigator.onLine` + the existing `online`/`offline` listeners in [`src/client/game-client-browser.ts:191-192`](../src/client/game-client-browser.ts)). Disable Quick Match, Create Private Match, Join, Leaderboard, Recent Matches, Build a Bot when offline.
-- Show a compact offline banner ("You're offline — local AI still available") above the menu so the reason for disabling is explained once rather than via a disappearing toast.
-- Re-enable automatically on `online` event — no refresh required.
-- Preserve Play vs AI (local) and How to Play (static content) as always-enabled so the page is still useful on a plane.
-
-**Files:** `src/client/game-client-browser.ts`, `src/client/game/client-runtime.ts`, `src/client/ui/lobby-view.ts`, `src/client/ui/overlay-view.ts` (for the banner), possibly a new `src/client/connectivity.ts`
-
-### Help button hidden behind the replay bar on narrow screens
-
-Exploratory pass 2026-04-20 verified on production (sha `0b6ba1da`): during a replay viewed on a ~660×1432 viewport, the floating `?` help button at `bottom: 0.75rem + var(--safe-bottom)` sits in the same band as the replay bar (`bottom: calc(1rem + var(--safe-bottom))`) and ends up visually covered. On even narrower screens (phone portrait) the collision is certain. Options: shift the floating buttons upward whenever the replay bar is visible (add a CSS class on `<body>` while the bar is active and have `.help-btn` / `.sound-btn` / `.exit-game-btn` bump `bottom` by the bar's height), or stack the replay bar higher so it clears the right-rail icons.
-
-**Files:** `static/styles/overlays.css`, `src/client/ui/overlay-view.ts` (toggle a class on the body when the bar is active)
-
-### Floating `×` exit button is redundant during replay/gameOver
-
-Exploratory pass 2026-04-20: `exitGameBtn` (the floating `×` added to HUD mode) is visible during archived-replay playback because the replay viewer maps to the `hud` screen mode. The replay bottom bar already has its own `EXIT` button, so spectators see two exit affordances stacked on the right side. Add a second screen mode — `hudPlaying` vs `hudSpectating` — or gate `exitGameBtn` on `gameOver === false` in `buildScreenVisibility`. The functional click path is unchanged; this is purely a visual-noise cleanup.
-
-**Files:** `src/client/ui/screens.ts`, `src/client/ui/visibility.ts`
-
 ---
 
 ## AI behavior & rules conformance
