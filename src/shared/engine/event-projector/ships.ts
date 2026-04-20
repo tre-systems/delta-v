@@ -62,6 +62,9 @@ export const projectShipEvent = (
       projectedShip.value.fuel = event.fuelRemaining;
       projectedShip.value.lifecycle = event.lifecycle;
       projectedShip.value.overloadUsed = event.overloadUsed;
+      if (event.lastBurnDirection !== undefined) {
+        projectedShip.value.lastBurnDirection = event.lastBurnDirection;
+      }
       projectedShip.value.pendingGravityEffects = cloneGravityEffects(
         event.pendingGravityEffects,
       );

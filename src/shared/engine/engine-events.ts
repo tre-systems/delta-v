@@ -72,6 +72,7 @@ export type EngineEvent =
       newVelocity: HexVec;
       lifecycle: ShipLifecycle;
       overloadUsed: boolean;
+      lastBurnDirection?: number;
       pendingGravityEffects: GravityEffect[];
     }
   | {

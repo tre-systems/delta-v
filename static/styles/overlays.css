@@ -514,8 +514,7 @@
 }
 
 .help-btn,
-.sound-btn,
-.exit-game-btn {
+.sound-btn {
   position: fixed;
   right: 0.75rem;
   z-index: 5;
@@ -549,13 +548,23 @@
   line-height: 1;
 }
 
-.exit-game-btn {
-  bottom: calc(0.75rem + 5rem + var(--safe-bottom));
+.hud-exit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-right: 0.5rem;
   padding: 0;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
   font-size: 1rem;
-  letter-spacing: 0;
-  text-transform: none;
   line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
 /* While the replay bar is visible (spectator/replay mode), lift the
@@ -569,32 +578,32 @@ body.replay-bar-active .sound-btn {
   bottom: calc(6.75rem + var(--safe-bottom));
 }
 
-body.replay-bar-active .exit-game-btn {
+body.replay-bar-active .hud-exit-btn {
   display: none !important;
   pointer-events: none;
 }
 
-body.game-over-shell-active .exit-game-btn {
+body.game-over-shell-active .hud-exit-btn {
   display: none !important;
   pointer-events: none;
 }
 
-body.game-log-chat-active .exit-game-btn {
+body.game-log-chat-active .hud-exit-btn {
   display: none !important;
   pointer-events: none;
 }
 
 .help-btn:hover,
-.sound-btn:hover,
-.exit-game-btn:hover {
+.sound-btn:hover {
   color: var(--accent);
   border-color: var(--border-strong);
   background: var(--panel-hover);
 }
 
-.exit-game-btn:hover {
+.hud-exit-btn:hover {
   color: var(--danger);
   border-color: rgba(255, 138, 138, 0.26);
+  background: var(--panel-hover);
 }
 
 .sound-btn.muted {
@@ -993,28 +1002,6 @@ h2.game-over-neutral {
   flex-direction: row;
   gap: 0.6rem;
   margin-top: 0.4rem;
-}
-
-/* Subtle secondary CTA beneath rematch/exit so players who just finished
- * a match discover the agent onboarding path. Muted enough not to compete
- * with the primary Rematch button. */
-.game-over-agent-cta {
-  display: inline-block;
-  margin-top: 0.75rem;
-  align-self: center;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  text-decoration: none;
-  padding: 0.25rem 0.4rem;
-  border-radius: var(--radius-sm);
-  transition: color 0.15s;
-}
-
-.game-over-agent-cta:hover {
-  color: var(--accent);
 }
 
 #gameOver .btn {
@@ -1529,8 +1516,7 @@ h2.game-over-neutral {
   }
 
   .help-btn,
-  .sound-btn,
-  .exit-game-btn {
+  .sound-btn {
     backdrop-filter: none;
     background: var(--panel-strong);
   }

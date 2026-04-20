@@ -563,6 +563,44 @@ html[data-hud-scale='large'] .fleet-status {
   font-size: 0.78rem;
 }
 
+html[data-hud-scale='small'] .hud-bar {
+  font-size: 0.6rem;
+}
+
+html[data-hud-scale='small'] .ship-entry {
+  font-size: 0.58rem;
+}
+
+html[data-hud-scale='small'] .ship-status,
+html[data-hud-scale='small'] .ship-fuel {
+  font-size: 0.52rem;
+}
+
+html[data-hud-scale='small'] .log-status-bar,
+html[data-hud-scale='small'] .log-entries {
+  font-size: 0.54rem;
+}
+
+html[data-hud-scale='small'] .chat-input {
+  font-size: 0.65rem;
+}
+
+html[data-hud-scale='small'] .hud-bottom .btn {
+  font-size: 0.72rem;
+}
+
+html[data-hud-scale='small'] .objective-text {
+  font-size: 0.62rem;
+}
+
+html[data-hud-scale='small'] .turn-timer {
+  font-size: 0.58rem;
+}
+
+html[data-hud-scale='small'] .fleet-status {
+  font-size: 0.58rem;
+}
+
 @media (prefers-contrast: more) {
   .hud-bar,
   .hud-bottom-buttons,

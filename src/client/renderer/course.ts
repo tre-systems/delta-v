@@ -90,7 +90,9 @@ export interface CoursePreviewView {
   ghostShip: GhostShipView | null;
   crashMarker: CourseCrashMarkerView | null;
   burnMarkers: CourseMarkerView[];
+  burnArrow: CourseArrowView | null;
   overloadMarkers: CourseMarkerView[];
+  overloadArrow: CourseArrowView | null;
   weakGravityMarkers: WeakGravityMarkerView[];
   pendingGravityArrows: CourseArrowView[];
   fuelCostLabel: FuelCostLabelView | null;
@@ -189,6 +191,38 @@ const buildWeakGravityMarker = (
   };
 };
 
+const buildDirectionArrow = (
+  from: PixelCoord,
+  to: PixelCoord,
+  color: string,
+  lineWidth: number,
+  headLength: number,
+  insetPx: number,
+): CourseArrowView => {
+  const angle = Math.atan2(to.y - from.y, to.x - from.x);
+  const dist = Math.hypot(to.x - from.x, to.y - from.y);
+  const tipDist = Math.max(0, dist - insetPx);
+  const tip = {
+    x: from.x + Math.cos(angle) * tipDist,
+    y: from.y + Math.sin(angle) * tipDist,
+  };
+
+  return {
+    from,
+    to: tip,
+    headLeft: {
+      x: tip.x - headLength * Math.cos(angle - 0.5),
+      y: tip.y - headLength * Math.sin(angle - 0.5),
+    },
+    headRight: {
+      x: tip.x - headLength * Math.cos(angle + 0.5),
+      y: tip.y - headLength * Math.sin(angle + 0.5),
+    },
+    color,
+    lineWidth,
+  };
+};
+
 const buildBurnMarkers = (
   ship: GameState['ships'][number],
   burn: number | null,
@@ -198,15 +232,18 @@ const buildBurnMarkers = (
 ): CourseMarkerView[] => {
   if (ship.fuel <= 0 || ship.damage.disabledTurns > 0) return [];
 
-  return HEX_DIRECTIONS.map((_, direction) => {
+  const markers: CourseMarkerView[] = [];
+
+  HEX_DIRECTIONS.forEach((_, direction) => {
+    if (burn === direction) return;
+
     const targetHex = hexAdd(predictedDestination, HEX_DIRECTIONS[direction]);
     const target = hexToPixel(targetHex, hexSize);
-    const isActive = burn === direction;
     const isHovered = hoverHex !== null && hexEqual(hoverHex, targetHex);
 
     const marker = buildDirectionMarker(
       target,
-      isActive,
+      false,
       isHovered,
       16,
       20,
@@ -225,11 +262,29 @@ const buildBurnMarkers = (
     const showLabel =
       typeof window === 'undefined' || window.innerWidth > MOBILE_BREAKPOINT_PX;
     marker.label = showLabel ? String(direction + 1) : null;
-    marker.labelColor =
-      isActive || isHovered ? 'rgba(0, 0, 0, 0.9)' : 'rgba(79, 195, 247, 0.7)';
+    marker.labelColor = isHovered
+      ? 'rgba(0, 0, 0, 0.9)'
+      : 'rgba(79, 195, 247, 0.7)';
 
-    return marker;
+    markers.push(marker);
   });
+
+  return markers;
+};
+
+const buildBurnArrow = (
+  ship: GameState['ships'][number],
+  burn: number | null,
+  predictedDestination: HexCoord,
+  hexSize: number,
+): CourseArrowView | null => {
+  if (burn === null) return null;
+  if (ship.fuel <= 0 || ship.damage.disabledTurns > 0) return null;
+
+  const targetHex = hexAdd(predictedDestination, HEX_DIRECTIONS[burn]);
+  const from = hexToPixel(predictedDestination, hexSize);
+  const to = hexToPixel(targetHex, hexSize);
+  return buildDirectionArrow(from, to, '#4fc3f7', 2.5, 8, hexSize * 0.35);
 };
 
 const buildOverloadMarkers = (
@@ -255,28 +310,62 @@ const buildOverloadMarkers = (
 
   const burnDestination = hexAdd(predictedDestination, HEX_DIRECTIONS[burn]);
 
-  return HEX_DIRECTIONS.map((_, direction) => {
+  const markers: CourseMarkerView[] = [];
+
+  HEX_DIRECTIONS.forEach((_, direction) => {
+    if (overload === direction) return;
+
     const targetHex = hexAdd(burnDestination, HEX_DIRECTIONS[direction]);
     const target = hexToPixel(targetHex, hexSize);
 
-    return buildDirectionMarker(
-      target,
-      overload === direction,
-      hoverHex !== null && hexEqual(hoverHex, targetHex),
-      10,
-      14,
-      3,
-      'rgba(255, 183, 77, 0.8)',
-      'rgba(255, 183, 77, 0.4)',
-      'rgba(255, 183, 77, 0.1)',
-      '#ffb74d',
-      'rgba(255, 183, 77, 0.25)',
-      '#ffb74d',
-      '#ffb74d',
-      4,
-      8,
+    markers.push(
+      buildDirectionMarker(
+        target,
+        false,
+        hoverHex !== null && hexEqual(hoverHex, targetHex),
+        10,
+        14,
+        3,
+        'rgba(255, 183, 77, 0.8)',
+        'rgba(255, 183, 77, 0.4)',
+        'rgba(255, 183, 77, 0.1)',
+        '#ffb74d',
+        'rgba(255, 183, 77, 0.25)',
+        '#ffb74d',
+        '#ffb74d',
+        4,
+        8,
+      ),
     );
   });
+
+  return markers;
+};
+
+const buildOverloadArrow = (
+  ship: GameState['ships'][number],
+  burn: number | null,
+  overload: number | null,
+  predictedDestination: HexCoord,
+  hexSize: number,
+): CourseArrowView | null => {
+  if (burn === null || overload === null) return null;
+
+  const stats = SHIP_STATS[ship.type];
+  if (
+    !stats?.canOverload ||
+    ship.fuel < 2 ||
+    ship.overloadUsed ||
+    ship.damage.disabledTurns > 0
+  ) {
+    return null;
+  }
+
+  const burnDestination = hexAdd(predictedDestination, HEX_DIRECTIONS[burn]);
+  const overloadTarget = hexAdd(burnDestination, HEX_DIRECTIONS[overload]);
+  const from = hexToPixel(burnDestination, hexSize);
+  const to = hexToPixel(overloadTarget, hexSize);
+  return buildDirectionArrow(from, to, '#ffb74d', 2, 7, hexSize * 0.32);
 };
 
 const DRIFT_ALPHAS = [0.25, 0.15];
@@ -406,6 +495,11 @@ export const buildAstrogationCoursePreviewViews = (
             )
           : [],
 
+      burnArrow:
+        isSelected && !isDisabled
+          ? buildBurnArrow(ship, burn, predictedDestination, hexSize)
+          : null,
+
       overloadMarkers:
         isSelected && !isDisabled
           ? buildOverloadMarkers(
@@ -417,6 +511,17 @@ export const buildAstrogationCoursePreviewViews = (
               hexSize,
             )
           : [],
+
+      overloadArrow:
+        isSelected && !isDisabled
+          ? buildOverloadArrow(
+              ship,
+              burn,
+              overload,
+              predictedDestination,
+              hexSize,
+            )
+          : null,
 
       weakGravityMarkers:
         isSelected && !isDisabled

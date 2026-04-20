@@ -1,5 +1,6 @@
 import { SHIP_STATS } from '../../shared/constants';
 import {
+  HEX_DIRECTIONS,
   type HexCoord,
   type HexVec,
   hexAdd,
@@ -94,7 +95,19 @@ export const getShipHeading = (
   position: HexCoord,
   velocity: HexVec,
   hexSize: number,
+  lastBurnDirection?: number,
 ): number => {
+  if (
+    lastBurnDirection !== undefined &&
+    lastBurnDirection >= 0 &&
+    lastBurnDirection < HEX_DIRECTIONS.length
+  ) {
+    const dir = HEX_DIRECTIONS[lastBurnDirection];
+    const from = hexToPixel(position, hexSize);
+    const to = hexToPixel(hexAdd(position, dir), hexSize);
+    return Math.atan2(to.y - from.y, to.x - from.x);
+  }
+
   if (hexVecLength(velocity) === 0) return 0;
 
   const from = hexToPixel(position, hexSize);
