@@ -50,6 +50,9 @@ export const STATIC_BUTTON_BINDINGS = [
   { id: 'replayBarSpeedBtn', event: { type: 'replayCycleSpeed' } },
   { id: 'replayBarExitBtn', event: { type: 'toggleReplay' } },
   { id: 'exitBtn', event: { type: 'exit' } },
+  // Floating in-game exit (visible only in `hud` mode via buildScreenVisibility).
+  // Shares the same `exit` event as the game-over Exit button.
+  { id: 'exitGameBtn', event: { type: 'exit' } },
 ] as const satisfies readonly UIButtonEventBinding[];
 
 export const ACTION_BUTTON_IDS = ACTION_BUTTON_BINDINGS.map(({ id }) => id);

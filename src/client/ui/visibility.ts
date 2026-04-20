@@ -31,5 +31,6 @@ export const applyUIVisibility = (
 
   visible(byId('helpBtn'), v.helpBtn !== 'none', v.helpBtn);
   visible(byId('soundBtn'), v.soundBtn !== 'none', v.soundBtn);
+  visible(byId('exitGameBtn'), v.exitGameBtn !== 'none', v.exitGameBtn);
   visible(byId('helpOverlay'), v.helpOverlay !== 'none', v.helpOverlay);
 };
