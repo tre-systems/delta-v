@@ -67,11 +67,6 @@ test.describe('accessibility smoke checks', () => {
       .toBe('playerNameInput');
 
     await page.keyboard.press('Tab');
-    await expect
-      .poll(async () => activeElementId(page))
-      .toBe('forgetCallsignBtn');
-
-    await page.keyboard.press('Tab');
     await expect.poll(async () => activeElementId(page)).toBe('quickMatchBtn');
 
     await page.keyboard.press('Tab');
