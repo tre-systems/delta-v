@@ -12,6 +12,10 @@ import type { RoomConfig } from '../protocol';
 import { IdempotencyKeyCache } from './action-guards';
 import { createGameStateActionHandlers } from './actions';
 import { handleMcpRequest, type McpRequestDeps } from './mcp-handlers';
+import {
+  appendHostedMcpSeatEvent,
+  readHostedMcpSeatEvents,
+} from './mcp-session-state';
 import { StateWaiters } from './state-waiters';
 
 const TOKEN_A = asPlayerToken('A'.repeat(32));
@@ -241,6 +245,31 @@ describe('handleMcpRequest', () => {
       closed: false,
       hasState: true,
     });
+  });
+
+  it('activates hosted MCP buffering once a seat uses session-summary', async () => {
+    const storage = buildStorageStub();
+    const deps = buildDeps({ storage });
+
+    const before = await readHostedMcpSeatEvents(storage, 0, { limit: 50 });
+    expect(before.events).toEqual([]);
+
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/session-summary', { playerKey: 'p0' }), {
+        method: 'GET',
+      }),
+    );
+    expect(res?.status).toBe(200);
+
+    await appendHostedMcpSeatEvent(storage, 0, {
+      type: 'chat',
+      playerId: 0,
+      text: 'ready',
+    });
+    const after = await readHostedMcpSeatEvents(storage, 0, { limit: 50 });
+    expect(after.events).toHaveLength(1);
+    expect(after.events[0]?.type).toBe('chat');
   });
 
   it('rejects session summary requests without a playerKey', async () => {
