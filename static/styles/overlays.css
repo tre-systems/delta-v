@@ -1091,7 +1091,6 @@ h2.game-over-neutral {
 }
 
 .replay-bar-status {
-  flex: 1;
   min-width: 0;
   color: rgba(159, 181, 196, 0.9);
   font-family: var(--font-mono);
@@ -1101,6 +1100,54 @@ h2.game-over-neutral {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.replay-btn-speed {
+  width: auto;
+  min-width: 2.4rem;
+  padding: 0 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(122, 215, 255, 0.9);
+}
+
+.replay-bar-progress-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0 0.6rem;
+}
+
+.replay-bar-turn-label {
+  color: rgba(159, 181, 196, 0.75);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.replay-bar-progress {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(122, 215, 255, 0.12);
+}
+
+.replay-bar-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(
+    90deg,
+    rgba(122, 215, 255, 0.55),
+    rgba(255, 186, 120, 0.6)
+  );
+  border-radius: 999px;
+  transition: width 180ms ease-out;
 }
 
 .reconnect-overlay {

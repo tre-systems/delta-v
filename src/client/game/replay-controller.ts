@@ -5,6 +5,7 @@ import { type ReadonlySignal, signal } from '../reactive';
 import {
   createHiddenReplayControls,
   type ReplayControlsView,
+  type ReplaySpeed,
 } from '../ui/overlay-state';
 import type { ClientState } from './phase';
 import {
@@ -12,9 +13,11 @@ import {
   shiftReplaySelection,
 } from './replay-selection';
 
-// Minimum dwell between replay frames when not animating. Long enough to read
-// a snap-only state (e.g. ordnance launch, logistics) before advancing.
-const SNAP_DWELL_MS = 800;
+// Minimum dwell between replay frames at 1x playback. Long enough to read a
+// snap-only state (e.g. ordnance launch, logistics) before advancing. Speed
+// multiplier shrinks this for 2x/4x and expands it for 0.5x.
+const SNAP_DWELL_MS_AT_1X = 800;
+const ALLOWED_SPEEDS: readonly ReplaySpeed[] = [0.5, 1, 2, 4];
 
 interface ReplayControllerDeps {
   getClientContext: () => {
@@ -50,6 +53,8 @@ export interface ReplayController {
   toggleReplay: () => Promise<void>;
   togglePlay: () => void;
   stepReplay: (direction: 'start' | 'prev' | 'next' | 'end') => void;
+  cycleSpeed: () => void;
+  setSpeed: (speed: ReplaySpeed) => void;
   // Seed the controller with a pre-fetched timeline — used by the archived
   // replay viewer path that boots the client into replay mode without an
   // interactive gameplay session. Requires the client to be in `gameOver`
@@ -68,7 +73,10 @@ export const createReplayController = (
   let playToken: number | null = null;
   let playTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let pendingAnimationToken: number | null = null;
+  let playbackSpeed: ReplaySpeed = 1;
   const controlsSignal = signal(createHiddenReplayControls());
+
+  const currentDwellMs = (): number => SNAP_DWELL_MS_AT_1X / playbackSpeed;
 
   const isPlaying = () => playToken !== null;
 
@@ -92,7 +100,15 @@ export const createReplayController = (
     }
 
     const player = `P${entry.message.state.activePlayer + 1}`;
-    return `Turn ${entry.turn} · ${player} ${entry.phase.toUpperCase()} · ${index + 1}/${timeline.entries.length}`;
+    return `Turn ${entry.turn} · ${player} ${entry.phase.toUpperCase()}`;
+  };
+
+  const buildTurnLabel = (timeline: ReplayTimeline, index: number): string => {
+    const entry = timeline.entries[index];
+    if (!entry) return '';
+    const maxTurn =
+      timeline.entries[timeline.entries.length - 1]?.turn ?? entry.turn;
+    return `Turn ${entry.turn}/${maxTurn}`;
   };
 
   const getReplaySelection = () => {
@@ -161,6 +177,9 @@ export const createReplayController = (
         canPrev: false,
         canNext: false,
         canEnd: false,
+        speed: playbackSpeed,
+        progress: 0,
+        turnLabel: '',
       };
       return;
     }
@@ -168,6 +187,8 @@ export const createReplayController = (
     const timeline = replayTimeline;
     const index = replayIndex;
     const canAdvance = index < timeline.entries.length - 1;
+    const totalEntries = timeline.entries.length;
+    const progress = totalEntries > 1 ? index / (totalEntries - 1) : 1;
 
     controlsSignal.value = {
       available: true,
@@ -183,6 +204,9 @@ export const createReplayController = (
       canPrev: index > 0,
       canNext: canAdvance,
       canEnd: canAdvance,
+      speed: playbackSpeed,
+      progress,
+      turnLabel: buildTurnLabel(timeline, index),
     };
   };
 
@@ -246,7 +270,7 @@ export const createReplayController = (
     playTimeoutId = setTimeout(() => {
       playTimeoutId = null;
       stepForward(token);
-    }, SNAP_DWELL_MS);
+    }, currentDwellMs());
   };
 
   const stepForward = (token: number) => {
@@ -371,6 +395,9 @@ export const createReplayController = (
         canPrev: false,
         canNext: false,
         canEnd: false,
+        speed: playbackSpeed,
+        progress: 0,
+        turnLabel: '',
       };
 
       const timeline = await deps.fetchReplay(
@@ -426,6 +453,25 @@ export const createReplayController = (
       }
 
       applyReplayEntry(replayIndex);
+      updateOverlay();
+    },
+    cycleSpeed: () => {
+      const nextIndex =
+        (ALLOWED_SPEEDS.indexOf(playbackSpeed) + 1) % ALLOWED_SPEEDS.length;
+      playbackSpeed = ALLOWED_SPEEDS[nextIndex];
+      // If a timeout is already armed, reschedule so the new speed takes
+      // effect on the very next entry rather than after the current dwell.
+      if (isPlaying() && playToken !== null && pendingAnimationToken === null) {
+        scheduleNextEntry(playToken);
+      }
+      updateOverlay();
+    },
+    setSpeed: (speed) => {
+      if (!ALLOWED_SPEEDS.includes(speed)) return;
+      playbackSpeed = speed;
+      if (isPlaying() && playToken !== null && pendingAnimationToken === null) {
+        scheduleNextEntry(playToken);
+      }
       updateOverlay();
     },
     startArchivedReplay: (timeline) => {

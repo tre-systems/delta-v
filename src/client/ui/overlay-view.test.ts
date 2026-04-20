@@ -37,6 +37,11 @@ const installFixture = () => {
     <svg id="replayPauseIcon" hidden></svg>
     <button id="replayBarNextBtn"></button>
     <button id="replayBarEndBtn"></button>
+    <button id="replayBarSpeedBtn"></button>
+    <div id="replayBarTurnLabel"></div>
+    <div id="replayBarProgress">
+      <div id="replayBarProgressFill"></div>
+    </div>
     <div id="reconnectOverlay" hidden></div>
     <div id="reconnectText"></div>
     <div id="reconnectAttempt"></div>
@@ -198,6 +203,9 @@ describe('OverlayView', () => {
       canPrev: false,
       canNext: true,
       canEnd: true,
+      speed: 1,
+      progress: 0.1,
+      turnLabel: 'Turn 1/6',
     };
 
     expect(

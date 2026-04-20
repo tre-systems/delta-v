@@ -57,7 +57,7 @@ type MainInteractionHud = {
 
 type MainInteractionReplay = Pick<
   ReplayController,
-  'selectMatch' | 'toggleReplay' | 'togglePlay' | 'stepReplay'
+  'selectMatch' | 'toggleReplay' | 'togglePlay' | 'stepReplay' | 'cycleSpeed'
 >;
 
 type MainInteractionDeps = {
@@ -271,6 +271,9 @@ export const createMainInteractionController = (
         return;
       case 'replayNav':
         deps.replayController.stepReplay(plan.direction);
+        return;
+      case 'replayCycleSpeed':
+        deps.replayController.cycleSpeed();
         return;
       case 'sendChat':
         deps.ctx.transport?.sendChat(plan.text);

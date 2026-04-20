@@ -176,8 +176,45 @@ describe('replay-controller', () => {
     expect(controller.controlsSignal.value).toMatchObject({
       available: true,
       active: true,
-      statusText: 'Turn 1 · P1 ASTROGATION · 1/2',
+      statusText: 'Turn 1 · P1 ASTROGATION',
+      speed: 1,
+      progress: 0,
+      turnLabel: 'Turn 1/2',
     });
+  });
+
+  it('cycles playback speed through 0.5x/1x/2x/4x', () => {
+    const timeline = createTimeline(asGameId('ABCDE-m1'));
+    const controller = createReplayController({
+      getClientContext: () => ({
+        state: 'gameOver',
+        isLocalGame: false,
+        gameCode: 'ABCDE',
+        gameState: createState(asGameId('ABCDE-m1')),
+      }),
+      fetchReplay: async () => null,
+      showToast: () => {},
+      logText: () => {},
+      clearTrails: () => {},
+      applyGameState: () => {},
+      frameOnActivePlayer: () => {},
+      presentReplayEntry: (_entry, _previousState, done) => done(),
+    });
+
+    controller.startArchivedReplay(timeline);
+    expect(controller.controlsSignal.value.speed).toBe(1);
+
+    controller.cycleSpeed();
+    expect(controller.controlsSignal.value.speed).toBe(2);
+
+    controller.cycleSpeed();
+    expect(controller.controlsSignal.value.speed).toBe(4);
+
+    controller.cycleSpeed();
+    expect(controller.controlsSignal.value.speed).toBe(0.5);
+
+    controller.cycleSpeed();
+    expect(controller.controlsSignal.value.speed).toBe(1);
   });
 
   it('shows a toast and does nothing for an empty archived timeline', () => {
