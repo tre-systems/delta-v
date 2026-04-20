@@ -134,6 +134,10 @@ export const resolveMovementPhase = (
     ship.velocity = course.newVelocity;
     ship.fuel -= course.fuelSpent;
 
+    if (burn !== null) {
+      ship.lastBurnDirection = burn;
+    }
+
     if (overload !== null) {
       ship.overloadUsed = true;
     }
@@ -155,6 +159,9 @@ export const resolveMovementPhase = (
       newVelocity: course.newVelocity,
       lifecycle: ship.lifecycle,
       overloadUsed: ship.overloadUsed,
+      ...(ship.lastBurnDirection !== undefined
+        ? { lastBurnDirection: ship.lastBurnDirection }
+        : {}),
       pendingGravityEffects: (ship.pendingGravityEffects ?? []).map(
         (effect) => ({
           ...effect,

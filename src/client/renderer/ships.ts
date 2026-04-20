@@ -110,7 +110,12 @@ const drawOneShip = ({
     stackOffsets,
     ctx,
   });
-  const heading = getShipHeading(ship.position, velocity, hexSize);
+  const heading = getShipHeading(
+    ship.position,
+    velocity,
+    hexSize,
+    ship.lastBurnDirection,
+  );
 
   drawSelectionRingIfNeeded(ctx, ship.id, planningSelectedShipId, pos);
   drawShipIconFn({

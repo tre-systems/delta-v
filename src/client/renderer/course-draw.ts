@@ -172,6 +172,12 @@ const drawSingleCoursePreview = (
   for (const marker of [...preview.burnMarkers, ...preview.overloadMarkers]) {
     drawCourseMarkerView(ctx, marker, zoom);
   }
+  if (preview.burnArrow) {
+    drawCourseArrow(ctx, preview.burnArrow);
+  }
+  if (preview.overloadArrow) {
+    drawCourseArrow(ctx, preview.overloadArrow);
+  }
   for (const marker of preview.weakGravityMarkers) {
     drawWeakGravityMarkerView(ctx, marker, zoom);
   }
