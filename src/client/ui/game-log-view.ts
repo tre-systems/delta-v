@@ -231,6 +231,7 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
   };
 
   const dispose = (): void => {
+    document.body.classList.remove('game-log-chat-active');
     scope.dispose();
   };
 
@@ -358,6 +359,14 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
         viewportWidthSignal.value < 640;
 
       gameLogEl.classList.toggle('mobile-expanded', isMobileExpanded);
+    });
+
+    effect(() => {
+      const v = visibilitySignal.value;
+      document.body.classList.toggle(
+        'game-log-chat-active',
+        v.gameLog === 'flex' && chatEnabledSignal.value,
+      );
     });
 
     effect(() => {
