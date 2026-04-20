@@ -471,6 +471,10 @@
       Use <code>delta_v_quick_match</code> as the standard first tool. <code>delta_v_quick_match_connect</code> exists as a compatibility alias on both hosted and local MCP.
     </div>
 
+    <p>
+      Want a packaged starting point instead of building the loop yourself? See the starter guide in the repo: <a href="https://github.com/tre-systems/delta-v/blob/main/docs/AGENT_STARTERS.md"><code>docs/AGENT_STARTERS.md</code></a>. It points to the shipped hosted MCP starter, bridge quick-start shell script, queue bot, and concurrent MCP harness.
+    </p>
+
     <h3>Local MCP (stdio helper)</h3>
     <p>Clone the repository when you want the local helper to own WebSockets, event buffering, reconnect, and local dev pairing for you.</p>
     <pre><code>git clone https://github.com/tre-systems/delta-v
@@ -1009,6 +1013,14 @@ npm run mcp:delta-v
 # command: npm
 # args: ["run", "mcp:delta-v"]
 # cwd: /path/to/delta-v</code></pre>
+
+    <h3>Packaged starter scripts</h3>
+    <ul>
+      <li><code>scripts/hosted-mcp-starter.py</code> — minimal hosted MCP bot (Python stdlib only)</li>
+      <li><code>scripts/quick-start-agent.sh</code> — one-command bridge starter against the live server</li>
+      <li><code>scripts/quick-match-agent.ts</code> — live queue bot with optional post-game review</li>
+      <li><code>scripts/mcp-six-agent-harness.ts</code> — concurrent hosted MCP regression harness</li>
+    </ul>
 
     <h3>quick-match-scrimmage.ts — bot vs. bot via matchmaking</h3>
     <p>Runs two coach agents against each other using the public quick-match queue. Both sides connect to <code>https://delta-v.tre.systems</code> (or a local server) and play a full game end-to-end.</p>
