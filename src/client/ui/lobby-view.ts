@@ -40,6 +40,14 @@ export interface LobbyViewDeps {
   // hit the real /api/claim-name route.
   postClaimName?: typeof postClaimName;
   fetchPlayerRank?: typeof fetchPlayerRank;
+  /**
+   * Reactive online/offline state. When `false`, network-dependent CTAs
+   * (Quick Match, Create Private, Join, Leaderboard, Recent Matches,
+   * Build a Bot) are disabled and an offline banner is shown. When the
+   * signal flips back to `true`, the CTAs re-enable without a refresh.
+   * Omit (tests) to treat the lobby as always online.
+   */
+  onlineSignal?: { readonly value: boolean };
 }
 
 export interface LobbyView {
@@ -528,9 +536,11 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     effect(() => {
       const loadingKind = loadingSignal.value;
       const loading = loadingKind !== null;
-      createBtn.disabled = loading;
-      quickMatchBtn.disabled = loading;
-      joinBtn.disabled = loading || !isJoinInputValid(codeInputEl.value);
+      const online = deps.onlineSignal?.value ?? true;
+      createBtn.disabled = loading || !online;
+      quickMatchBtn.disabled = loading || !online;
+      joinBtn.disabled =
+        loading || !online || !isJoinInputValid(codeInputEl.value);
       text(
         createBtn,
         loadingKind === 'create' ? 'CREATING...' : 'Create Private Match',
@@ -539,6 +549,34 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         quickMatchBtn,
         loadingKind === 'quickMatch' ? 'SEARCHING...' : 'Quick Match',
       );
+
+      const onlineOnlyLinks = Array.from(
+        document.querySelectorAll<HTMLElement>('.menu-online-only'),
+      );
+      for (const link of onlineOnlyLinks) {
+        if (online) {
+          link.removeAttribute('aria-disabled');
+          link.removeAttribute('tabindex');
+          link.style.pointerEvents = '';
+          link.style.opacity = '';
+          link.removeAttribute('title');
+        } else {
+          link.setAttribute('aria-disabled', 'true');
+          link.setAttribute('tabindex', '-1');
+          link.style.pointerEvents = 'none';
+          link.style.opacity = '0.4';
+          link.setAttribute('title', 'Unavailable while offline');
+        }
+      }
+
+      const offlineBanner = document.getElementById('menuOfflineBanner');
+      if (offlineBanner) {
+        if (online) {
+          offlineBanner.setAttribute('hidden', '');
+        } else {
+          offlineBanner.removeAttribute('hidden');
+        }
+      }
     });
 
     effect(() => {

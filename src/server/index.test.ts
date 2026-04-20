@@ -60,6 +60,9 @@ type MockEnv = {
     >;
   };
   MATCH_ARCHIVE?: {
+    delete?: ReturnType<
+      typeof vi.fn<(key: string | string[]) => Promise<void>>
+    >;
     get: ReturnType<
       typeof vi.fn<
         (key: string) => Promise<{ json: () => Promise<unknown> } | null>
@@ -935,6 +938,52 @@ describe('server index worker', () => {
     expect(fetchedUrls).toContain(
       'https://delta-v.test/icons/apple-touch-icon.png',
     );
+  });
+
+  it('purges expired events and archived matches in the scheduled handler', async () => {
+    const oldGameId = 'OLD-m1';
+    const selectAll = vi.fn(async () => ({
+      results: [{ game_id: oldGameId }],
+    }));
+    const deleteRowsRun = vi.fn(async () => ({ meta: { changes: 1 } }));
+    const deleteEventsRun = vi.fn(async () => ({ meta: { changes: 2 } }));
+    const bindFn = vi
+      .fn()
+      .mockReturnValueOnce({ run: deleteEventsRun })
+      .mockReturnValueOnce({ all: selectAll })
+      .mockReturnValueOnce({ run: deleteRowsRun });
+    const prepareFn = vi.fn(() => ({ bind: bindFn }));
+    const archiveDelete = vi.fn(async () => {});
+    const { env } = createEnv(undefined, {
+      DB: {
+        prepare: prepareFn,
+        bind: bindFn,
+        run: deleteEventsRun,
+      } as unknown as MockDb,
+      MATCH_ARCHIVE: {
+        get: vi.fn(async () => null),
+        delete: archiveDelete,
+      },
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const ctx = mockCtx();
+
+    await worker.scheduled({} as ScheduledEvent, env as unknown as Env, ctx);
+    await Promise.all(ctx.waitUntil.mock.calls.map(([promise]) => promise));
+
+    expect(archiveDelete).toHaveBeenCalledWith([`matches/${oldGameId}.json`]);
+    expect(prepareFn).toHaveBeenCalledWith('DELETE FROM events WHERE ts < ?');
+    expect(prepareFn).toHaveBeenCalledWith(
+      'SELECT game_id FROM match_archive WHERE completed_at < ? ORDER BY completed_at ASC LIMIT ?',
+    );
+    expect(prepareFn).toHaveBeenCalledWith(
+      'DELETE FROM match_archive WHERE game_id IN (?)',
+    );
+    expect(logSpy).toHaveBeenCalledWith('[events purge] removed 2 rows');
+    expect(logSpy).toHaveBeenCalledWith(
+      '[match archive purge] removed 1 rows / 1 objects',
+    );
+    logSpy.mockRestore();
   });
 });
 
