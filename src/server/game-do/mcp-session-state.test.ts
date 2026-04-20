@@ -6,6 +6,7 @@ import {
   appendHostedMcpSeatEvent,
   clearAllHostedMcpSessionState,
   clearHostedMcpSeatEvents,
+  enableHostedMcpSeatEvents,
   readHostedMcpSeatEvents,
 } from './mcp-session-state';
 
@@ -42,6 +43,7 @@ describe('mcp-session-state', () => {
   it('appends events with monotonic ids and exposes latestEventId', async () => {
     const storage = buildStorageStub();
 
+    await enableHostedMcpSeatEvents(storage, 0);
     await appendHostedMcpSeatEvent(storage, 0, chat('one'));
     await appendHostedMcpSeatEvent(storage, 0, chat('two'));
 
@@ -53,6 +55,7 @@ describe('mcp-session-state', () => {
 
   it('filters afterEventId, enforces limit, and preserves bufferedRemaining when not clearing', async () => {
     const storage = buildStorageStub();
+    await enableHostedMcpSeatEvents(storage, 0);
     await appendHostedMcpSeatEvent(storage, 0, chat('one'));
     await appendHostedMcpSeatEvent(storage, 0, chat('two'));
     await appendHostedMcpSeatEvent(storage, 0, chat('three'));
@@ -70,6 +73,7 @@ describe('mcp-session-state', () => {
 
   it('clears seat events without rewinding the sequence counter', async () => {
     const storage = buildStorageStub();
+    await enableHostedMcpSeatEvents(storage, 0);
     await appendHostedMcpSeatEvent(storage, 0, chat('one'));
     await appendHostedMcpSeatEvent(storage, 0, chat('two'));
 
@@ -85,6 +89,8 @@ describe('mcp-session-state', () => {
 
   it('clearHostedMcpSeatEvents only clears the requested seat', async () => {
     const storage = buildStorageStub();
+    await enableHostedMcpSeatEvents(storage, 0);
+    await enableHostedMcpSeatEvents(storage, 1);
     await appendHostedMcpSeatEvent(storage, 0, chat('a'));
     await appendHostedMcpSeatEvent(storage, 1, chat('b'));
 
@@ -98,6 +104,8 @@ describe('mcp-session-state', () => {
 
   it('clearAllHostedMcpSessionState resets both seats and both counters', async () => {
     const storage = buildStorageStub();
+    await enableHostedMcpSeatEvents(storage, 0);
+    await enableHostedMcpSeatEvents(storage, 1);
     await appendHostedMcpSeatEvent(storage, 0, chat('a'));
     await appendHostedMcpSeatEvent(storage, 1, chat('b'));
 
@@ -107,10 +115,13 @@ describe('mcp-session-state', () => {
     expect(await storage.get('mcpEvents:1')).toEqual([]);
     expect(await storage.get('mcpEventSeq:0')).toBe(1);
     expect(await storage.get('mcpEventSeq:1')).toBe(1);
+    expect(await storage.get('mcpEnabled:0')).toBe(false);
+    expect(await storage.get('mcpEnabled:1')).toBe(false);
   });
 
   it('trims the buffered event window to the most recent 200 entries', async () => {
     const storage = buildStorageStub();
+    await enableHostedMcpSeatEvents(storage, 0);
     for (let index = 0; index < 205; index += 1) {
       await appendHostedMcpSeatEvent(storage, 0, chat(`event-${index}`));
     }
@@ -120,5 +131,15 @@ describe('mcp-session-state', () => {
     expect(result.events[0]?.id).toBe(6);
     expect(result.events.at(-1)?.id).toBe(205);
     expect(result.latestEventId).toBe(205);
+  });
+
+  it('does not buffer events until the hosted MCP seat is activated', async () => {
+    const storage = buildStorageStub();
+    await appendHostedMcpSeatEvent(storage, 0, chat('ignored'));
+
+    const result = await readHostedMcpSeatEvents(storage, 0, { limit: 250 });
+    expect(result.events).toEqual([]);
+    expect(result.latestEventId).toBe(0);
+    expect(result.bufferedRemaining).toBe(0);
   });
 });
