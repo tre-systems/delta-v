@@ -51,15 +51,15 @@ import type { AIDifficulty } from './types';
 // sequence into the score. A stable constant bias per difficulty reflects
 // each tier's risk posture without random noise:
 //   - easy: 0.4 — plan conservatively, assume the dice are slightly against you
-//   - normal: 0.5 — neutral expectation
-//   - hard: 0.6 — assume dice are slightly favorable, so commit to engagements
+//   - normal: 0.42 — still cautious, but willing to project modestly favorable lines
+//   - hard: 0.7 — assume dice are favorable enough to commit to better openings
 //
 // The triple below was picked by the `scripts/ai-bias-sweep.ts` harness;
 // see docs/SIMULATION_TESTING.md for the measurement protocol. Expose as
 // `let` so the sweep script can mutate in-process without a rebuild.
 export let LOOKAHEAD_BIAS_BY_DIFFICULTY: Record<AIDifficulty, number> = {
   easy: 0.4,
-  normal: 0.45,
+  normal: 0.42,
   hard: 0.7,
 };
 
@@ -88,7 +88,7 @@ const getPassengerEmergencyEscortOrders = (
   enemyHasPassengerObjective: boolean,
   // The lookahead no longer consumes the outer match RNG — it uses a
   // difficulty-biased constant via `createLookaheadRng` instead (easy 0.4,
-  // normal 0.5, hard 0.6). We accept the parameter for API parity with the
+  // normal 0.42, hard 0.7). We accept the parameter for API parity with the
   // enclosing `aiAstrogation` signature, but intentionally don't pass it
   // into the simulation. Underscore-prefixed so lint flags any future
   // misuse.
