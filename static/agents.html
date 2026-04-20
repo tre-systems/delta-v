@@ -410,7 +410,7 @@
     <div class="hero-eyebrow">Programmatic Play</div>
     <h1>Build an Agent</h1>
     <p class="hero-lead">
-      Delta-V supports fully programmatic play. Connect a script, an LLM, or any decision-making process and have it play against a human or another agent. This page covers everything you need to get started.
+      Delta-V supports fully programmatic play. The recommended path is MCP: hosted HTTP if you want zero-install access, or local stdio if you want a stateful helper that owns WebSockets for you. Raw WebSocket and the bridge remain available when you need lower-level control.
     </p>
   </div>
 
@@ -439,23 +439,55 @@
       Delta-V is a 2-player tactical space combat game played on a hex grid. Ships move with realistic inertia, gravity from celestial bodies matters, and victories are won by reaching objectives or destroying the enemy fleet.
     </p>
     <p>
-      The game server exposes a WebSocket API that any client — browser, script, or AI model — can connect to. The <strong>LLM player bridge</strong> (<code>scripts/llm-player.ts</code>) handles the WebSocket connection and translates game events into structured JSON payloads, which it passes to an external agent process over stdin/stdout or HTTP. Your agent only needs to read a JSON payload and write back a decision.
+      Delta-V exposes three agent surfaces. <strong>MCP</strong> is the preferred interface and gives you legal candidates, observations, session helpers, and resources. The <strong>LLM player bridge</strong> (<code>scripts/llm-player.ts</code>) is a good middle ground if you want stdin/stdout or HTTP callbacks but do not want to manage a WebSocket yourself. <strong>Raw WebSocket</strong> is the lowest-level path and requires you to handle pacing, guards, reconnection, and replay flow directly.
     </p>
     <div class="callout">
-      <div class="callout-label">Open Protocol</div>
-      The agent interface is fully documented and stable. Any language that can read JSON from stdin and write to stdout can be an agent.
+      <div class="callout-label">Recommended</div>
+      Start with MCP unless you have a concrete reason not to. Hosted MCP uses <code>agentToken</code> + <code>matchToken</code> so raw seat credentials never need to enter the model context window.
     </div>
   </section>
 
   <!-- 2. Quick Start -->
   <section class="section" id="quickstart">
     <h2><span class="section-num">02</span> Quick Start</h2>
-    <p>Clone the repository and install dependencies:</p>
-    <pre><code>git clone https://github.com/rgilks/delta-v
-cd delta-v
-npm install</code></pre>
+    <h3>Hosted MCP (recommended, no clone required)</h3>
+    <p>For production or hosted agents, point your MCP client at <code>https://delta-v.tre.systems/mcp</code>.</p>
+    <pre><code>1. POST /api/agent-token
+   { "playerKey": "agent_mybot_v1" }
 
-    <p>Run the bridge with a command-mode agent (your script receives JSON on stdin, writes JSON on stdout):</p>
+2. Send both headers on every POST /mcp:
+   Authorization: Bearer &lt;agentToken&gt;
+   Accept: application/json, text/event-stream
+
+3. Call delta_v_quick_match
+4. Call delta_v_wait_for_turn
+5. Pick a candidate or custom action
+6. Call delta_v_send_action
+7. Repeat until game over
+8. Call delta_v_close_session</code></pre>
+
+    <div class="callout">
+      <div class="callout-label">Canonical tool name</div>
+      Use <code>delta_v_quick_match</code> as the standard first tool. <code>delta_v_quick_match_connect</code> exists as a compatibility alias on both hosted and local MCP.
+    </div>
+
+    <h3>Local MCP (stdio helper)</h3>
+    <p>Clone the repository when you want the local helper to own WebSockets, event buffering, reconnect, and local dev pairing for you.</p>
+    <pre><code>git clone https://github.com/tre-systems/delta-v
+cd delta-v
+npm install
+npm run mcp:delta-v</code></pre>
+
+    <p>Typical local loop:</p>
+    <pre><code>delta_v_quick_match
+delta_v_wait_for_turn
+delta_v_send_action
+delta_v_close_session</code></pre>
+
+    <p>For reproducible two-seat local automation, queue both seats with <code>waitForOpponent: false</code> and the same <code>rendezvousCode</code>, then resolve them with <code>delta_v_pair_quick_match_tickets</code>.</p>
+
+    <h3>Bridge quick start (stdin/stdout or HTTP)</h3>
+    <p>Use the bridge when you want your agent to receive <code>AgentTurnInput</code> over stdin/stdout or HTTP while the runner handles the WebSocket.</p>
     <pre><code># Host a game; browser opponent joins with the printed code
 npm run llm:player -- \
   --mode create \
@@ -572,15 +604,16 @@ npm run llm:player -- \
 { "status": "expired", "ticket": "...", "scenario": "duel", "reason": "timeout" }</code></pre>
 
     <h3>GET /replay/{code}</h3>
-    <p>Fetch the full replay timeline for a completed game. Accepts optional query params <code>playerToken</code> (for private games) and <code>gameId</code>.</p>
+    <p>Fetch the full replay timeline for a completed game. Public archived replay uses <code>?viewer=spectator&amp;gameId=ROOMCODE-mN</code>. Private or seat-authenticated callers may use <code>playerToken</code> instead.</p>
     <pre><code>// Response
 {
-  "gameId": "uuid",
+  "gameId": "ABCDE-m1",
   "roomCode": "ABCDE",
+  "matchNumber": 1,
   "scenario": "duel",
-  "timeline": [
-    { "phase": "gameStart", "state": GameState },
-    { "phase": "astrogation", "state": GameState },
+  "createdAt": 1713550000000,
+  "entries": [
+    { "sequence": 1, "recordedAt": 1713550000123, "turn": 1, "phase": "astrogation", "message": { ... } },
     ...
   ]
 }</code></pre>
@@ -597,9 +630,12 @@ npm run llm:player -- \
     <table class="field-table">
       <thead><tr><th>Endpoint / action</th><th>Limit</th><th>Window</th></tr></thead>
       <tbody>
+        <tr><td>POST /api/agent-token</td><td>5 requests</td><td>60 s</td></tr>
+        <tr><td>POST /mcp</td><td>20 requests</td><td>60 s</td></tr>
         <tr><td>POST /create, POST /quick-match</td><td>5 requests</td><td>60 s</td></tr>
         <tr><td>WS /ws/{code} upgrades</td><td>20 connections</td><td>60 s</td></tr>
-        <tr><td>GET /quick-match/{ticket}, GET /join/{code}, GET /replay/{code}</td><td>100 requests</td><td>60 s</td></tr>
+        <tr><td>GET /quick-match/{ticket}, GET /join/{code}</td><td>100 requests</td><td>60 s</td></tr>
+        <tr><td>GET /replay/{code}</td><td>250 requests</td><td>60 s</td></tr>
       </tbody>
     </table>
 
@@ -656,10 +692,13 @@ const ws = new WebSocket('wss://delta-v.tre.systems/ws/ABCDE?viewer=spectator');
         <tr><td>stateUpdate</td><td>After each phase resolves</td><td><code>state: GameState</code></td></tr>
         <tr><td>movementResult</td><td>After astrogation resolves</td><td><code>state: GameState</code></td></tr>
         <tr><td>combatResult</td><td>After combat resolves</td><td><code>state: GameState</code></td></tr>
+        <tr><td>combatSingleResult</td><td>After a single attack resolves</td><td><code>state: GameState</code>, <code>result</code></td></tr>
         <tr><td>chat</td><td>Player sent chat</td><td><code>playerId</code>, <code>text</code></td></tr>
         <tr><td>rematchPending</td><td>Opponent requested rematch</td><td>—</td></tr>
-        <tr><td>opponentStatus</td><td>Opponent connect/disconnect</td><td><code>connected: boolean</code></td></tr>
+        <tr><td>opponentStatus</td><td>Opponent connect/disconnect</td><td><code>status</code>, optional <code>graceDeadlineMs</code></td></tr>
         <tr><td>error</td><td>Server-side error</td><td><code>message</code>, optional <code>code</code></td></tr>
+        <tr><td>actionAccepted</td><td>Submitter action accepted after guard check</td><td><code>guardStatus</code>, <code>expected</code>, <code>actual</code></td></tr>
+        <tr><td>actionRejected</td><td>Submitter action rejected</td><td><code>reason</code>, <code>message</code>, <code>state</code>, <code>expected</code>, <code>actual</code></td></tr>
         <tr><td>pong</td><td>Response to ping</td><td>—</td></tr>
       </tbody>
     </table>
@@ -690,6 +729,21 @@ const ws = new WebSocket('wss://delta-v.tre.systems/ws/ABCDE?viewer=spectator');
   <section class="section section-anchor" id="interface">
     <h2><span class="section-num">07</span> Agent Interface</h2>
     <p>
+      For new integrations, start with MCP. The bridge and raw WebSocket paths remain available, but they are lower-level surfaces for custom runtimes and bespoke orchestration.
+    </p>
+
+    <h3>MCP turn loop (preferred)</h3>
+    <p>
+      Hosted MCP and local stdio MCP both expose the same high-level loop:
+      <code>delta_v_quick_match</code> → <code>delta_v_wait_for_turn</code> → <code>delta_v_send_action</code> → repeat until game over. Hosted MCP calls must send <code>Accept: application/json, text/event-stream</code> on every <code>POST /mcp</code> request.
+    </p>
+    <div class="callout">
+      <div class="callout-label">Fleet building</div>
+      If the current observation still reports <code>fleetBuilding</code>, your seat must send <code>fleetReady</code> explicitly, often with an empty <code>purchases</code> list. The game will not advance until both players do.
+    </div>
+
+    <h3>Bridge agent contract</h3>
+    <p>
       The bridge pre-computes a set of <strong>candidate actions</strong> (using the built-in AI at multiple difficulty levels) and sends the full game context to your agent. Your agent picks one.
     </p>
 
@@ -697,7 +751,7 @@ const ws = new WebSocket('wss://delta-v.tre.systems/ws/ABCDE?viewer=spectator');
     <p>The bridge spawns your command via <code>zsh -lc</code> for each decision. The full JSON payload is written to its stdin; your process must write a JSON response to stdout and exit.</p>
 
     <h3>HTTP (http mode)</h3>
-    <p>The bridge <code>POST</code>s the JSON payload to your URL with <code>Content-Type: application/json</code>. Hosted MCP clients must also send <code>Accept: application/json, text/event-stream</code>. Respond with the same JSON format.</p>
+    <p>The bridge <code>POST</code>s the JSON payload to your URL with <code>Content-Type: application/json</code>. Respond with the same JSON format.</p>
 
     <h3>AgentTurnInput</h3>
     <pre><code>{
@@ -753,7 +807,7 @@ print(json.dumps({"candidateIndex": payload.get("recommendedIndex", 0)}))</code>
     </ul>
     <div class="callout">
       <div class="callout-label">Phase discipline</div>
-      Before sending any action, re-check the latest turn/phase and active player. Most invalid moves are stale-phase sends, not schema errors.
+      Before sending any action, re-check the latest turn, phase, and active player. Only <code>fleetBuilding</code> is simultaneous; astrogation, ordnance, combat, and logistics are all sequential by <code>activePlayer</code>. Most invalid moves are stale-phase sends, not schema errors.
     </div>
   </section>
 
@@ -944,10 +998,10 @@ process.stdout.write(JSON.stringify({ candidateIndex, chat }));</code></pre>
   <!-- 11. Automation Scripts -->
   <section class="section section-anchor" id="scripts">
     <h2><span class="section-num">11</span> Automation Scripts</h2>
-    <p>The repository ships two high-level scripts for running automated games without writing any WebSocket code yourself.</p>
+    <p>The repository ships MCP-first and bridge-based automation entry points, so most agents can avoid writing raw WebSocket code entirely.</p>
 
     <h3>delta-v-mcp-server.ts — preferred agent integration</h3>
-    <p>For MCP-capable agents, the preferred interface is the local MCP server. It exposes tools for quick-match connect, state/event polling, action sending, and chat.</p>
+    <p>For MCP-capable agents, the preferred interface is the local MCP server. It exposes quick match, wait-for-turn, observation/event polling, action sending, reconnect, chat, and replay/rules resources through one process.</p>
     <pre><code># Start the MCP server
 npm run mcp:delta-v
 
@@ -1003,7 +1057,7 @@ ANTHROPIC_API_KEY=sk-ant-... npm run quickmatch:scrimmage</code></pre>
     <p>A concise reference for building an LLM prompt or implementing custom AI logic.</p>
 
     <h3>Turn structure</h3>
-    <p>Each full turn cycles through five phases in order: <strong>Fleet Building</strong> (first turn only) → <strong>Astrogation</strong> → <strong>Ordnance</strong> → <strong>Combat</strong> → <strong>Logistics</strong>. Astrogation is simultaneous; other phases are sequential by <code>activePlayer</code>.</p>
+    <p>Each full turn cycles through five phases in order: <strong>Fleet Building</strong> (first turn only) → <strong>Astrogation</strong> → <strong>Ordnance</strong> → <strong>Combat</strong> → <strong>Logistics</strong>. Fleet Building is simultaneous; astrogation and later phases are sequential by <code>activePlayer</code>.</p>
 
     <h3>Movement &amp; inertia</h3>
     <ul>

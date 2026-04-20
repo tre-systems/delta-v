@@ -78,10 +78,10 @@ The agent adapter and human UI consume the **same** authoritative state projecti
 Canonical tool catalog for local (stdio) and remote (HTTP) MCP: [docs/DELTA_V_MCP.md](./docs/DELTA_V_MCP.md). Canonical loop:
 
 ```
-delta_v_quick_match_connect  →  delta_v_wait_for_turn  →  pick candidate  →  delta_v_send_action  →  loop
+delta_v_quick_match  →  delta_v_wait_for_turn  →  pick candidate  →  delta_v_send_action  →  loop
 ```
 
-`delta_v_wait_for_turn` blocks until it is this agent's turn; agents do not poll. `delta_v_send_action` auto-stamps `ActionGuards` by default so stale submissions are rejected with fresh state rather than silently accepted. When the action result carries `autoSkipLikely: true`, agents should `wait_for_turn` instead of immediately submitting the returned `nextPhase`. For hosted MCP, clients must send `Accept: application/json, text/event-stream` on `POST /mcp`.
+`delta_v_wait_for_turn` blocks until it is this agent's turn; agents do not poll. `delta_v_send_action` auto-stamps `ActionGuards` by default so stale submissions are rejected with fresh state rather than silently accepted. When the action result carries `autoSkipLikely: true`, agents should `wait_for_turn` instead of immediately submitting the returned `nextPhase`. For hosted MCP, clients must send `Accept: application/json, text/event-stream` on `POST /mcp`. `delta_v_quick_match_connect` remains available as a compatibility alias for `delta_v_quick_match`.
 
 ### 3.2 Resources
 
@@ -158,9 +158,11 @@ Implemented in `src/shared/agent/tactical.ts`. Agents that compute the same feat
 interface ActionResult {
   accepted: boolean;
   reason?: string;
+  guardStatus?: 'inSync' | 'stalePhaseForgiven';
   turnApplied?: number;
   phaseApplied?: Phase;
   effects?: VisibleEffect[];
+  autoSkipLikely?: boolean;
   nextObservation?: Observation;   // when includeNextObservation: true
 }
 ```
@@ -177,7 +179,7 @@ LLM agents pay per token. The observation format affects reasoning quality, late
 | Markdown | Moderate | ~35 % fewer tokens than JSON | `summary`, tactical narrative |
 | ASCII grid | Visual | Low | `spatialGrid` — spatial relationships |
 
-Observations are **hybrid**: structured JSON for machine-readable fields, Markdown for `summary`, ASCII for `spatialGrid`. Use `compact: true` to trim roughly 40 % of the payload at the cost of spatial and narrative context.
+Observations are **hybrid**: structured JSON for machine-readable fields, Markdown for `summary`, ASCII for `spatialGrid`. Use `compactState: true` to trim roughly 40 % of the payload at the cost of spatial and narrative context.
 
 ---
 
@@ -282,7 +284,8 @@ Implementation: `src/shared/agent/spatial-grid.ts`.
 
 ```
 1. JOIN
-   └─ quick_match_connect(username, scenario)
+   └─ delta_v_quick_match(matchToken flow)
+       or quick_match_connect (compat alias)
        or create / join a private match
 
 2. WAIT
@@ -301,13 +304,14 @@ Implementation: `src/shared/agent/spatial-grid.ts`.
 
 5. ACT
    └─ send_action(..., expectedTurn, expectedPhase)
-       → ActionResult { accepted, reason, effects, nextObservation }
+       → ActionResult { accepted, guardStatus, autoSkipLikely, effects, nextObservation }
 
 6. LOOP
    └─ if not gameOver, go to step 2
 
 7. POST-GAME (optional)
-   ├─ GET /replay/{code} for timeline
+   ├─ MCP: game://matches/{id}/replay
+   └─ raw HTTP: GET /replay/{code}?viewer=spectator&gameId=ROOMCODE-mN
    └─ persist lessons for cross-session learning (coach agents)
 ```
 

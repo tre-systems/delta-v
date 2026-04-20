@@ -27,7 +27,7 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 | `/quick-match` | POST | Enqueue a matchmaking ticket |
 | `/quick-match/:ticket` | GET | Poll ticket state (`waiting`, `matched`, `expired`) |
 | `/join/:code` | GET | Preflight join / reconnect validation; returns `{ ok, scenario, seatStatus }` on success |
-| `/replay/:code` | GET | Authenticated replay for a specific match |
+| `/replay/:code` | GET | Replay for a specific match: public archived replay via `?viewer=spectator&gameId=ROOMCODE-mN`, or player-authenticated replay via `playerToken` |
 | `/ws/:code` | GET (upgrade) | WebSocket upgrade to the room's `GameDO` |
 | `/api/agent-token` | POST | Issue 24 h HMAC-signed `agentToken`; optional `claim: {username}` binds the agent to a leaderboard row (see [AGENT_SPEC.md](../AGENT_SPEC.md)) |
 | `/api/claim-name` | POST | Bind a human `playerKey` to a leaderboard username (first-call-wins) |
@@ -58,8 +58,9 @@ Public read endpoints (`/healthz`, `/api/matches`, `/api/leaderboard`, `/api/lea
 2. GET /join/{code}?playerToken=X        (optional preflight)
    → `{ ok: true, scenario, seatStatus }` when the room exists
 
-3. GET /replay/{code}?playerToken=X&gameId=Y
-   → authenticated replay fetch, projected from checkpoint + event stream
+3. GET /replay/{code}?viewer=spectator&gameId=ROOMCODE-mN
+   → public archived replay fetch, projected from checkpoint + event stream
+   (or `?playerToken=X&gameId=ROOMCODE-mN` for player-authenticated replay)
 
 4. WebSocket /ws/{code}[?playerToken=X]
    → DO accepts, tags the socket with player ID (0 | 1 | spectator)
@@ -134,9 +135,10 @@ type S2C =
   | { type: 'rematchPending' }
   | { type: 'chat'; playerId: number; text: string }
   | { type: 'error'; message: string; code?: ErrorCode }
+  | { type: 'actionAccepted'; guardStatus: 'inSync' | 'stalePhaseForgiven'; ... }
   | { type: 'actionRejected'; reason: ActionRejectionReason; state: GameState; ... }
   | { type: 'pong'; t: number }
-  | { type: 'opponentStatus'; connected: boolean };
+  | { type: 'opponentStatus'; status: 'disconnected' | 'reconnected'; graceDeadlineMs?: number };
 ```
 
 Every state-mutating action produces exactly one state-bearing S2C message (`gameStart`, `stateUpdate`, `movementResult`, `combatResult`, or `combatSingleResult`). Clients replace local state wholesale on receipt — no delta patching. `gameOver` is sent *after* the terminal state-bearing message.
