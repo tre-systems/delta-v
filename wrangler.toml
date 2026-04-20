@@ -51,8 +51,7 @@ namespace_id = "1004"
 simple = { limit = 20, period = 60 }
 
 [triggers]
-# Daily retention purge for `events` rows older than 30 days. See
-# src/server/reporting.ts purgeOldEvents and docs/OBSERVABILITY.md.
+# Daily retention purge for `events` rows and expired archived matches.
 crons = ["0 4 * * *"]
 
 [vars]

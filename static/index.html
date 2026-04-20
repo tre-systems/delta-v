@@ -83,6 +83,9 @@
         <h1 class="title">DELTA-V</h1>
         <p class="menu-note">Plot burns, ride gravity, and outfly the other commander.</p>
       </div>
+      <div id="menuOfflineBanner" class="menu-offline-banner" role="status" aria-live="polite" hidden>
+        <strong>You're offline.</strong> Online matches, leaderboard and match history are unavailable — Play vs AI still works.
+      </div>
       <div class="menu-surface menu-surface-primary">
         <div class="menu-profile">
           <label class="menu-profile-label" for="playerNameInput">Callsign</label>
@@ -108,29 +111,42 @@
           </div>
         </div>
       </div>
-      <div class="divider">or</div>
-      <div class="menu-surface menu-surface-join">
+      <div class="menu-discover">
+        <a href="/leaderboard" class="menu-discover-tile menu-online-only" aria-label="Open leaderboard">
+          <span class="menu-discover-icon" aria-hidden="true">★</span>
+          <span class="menu-discover-title">Leaderboard</span>
+          <span class="menu-discover-sub">See the top-ranked pilots</span>
+        </a>
+        <a href="/matches" class="menu-discover-tile menu-online-only" aria-label="Browse recent matches">
+          <span class="menu-discover-icon" aria-hidden="true">▶</span>
+          <span class="menu-discover-title">Recent matches</span>
+          <span class="menu-discover-sub">Watch replays from the last games</span>
+        </a>
+      </div>
+      <details class="menu-surface menu-surface-join menu-disclosure">
+        <summary>Have a game code? Join a private match</summary>
         <div class="join-row">
           <input id="codeInput" data-testid="codeInput" class="code-input" maxlength="5" placeholder="GAME CODE" autocapitalize="characters" spellcheck="false" aria-label="Game code">
           <button id="joinBtn" data-testid="joinBtn" class="btn btn-secondary" title="Enter a game code to join" disabled>Join</button>
         </div>
-      </div>
-      <button id="menuHowToPlayBtn" class="menu-rules-btn">How to Play</button>
-      <a href="/leaderboard" class="menu-rules-btn">Leaderboard</a>
-      <a href="/matches" class="menu-rules-btn">Recent matches</a>
-      <a href="/agents" class="menu-rules-btn menu-agent-cta">Build a Bot →</a>
-      <a href="https://ko-fi.com/N4N31DPNUS" target="_blank" rel="noopener" class="kofi-link">
-        <img src="https://storage.ko-fi.com/cdn/kofi2.png?v=6" alt="Buy Me a Coffee at ko-fi.com" width="120" height="32">
-      </a>
-      <div class="hud-scale-row" role="group" aria-label="HUD text size">
-        <span class="hud-scale-label">HUD text</span>
-        <button type="button" id="hudScaleDefaultBtn" class="btn hud-scale-btn">Default</button>
-        <button type="button" id="hudScaleLargeBtn" class="btn hud-scale-btn">Larger</button>
-      </div>
-      <details id="privacyNotice" class="menu-note menu-disclosure">
-        <summary>Privacy &amp; data</summary>
-        Delta-V stores anonymous diagnostics and completed-match archives for reliability and replay. Chat is live-only by default; avoid sharing sensitive information.
       </details>
+      <div class="menu-footer">
+        <button id="menuHowToPlayBtn" class="menu-footer-link">How to Play</button>
+        <a href="/agents" class="menu-footer-link menu-online-only">Build a Bot →</a>
+        <a href="https://ko-fi.com/N4N31DPNUS" target="_blank" rel="noopener" class="menu-footer-link menu-online-only">Support</a>
+        <details class="menu-footer-disclosure">
+          <summary>Settings</summary>
+          <div class="hud-scale-row" role="group" aria-label="HUD text size">
+            <span class="hud-scale-label">HUD text</span>
+            <button type="button" id="hudScaleDefaultBtn" class="btn hud-scale-btn">Default</button>
+            <button type="button" id="hudScaleLargeBtn" class="btn hud-scale-btn">Larger</button>
+          </div>
+        </details>
+        <details id="privacyNotice" class="menu-footer-disclosure">
+          <summary>Privacy &amp; data</summary>
+          <p class="menu-note">Delta-V stores anonymous diagnostics and completed-match archives for reliability and replay. Chat is live-only by default; avoid sharing sensitive information.</p>
+        </details>
+      </div>
     </div>
   </div>
 
