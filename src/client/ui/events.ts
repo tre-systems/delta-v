@@ -35,6 +35,7 @@ export type UIEvent =
   | { type: 'replayPrev' }
   | { type: 'replayNext' }
   | { type: 'replayEnd' }
+  | { type: 'replayCycleSpeed' }
   | { type: 'exit' }
   | { type: 'selectShip'; shipId: string }
   | { type: 'chat'; text: string }

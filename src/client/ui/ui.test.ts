@@ -87,6 +87,11 @@ const installFixture = () => {
     <svg id="replayPauseIcon" hidden></svg>
     <button id="replayBarNextBtn"></button>
     <button id="replayBarEndBtn"></button>
+    <button id="replayBarSpeedBtn"></button>
+    <div id="replayBarTurnLabel"></div>
+    <div id="replayBarProgress">
+      <div id="replayBarProgressFill"></div>
+    </div>
     <button id="replayBarExitBtn"></button>
     <div id="reconnectOverlay"></div>
     <div id="reconnectText"></div>

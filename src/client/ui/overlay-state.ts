@@ -9,6 +9,8 @@ import {
   type GameOverSummaryItem,
 } from './screens';
 
+export type ReplaySpeed = 0.5 | 1 | 2 | 4;
+
 export interface ReplayControlsView {
   available: boolean;
   active: boolean;
@@ -22,6 +24,12 @@ export interface ReplayControlsView {
   canPrev: boolean;
   canNext: boolean;
   canEnd: boolean;
+  /** Playback speed multiplier. 1 is normal. */
+  speed: ReplaySpeed;
+  /** 0-1 progress through the replay timeline, for the scrub bar. */
+  progress: number;
+  /** "Turn N/M" summary, shown next to the progress bar. */
+  turnLabel: string;
 }
 
 interface GameOverOverlayState {
@@ -94,6 +102,9 @@ export const createHiddenReplayControls = (): ReplayControlsView => ({
   canPrev: false,
   canNext: false,
   canEnd: false,
+  speed: 1,
+  progress: 0,
+  turnLabel: '',
 });
 
 const HIDDEN_GAME_OVER_VIEW: GameOverOverlayView = {

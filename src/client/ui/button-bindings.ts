@@ -47,6 +47,7 @@ export const STATIC_BUTTON_BINDINGS = [
   { id: 'replayBarPlayBtn', event: { type: 'replayPlayPause' } },
   { id: 'replayBarNextBtn', event: { type: 'replayNext' } },
   { id: 'replayBarEndBtn', event: { type: 'replayEnd' } },
+  { id: 'replayBarSpeedBtn', event: { type: 'replayCycleSpeed' } },
   { id: 'replayBarExitBtn', event: { type: 'toggleReplay' } },
   { id: 'exitBtn', event: { type: 'exit' } },
 ] as const satisfies readonly UIButtonEventBinding[];
