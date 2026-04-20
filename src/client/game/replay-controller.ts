@@ -43,6 +43,7 @@ interface ReplayControllerDeps {
     previousState: GameState | null,
     onAnimationsDone: () => void,
   ) => void;
+  exitArchivedReplayToMenu: () => void;
 }
 
 export interface ReplayController {
@@ -52,6 +53,7 @@ export interface ReplayController {
   onGameOverMessage: () => void;
   selectMatch: (direction: 'prev' | 'next') => void;
   toggleReplay: () => Promise<void>;
+  exitReplay: () => void;
   togglePlay: () => void;
   stepReplay: (direction: 'start' | 'prev' | 'next' | 'end') => void;
   cycleSpeed: () => void;
@@ -265,6 +267,32 @@ export const createReplayController = (
     shownOutcomeForIndex = null;
   };
 
+  const closeActiveReplay = (exitArchivedToMenu: boolean) => {
+    if (!replayTimeline || replayIndex === null) {
+      return;
+    }
+
+    if (replayIndex < replayTimeline.entries.length - 1) {
+      deps.trackEvent(
+        'replay_exited_early',
+        buildReplayTelemetryProps(replayTimeline, replayIndex),
+      );
+    }
+
+    const shouldExitArchived =
+      exitArchivedToMenu && replaySourceKind === 'archived';
+    stopPlay();
+    if (!shouldExitArchived && replaySourceState) {
+      deps.clearTrails();
+      deps.applyGameState(replaySourceState);
+    }
+    clearReplay();
+    updateOverlay();
+    if (shouldExitArchived) {
+      deps.exitArchivedReplayToMenu();
+    }
+  };
+
   const maybeAnnounceOutcome = (entry: ReplayEntry, index: number) => {
     if (!replayTimeline) return;
     const isLast = index === replayTimeline.entries.length - 1;
@@ -409,19 +437,7 @@ export const createReplayController = (
     },
     toggleReplay: async () => {
       if (replayTimeline && replayIndex !== null) {
-        if (replayIndex < replayTimeline.entries.length - 1) {
-          deps.trackEvent(
-            'replay_exited_early',
-            buildReplayTelemetryProps(replayTimeline, replayIndex),
-          );
-        }
-        stopPlay();
-        if (replaySourceState) {
-          deps.clearTrails();
-          deps.applyGameState(replaySourceState);
-        }
-        clearReplay();
-        updateOverlay();
+        closeActiveReplay(false);
         return;
       }
 
@@ -477,6 +493,9 @@ export const createReplayController = (
       trackReplayOpened(timeline);
       applyReplayEntry(replayIndex);
       startPlay();
+    },
+    exitReplay: () => {
+      closeActiveReplay(true);
     },
     togglePlay: () => {
       if (!replayTimeline || replayIndex === null) return;

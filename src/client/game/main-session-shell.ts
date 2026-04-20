@@ -33,6 +33,7 @@ import {
   createMainStateTransitionDeps,
 } from './main-deps';
 import {
+  exitArchivedReplayFromMain,
   exitToMenuFromMain,
   handleServerMessageFromMain,
   type MainNetworkDeps,
@@ -252,6 +253,7 @@ export const createMainSessionShell = (
       applyGameState(message.state);
       onAnimationsDone();
     },
+    exitArchivedReplayToMenu: () => exitArchivedReplayFromMain(networkDeps),
   });
 
   args.ui.overlay.bindReconnectStateSignal(

@@ -92,6 +92,7 @@ describe('replay-controller', () => {
       applyGameState: () => {},
       frameOnActivePlayer: () => {},
       presentReplayEntry: (_entry, _previousState, done) => done(),
+      exitArchivedReplayToMenu: () => {},
     });
 
     controller.onGameOverShown();
@@ -129,6 +130,7 @@ describe('replay-controller', () => {
       },
       frameOnActivePlayer: () => {},
       presentReplayEntry: (_entry, _previousState, done) => done(),
+      exitArchivedReplayToMenu: () => {},
     });
 
     controller.onGameOverShown();
@@ -168,6 +170,7 @@ describe('replay-controller', () => {
         framedStates.push(state.gameId);
       },
       presentReplayEntry: (_entry, _previousState, done) => done(),
+      exitArchivedReplayToMenu: () => {},
     });
 
     controller.startArchivedReplay(timeline);
@@ -203,6 +206,7 @@ describe('replay-controller', () => {
       applyGameState: () => {},
       frameOnActivePlayer: () => {},
       presentReplayEntry: (_entry, _previousState, done) => done(),
+      exitArchivedReplayToMenu: () => {},
     });
 
     controller.startArchivedReplay(timeline);
@@ -219,6 +223,39 @@ describe('replay-controller', () => {
 
     controller.cycleSpeed();
     expect(controller.controlsSignal.value.speed).toBe(1);
+  });
+
+  it('exits archived replay back to matches instead of restoring the final state in place', () => {
+    const applyGameState = vi.fn();
+    const exitArchivedReplayToMenu = vi.fn();
+    const timeline = createTimeline(asGameId('ABCDE-m1'));
+
+    const controller = createReplayController({
+      getClientContext: () => ({
+        state: 'gameOver',
+        isLocalGame: false,
+        gameCode: 'ABCDE',
+        gameState: { ...createState(asGameId('ABCDE-m1')), turnNumber: 42 },
+      }),
+      fetchReplay: async () => null,
+      showToast: () => {},
+      logText: () => {},
+      trackEvent: vi.fn(),
+      clearTrails: () => {},
+      applyGameState,
+      frameOnActivePlayer: () => {},
+      presentReplayEntry: (_entry, _previousState, done) => done(),
+      exitArchivedReplayToMenu,
+    });
+
+    controller.startArchivedReplay(timeline);
+    applyGameState.mockClear();
+
+    controller.exitReplay();
+
+    expect(exitArchivedReplayToMenu).toHaveBeenCalledOnce();
+    expect(applyGameState).not.toHaveBeenCalled();
+    expect(controller.controlsSignal.value.active).toBe(false);
   });
 
   it('shows a toast and does nothing for an empty archived timeline', () => {
@@ -246,6 +283,7 @@ describe('replay-controller', () => {
       applyGameState: (state) => applied.push(state.gameId),
       frameOnActivePlayer: () => {},
       presentReplayEntry: (_entry, _previousState, done) => done(),
+      exitArchivedReplayToMenu: () => {},
     });
 
     controller.startArchivedReplay(emptyTimeline);
@@ -290,6 +328,7 @@ describe('replay-controller', () => {
       applyGameState: () => {},
       frameOnActivePlayer: () => {},
       presentReplayEntry: (_entry, _previousState, done) => done(),
+      exitArchivedReplayToMenu: () => {},
     });
 
     controller.startArchivedReplay(timeline);
@@ -320,6 +359,7 @@ describe('replay-controller', () => {
       applyGameState: () => {},
       frameOnActivePlayer: () => {},
       presentReplayEntry: (_entry, _previousState, done) => done(),
+      exitArchivedReplayToMenu: () => {},
     });
 
     controller.onGameOverShown();

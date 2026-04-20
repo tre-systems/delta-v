@@ -15,6 +15,7 @@ export type UIEventPlan =
   | { kind: 'command'; command: GameCommand }
   | { kind: 'selectReplayMatch'; direction: 'prev' | 'next' }
   | { kind: 'toggleReplay' }
+  | { kind: 'exitReplay' }
   | { kind: 'replayPlayPause' }
   | { kind: 'replayNav'; direction: 'start' | 'prev' | 'next' | 'end' }
   | { kind: 'replayCycleSpeed' }
@@ -91,6 +92,8 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
       return { kind: 'selectReplayMatch', direction: 'next' };
     case 'toggleReplay':
       return { kind: 'toggleReplay' };
+    case 'exitReplay':
+      return { kind: 'exitReplay' };
     case 'replayPlayPause':
       return { kind: 'replayPlayPause' };
     case 'replayStart':
