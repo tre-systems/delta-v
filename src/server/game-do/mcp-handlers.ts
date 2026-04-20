@@ -38,6 +38,7 @@ import {
 } from './coach';
 import {
   clearHostedMcpSeatEvents,
+  enableHostedMcpSeatEvents,
   readHostedMcpSeatEvents,
 } from './mcp-session-state';
 import { type StateWaiters, TooManyWaitersError } from './state-waiters';
@@ -184,6 +185,7 @@ const authorizeRequest = async (
   if (playerId === null) {
     return { ok: false, response: error(403, 'Token does not match any seat') };
   }
+  await enableHostedMcpSeatEvents(deps.storage, playerId);
   await deps.initGameIfReady();
   return {
     ok: true,
@@ -278,6 +280,7 @@ const handleSessionSummaryRequest = async (
   if (playerId !== 0 && playerId !== 1) {
     return error(404, 'Player is not seated in this match');
   }
+  await enableHostedMcpSeatEvents(deps.storage, playerId);
   const playerToken = roomConfig.playerTokens[playerId];
   if (!playerToken) {
     return error(409, 'Seat has no playerToken');
