@@ -17,6 +17,7 @@ export type UIEventPlan =
   | { kind: 'toggleReplay' }
   | { kind: 'replayPlayPause' }
   | { kind: 'replayNav'; direction: 'start' | 'prev' | 'next' | 'end' }
+  | { kind: 'replayCycleSpeed' }
   | { kind: 'sendChat'; text: string }
   | { kind: 'trackOnly'; event: 'scenario_browsed' };
 
@@ -100,6 +101,8 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
       return { kind: 'replayNav', direction: 'next' };
     case 'replayEnd':
       return { kind: 'replayNav', direction: 'end' };
+    case 'replayCycleSpeed':
+      return { kind: 'replayCycleSpeed' };
     case 'exit':
       return { kind: 'command', command: { type: 'exitToMenu' } };
     case 'selectShip':

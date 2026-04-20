@@ -159,6 +159,10 @@ export const createOverlayView = (
   const replayPauseIcon = byId('replayPauseIcon');
   const replayBarNextBtn = byId<HTMLButtonElement>('replayBarNextBtn');
   const replayBarEndBtn = byId<HTMLButtonElement>('replayBarEndBtn');
+  const replayBarSpeedBtn = byId<HTMLButtonElement>('replayBarSpeedBtn');
+  const replayBarTurnLabelEl = byId('replayBarTurnLabel');
+  const replayBarProgressEl = byId('replayBarProgress');
+  const replayBarProgressFillEl = byId('replayBarProgressFill');
   const reconnectOverlayEl = byId('reconnectOverlay');
   const reconnectTextEl = byId('reconnectText');
   const reconnectReassureEl = document.getElementById(
@@ -441,6 +445,12 @@ export const createOverlayView = (
         replayBarPrevBtn.disabled = !replayView.canPrev;
         replayBarNextBtn.disabled = !replayView.canNext;
         replayBarEndBtn.disabled = !replayView.canEnd;
+
+        text(replayBarSpeedBtn, `${replayView.speed}x`);
+        text(replayBarTurnLabelEl, replayView.turnLabel);
+        const pct = Math.max(0, Math.min(100, replayView.progress * 100));
+        replayBarProgressFillEl.style.width = `${pct}%`;
+        replayBarProgressEl.setAttribute('aria-valuenow', `${Math.round(pct)}`);
 
         if (replayView.playing) {
           hide(replayPlayIcon);
