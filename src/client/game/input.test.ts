@@ -14,7 +14,7 @@ import type { PlanningState } from './planning';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: asShipId('ship-0'),
-  type: 'corvette',
+  type: 'frigate',
   owner: 0,
   originalOwner: 0,
   position: { q: 0, r: 0 },

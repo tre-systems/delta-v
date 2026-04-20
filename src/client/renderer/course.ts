@@ -61,6 +61,7 @@ export interface GhostShipView {
   owner: PlayerId;
   shipType: ShipType;
   alpha: number;
+  heading: number;
 }
 
 export interface FuelCostLabelView {
@@ -272,6 +273,30 @@ const buildBurnMarkers = (
   return markers;
 };
 
+const computeGhostHeading = (
+  ship: GameState['ships'][number],
+  _burn: number | null,
+  hexSize: number,
+): number => {
+  if (
+    ship.lastBurnDirection !== undefined &&
+    ship.lastBurnDirection >= 0 &&
+    ship.lastBurnDirection < HEX_DIRECTIONS.length
+  ) {
+    const dir = HEX_DIRECTIONS[ship.lastBurnDirection];
+    const from = hexToPixel(ship.position, hexSize);
+    const to = hexToPixel(hexAdd(ship.position, dir), hexSize);
+    return Math.atan2(to.y - from.y, to.x - from.x);
+  }
+
+  const { velocity } = ship;
+  if (velocity.dq === 0 && velocity.dr === 0) return 0;
+
+  const from = hexToPixel(ship.position, hexSize);
+  const to = hexToPixel(hexAdd(ship.position, velocity), hexSize);
+  return Math.atan2(to.y - from.y, to.x - from.x);
+};
+
 const buildBurnArrow = (
   ship: GameState['ships'][number],
   burn: number | null,
@@ -477,6 +502,7 @@ export const buildAstrogationCoursePreviewViews = (
               owner: ship.owner,
               shipType: ship.type,
               alpha: 0.4,
+              heading: computeGhostHeading(ship, burn, hexSize),
             },
 
       crashMarker:

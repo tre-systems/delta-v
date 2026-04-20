@@ -164,7 +164,7 @@ const drawSingleCoursePreview = (
       owner: g.owner,
       playerId,
       alpha: g.alpha,
-      heading: 0,
+      heading: g.heading,
       disabledTurns: 0,
       shipType: g.shipType,
     });
