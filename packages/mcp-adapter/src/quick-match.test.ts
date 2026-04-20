@@ -128,6 +128,40 @@ describe('queueRemoteMatch', () => {
     expect(calls[0]?.url).toContain('/enqueue');
   });
 
+  it('accepts a matched response directly from enqueue', async () => {
+    const { env, calls } = buildEnv((req) => {
+      if (req.url.endsWith('/enqueue')) {
+        return Response.json({
+          status: 'matched',
+          ticket: 'TICKET',
+          scenario: 'duel',
+          code: 'ABCDE',
+          playerToken: 'X'.repeat(32),
+        });
+      }
+      return new Response('unexpected poll', { status: 500 });
+    });
+
+    await expect(
+      queueRemoteMatch(env, {
+        scenario: 'duel',
+        rendezvousCode: 'qa123',
+        username: 'tester',
+        playerKey: 'agent_test_matched_enqueue',
+        waitForOpponent: false,
+      }),
+    ).resolves.toEqual({
+      status: 'matched',
+      code: 'ABCDE',
+      playerToken: 'X'.repeat(32),
+      ticket: 'TICKET',
+      scenario: 'duel',
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toContain('/enqueue');
+  });
+
   it('forwards rendezvousCode to the matchmaker enqueue payload', async () => {
     const { env, calls } = buildEnv((req) => {
       if (req.url.endsWith('/enqueue')) {
