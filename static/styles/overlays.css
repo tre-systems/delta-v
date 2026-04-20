@@ -567,15 +567,21 @@
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-/* While the replay bar is visible (spectator/replay mode), lift the
- * floating right-rail icons so they don't collide with the bar, and
- * hide the in-HUD exit button — the replay bar has its own EXIT. */
+/* While the replay bar is visible (spectator/replay mode), shift the
+ * floating right-rail icons left of the game log so they don't sit on
+ * top of the log entries, and hide the in-HUD exit button — the replay
+ * bar has its own EXIT. */
+body.replay-bar-active .help-btn,
+body.replay-bar-active .sound-btn {
+  right: calc(var(--hud-edge-right) + 230px + 0.5rem);
+}
+
 body.replay-bar-active .help-btn {
   bottom: calc(4.25rem + var(--safe-bottom));
 }
 
 body.replay-bar-active .sound-btn {
-  bottom: calc(6.75rem + var(--safe-bottom));
+  bottom: calc(4.25rem + 2.5rem + var(--safe-bottom));
 }
 
 body.replay-bar-active .hud-exit-btn {

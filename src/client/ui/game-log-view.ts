@@ -110,7 +110,15 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
 
   const shouldAutoExpand = (
     viewportWidth = viewportWidthSignal.peek(),
-  ): boolean => !localGame && viewportWidth >= 640;
+  ): boolean => {
+    if (localGame) return false;
+    if (viewportWidth < 640) return false;
+    // In replay playback the log reads as passive narration; start it
+    // collapsed so the latest-event bar suffices until the user clicks
+    // to see the full stream.
+    if (document.body.classList.contains('replay-bar-active')) return false;
+    return true;
+  };
 
   const setMobile = (
     isMobile: boolean,
@@ -139,6 +147,24 @@ export const createGameLogView = (deps: GameLogViewDeps): GameLogView => {
       expandedSignal.value = shouldAutoExpand();
     }
   };
+
+  // Replay playback toggles body.replay-bar-active after screen-mode
+  // transitions; observe it so the log auto-collapses when replay starts
+  // mid-HUD (e.g. from the game-over screen).
+  if (typeof MutationObserver !== 'undefined') {
+    let wasReplayActive = document.body.classList.contains('replay-bar-active');
+    const observer = new MutationObserver(() => {
+      const active = document.body.classList.contains('replay-bar-active');
+      if (active && !wasReplayActive && screenModeSignal.peek() === 'hud') {
+        expandedSignal.value = false;
+      }
+      wasReplayActive = active;
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+  }
 
   const setLocalGame = (isLocal: boolean): void => {
     localGame = isLocal;
