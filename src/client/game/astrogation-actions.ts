@@ -1,4 +1,3 @@
-import { must } from '../../shared/assert';
 import { getOrderableShipsForPlayer } from '../../shared/engine/util';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { playConfirm, playSelect } from '../audio';
@@ -16,6 +15,7 @@ export interface AstrogationActionDeps {
   getTransport: () => GameTransport | null;
   planningState: PlanningSelectionStore & AstrogationPlanningStore;
   showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
+  logText: (text: string) => void;
 }
 
 export const setBurnDirection = (
@@ -41,7 +41,7 @@ export const setBurnDirection = (
   );
 
   if (plan.kind === 'error') {
-    deps.showToast(plan.message, must(plan.level));
+    deps.logText(plan.message);
     return;
   }
 

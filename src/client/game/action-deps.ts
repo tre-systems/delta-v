@@ -85,6 +85,7 @@ export const createActionDeps = (args: ActionDepsArgs) => {
     getTransport: args.getTransport as AstrogationActionDeps['getTransport'],
     planningState: args.planningState,
     showToast,
+    logText,
   }));
 
   const getCombatDeps = createCachedValue<CombatActionDeps>(() => ({
