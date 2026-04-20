@@ -11,11 +11,15 @@ const buildConnectSrc = (request: Request): string => {
 export const buildContentSecurityPolicy = (request: Request): string =>
   [
     "default-src 'self'",
-    "script-src 'self'",
+    // `'unsafe-inline'` here because matches.html / leaderboard.html /
+    // index.html each have one inline <script> for page boot — see
+    // static/_headers for the matching rationale. Externalise those
+    // scripts to drop the directive.
+    "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    `connect-src ${buildConnectSrc(request)}`,
-    "img-src 'self' data:",
+    `connect-src ${buildConnectSrc(request)} https://cloudflareinsights.com`,
+    "img-src 'self' data: https://storage.ko-fi.com",
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "form-action 'self'",
