@@ -9,7 +9,7 @@ import {
   hasLineOfSightToTarget,
 } from '../combat';
 import { hexDistance } from '../hex';
-import type { OrdnanceId, ShipId } from '../ids';
+import { combatTargetKey, type OrdnanceId, type ShipId } from '../ids';
 import { deriveCapabilities } from '../scenario-capabilities';
 import type {
   CombatAttack,
@@ -149,7 +149,7 @@ export const aiCombat = (
   const minRollThreshold = cfg.minRollThreshold;
 
   for (const target of scored) {
-    const targetKey = `${target.targetType}:${target.targetId}`;
+    const targetKey = combatTargetKey(target.targetType, target.targetId);
 
     if (committedTargets.has(targetKey)) continue;
 

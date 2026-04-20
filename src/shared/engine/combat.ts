@@ -13,6 +13,7 @@ import {
 } from '../combat';
 import { ANTI_NUKE_ODDS, SHIP_STATS } from '../constants';
 import { hexDistance, hexKey } from '../hex';
+import { combatTargetKey } from '../ids';
 import {
   type CombatAttack,
   type CombatResult,
@@ -416,7 +417,7 @@ export const processCombat = (
     }
 
     const { targetType } = attack;
-    const targetKey = `${targetType}:${attack.targetId}`;
+    const targetKey = combatTargetKey(targetType, attack.targetId);
 
     const maxAttackStrength = sumBy(
       attackers,
@@ -613,7 +614,7 @@ export const processSingleCombat = (
   if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
   const targeted = new Set(state.combatTargetedThisPhase ?? []);
-  const targetKey = `${attack.targetType}:${attack.targetId}`;
+  const targetKey = combatTargetKey(attack.targetType, attack.targetId);
 
   if (targeted.has(targetKey)) {
     return engineFailure(

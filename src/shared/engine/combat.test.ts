@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { must } from '../assert';
 import { asHexKey, hexKey } from '../hex';
-import { asGameId, asOrdnanceId, asShipId } from '../ids';
+import { asGameId, asOrdnanceId, asShipId, combatTargetKey } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import type {
   EngineError,
@@ -1244,7 +1244,7 @@ describe('processSingleCombat', () => {
   });
   it('rejects duplicate target already attacked this phase', () => {
     const state = makeCombatState();
-    state.combatTargetedThisPhase = ['ship:e0'];
+    state.combatTargetedThisPhase = [combatTargetKey('ship', asShipId('e0'))];
     const result = processSingleCombat(
       state,
       0,
@@ -1329,7 +1329,9 @@ describe('processSingleCombat', () => {
     expect('error' in result).toBe(false);
     if (!('error' in result)) {
       expect(result.results.length).toBeGreaterThanOrEqual(1);
-      expect(result.state.combatTargetedThisPhase).toContain('ship:e0');
+      expect(result.state.combatTargetedThisPhase).toContain(
+        combatTargetKey('ship', asShipId('e0')),
+      );
       const attacker = result.state.ships.find((s) => s.id === 'a0');
       expect(attacker?.firedThisPhase).toBe(true);
     }

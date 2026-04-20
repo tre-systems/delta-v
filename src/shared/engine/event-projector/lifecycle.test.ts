@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { asGameId, asShipId } from '../../ids';
+import { asGameId, asShipId, combatTargetKey } from '../../ids';
 import { createTestShip, createTestState } from '../../test-helpers';
 import { projectLifecycleEvent } from './lifecycle';
 
@@ -9,7 +9,7 @@ describe('projectLifecycleEvent', () => {
       gameId: asGameId('TEST'),
       activePlayer: 1,
       turnNumber: 3,
-      combatTargetedThisPhase: ['ship:enemy-1'],
+      combatTargetedThisPhase: [combatTargetKey('ship', asShipId('enemy-1'))],
       ships: [
         createTestShip({
           id: asShipId('attacker'),

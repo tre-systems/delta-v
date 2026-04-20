@@ -1,6 +1,6 @@
 import type { OrdnanceType, ShipType } from '../constants';
 import type { HexCoord, HexKey, HexVec } from '../hex';
-import type { GameId, OrdnanceId, ShipId } from '../ids';
+import type { CombatTargetKey, GameId, OrdnanceId, ShipId } from '../ids';
 import type { ScenarioKey } from '../scenario-definitions';
 
 // --- Result type ---
@@ -101,7 +101,7 @@ export interface GameState {
   destroyedBases: HexKey[];
   // Tracks which targets have been attacked during the current combat
   // phase (sequential combat). Cleared by advanceTurn.
-  combatTargetedThisPhase?: string[];
+  combatTargetedThisPhase?: CombatTargetKey[];
   players: [PlayerState, PlayerState];
   outcome: GameOutcome | null;
 }

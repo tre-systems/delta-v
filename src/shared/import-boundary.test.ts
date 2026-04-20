@@ -169,4 +169,17 @@ describe('import boundaries', () => {
       ].join('\n'),
     ).toEqual([]);
   });
+
+  it('shared/ never references platform-specific APIs', () => {
+    const violations = findPlatformViolations(SHARED_ROOT);
+    expect(
+      violations,
+      [
+        'shared/ must not reference platform-specific APIs.',
+        'Move browser and Cloudflare-specific code to client/ or server/ and keep shared/ portable.',
+        'Violations:',
+        ...violations,
+      ].join('\n'),
+    ).toEqual([]);
+  });
 });

@@ -3,6 +3,7 @@ declare const __playerTokenBrand: unique symbol;
 declare const __shipIdBrand: unique symbol;
 declare const __ordnanceIdBrand: unique symbol;
 declare const __gameIdBrand: unique symbol;
+declare const __combatTargetKeyBrand: unique symbol;
 
 export type RoomCode = string & { readonly [__roomCodeBrand]: never };
 export type PlayerToken = string & { readonly [__playerTokenBrand]: never };
@@ -41,3 +42,12 @@ export const asOrdnanceId = (value: string): OrdnanceId => value as OrdnanceId;
 
 export type GameId = string & { readonly [__gameIdBrand]: never };
 export const asGameId = (value: string): GameId => value as GameId;
+
+export type CombatTargetKey = string & {
+  readonly [__combatTargetKeyBrand]: never;
+};
+
+export const combatTargetKey = (
+  targetType: 'ship' | 'ordnance',
+  targetId: ShipId | OrdnanceId,
+): CombatTargetKey => `${targetType}:${targetId}` as CombatTargetKey;
