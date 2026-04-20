@@ -137,6 +137,7 @@ const installFixture = () => {
     <button id="helpBtn"></button>
     <button id="helpCloseBtn"></button>
     <button id="soundBtn"></button>
+    <button id="exitGameBtn"></button>
     <div id="helpOverlay"></div>
     <div id="phaseAlert">
       <div class="phase-alert-title"></div>
