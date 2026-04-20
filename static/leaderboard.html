@@ -318,6 +318,16 @@
   const $board = document.getElementById('board');
   const $body = document.getElementById('board-body');
   const $toggle = document.getElementById('includeProvisional');
+  let trackedView = false;
+
+  const track = (event, props = {}) => {
+    fetch('/telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, ...props }),
+      keepalive: true,
+    }).catch(() => {});
+  };
 
   const escapeHtml = (s) => {
     const el = document.createElement('div');
@@ -386,6 +396,13 @@
       }
       hasInitialLoaded = true;
       render(data.entries);
+      if (!trackedView) {
+        trackedView = true;
+        track('leaderboard_viewed', {
+          includeProvisional: $toggle.checked,
+          entries: data.entries.length,
+        });
+      }
     } catch (err) {
       console.error('[leaderboard] load failed', err);
       $loading.classList.add('hidden');

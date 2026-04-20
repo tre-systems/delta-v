@@ -216,6 +216,7 @@ export const createMainSessionShell = (
     fetchReplay: (code, gameId) => sessionApi.fetchReplay(code, gameId),
     showToast: args.showToast,
     logText: (text, cssClass) => args.ui.log.logText(text, cssClass),
+    trackEvent: (event, props) => args.track(event, props),
     clearTrails: () => args.renderer.clearTrails(),
     applyGameState: (state) => applyGameState(state),
     frameOnActivePlayer: (state) => args.renderer.frameOnActivePlayer(state),
