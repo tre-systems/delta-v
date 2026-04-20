@@ -686,34 +686,6 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       }
     });
 
-    const hudDefaultBtn = document.getElementById(
-      'hudScaleDefaultBtn',
-    ) as HTMLButtonElement | null;
-    const hudLargeBtn = document.getElementById(
-      'hudScaleLargeBtn',
-    ) as HTMLButtonElement | null;
-
-    const applyHudScale = (mode: 'default' | 'large'): void => {
-      document.documentElement.dataset.hudScale = mode;
-      ls?.setItem('deltav_hud_scale', mode);
-      hudDefaultBtn?.classList.toggle(
-        'hud-scale-btn--active',
-        mode === 'default',
-      );
-      hudLargeBtn?.classList.toggle('hud-scale-btn--active', mode === 'large');
-    };
-
-    const initialHud =
-      ls?.getItem('deltav_hud_scale') === 'large' ? 'large' : 'default';
-    applyHudScale(initialHud);
-
-    if (hudDefaultBtn) {
-      listen(hudDefaultBtn, 'click', () => applyHudScale('default'));
-    }
-    if (hudLargeBtn) {
-      listen(hudLargeBtn, 'click', () => applyHudScale('large'));
-    }
-
     listen(cancelWaitingBtn, 'click', () => {
       deps.emit({ type: 'cancelQuickMatch' });
       deps.showMenu();

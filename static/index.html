@@ -143,14 +143,6 @@
         <button id="menuHowToPlayBtn" class="menu-footer-link">How to Play</button>
         <a href="/agents" class="menu-footer-link menu-online-only">Build a Bot</a>
         <a href="https://ko-fi.com/N4N31DPNUS" target="_blank" rel="noopener" class="menu-footer-link menu-online-only">Support</a>
-        <details class="menu-footer-disclosure">
-          <summary>Settings</summary>
-          <div class="hud-scale-row" role="group" aria-label="HUD text size">
-            <span class="hud-scale-label">HUD text</span>
-            <button type="button" id="hudScaleDefaultBtn" class="btn hud-scale-btn">Default</button>
-            <button type="button" id="hudScaleLargeBtn" class="btn hud-scale-btn">Larger</button>
-          </div>
-        </details>
         <details id="privacyNotice" class="menu-footer-disclosure">
           <summary>Privacy &amp; data</summary>
           <p class="menu-note">Delta-V stores anonymous diagnostics and completed-match archives for reliability and replay. Chat is live-only by default; avoid sharing sensitive information.</p>
@@ -185,6 +177,7 @@
   <!-- Game HUD -->
   <div id="hud" data-testid="hud" hidden>
     <div id="topBar" class="hud-bar">
+      <button id="exitGameBtn" class="hud-exit-btn" hidden title="Exit to menu" aria-label="Exit to menu">&times;</button>
       <div class="hud-group hud-turn-phase-group">
         <span id="turnInfo">Turn 1</span>
         <span class="hud-sep">·</span>
@@ -297,7 +290,6 @@
         <button id="rematchBtn" class="btn btn-primary">Rematch</button>
         <button id="exitBtn" class="btn btn-secondary">Exit</button>
       </div>
-      <a href="/agents" class="game-over-agent-cta">Build a bot to play for you →</a>
     </div>
   </div>
 
@@ -587,9 +579,6 @@
   <button id="helpBtn" data-testid="helpBtn" class="help-btn" hidden aria-label="Show controls">?</button>
   <!-- Sound toggle button -->
   <button id="soundBtn" class="sound-btn" hidden title="Toggle sound" aria-label="Toggle sound"></button>
-  <!-- Exit-to-menu floating button (in-game) -->
-  <button id="exitGameBtn" class="exit-game-btn" hidden title="Exit to menu" aria-label="Exit to menu">&times;</button>
-
   <!-- Reconnection overlay -->
   <div id="reconnectOverlay" data-testid="reconnectOverlay" class="reconnect-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="reconnectText" aria-describedby="reconnectAttempt">
     <div class="reconnect-content overlay-panel">

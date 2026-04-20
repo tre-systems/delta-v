@@ -1,6 +1,7 @@
 import { showErrorScreen } from './error-screen';
 import { createGameClient, type GameClient } from './game/client-kernel';
 import { setupServiceWorkerReload } from './game/client-runtime';
+import { installHudScaleShortcuts } from './hud-scale';
 import {
   configureTelemetryRuntime,
   installGlobalErrorHandlers,
@@ -17,9 +18,7 @@ export type { GameClient };
 // it rather than leaving a blank page.
 try {
   const ls = getWebLocalStorage();
-  const hudScale = ls?.getItem('deltav_hud_scale');
-  document.documentElement.dataset.hudScale =
-    hudScale === 'large' ? 'large' : 'default';
+  installHudScaleShortcuts();
 
   configureTelemetryRuntime({
     fetchImpl: globalThis.fetch.bind(globalThis),

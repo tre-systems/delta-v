@@ -140,6 +140,10 @@ export interface Ship extends PositionedEntity {
   // Colonists / passengers (rescue scenarios); share cargo capacity with ordnance mass.
   passengersAboard?: number;
   pendingGravityEffects?: GravityEffect[];
+  // Hex direction (0..5) of the most recent burn. Used client-side to
+  // orient the ship icon opposite the last thrust; absent until the
+  // ship has performed its first burn.
+  lastBurnDirection?: number;
   deathCause?: string;
   killedBy?: ShipId | null; // ship ID or label of the attacker, null for environmental deaths
 
