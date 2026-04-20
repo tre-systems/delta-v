@@ -146,12 +146,11 @@ export type DriftingEnemyBallisticInput = {
 };
 
 /**
- * Whether a ballistic ordnance path (same kinematics as `moveOrdnance` on an
- * empty map) would share a hex with an enemy that drifts by a constant
- * velocity each turn. Intended for AI regression fixtures — not a full
- * gravity / ship-movement model.
+ * Whether a ballistic ordnance path (same kinematics as `moveOrdnance`) would
+ * share a hex with an enemy that drifts by a constant velocity each turn.
+ * Intended for AI regression fixtures — not a full ship-movement model.
  */
-export const driftingEnemyWouldBeHitByOpenSpaceBallistic = (
+export const driftingEnemyWouldBeHitByBallistic = (
   input: DriftingEnemyBallisticInput,
 ): boolean => {
   const turns = input.turns ?? ORDNANCE_LIFETIME;
@@ -159,23 +158,45 @@ export const driftingEnemyWouldBeHitByOpenSpaceBallistic = (
   let ordVel: HexVec = { ...input.ordnanceVelocity };
   let ordPending: GravityEffect[] = [];
   let enemyPos: HexCoord = { ...input.enemyStart };
-  const enemyVel = input.enemyVelocity;
+  let enemyVel: HexVec = { ...input.enemyVelocity };
+  let enemyPending: GravityEffect[] = [];
 
   for (let t = 0; t < turns; t++) {
-    const from = { ...ordPos };
-    const rawDest = hexAdd(ordPos, ordVel);
-    const finalDest = applyPendingGravityEffects(rawDest, ordPending);
-    const path = hexLineDraw(from, finalDest);
-    for (const h of path) {
-      if (hexEqual(h, enemyPos)) {
+    const ordFrom = { ...ordPos };
+    const ordRawDest = hexAdd(ordPos, ordVel);
+    const ordFinalDest = applyPendingGravityEffects(ordRawDest, ordPending);
+    const ordPath = hexLineDraw(ordFrom, ordFinalDest);
+
+    const enemyFrom = { ...enemyPos };
+    const enemyRawDest = hexAdd(enemyPos, enemyVel);
+    const enemyFinalDest = applyPendingGravityEffects(
+      enemyRawDest,
+      enemyPending,
+    );
+    const enemyPath = hexLineDraw(enemyFrom, enemyFinalDest);
+
+    for (const h of ordPath) {
+      if (enemyPath.some((enemyHex) => hexEqual(h, enemyHex))) {
         return true;
       }
     }
-    ordPos = finalDest;
-    ordVel = hexSubtract(finalDest, from);
-    ordPending = collectEnteredGravityEffects(path, input.map);
-    enemyPos = hexAdd(enemyPos, enemyVel);
+
+    ordPos = ordFinalDest;
+    ordVel = hexSubtract(ordFinalDest, ordFrom);
+    ordPending = collectEnteredGravityEffects(ordPath, input.map);
+    enemyPos = enemyFinalDest;
+    enemyVel = hexSubtract(enemyFinalDest, enemyFrom);
+    enemyPending = collectEnteredGravityEffects(enemyPath, input.map);
   }
 
   return false;
 };
+
+/** Convenience wrapper for the no-gravity/open-space regression fixtures. */
+export const driftingEnemyWouldBeHitByOpenSpaceBallistic = (
+  input: Omit<DriftingEnemyBallisticInput, 'map'> & { map?: SolarSystemMap },
+): boolean =>
+  driftingEnemyWouldBeHitByBallistic({
+    ...input,
+    map: EMPTY_SOLAR_MAP,
+  });
