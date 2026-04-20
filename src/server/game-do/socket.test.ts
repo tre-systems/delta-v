@@ -5,6 +5,7 @@ import {
   CHAT_RATE_LIMIT_MS,
   dispatchAuxMessage,
   parseClientSocketMessage,
+  WS_MAX_MESSAGE_BYTES,
   WS_MSG_RATE_LIMIT,
 } from './socket';
 
@@ -33,6 +34,14 @@ describe('socket helpers', () => {
     expect(parseClientSocketMessage('{bad json')).toEqual({
       ok: false,
       error: 'Invalid JSON',
+    });
+  });
+
+  it('rejects oversized websocket frames before JSON parsing', () => {
+    const oversized = 'x'.repeat(WS_MAX_MESSAGE_BYTES + 1);
+    expect(parseClientSocketMessage(oversized)).toEqual({
+      ok: false,
+      error: `Message exceeds the ${WS_MAX_MESSAGE_BYTES}-byte limit`,
     });
   });
 
