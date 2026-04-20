@@ -323,7 +323,7 @@ Exploratory pass 2026-04-20: the [`events` D1 table](../migrations/0001_create_e
 
 To turn this telemetry into something useful for "analysing issues and improving the game once there are many players", we need at minimum:
 - A small internal `/api/metrics` endpoint (auth-gated) that returns common aggregates: daily-active matches, scenario play mix, AI difficulty distribution, first-turn-completion rate, WS error rate, reconnect success rate, average turn duration per scenario.
-- Documented SQL recipes for the top 10 analyses (engagement, funnel, balance, infra health). Drop into [OBSERVABILITY.md](./OBSERVABILITY.md).
+- **Done for this slice:** [OBSERVABILITY.md](./OBSERVABILITY.md) now carries documented SQL recipes for replay/discovery engagement, rating-history audit, matchmaking health, reconnects, and scenario popularity instead of leaving analysis as pure ad-hoc shell history.
 - Optional: scheduled export to R2 / BigQuery for longer-horizon analysis when D1 retention trimming kicks in.
 
 **Files:** `src/server/reporting.ts`, new `src/server/metrics-route.ts`, `docs/OBSERVABILITY.md`
@@ -342,7 +342,7 @@ Exploratory pass 2026-04-20: the existing `trackEvent` calls cover matchmaking l
 
 ### `match_rating` keeps pre/post rating columns write-only — keep as audit trail, document intent
 
-Exploratory pass 2026-04-20: [`match_rating.pre_rating_a/b`, `post_rating_a/b`](../migrations/0004_leaderboard.sql) are populated on every rated match but no query reads them. That's intentional for now — they form a rating-history audit trail for future features (player profile "recent matches" graph, admin anti-cheat review, balance analysis). Document that intent in the migration or a short note in [OBSERVABILITY.md](./OBSERVABILITY.md) so future maintainers don't see them as dead schema and drop them in a cleanup pass.
+**Done for this slice:** the intent is now documented both in [`migrations/0004_leaderboard.sql`](../migrations/0004_leaderboard.sql) and [OBSERVABILITY.md](./OBSERVABILITY.md), so the `match_rating` pre/post columns are explicitly preserved as a rating-history audit trail rather than looking like dead schema.
 
 **Files:** `migrations/0004_leaderboard.sql`, `docs/OBSERVABILITY.md`
 
