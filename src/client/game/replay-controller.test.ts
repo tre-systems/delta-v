@@ -250,4 +250,49 @@ describe('replay-controller', () => {
     expect(toastCalls[0].message).toBe(TOAST.sessionController.replayNoEntries);
     expect(applied).toHaveLength(0);
   });
+
+  it('logs replay outcome without duplicating it as a toast', () => {
+    const toastCalls: Array<{ message: string; type: string }> = [];
+    const logCalls: Array<{ text: string; cssClass?: string }> = [];
+    const timeline = createTimeline(asGameId('ABCDE-m1'));
+    timeline.entries[1] = {
+      ...timeline.entries[1],
+      message: {
+        type: 'stateUpdate',
+        state: {
+          ...timeline.entries[1].message.state,
+          outcome: { winner: 1, reason: 'Fleet eliminated!' },
+        },
+      },
+    };
+
+    const controller = createReplayController({
+      getClientContext: () => ({
+        state: 'gameOver',
+        isLocalGame: false,
+        gameCode: 'ABCDE',
+        gameState: createState(asGameId('ABCDE-m1')),
+      }),
+      fetchReplay: async () => null,
+      showToast: (message, type) => {
+        toastCalls.push({ message, type });
+      },
+      logText: (text, cssClass) => {
+        logCalls.push({ text, cssClass });
+      },
+      clearTrails: () => {},
+      applyGameState: () => {},
+      frameOnActivePlayer: () => {},
+      presentReplayEntry: (_entry, _previousState, done) => done(),
+    });
+
+    controller.startArchivedReplay(timeline);
+    controller.stepReplay('next');
+
+    expect(logCalls).toContainEqual({
+      text: 'Replay ended — Player 2 wins: Fleet eliminated!',
+      cssClass: 'log-status',
+    });
+    expect(toastCalls).toHaveLength(0);
+  });
 });
