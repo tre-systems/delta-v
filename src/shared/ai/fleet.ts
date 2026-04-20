@@ -1,6 +1,7 @@
 import {
   isBaseCarrierType,
   isWarshipType,
+  ORDNANCE_MASS,
   SHIP_STATS,
   type ShipType,
 } from '../constants';
@@ -81,6 +82,9 @@ const scoreCombatFleetPlan = (purchases: FleetPurchase[]): number => {
   );
   const hullCount = ships.length;
   const overloadCount = sumBy(ships, (stats) => (stats.canOverload ? 1 : 0));
+  const torpedoCapableHullCount = sumBy(ships, (stats) =>
+    stats.canLaunchTorpedoes && stats.cargo >= ORDNANCE_MASS.torpedo ? 1 : 0,
+  );
   const frigateCount = shipTypes.filter((type) => type === 'frigate').length;
   const corsairCount = shipTypes.filter((type) => type === 'corsair').length;
   const corvetteCount = shipTypes.filter((type) => type === 'corvette').length;
@@ -91,14 +95,23 @@ const scoreCombatFleetPlan = (purchases: FleetPurchase[]): number => {
     hullCount * 30 +
     totalCargo * 0.4 +
     totalFuel * 0.3 +
-    overloadCount * 12;
+    overloadCount * 12 +
+    torpedoCapableHullCount * 70;
 
   if (hullCount < 5) {
     score -= (5 - hullCount) * 75;
   }
 
+  if (hullCount > 8) {
+    score -= (hullCount - 8) * 28;
+  }
+
   if (frigateCount > 0 && corsairCount + corvetteCount > 0) {
     score += 35;
+  }
+
+  if (frigateCount >= 2) {
+    score += 30;
   }
 
   if (corsairCount >= 3) {
@@ -106,11 +119,15 @@ const scoreCombatFleetPlan = (purchases: FleetPurchase[]): number => {
   }
 
   if (corvetteCount >= 6) {
-    score += 30;
+    score -= (corvetteCount - 5) * 14;
   }
 
   if (torchCount > 0 && hullCount === 1) {
     score -= 120;
+  }
+
+  if (torpedoCapableHullCount === 0 && hullCount > 0) {
+    score -= 180;
   }
 
   return score;
