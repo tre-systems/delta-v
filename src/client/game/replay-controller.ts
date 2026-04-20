@@ -29,6 +29,7 @@ interface ReplayControllerDeps {
   fetchReplay: (code: string, gameId: string) => Promise<ReplayTimeline | null>;
   showToast: (message: string, type: 'error' | 'info' | 'success') => void;
   logText: (text: string, cssClass?: string) => void;
+  trackEvent: (event: string, props?: Record<string, unknown>) => void;
   clearTrails: () => void;
   applyGameState: (state: GameState) => void;
   frameOnActivePlayer: (state: GameState) => void;
@@ -74,6 +75,8 @@ export const createReplayController = (
   let playTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let pendingAnimationToken: number | null = null;
   let playbackSpeed: ReplaySpeed = 1;
+  let replaySourceKind: 'postgame' | 'archived' | null = null;
+  let trackedReplayEnd = false;
   const controlsSignal = signal(createHiddenReplayControls());
 
   const currentDwellMs = (): number => SNAP_DWELL_MS_AT_1X / playbackSpeed;
@@ -212,11 +215,52 @@ export const createReplayController = (
 
   let shownOutcomeForIndex: number | null = null;
 
+  const buildReplayTelemetryProps = (
+    timeline: ReplayTimeline,
+    index: number,
+  ): Record<string, unknown> => {
+    const maxIndex = timeline.entries.length - 1;
+    const entry = timeline.entries[index];
+
+    return {
+      gameId: timeline.gameId,
+      roomCode: timeline.roomCode,
+      matchNumber: timeline.matchNumber,
+      scenario: timeline.scenario,
+      atIndex: index,
+      atTurn: entry?.turn ?? null,
+      progress: maxIndex > 0 ? index / maxIndex : 1,
+      source: replaySourceKind,
+    };
+  };
+
+  const trackReplayOpened = (timeline: ReplayTimeline) => {
+    deps.trackEvent('match_replay_opened', {
+      gameId: timeline.gameId,
+      roomCode: timeline.roomCode,
+      matchNumber: timeline.matchNumber,
+      scenario: timeline.scenario,
+      source: replaySourceKind,
+    });
+  };
+
+  const maybeTrackReplayReachedEnd = (index: number) => {
+    if (!replayTimeline || trackedReplayEnd) return;
+    if (index !== replayTimeline.entries.length - 1) return;
+    trackedReplayEnd = true;
+    deps.trackEvent(
+      'replay_reached_end',
+      buildReplayTelemetryProps(replayTimeline, index),
+    );
+  };
+
   const clearReplay = () => {
     stopPlay();
     replayTimeline = null;
     replayIndex = null;
     replaySourceState = null;
+    replaySourceKind = null;
+    trackedReplayEnd = false;
     selectedReplayGameId = null;
     shownOutcomeForIndex = null;
   };
@@ -252,6 +296,7 @@ export const createReplayController = (
       deps.presentReplayEntry(entry, previousState, animateContinuation);
       deps.frameOnActivePlayer(entry.message.state);
       maybeAnnounceOutcome(entry, index);
+      maybeTrackReplayReachedEnd(index);
       return;
     }
 
@@ -259,6 +304,7 @@ export const createReplayController = (
     deps.applyGameState(entry.message.state);
     deps.frameOnActivePlayer(entry.message.state);
     maybeAnnounceOutcome(entry, index);
+    maybeTrackReplayReachedEnd(index);
   };
 
   const scheduleNextEntry = (token: number) => {
@@ -363,14 +409,18 @@ export const createReplayController = (
     },
     toggleReplay: async () => {
       if (replayTimeline && replayIndex !== null) {
+        if (replayIndex < replayTimeline.entries.length - 1) {
+          deps.trackEvent(
+            'replay_exited_early',
+            buildReplayTelemetryProps(replayTimeline, replayIndex),
+          );
+        }
         stopPlay();
         if (replaySourceState) {
           deps.clearTrails();
           deps.applyGameState(replaySourceState);
         }
-        replayTimeline = null;
-        replayIndex = null;
-        replaySourceState = null;
+        clearReplay();
         updateOverlay();
         return;
       }
@@ -420,8 +470,11 @@ export const createReplayController = (
       }
 
       replaySourceState = structuredClone(ctx.gameState);
+      replaySourceKind = 'postgame';
       replayTimeline = timeline;
       replayIndex = 0;
+      trackedReplayEnd = false;
+      trackReplayOpened(timeline);
       applyReplayEntry(replayIndex);
       startPlay();
     },
@@ -467,6 +520,7 @@ export const createReplayController = (
       const nextIndex =
         (ALLOWED_SPEEDS.indexOf(playbackSpeed) + 1) % ALLOWED_SPEEDS.length;
       playbackSpeed = ALLOWED_SPEEDS[nextIndex];
+      deps.trackEvent('replay_speed_changed', { speed: playbackSpeed });
       // If a timeout is already armed, reschedule so the new speed takes
       // effect on the very next entry rather than after the current dwell.
       if (isPlaying() && playToken !== null && pendingAnimationToken === null) {
@@ -476,7 +530,9 @@ export const createReplayController = (
     },
     setSpeed: (speed) => {
       if (!ALLOWED_SPEEDS.includes(speed)) return;
+      if (playbackSpeed === speed) return;
       playbackSpeed = speed;
+      deps.trackEvent('replay_speed_changed', { speed });
       if (isPlaying() && playToken !== null && pendingAnimationToken === null) {
         scheduleNextEntry(playToken);
       }
@@ -494,9 +550,12 @@ export const createReplayController = (
       // set by the caller before invoking us).
       const ctx = deps.getClientContext();
       replaySourceState = ctx.gameState ? structuredClone(ctx.gameState) : null;
+      replaySourceKind = 'archived';
       selectedReplayGameId = timeline.gameId;
       replayTimeline = timeline;
       replayIndex = 0;
+      trackedReplayEnd = false;
+      trackReplayOpened(timeline);
       applyReplayEntry(replayIndex);
       startPlay();
     },

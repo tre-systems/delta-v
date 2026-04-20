@@ -466,6 +466,16 @@
   const $table = document.getElementById('matches');
   const $body = document.getElementById('matches-body');
   const $loadMore = document.getElementById('loadMore');
+  let trackedView = false;
+
+  const track = (event, props = {}) => {
+    fetch('/telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, ...props }),
+      keepalive: true,
+    }).catch(() => {});
+  };
 
   let nextBefore = null;
   let loading = false;
@@ -587,6 +597,13 @@
       nextBefore = data.nextBefore;
       $loading.classList.add('hidden');
       $table.classList.remove('hidden');
+      if (!trackedView) {
+        trackedView = true;
+        track('matches_list_viewed', {
+          entries: data.matches.length,
+          hasMore: Boolean(data.nextBefore),
+        });
+      }
       if (nextBefore) {
         $loadMore.classList.remove('hidden');
       }
