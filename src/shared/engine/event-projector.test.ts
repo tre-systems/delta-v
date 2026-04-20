@@ -317,7 +317,8 @@ describe('projectMatchSetupFromStream', () => {
           ts: 3,
           actor: 0,
           event: {
-            type: 'shipLanded',
+            type: 'shipLanded' as const,
+            landedAt: 'Mars',
             shipId: asShipId('p0s0'),
           },
         },
@@ -432,7 +433,8 @@ describe('projectMatchSetupFromStream', () => {
           ts: 3,
           actor: 0,
           event: {
-            type: 'shipLanded',
+            type: 'shipLanded' as const,
+            landedAt: 'Mars',
             shipId: asShipId('p0s0'),
           },
         },

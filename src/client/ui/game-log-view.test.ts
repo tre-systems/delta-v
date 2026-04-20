@@ -43,7 +43,11 @@ describe('GameLogView', () => {
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
 
     view.setScreenMode('hud');
-    expect(gameLog.hasAttribute('hidden')).toBe(true);
+    // The collapsed latest bar stays hidden until the match emits a log
+    // line (replay before the first action, fresh game start).
+    expect(latestBar.hasAttribute('hidden')).toBe(true);
+
+    view.logText('Move complete', 'log-env');
     expect(latestBar.hasAttribute('hidden')).toBe(false);
     expect(latestBar.style.display).toBe('block');
 
@@ -117,6 +121,7 @@ describe('GameLogView', () => {
     const latestBar = document.getElementById('logLatestBar') as HTMLElement;
 
     view.setScreenMode('hud');
+    view.logText('Move complete', 'log-env');
     view.toggle();
     expect(gameLog.hasAttribute('hidden')).toBe(false);
     expect(gameLog.style.display).toBe('flex');

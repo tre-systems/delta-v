@@ -13,6 +13,28 @@
     "When state.phase=gameOver or outcome is present, stop the loop and call delta_v_close_session.",
     "Raw protocol fallback: POST /quick-match, poll GET /quick-match/{ticket}, connect /ws/{code}?playerToken={playerToken}, and respect phase + activePlayer yourself."
   ],
+  "runtimeDecisionGuide": [
+    {
+      "if": "observation.state.phase == 'fleetBuilding'",
+      "then": "Send fleetReady explicitly, even if purchases is empty."
+    },
+    {
+      "if": "actionResult.autoSkipLikely == true",
+      "then": "Call delta_v_wait_for_turn instead of immediately chaining the returned nextPhase."
+    },
+    {
+      "if": "s2c.type == 'actionRejected' and reason in ['staleTurn', 'stalePhase', 'wrongActivePlayer']",
+      "then": "Discard the old plan, use the returned fresh state, and re-decide."
+    },
+    {
+      "if": "local session disconnects",
+      "then": "Use delta_v_list_sessions to inspect connectionStatus and then delta_v_reconnect on the same sessionId."
+    },
+    {
+      "if": "state.phase == 'gameOver' or state.outcome != null",
+      "then": "Stop sending actions and close the helper session."
+    }
+  ],
   "starterScripts": [
     {
       "path": "scripts/hosted-mcp-starter.py",

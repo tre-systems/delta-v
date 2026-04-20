@@ -38,6 +38,16 @@ Important operating rules:
 - If the first actionable observation is still `fleetBuilding`, you still need to send `fleetReady` explicitly.
 - If `delta_v_send_action(...waitForResult=true)` returns `autoSkipLikely: true`, call `delta_v_wait_for_turn` instead of immediately chaining the returned `nextPhase`.
 
+## Decision table
+
+| When you see... | Do this |
+| --- | --- |
+| `state.phase === 'fleetBuilding'` | Send `fleetReady`, even if `purchases` is empty |
+| `actionRejected.reason = staleTurn / stalePhase / wrongActivePlayer` | throw away the old plan and re-decide from the returned fresh state |
+| `actionResult.autoSkipLikely = true` | call `delta_v_wait_for_turn` instead of chaining the returned `nextPhase` |
+| local MCP disconnect | inspect `delta_v_list_sessions`, then call `delta_v_reconnect` on the same `sessionId` |
+| `state.phase === 'gameOver'` or `state.outcome` exists | stop sending actions and call `delta_v_close_session` |
+
 ## Existing packaged scripts
 
 ### `scripts/hosted-mcp-starter.py`

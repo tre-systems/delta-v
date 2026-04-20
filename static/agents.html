@@ -475,6 +475,11 @@
       Want a packaged starting point instead of building the loop yourself? See the starter guide in the repo: <a href="https://github.com/tre-systems/delta-v/blob/main/docs/AGENT_STARTERS.md"><code>docs/AGENT_STARTERS.md</code></a>. It points to the shipped hosted MCP starter, bridge quick-start shell script, queue bot, and concurrent MCP harness.
     </p>
 
+    <div class="callout">
+      <div class="callout-label">Decision checklist</div>
+      If you are still in <code>fleetBuilding</code>, send <code>fleetReady</code>. If <code>delta_v_send_action</code> returns <code>autoSkipLikely</code>, go back to <code>delta_v_wait_for_turn</code>. If you receive <code>actionRejected</code> with <code>staleTurn</code>, <code>stalePhase</code>, or <code>wrongActivePlayer</code>, discard the old plan and re-decide from the fresh state.
+    </div>
+
     <h3>Local MCP (stdio helper)</h3>
     <p>Clone the repository when you want the local helper to own WebSockets, event buffering, reconnect, and local dev pairing for you.</p>
     <pre><code>git clone https://github.com/tre-systems/delta-v

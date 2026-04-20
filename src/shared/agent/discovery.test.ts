@@ -47,6 +47,10 @@ interface AgentManifest {
 interface AgentPlaybook {
   preferredTransport?: string;
   minimalTurnLoop?: string[];
+  runtimeDecisionGuide?: Array<{
+    if?: string;
+    then?: string;
+  }>;
   phaseActionMap: Record<
     string,
     {
@@ -224,6 +228,17 @@ describe('agent-playbook.json', () => {
     );
     expect(playbook.minimalTurnLoop?.join(' ')).toContain(
       'Raw protocol fallback',
+    );
+  });
+
+  it('includes the compact runtime recovery guide', () => {
+    const guide = playbook.runtimeDecisionGuide ?? [];
+    expect(guide.some((item) => item.then?.includes('fleetReady'))).toBe(true);
+    expect(
+      guide.some((item) => item.then?.includes('delta_v_wait_for_turn')),
+    ).toBe(true);
+    expect(guide.some((item) => item.if?.includes('actionRejected'))).toBe(
+      true,
     );
   });
 });
