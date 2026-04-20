@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { must } from '../../assert';
 import { DAMAGE_ELIMINATION_THRESHOLD } from '../../constants';
-import { asOrdnanceId, asShipId } from '../../ids';
+import { asOrdnanceId, asShipId, combatTargetKey } from '../../ids';
 import {
   createTestOrdnance,
   createTestShip,
@@ -383,7 +383,9 @@ describe('projectConflictEvent', () => {
     expect(
       must(result.value.ships.find((s) => s.id === 's1')).firedThisPhase,
     ).toBe(true);
-    expect(result.value.combatTargetedThisPhase).toEqual(['ship:s2']);
+    expect(result.value.combatTargetedThisPhase).toEqual([
+      combatTargetKey('ship', asShipId('s2')),
+    ]);
     expect(
       must(result.value.ships.find((s) => s.id === 's2')).damage.disabledTurns,
     ).toBe(0);
@@ -419,7 +421,9 @@ describe('projectConflictEvent', () => {
     expect(
       must(result.value.ships.find((s) => s.id === 's3')).firedThisPhase,
     ).toBe(true);
-    expect(result.value.combatTargetedThisPhase).toEqual(['ship:s2']);
+    expect(result.value.combatTargetedThisPhase).toEqual([
+      combatTargetKey('ship', asShipId('s2')),
+    ]);
   });
 
   it('does not mark opposing counterattackers as fired', () => {
@@ -443,7 +447,9 @@ describe('projectConflictEvent', () => {
     expect(
       must(result.value.ships.find((s) => s.id === 's2')).firedThisPhase,
     ).toBeUndefined();
-    expect(result.value.combatTargetedThisPhase).toEqual(['ship:s1']);
+    expect(result.value.combatTargetedThisPhase).toEqual([
+      combatTargetKey('ship', asShipId('s1')),
+    ]);
   });
 
   it('destroys ship on combatAttack with eliminated damage', () => {

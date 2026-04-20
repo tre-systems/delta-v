@@ -396,6 +396,8 @@ Hide clone-sensitive engine mutators behind non-exported modules, extend import-
 
 **Done for this slice:** browser telemetry/error reporting now runs through a configured runtime from `src/client/main.ts`, so the client no longer reaches global `fetch` directly inside `src/client/telemetry.ts`; the seam is covered in `src/client/telemetry.test.ts`. `src/client/game/connection.ts` and `src/client/game/session-api.ts` also now require injected `WebSocket` / `fetch` / `location` dependencies instead of silently falling back to globals, with the explicit-seam path covered in their Vitest suites. The leaderboard claim/rank helpers now follow the same pattern: `src/client/leaderboard/api.ts` requires injected `fetch`, while `src/client/ui/lobby-view.ts` owns the browser default wrapper and the seam is covered in `src/client/leaderboard/api.test.ts`.
 
+**Done for this slice:** import-boundary enforcement now checks the whole `shared/` layer for browser/Cloudflare globals, not just `shared/engine/`, so agent helpers, protocol code, and shared utilities cannot quietly pick up `window`, `document`, or Worker runtime APIs outside the engine boundary.
+
 **Files:** `src/shared/engine/victory.ts`, `src/shared/engine/turn-advance.ts`, `src/shared/import-boundary.test.ts`, `src/server/import-boundary.test.ts`, `src/client/game/client-kernel.ts`, `src/client/game/connection.ts`, `src/client/game/session-api.ts`, `biome.json`
 
 ---
@@ -411,6 +413,8 @@ Tighten scenario/body registries around closed keys; brand ship / ordnance ident
 **Done for this slice:** combat payload parsing now brands `targetId` as `ShipId` or `OrdnanceId` at validation time based on `targetType`, instead of pushing an untyped string through the shared combat path until later casts.
 
 **Done for this slice:** shared combat resolution and conflict projection now narrow ship-vs-ordnance targets with explicit guards, so those hot paths no longer need ad hoc `as ShipId` / `as OrdnanceId` assertions after `targetType` checks.
+
+**Done for this slice:** combat phase target tracking now uses a branded `CombatTargetKey` helper instead of raw `${targetType}:${targetId}` strings in engine state, replay projection, and AI combat planning.
 
 **Files:** `src/shared/hex.ts`, `src/shared/ids.ts`, `src/shared/map-data.ts`, `src/shared/types/domain.ts`, `src/server/room-routes.ts`, `src/server/game-do/http-handlers.ts`, `src/client/game/main-session-network.ts`
 

@@ -1,4 +1,5 @@
 import { DAMAGE_ELIMINATION_THRESHOLD, ORDNANCE_MASS } from '../../constants';
+import { combatTargetKey } from '../../ids';
 import type { GameState, Result } from '../../types/domain';
 import { isShipTargetCombatAttackEvent } from '../engine-events';
 import type { ConflictProjectionEvent } from './support';
@@ -176,7 +177,7 @@ export const projectConflictEvent = (
       }
 
       state = baseState.value;
-      const targetKey = `${event.targetType}:${event.targetId}`;
+      const targetKey = combatTargetKey(event.targetType, event.targetId);
 
       if (event.attackType !== 'baseDefense') {
         for (const attackerId of event.attackerIds) {
