@@ -302,13 +302,19 @@ export const resolveOrdnanceClick = (
   const selectedShip = getShipById(state, planning.selectedShipId);
 
   // Torpedo boost halos are live whenever a torpedo-capable ship is
-  // selected — no modal "aiming mode". The renderer mirrors this gate;
-  // see `renderTorpedoGuidance` in `client/renderer/overlay.ts`.
+  // selected *and* could actually commit a launch. The renderer mirrors
+  // this gate; see `renderTorpedoGuidance` in `client/renderer/overlay.ts`.
+  const TORPEDO_MASS = 20;
+  const stats = selectedShip ? SHIP_STATS[selectedShip.type] : null;
   const canAimTorpedo =
     selectedShip &&
-    SHIP_STATS[selectedShip.type]?.canLaunchTorpedoes &&
+    stats?.canLaunchTorpedoes &&
     state.phase === 'ordnance' &&
-    state.activePlayer === playerId;
+    state.activePlayer === playerId &&
+    selectedShip.lifecycle === 'active' &&
+    selectedShip.damage.disabledTurns === 0 &&
+    !selectedShip.resuppliedThisTurn &&
+    stats.cargo - selectedShip.cargoUsed >= TORPEDO_MASS;
 
   if (canAimTorpedo && selectedShip) {
     const clickedDirection = getClickedTorpedoDirection(selectedShip, clickHex);
