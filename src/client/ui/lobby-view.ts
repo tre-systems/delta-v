@@ -539,6 +539,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       const online = deps.onlineSignal?.value ?? true;
       createBtn.disabled = loading || !online;
       quickMatchBtn.disabled = loading || !online;
+      codeInputEl.disabled = loading || !online;
       joinBtn.disabled =
         loading || !online || !isJoinInputValid(codeInputEl.value);
       text(
