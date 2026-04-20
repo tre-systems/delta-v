@@ -360,8 +360,8 @@ const SCENARIOS_INTERNAL = {
     rules: {
       logisticsEnabled: true,
       aiConfigOverrides: {
-        combatClosingWeight: 4,
-        combatCloseBonus: 60,
+        combatClosingWeight: 5,
+        combatCloseBonus: 75,
       },
     },
     startingPlayer: 1,
