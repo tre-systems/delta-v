@@ -46,6 +46,8 @@ import {
 import {
   assessNukeBallisticToEnemy,
   evaluateOrdnanceLaunchIntercept,
+  resolveHardNukeReachThreshold,
+  resolveHardNukeScoreFloor,
 } from './ai/ordnance';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
@@ -1517,6 +1519,24 @@ describe('aiOrdnance — nuke launch conditions', () => {
     const launches = aiOrdnance(state, 1, openMap, 'hard');
     expect(launches.length).toBeGreaterThan(0);
     expect(launches[0].ordnanceType).toBe('torpedo');
+  });
+
+  it('tightens hard nuke reach thresholds as intercept time stretches', () => {
+    expect(resolveHardNukeReachThreshold(1, false)).toBe(0.16);
+    expect(resolveHardNukeReachThreshold(2, false)).toBe(0.22);
+    expect(resolveHardNukeReachThreshold(3, false)).toBe(0.3);
+    expect(resolveHardNukeReachThreshold(1, true)).toBe(0.18);
+    expect(resolveHardNukeReachThreshold(2, true)).toBe(0.26);
+    expect(resolveHardNukeReachThreshold(3, true)).toBe(0.34);
+  });
+
+  it('raises hard nuke score floors when torpedo geometry is already good', () => {
+    expect(resolveHardNukeScoreFloor(1, false)).toBe(70);
+    expect(resolveHardNukeScoreFloor(2, false)).toBe(82);
+    expect(resolveHardNukeScoreFloor(3, false)).toBe(94);
+    expect(resolveHardNukeScoreFloor(1, true)).toBe(122);
+    expect(resolveHardNukeScoreFloor(2, true)).toBe(132);
+    expect(resolveHardNukeScoreFloor(3, true)).toBe(144);
   });
 
   it('hard AI does not open with a nuke when enemy is out of point-blank range', () => {
