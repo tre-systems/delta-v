@@ -332,9 +332,9 @@ To turn this telemetry into something useful for "analysing issues and improving
 
 Exploratory pass 2026-04-20: the existing `trackEvent` calls cover matchmaking lifecycle, turn/fleet actions, WS errors, and reconnect churn (`quick_match_*`, `game_over`, `turn_completed`, `ws_connect_error`, `reconnect_succeeded`). What's missing is any signal for **post-match and discovery surfaces**:
 
-- No `leaderboard_viewed`, `leaderboard_row_clicked` — can't tell if anyone uses the leaderboard.
-- No `matches_list_viewed`, `match_replay_opened`, `replay_reached_end`, `replay_exited_early {atProgress, atTurn}` — can't tell if replays are watched, abandoned at turn 2, or watched to completion.
-- No `replay_speed_changed {to}` — can't tell if the 2x/4x buttons are used.
+- `leaderboard_viewed` and `matches_list_viewed` are now emitted from the public HTML pages on first successful load, so we can tell whether those discovery surfaces are used at all.
+- Replay engagement now emits `match_replay_opened`, `replay_reached_end`, `replay_exited_early {atIndex, atTurn, progress}`, and `replay_speed_changed {speed}` from the shared replay controller, covering both archived and post-game replay entry points.
+- Still no `leaderboard_row_clicked` — the current leaderboard rows are not interactive, so there is nothing to click-track yet.
 - No `scenario_selected {scenario, from: 'ai'|'private'}` — we lose the scenario-popularity signal at the menu level (only the final `ai_game_started` fires, by which point the user already committed).
 - No connection-quality metric over a session (RTT, out-of-order frames). We log `ws_invalid_message` but not steady-state health.
 

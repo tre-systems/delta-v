@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { GameId } from '../../shared/ids';
 import { asGameId } from '../../shared/ids';
 import type { ReplayTimeline } from '../../shared/replay';
@@ -87,6 +87,7 @@ describe('replay-controller', () => {
       fetchReplay: async () => null,
       showToast: () => {},
       logText: () => {},
+      trackEvent: vi.fn(),
       clearTrails: () => {},
       applyGameState: () => {},
       frameOnActivePlayer: () => {},
@@ -121,6 +122,7 @@ describe('replay-controller', () => {
       },
       showToast: () => {},
       logText: () => {},
+      trackEvent: vi.fn(),
       clearTrails: () => {},
       applyGameState: (state) => {
         appliedStates.push(state.gameId);
@@ -157,6 +159,7 @@ describe('replay-controller', () => {
       fetchReplay: async () => null,
       showToast: () => {},
       logText: () => {},
+      trackEvent: vi.fn(),
       clearTrails: () => {},
       applyGameState: (state) => {
         appliedStates.push(`${state.gameId}#t${state.turnNumber}`);
@@ -195,6 +198,7 @@ describe('replay-controller', () => {
       fetchReplay: async () => null,
       showToast: () => {},
       logText: () => {},
+      trackEvent: vi.fn(),
       clearTrails: () => {},
       applyGameState: () => {},
       frameOnActivePlayer: () => {},
@@ -237,6 +241,7 @@ describe('replay-controller', () => {
         toastCalls.push({ message, type });
       },
       logText: () => {},
+      trackEvent: vi.fn(),
       clearTrails: () => {},
       applyGameState: (state) => applied.push(state.gameId),
       frameOnActivePlayer: () => {},
@@ -280,6 +285,7 @@ describe('replay-controller', () => {
       logText: (text, cssClass) => {
         logCalls.push({ text, cssClass });
       },
+      trackEvent: vi.fn(),
       clearTrails: () => {},
       applyGameState: () => {},
       frameOnActivePlayer: () => {},
@@ -294,5 +300,64 @@ describe('replay-controller', () => {
       cssClass: 'log-status',
     });
     expect(toastCalls).toHaveLength(0);
+  });
+
+  it('tracks replay engagement for open, speed change, early exit, and completion', async () => {
+    const trackEvent = vi.fn();
+    const timeline = createTimeline(asGameId('ABCDE-m1'));
+    const controller = createReplayController({
+      getClientContext: () => ({
+        state: 'gameOver',
+        isLocalGame: false,
+        gameCode: 'ABCDE',
+        gameState: createState(asGameId('ABCDE-m2')),
+      }),
+      fetchReplay: async () => timeline,
+      showToast: () => {},
+      logText: () => {},
+      trackEvent,
+      clearTrails: () => {},
+      applyGameState: () => {},
+      frameOnActivePlayer: () => {},
+      presentReplayEntry: (_entry, _previousState, done) => done(),
+    });
+
+    controller.onGameOverShown();
+    await controller.toggleReplay();
+    controller.cycleSpeed();
+    await controller.toggleReplay();
+    await controller.toggleReplay();
+    controller.stepReplay('end');
+
+    expect(trackEvent).toHaveBeenCalledWith('match_replay_opened', {
+      gameId: 'ABCDE-m1',
+      roomCode: 'ABCDE',
+      matchNumber: 1,
+      scenario: 'duel',
+      source: 'postgame',
+    });
+    expect(trackEvent).toHaveBeenCalledWith('replay_speed_changed', {
+      speed: 2,
+    });
+    expect(trackEvent).toHaveBeenCalledWith('replay_exited_early', {
+      gameId: 'ABCDE-m1',
+      roomCode: 'ABCDE',
+      matchNumber: 1,
+      scenario: 'duel',
+      atIndex: 0,
+      atTurn: 1,
+      progress: 0,
+      source: 'postgame',
+    });
+    expect(trackEvent).toHaveBeenCalledWith('replay_reached_end', {
+      gameId: 'ABCDE-m1',
+      roomCode: 'ABCDE',
+      matchNumber: 1,
+      scenario: 'duel',
+      atIndex: 1,
+      atTurn: 2,
+      progress: 1,
+      source: 'postgame',
+    });
   });
 });
