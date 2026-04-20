@@ -40,6 +40,8 @@ const buildInput = (
   turn: 2,
   phase: 'astrogation',
   isMyTurn: true,
+  isSpectator: false,
+  activePlayer: 0,
   fuel: 8,
   maxFuel: 12,
   hasBurns: true,

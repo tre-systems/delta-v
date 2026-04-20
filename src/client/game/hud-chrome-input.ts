@@ -12,6 +12,8 @@ export const buildHudChromeInputFromViewModel = (
   turn: hud.turn,
   phase: hud.phase,
   isMyTurn: hud.isMyTurn,
+  isSpectator: hud.isSpectator,
+  activePlayer: hud.activePlayer,
   fuel: hud.fuel,
   maxFuel: hud.maxFuel,
   hasBurns: hud.hasBurns,

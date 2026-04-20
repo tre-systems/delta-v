@@ -125,7 +125,7 @@ export const attachSessionFleetPanelEffect = (
 
     session.planningState.revisionSignal?.value;
 
-    if (!gameState || playerId === -1) {
+    if (!gameState) {
       ui.updateFleetStatus('');
       ui.updateShipList([], null, new Map<string, number | null>());
       return;
