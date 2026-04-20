@@ -41,6 +41,13 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 - `/healthz` now returns the deployed `sha` and a real boot timestamp again (`{"ok":true,"sha":"118a9f00","bootedAt":"2026-04-19T21:58:22.461Z"}` on 2026-04-19), so the old stale-payload launch note is closed.
 - Local Play-vs-AI restore-after-reload no longer deletes `delta-v:local-game` on the initial blank startup tick; the saved snapshot survives long enough for `resumeLocalGame()` to restore it, with a regression test covering the startup race in `local-session-store`.
 - Public docs now describe the shipped two-layer state-changing POST limits accurately: strict Worker-local 5 / 60 s per hashed IP for `/create`, `/api/agent-token`, `/quick-match`, and `/api/claim-name`, with Cloudflare `CREATE_RATE_LIMITER` as an extra best-effort edge layer in production; hosted `/mcp` is documented separately as a 20 / 60 s edge limit keyed by agentToken hash or hashed IP.
+- Replay viewer: spectator mode now anchors P0=cyan / P1=orange so the two fleets read distinctly; the ship list, fleet scoreboard, and HUD status bar all show "Fleet N" / "P{n} PHASE" instead of the "YOUR TURN" / "OPPONENT'S TURN" player framing. (Shipped 2026-04-19; verified production 2026-04-20.)
+- Replay viewer: autoplay starts immediately on entry; Pause is the discoverable affordance. (Shipped 2026-04-19.)
+- Replay viewer: archived matches animate ship movement, ordnance, and combat using the same pipeline as live play. The projection step now batches engine events per resolution and reconstructs `movementResult` / `combatResult` S2C messages via `src/server/game-do/replay-reconstruct.ts`. (Shipped 2026-04-20.)
+- Replay viewer: 0.5x / 1x / 2x / 4x speed cycling, a gradient progress bar, and a `Turn N/M` label in the replay bar. (Shipped 2026-04-20.)
+- Replay viewer: final-entry outcome banner — "Replay ended — Player N wins: {reason}" fires as a log line + toast when the timeline reaches its last entry. (Shipped 2026-04-20.)
+- Replay viewer: combat log populates during replay with per-attack dice rolls and damage outcomes (e.g. `Roll: 5 → DISABLED (2T)`). Known gap — `[Odds: —]` placeholder — tracked separately below under "Replay combat log shows `[Odds: —]` placeholder".
+- Leaderboard: claimed-but-unplayed callsigns (rating 1500 ±350, 0 games) no longer show on the provisional list; the server filters `games_played > 0`. (Shipped 2026-04-20.)
 
 **Confirmed working** (do not regress):
 
@@ -63,25 +70,27 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Each **###** is **remaining** work only (shipped details live in `git log` and tests).
 
-### Replay viewer: both fleets render the same colour for spectators
+### Replay combat log shows `[Odds: —]` placeholder instead of real odds/mods
 
-In spectator mode the session controller calls `setPlayerId(ctx, -1)` (see [src/client/game/session-controller.ts:454](../src/client/game/session-controller.ts)). The renderer then evaluates `ship.owner === playerId` for every ship — `0 === -1` and `1 === -1` are both false, so **both fleets get the enemy colour** (orange). The replay is unwatchable because you can't tell whose ship is whose.
+Archived replays now reconstruct live-style `combatResult` messages from the engine event stream (see [src/server/game-do/replay-reconstruct.ts](../src/server/game-do/replay-reconstruct.ts) shipped 2026-04-20), so dice rolls and damage outcomes show correctly. But the engine `combatAttack` event only preserves the final `roll` + `modifiedRoll` — not the pre-combat `attackStrength`, `defendStrength`, `rangeMod`, `velocityMod`, or pre-computed `odds` string. The reconstructor fills those with placeholders (`0` / `'—'`), so replay log lines read **`Corvette fired on Corvette [Odds: —] → Roll: 5 → DISABLED (2T)`** instead of **`Corvette fired on Corvette [8 vs 8, range -1, vel -0, odds 1:1] → Roll: 5 → DISABLED (2T)`**.
 
-**Fix:** In spectator/replay paths, colour ships by owner index directly (P0 = cyan, P1 = orange) instead of "yours vs theirs". Add a viewer-aware helper, e.g. `colourForShip(ship, viewerPlayerId)` that returns `cyan` when `viewerPlayerId === -1 ? ship.owner === 0 : ship.owner === viewerPlayerId`. Apply consistently across `src/client/renderer/ships.ts`, `src/client/renderer/minimap.ts`, `src/client/renderer/entities.ts`, `src/client/renderer/combat.ts`, `src/client/renderer/course.ts`. The HUD legend and game-over stat pills already distinguish "Fleet 1 / Fleet 2" in spectator mode (see [src/client/ui/screens.ts:326-331](../src/client/ui/screens.ts)) — extend that vocabulary to the canvas.
+**Fix:** Extend the `combatAttack` engine event in [src/shared/engine/engine-events.ts](../src/shared/engine/engine-events.ts) to carry `attackStrength`, `defendStrength`, `rangeMod`, `velocityMod`, and the computed `odds` string. Populate the new fields at emission sites in `src/shared/engine/combat.ts`. Update the `ordnanceDetonated` event similarly if torpedo/nuke log lines ever need the same precision. Add migration notes for pre-landing replays in [replay-reconstruct.ts](../src/server/game-do/replay-reconstruct.ts) (fall back to placeholders for old events).
 
-**Files:** `src/client/renderer/ships.ts`, `src/client/renderer/minimap.ts`, `src/client/renderer/entities.ts`, `src/client/renderer/combat.ts`, `src/client/renderer/course.ts`, optional helper in `src/client/renderer/colours.ts` (new), tests in `src/client/renderer/*.test.ts`
+**Files:** `src/shared/engine/engine-events.ts`, `src/shared/engine/combat.ts`, `src/server/game-do/replay-reconstruct.ts`, tests in `src/shared/engine/combat.test.ts` and `src/server/game-do/replay-reconstruct.test.ts`
 
-### Replay viewer: should autoplay on entry, not require a manual Play click
+### Play-vs-AI Turn 1 Ordnance phase unresponsive (needs manual repro)
 
-Today the replay opens paused. A user clicking `Replay →` from `/matches` lands on event 1/N and has to find and press Play. Better: autoplay starts immediately on entry; the Pause button is the discovery affordance. Optional polish: a small `1×/2×/4×` speed control next to Play.
+During exploratory testing 2026-04-19 via Claude-in-Chrome MCP, a Play-vs-AI (Duel scenario) session got stuck on Turn 1 Ordnance: SKIP SHIP / CONFIRM PHASE buttons didn't respond to programmatic `.click()`, only to physical clicks via the MCP computer tool. Eventually the canvas renderer froze (screenshot calls timed out; `document.querySelector('canvas')` stayed responsive). Could be a real bug (event handler blocking on `isTrusted` or similar) **or** an artefact of the CDP-driven tab not being the foreground window (`document.hidden === true` inside the MCP tab — see note below). The code path goes `src/client/ui/events.ts → ui-event-router.ts → command-router.ts → action-deps.ts`.
 
-**Files:** `src/client/game/replay-controller.ts`, `src/client/ui/replay-controls.ts` (or wherever the Play/Pause button is bound)
+**Triage step:** reproduce manually (no browser automation). If SKIP SHIP / CONFIRM PHASE respond to real clicks and the renderer stays live, close as CDP-specific; otherwise capture `console.log` / `performance.now()` timing and file as a P1 bug.
 
-### Replay viewer: play full movement and combat animations between events
+**Files:** potentially `src/client/ui/button-bindings.ts`, `src/client/game/ordnance.ts`, `src/client/game/command-router.ts`
 
-The current event-stream scrubbing jumps from one snapshot to the next. Movement, gravity deflections, ordnance launches, and combat hits should animate the way they do in a live match — that's most of the replay's entertainment value. Drive the same animation pipeline used by live `movementResult` / `combatResult` S2C messages: feed the projector's per-event delta into `applyClientGameState` and let the existing animation queue play it out, gated on the autoplay rate above.
+### Note: MCP-automated tabs report `document.hidden === true`
 
-**Files:** `src/client/game/replay-controller.ts`, `src/client/renderer/renderer.ts` (animation queue entry), `src/client/game/state-transition.ts`, `src/shared/replay.ts` (if event-stream needs richer per-event payload to feed the animator)
+Claude-in-Chrome MCP tabs run in a non-foreground Chrome window, so `document.hidden === true` / `visibilityState === 'hidden'` even when JS is responsive. That makes `renderer.animateMovements` take its fast-path (`onComplete()` synchronously, no RAF loop), which is correct behaviour for hidden tabs but means exploratory passes can't observe the actual animation pacing. If we need to verify animation timing under MCP automation, the skill or docs should note "force the window foreground" as a precondition, or we fake `document.visibilityState` per-tab.
+
+**Files:** `.claude/skills/play/SKILL.md`, `docs/EXPLORATORY_TESTING.md`
 
 ### Contrast audit (quantified)
 
