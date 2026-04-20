@@ -77,6 +77,7 @@ export type EngineEvent =
   | {
       type: 'shipLanded';
       shipId: ShipId;
+      landedAt: string;
     }
   | {
       type: 'shipCrashed';
