@@ -153,6 +153,8 @@ const createDeps = (overrides?: {
   transport: GameTransport & { calls: Record<string, unknown[][]> };
   ui: CommandRouterDeps['ui'];
   renderer: CommandRouterDeps['renderer'];
+  astrogationLogText: ReturnType<typeof vi.fn<(text: string) => void>>;
+  ordnanceLogText: ReturnType<typeof vi.fn<(text: string) => void>>;
 } => {
   const planningState = createPlanningStore();
   const transport = overrides?.transport ?? mockTransport();
@@ -168,7 +170,9 @@ const createDeps = (overrides?: {
     planningState,
   };
   const showToast = vi.fn<CommandRouterDeps['ui']['overlay']['showToast']>();
+  const astrogationLogText = vi.fn<(text: string) => void>();
   const combatLogText = vi.fn<(text: string) => void>();
+  const ordnanceLogText = vi.fn<(text: string) => void>();
   const toggleLog = vi.fn<CommandRouterDeps['ui']['log']['toggle']>();
   const renderer = {
     centerOnHex: vi.fn<(position: { q: number; r: number }) => void>(),
@@ -186,6 +190,7 @@ const createDeps = (overrides?: {
       getTransport: () => ctx.getTransport(),
       planningState: ctx.planningState,
       showToast,
+      logText: astrogationLogText,
     },
     combatDeps: {
       getGameState: () => ctx.getGameState(),
@@ -205,7 +210,7 @@ const createDeps = (overrides?: {
       getTransport: () => ctx.getTransport(),
       planningState: ctx.planningState,
       showToast,
-      logText: vi.fn<(text: string) => void>(),
+      logText: ordnanceLogText,
     },
     ui: {
       overlay: { showToast },
@@ -229,6 +234,8 @@ const createDeps = (overrides?: {
     transport,
     ui: deps.ui,
     renderer: deps.renderer,
+    astrogationLogText,
+    ordnanceLogText,
   };
 };
 
@@ -480,5 +487,47 @@ describe('game-command-router', () => {
 
     expect(deps.sendRematch).toHaveBeenCalledTimes(1);
     expect(deps.exitToMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs local astrogation validation errors instead of toasting them', () => {
+    const { deps, ui, astrogationLogText } = createDeps({
+      gameState: createState({
+        ships: [
+          createShip({
+            id: asShipId('ship-0'),
+            fuel: 0,
+          }),
+          createShip({ id: asShipId('enemy'), owner: 1 }),
+        ],
+      }),
+    });
+    deps.ctx.planningState.selectShip(asShipId('ship-0'));
+
+    dispatchGameCommand(deps, {
+      type: 'setBurnDirection',
+      shipId: asShipId('ship-0'),
+      direction: 2,
+    });
+
+    expect(astrogationLogText).toHaveBeenCalledWith('No fuel remaining');
+    expect(ui.overlay.showToast).not.toHaveBeenCalled();
+  });
+
+  it('logs local ordnance validation errors instead of toasting them', () => {
+    const { deps, ui, ordnanceLogText } = createDeps({
+      clientState: 'playing_ordnance',
+      gameState: createState({
+        phase: 'ordnance',
+      }),
+    });
+    deps.ctx.planningState.setSelectedShipId(null);
+
+    dispatchGameCommand(deps, {
+      type: 'launchOrdnance',
+      ordType: 'torpedo',
+    });
+
+    expect(ordnanceLogText).toHaveBeenCalledWith('Select a ship first');
+    expect(ui.overlay.showToast).not.toHaveBeenCalled();
   });
 });

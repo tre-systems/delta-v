@@ -69,7 +69,7 @@ export const queueOrdnanceLaunch = (
 
   if (!plan.ok) {
     if (plan.message) {
-      deps.showToast(plan.message, must(plan.level));
+      deps.logText(plan.message);
     }
     return;
   }
@@ -136,7 +136,7 @@ export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
 
   if (!plan.ok) {
     if (plan.message) {
-      deps.showToast(plan.message, must(plan.level));
+      deps.logText(plan.message);
     }
     return;
   }
