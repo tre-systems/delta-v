@@ -48,6 +48,8 @@ export interface UIManagerDeps {
     'getProfile' | 'setUsername' | 'resetProfile'
   >;
   sessionTokens: Pick<SessionTokenService, 'clearAllStoredPlayerTokens'>;
+  /** Reactive online/offline signal; when omitted the lobby treats the session as always-online. */
+  onlineSignal?: { readonly value: boolean };
 }
 
 export const createUIManager = (deps: UIManagerDeps) => {
@@ -133,6 +135,7 @@ export const createUIManager = (deps: UIManagerDeps) => {
       deps.sessionTokens.clearAllStoredPlayerTokens();
       return deps.playerProfile.resetProfile();
     },
+    onlineSignal: deps.onlineSignal,
   });
 
   scope.add(

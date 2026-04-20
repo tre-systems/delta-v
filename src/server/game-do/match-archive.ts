@@ -27,6 +27,9 @@ export interface MatchArchive {
 }
 
 const r2Key = (gameId: GameId): string => `matches/${gameId}.json`;
+export const MATCH_ARCHIVE_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
+const MATCH_ARCHIVE_PURGE_BATCH_SIZE = 128;
+const MATCH_ARCHIVE_PURGE_MAX_BATCHES = 8;
 
 // Archive a completed match to R2 and insert metadata
 // into D1. Fire-and-forget — errors are logged but
@@ -140,4 +143,81 @@ export const fetchArchivedMatch = async (
   } catch {
     return null;
   }
+};
+
+type ArchiveRow = {
+  game_id: string;
+};
+
+export const purgeExpiredMatchArchives = async (
+  db: D1Database | undefined,
+  r2: R2Bucket | undefined,
+  maxAgeMs: number,
+): Promise<{ deletedRows: number; deletedObjects: number }> => {
+  if (!db) {
+    return { deletedRows: 0, deletedObjects: 0 };
+  }
+
+  const cutoff = Date.now() - maxAgeMs;
+  let deletedRows = 0;
+  let deletedObjects = 0;
+
+  for (let batch = 0; batch < MATCH_ARCHIVE_PURGE_MAX_BATCHES; batch++) {
+    let results: ArchiveRow[];
+    try {
+      const response = await db
+        .prepare(
+          'SELECT game_id FROM match_archive ' +
+            'WHERE completed_at < ? ORDER BY completed_at ASC LIMIT ?',
+        )
+        .bind(cutoff, MATCH_ARCHIVE_PURGE_BATCH_SIZE)
+        .all<ArchiveRow>();
+      results = response.results ?? [];
+    } catch (err) {
+      console.error('[match-archive] Failed to select expired rows', err);
+      break;
+    }
+
+    if (results.length === 0) {
+      break;
+    }
+
+    const gameIds = results.map((row) => row.game_id as GameId);
+    const archiveKeys = gameIds.map((gameId) => r2Key(gameId));
+
+    if (r2) {
+      try {
+        await r2.delete(archiveKeys);
+        deletedObjects += archiveKeys.length;
+      } catch (err) {
+        console.error('[match-archive] Failed to delete expired R2 objects', {
+          count: archiveKeys.length,
+          err,
+        });
+        break;
+      }
+    }
+
+    try {
+      const placeholders = gameIds.map(() => '?').join(', ');
+      const response = await db
+        .prepare(`DELETE FROM match_archive WHERE game_id IN (${placeholders})`)
+        .bind(...gameIds)
+        .run();
+      const meta = (response as { meta?: { changes?: number } }).meta;
+      deletedRows += meta?.changes ?? 0;
+    } catch (err) {
+      console.error('[match-archive] Failed to delete expired archive rows', {
+        count: gameIds.length,
+        err,
+      });
+      break;
+    }
+
+    if (results.length < MATCH_ARCHIVE_PURGE_BATCH_SIZE) {
+      break;
+    }
+  }
+
+  return { deletedRows, deletedObjects };
 };

@@ -15,7 +15,9 @@ import {
 import {
   archiveCompletedMatch,
   fetchArchivedMatch,
+  MATCH_ARCHIVE_RETENTION_MS,
   type MatchArchive,
+  purgeExpiredMatchArchives,
 } from './match-archive';
 
 import { createMockStorage } from './test-support';
@@ -31,6 +33,11 @@ const createMockR2 = () => {
   return {
     put: vi.fn(async (key: string, body: string) => {
       objects.set(key, body);
+    }),
+    delete: vi.fn(async (keys: string | string[]) => {
+      for (const key of Array.isArray(keys) ? keys : [keys]) {
+        objects.delete(key);
+      }
     }),
     get: vi.fn(async (key: string) => {
       const body = objects.get(key);
@@ -293,5 +300,79 @@ describe('match archival', () => {
 
     expect(body.createdAt).toBe(5000);
     expect(body.completedAt).toBe(9000);
+  });
+
+  it('purges expired archives from both R2 and D1 metadata', async () => {
+    const now = Date.now();
+    const cutoff = now - MATCH_ARCHIVE_RETENTION_MS;
+    const r2 = createMockR2();
+    r2.objects.set('matches/OLD-m1.json', '{}');
+    r2.objects.set('matches/NEW-m1.json', '{}');
+
+    const runFn = vi.fn(async () => ({ meta: { changes: 1 } }));
+    const allFn = vi.fn(async () => ({
+      results: [{ game_id: 'OLD-m1' }],
+    }));
+    const bindFn = vi
+      .fn()
+      .mockReturnValueOnce({ all: allFn })
+      .mockReturnValueOnce({ run: runFn });
+    const db = {
+      prepare: vi.fn(() => ({ bind: bindFn })),
+    };
+
+    const result = await purgeExpiredMatchArchives(
+      db as unknown as D1Database,
+      r2 as unknown as R2Bucket,
+      MATCH_ARCHIVE_RETENTION_MS,
+    );
+
+    expect(db.prepare).toHaveBeenNthCalledWith(
+      1,
+      'SELECT game_id FROM match_archive WHERE completed_at < ? ORDER BY completed_at ASC LIMIT ?',
+    );
+    expect(bindFn).toHaveBeenNthCalledWith(1, expect.any(Number), 128);
+    expect(r2.delete).toHaveBeenCalledWith(['matches/OLD-m1.json']);
+    expect(db.prepare).toHaveBeenNthCalledWith(
+      2,
+      'DELETE FROM match_archive WHERE game_id IN (?)',
+    );
+    expect(bindFn).toHaveBeenNthCalledWith(2, 'OLD-m1');
+    expect(result).toEqual({ deletedRows: 1, deletedObjects: 1 });
+    expect(r2.objects.has('matches/OLD-m1.json')).toBe(false);
+    expect(r2.objects.has('matches/NEW-m1.json')).toBe(true);
+    expect(cutoff).toBeLessThan(now);
+  });
+
+  it('keeps D1 rows when deleting expired R2 objects fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const r2 = {
+      delete: vi.fn(async () => {
+        throw new Error('R2 delete failed');
+      }),
+    };
+    const runFn = vi.fn(async () => ({ meta: { changes: 1 } }));
+    const allFn = vi.fn(async () => ({
+      results: [{ game_id: 'OLD-m2' }],
+    }));
+    const bindFn = vi
+      .fn()
+      .mockReturnValueOnce({ all: allFn })
+      .mockReturnValueOnce({ run: runFn });
+    const db = {
+      prepare: vi.fn(() => ({ bind: bindFn })),
+    };
+
+    const result = await purgeExpiredMatchArchives(
+      db as unknown as D1Database,
+      r2 as unknown as R2Bucket,
+      MATCH_ARCHIVE_RETENTION_MS,
+    );
+
+    expect(r2.delete).toHaveBeenCalledWith(['matches/OLD-m2.json']);
+    expect(runFn).not.toHaveBeenCalled();
+    expect(result).toEqual({ deletedRows: 0, deletedObjects: 0 });
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

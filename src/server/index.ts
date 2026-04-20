@@ -10,6 +10,10 @@ import {
 import { handleAgentTokenIssue } from './auth/issue-route';
 import type { Env } from './env';
 import { GameDO } from './game-do/game-do';
+import {
+  MATCH_ARCHIVE_RETENTION_MS,
+  purgeExpiredMatchArchives,
+} from './game-do/match-archive';
 import { handleClaimName } from './leaderboard/claim-route';
 import { handlePlayerRank } from './leaderboard/player-rank';
 import { handleLeaderboardQuery } from './leaderboard/query-route';
@@ -644,8 +648,9 @@ export default {
 
     return applyResponseHeaders(request, response);
   },
-  // Scheduled retention purge for telemetry / error rows. Wrangler cron
-  // fires the configured schedule (see wrangler.toml [triggers.crons]).
+  // Scheduled retention purge for telemetry rows and archived match
+  // storage. Wrangler cron fires the configured schedule (see
+  // wrangler.toml [triggers.crons]).
   async scheduled(
     _event: ScheduledEvent,
     env: Env,
@@ -657,6 +662,16 @@ export default {
         const removed = await purgeOldEvents(env.DB, EVENTS_RETENTION_MS);
         if (removed > 0) {
           console.log(`[events purge] removed ${removed} rows`);
+        }
+        const archives = await purgeExpiredMatchArchives(
+          env.DB,
+          env.MATCH_ARCHIVE,
+          MATCH_ARCHIVE_RETENTION_MS,
+        );
+        if (archives.deletedRows > 0 || archives.deletedObjects > 0) {
+          console.log(
+            `[match archive purge] removed ${archives.deletedRows} rows / ${archives.deletedObjects} objects`,
+          );
         }
       })(),
     );

@@ -1,6 +1,7 @@
 import { buildSolarSystemMap } from '../../shared/map-data';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { playWarning } from '../audio';
+import { createConnectivityController } from '../connectivity';
 import { byId, clearHTML } from '../dom';
 import { createInputHandler } from '../input';
 import { TOAST } from '../messages/toasts';
@@ -66,9 +67,11 @@ export const createGameClient = () => {
 
   const canvas = byId<HTMLCanvasElement>('gameCanvas');
   const renderer = createRenderer(canvas, ctx.planningState);
+  const connectivity = createConnectivityController();
   const ui = createUIManager({
     playerProfile,
     sessionTokens,
+    onlineSignal: connectivity.onlineSignal,
   });
   const tutorial = createTutorial({
     openHelpSection: (sectionElementId) => ui.openHelpSection(sectionElementId),
@@ -245,6 +248,7 @@ export const createGameClient = () => {
       input.dispose();
       ui.dispose();
       tutorial.dispose();
+      connectivity.dispose();
     },
   };
 };
