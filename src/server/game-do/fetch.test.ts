@@ -35,6 +35,7 @@ const makeDeps = (
   touchInactivity: vi.fn(),
   acceptWebSocket: vi.fn(),
   getRoomConfig: vi.fn().mockResolvedValue(null),
+  getSpectatorCount: vi.fn().mockReturnValue(0),
   ...overrides,
 });
 
@@ -84,5 +85,25 @@ describe('handleGameDoFetch', () => {
     const res = await handleGameDoFetch(deps, req);
     expect(res.status).toBe(404);
     expect(deps.resolveJoinAttempt).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 when spectator capacity is already full', async () => {
+    const deps = makeDeps({
+      getRoomConfig: vi.fn().mockResolvedValue({
+        code: 'ABCDE',
+        scenario: 'biplanetary',
+        playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      }),
+      getSpectatorCount: vi.fn().mockReturnValue(8),
+    });
+    const req = new Request(`${baseUrl}/ws?viewer=spectator`, {
+      headers: { Upgrade: 'websocket' },
+    });
+
+    const res = await handleGameDoFetch(deps, req);
+
+    expect(res.status).toBe(429);
+    expect(await res.text()).toBe('Spectator capacity reached');
+    expect(deps.acceptWebSocket).not.toHaveBeenCalled();
   });
 });

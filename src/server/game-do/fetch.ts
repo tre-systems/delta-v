@@ -6,6 +6,8 @@ import { getProjectedCurrentState } from './archive';
 import type { JoinAttemptSuccess } from './http-handlers';
 import { shouldClearDisconnectMarker } from './session';
 
+const MAX_SPECTATORS_PER_ROOM = 8;
+
 export type GameDoFetchDeps = {
   handleInit: (request: Request) => Promise<Response>;
   handleJoinCheck: (request: Request) => Promise<Response>;
@@ -30,6 +32,7 @@ export type GameDoFetchDeps = {
   touchInactivity: () => Promise<void>;
   acceptWebSocket: (server: WebSocket, tags: string[]) => void;
   getRoomConfig: () => Promise<RoomConfig | null>;
+  getSpectatorCount: () => number;
 };
 
 export const handleGameDoFetch = async (
@@ -69,6 +72,13 @@ export const handleGameDoFetch = async (
     if (!roomConfig) {
       return new Response('Game not found', {
         status: 404,
+      });
+    }
+
+    if (deps.getSpectatorCount() >= MAX_SPECTATORS_PER_ROOM) {
+      return new Response('Spectator capacity reached', {
+        status: 429,
+        headers: { 'Retry-After': '60' },
       });
     }
 
