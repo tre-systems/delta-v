@@ -245,9 +245,11 @@ Implication for the launch-readiness snapshot: the earlier *first-player advanta
 
 `grandTour` no longer records null timeouts in the simulation harness: when the phase cap trips in a checkpoint race, `scripts/simulate-ai.ts` now resolves a progress tiebreak from visited checkpoint count, surviving ships, and estimated remaining tour distance. A fresh 30-game hard-vs-hard sample came back `46.7/53.3` with **0** timeouts, `4` progress-tiebreak wins, `4` full race completions, and a reduced average length of `102.2` turns. `fleetAction` has improved after the closing-pressure override, but still times out often enough to need another larger seeded sweep before dropping the item.
 
-Follow-up seeded sweep 2026-04-20 (`8` base seeds × `30` games = `240` total) still showed `28` timeouts (`11.7%`) and wide seed variance (`39.3%` to `70.4%` P0 decided-win rate, ~`55.2` average turns overall). So this is still a live tuning item, not just a remeasurement chore.
+Follow-up seeded sweep 2026-04-20 (`8` base seeds × `30` games = `240` total) still showed `28` timeouts (`11.7%`) and wide seed variance (`39.3%` to `70.4%` P0 decided-win rate, ~`55.2` average turns overall). So this was still a live tuning item, not just a remeasurement chore.
 
-Re-ran another 240-game hard-vs-hard sample on 2026-04-20 after the latest ordnance-threshold tranche: `102/106/32` (`42.5/44.2`, `13.3%` timeouts, `59.9` average turns). That confirms this item is still open and also that "just make fleets close harder" is not a safe blind fix — one attempted stronger-closing override regressed badly and was reverted immediately.
+**Done for this slice:** the fleet-builder no longer optimizes `fleetAction` into near-all-corvette swarms that can barely carry ordnance. It now rewards mixed warship fleets with real torpedo capacity, which moved a fresh 240-game hard-vs-hard sample to `120/100/20` (`50.0/41.7`, `8.3%` timeouts, `44.8` average turns). That is a material improvement from the earlier `102/106/32` (`13.3%` timeouts, `59.9` turns) sample on the old doctrine.
+
+**Remaining:** decide whether `8.3%` is low enough to close this item or whether we want one more pass to push the timeout rate below ~`5%` without reviving seat skew.
 
 **Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenario-definitions.ts`, `src/shared/engine/victory.ts` (tiebreak)
 

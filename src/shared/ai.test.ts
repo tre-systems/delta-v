@@ -601,7 +601,7 @@ describe('aiOrdnance', () => {
   });
 });
 describe('buildAIFleetPurchases', () => {
-  it('prefers many smaller hulls in warship-only fleet skirmishes', () => {
+  it('keeps warship-only fleet skirmishes on mixed ordnance-capable hulls', () => {
     const state = createGameOrThrow(
       SCENARIOS.fleetAction,
       map,
@@ -615,20 +615,26 @@ describe('buildAIFleetPurchases', () => {
       SCENARIOS.fleetAction.availableFleetPurchases,
     );
 
-    expect(purchases).toHaveLength(13);
+    expect(purchases).toHaveLength(8);
     expect(
       purchases.every(
         (purchase) =>
           purchase.kind === 'ship' &&
-          ['corvette', 'corsair'].includes(purchase.shipType),
+          ['corvette', 'corsair', 'frigate'].includes(purchase.shipType),
       ),
     ).toBe(true);
     expect(
       purchases.filter(
         (purchase) =>
-          purchase.kind === 'ship' && purchase.shipType === 'corsair',
+          purchase.kind === 'ship' && purchase.shipType === 'frigate',
       ),
     ).toHaveLength(2);
+    expect(
+      purchases.filter(
+        (purchase) =>
+          purchase.kind === 'ship' && purchase.shipType === 'corsair',
+      ),
+    ).toHaveLength(1);
   });
   it('avoids over-investing in capitals for logistics fleet battles', () => {
     const state = createGameOrThrow(
