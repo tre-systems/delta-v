@@ -2,21 +2,18 @@ import type {
   EngineEvent,
   EventEnvelope,
 } from '../../shared/engine/engine-events';
+import { migrateGameState } from '../../shared/engine/event-projector/support';
 import type { ViewerId } from '../../shared/engine/game-engine';
 import type { GameId } from '../../shared/ids';
 import { buildMatchId, type ReplayTimeline } from '../../shared/replay';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { isValidPlayerToken, type RoomConfig } from '../protocol';
 import {
-  ensureArchiveStreamCompatibility,
-  normalizeArchivedGameState,
-  normalizeArchivedStateRecord,
-} from './archive-compat';
-import {
   appendEventsToChunkedStream,
   getEventStreamLength as getChunkedEventStreamLength,
   matchCreatedAtKey,
   matchSeedKey,
+  migrateLegacyEventStreamIfNeeded,
   readChunkedEventStream,
   readChunkedEventStreamTail,
 } from './archive-storage';
@@ -32,11 +29,24 @@ type Storage = DurableObjectStorage;
 
 export { projectReplayTimeline };
 
+const normalizeArchivedGameState = (state: GameState): GameState =>
+  migrateGameState(state);
+
+const normalizeArchivedStateRecord = <T extends { state: GameState }>(
+  record: T | null,
+): T | null =>
+  record
+    ? {
+        ...record,
+        state: normalizeArchivedGameState(record.state),
+      }
+    : null;
+
 export const getEventStream = async (
   storage: Storage,
   gameId: GameId,
 ): Promise<EventEnvelope[]> => {
-  await ensureArchiveStreamCompatibility(storage, gameId);
+  await migrateLegacyEventStreamIfNeeded(storage, gameId);
 
   const chunkedStream = await readChunkedEventStream(storage, gameId);
 
@@ -52,7 +62,7 @@ export const getEventStreamTail = async (
   gameId: GameId,
   afterSeqExclusive: number,
 ): Promise<EventEnvelope[]> => {
-  await ensureArchiveStreamCompatibility(storage, gameId);
+  await migrateLegacyEventStreamIfNeeded(storage, gameId);
   return readChunkedEventStreamTail(storage, gameId, afterSeqExclusive);
 };
 
@@ -67,7 +77,7 @@ export const appendEnvelopedEvents = async (
   actor: PlayerId | null,
   ...events: EngineEvent[]
 ): Promise<void> => {
-  await ensureArchiveStreamCompatibility(storage, gameId);
+  await migrateLegacyEventStreamIfNeeded(storage, gameId);
   await appendEventsToChunkedStream(storage, gameId, actor, events);
 };
 
