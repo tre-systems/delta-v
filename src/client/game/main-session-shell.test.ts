@@ -43,9 +43,6 @@ const mocks = vi.hoisted(() => {
     createConnectionManager: vi.fn(() => connection),
     applyClientGameState: vi.fn(),
     runAI: vi.fn(),
-    createMainStateTransitionDeps: vi.fn(() => ({ kind: 'state-deps' })),
-    createMainPhaseTransitionDeps: vi.fn(() => ({ kind: 'phase-deps' })),
-    createMainMessageHandlerDeps: vi.fn(() => ({ kind: 'message-deps' })),
     exitToMenuFromMain: vi.fn(),
     handleServerMessageFromMain: vi.fn(),
     startLocalGameFromMain: vi.fn(),
@@ -85,12 +82,6 @@ vi.mock('./game-state-store', () => ({
 
 vi.mock('./local-game-flow', () => ({
   runAITurn: mocks.runAI,
-}));
-
-vi.mock('./main-deps', () => ({
-  createMainMessageHandlerDeps: mocks.createMainMessageHandlerDeps,
-  createMainPhaseTransitionDeps: mocks.createMainPhaseTransitionDeps,
-  createMainStateTransitionDeps: mocks.createMainStateTransitionDeps,
 }));
 
 vi.mock('./main-session-network', () => ({
@@ -214,7 +205,7 @@ describe('main-session-shell', () => {
       'playing_astrogation',
     );
     expect(mocks.applyClientStateTransition).toHaveBeenCalledWith(
-      { kind: 'state-deps' },
+      expect.objectContaining({ ui: args.ui, renderer: args.renderer }),
       'playing_astrogation',
     );
   });
@@ -234,7 +225,7 @@ describe('main-session-shell', () => {
     connectionArgs.handleMessage(message);
 
     expect(mocks.handleServerMessageFromMain).toHaveBeenCalledWith(
-      { kind: 'message-deps' },
+      expect.objectContaining({ ctx: args.ctx, ui: args.ui }),
       message,
       expect.any(Function),
     );
