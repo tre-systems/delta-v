@@ -183,7 +183,7 @@ Land a damaged or low-fuel ship at a friendly base → next turn: fuel restored,
 - **Normal:** uses gravity assists; tactical choices; fair challenge.
 - **Hard:** aggressive; optimal movement; uses ordnance.
 
-Then `npm run simulate -- all 40` (pre-commit and CI use 60) → expect **0 engine crashes** across all scenarios. The harness randomises starting seat during bulk runs.
+Then `npm run simulate -- all 40` (pre-push and CI use 60) → expect **0 engine crashes** across all scenarios. The harness randomises starting seat during bulk runs.
 
 ## 18. Sound
 
