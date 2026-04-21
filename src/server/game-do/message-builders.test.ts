@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
+import { must } from '../../shared/assert';
 import {
   createGameOrThrow,
   type MovementResult,
@@ -18,10 +19,6 @@ import {
   resolveMovementBroadcast,
   resolveStateBearingMessage,
   STATEFUL_SERVER_MESSAGE_TYPES,
-  toCombatResultMessage,
-  toCombatSingleResultMessage,
-  toGameStartMessage,
-  toMovementResultMessage,
   toStateUpdateMessage,
 } from './message-builders';
 
@@ -71,17 +68,13 @@ describe('game-do-message-builders', () => {
       engineEvents: [],
     };
 
-    expect(toMovementResultMessage(movementResult)).toEqual({
+    expect(resolveMovementBroadcast(movementResult)).toEqual({
       type: 'movementResult',
       movements: [],
       ordnanceMovements: [],
       events: [],
       state,
     });
-
-    expect(resolveMovementBroadcast(movementResult)).toEqual(
-      toMovementResultMessage(movementResult),
-    );
   });
 
   it('emits optional state updates for non-movement resolutions', () => {
@@ -111,7 +104,12 @@ describe('game-do-message-builders', () => {
       findBaseHex,
     );
 
-    expect(toGameStartMessage(state)).toEqual({
+    const gameStart = {
+      type: 'gameStart',
+      state,
+    } as const;
+
+    expect(gameStart).toEqual({
       type: 'gameStart',
       state,
     });
@@ -152,17 +150,20 @@ describe('game-do-message-builders', () => {
 
     expect(new Set(STATEFUL_SERVER_MESSAGE_TYPES)).toEqual(
       new Set([
-        toGameStartMessage(state).type,
+        ({ type: 'gameStart', state } as const).type,
         toStateUpdateMessage(state).type,
-        toMovementResultMessage({
-          state,
-          movements: [],
-          ordnanceMovements: [],
-          events: [],
-          engineEvents: [],
-        }).type,
-        toCombatResultMessage(state, [combatResult]).type,
-        toCombatSingleResultMessage(state, combatResult).type,
+        must(
+          resolveMovementBroadcast({
+            state,
+            movements: [],
+            ordnanceMovements: [],
+            events: [],
+            engineEvents: [],
+          }),
+        ).type,
+        must(resolveCombatBroadcast({ state, results: [combatResult] })).type,
+        ({ type: 'combatSingleResult', result: combatResult, state } as const)
+          .type,
       ]),
     );
   });
@@ -195,15 +196,11 @@ describe('game-do-message-builders', () => {
       },
     ];
 
-    expect(toCombatResultMessage(state, combatResults)).toEqual({
+    expect(resolveCombatBroadcast({ state, results: combatResults })).toEqual({
       type: 'combatResult',
       results: combatResults,
       state,
     });
-
-    expect(resolveCombatBroadcast({ state, results: combatResults })).toEqual(
-      toCombatResultMessage(state, combatResults),
-    );
   });
 
   it(
@@ -236,7 +233,7 @@ describe('S2C state-bearing payload fixtures', () => {
   );
 
   it('gameStart payload has exactly { type, state }', () => {
-    const msg = toGameStartMessage(state);
+    const msg = { type: 'gameStart', state } as const;
 
     expect(normalizeStateEnvelope(msg)).toEqual(
       transportFixtures.s2c.gameStart,
@@ -304,48 +301,50 @@ describe('S2C state-bearing payload fixtures', () => {
   });
 
   it('movementResult payload has exactly { type, movements, ordnanceMovements, events, state }', () => {
-    const msg = toMovementResultMessage({
-      movements: [
-        {
-          shipId: asShipId('p0s0'),
-          from: { q: 5, r: 10 },
-          to: { q: 6, r: 9 },
-          path: [
-            { q: 5, r: 10 },
-            { q: 6, r: 9 },
-          ],
-          newVelocity: { dq: 2, dr: -1 },
-          fuelSpent: 1,
-          gravityEffects: [],
-          outcome: 'normal',
-        },
-      ],
-      ordnanceMovements: [
-        {
-          ordnanceId: asOrdnanceId('torp-1'),
-          from: { q: 10, r: 15 },
-          to: { q: 12, r: 14 },
-          path: [
-            { q: 10, r: 15 },
-            { q: 11, r: 14 },
-            { q: 12, r: 14 },
-          ],
-          detonated: false,
-        },
-      ],
-      events: [
-        {
-          type: 'crash',
-          shipId: asShipId('p0s0'),
-          hex: { q: 6, r: 9 },
-          dieRoll: 0,
-          damageType: 'eliminated',
-          disabledTurns: 0,
-        },
-      ],
-      engineEvents: [],
-      state,
-    });
+    const msg = must(
+      resolveMovementBroadcast({
+        movements: [
+          {
+            shipId: asShipId('p0s0'),
+            from: { q: 5, r: 10 },
+            to: { q: 6, r: 9 },
+            path: [
+              { q: 5, r: 10 },
+              { q: 6, r: 9 },
+            ],
+            newVelocity: { dq: 2, dr: -1 },
+            fuelSpent: 1,
+            gravityEffects: [],
+            outcome: 'normal',
+          },
+        ],
+        ordnanceMovements: [
+          {
+            ordnanceId: asOrdnanceId('torp-1'),
+            from: { q: 10, r: 15 },
+            to: { q: 12, r: 14 },
+            path: [
+              { q: 10, r: 15 },
+              { q: 11, r: 14 },
+              { q: 12, r: 14 },
+            ],
+            detonated: false,
+          },
+        ],
+        events: [
+          {
+            type: 'crash',
+            shipId: asShipId('p0s0'),
+            hex: { q: 6, r: 9 },
+            dieRoll: 0,
+            damageType: 'eliminated',
+            disabledTurns: 0,
+          },
+        ],
+        engineEvents: [],
+        state,
+      }),
+    );
 
     expect(normalizeStateEnvelope(msg)).toEqual(
       transportFixtures.s2c.movementResult,
@@ -388,7 +387,7 @@ describe('S2C state-bearing payload fixtures', () => {
     ];
 
     expect(
-      normalizeStateEnvelope(toCombatResultMessage(state, results)),
+      normalizeStateEnvelope(resolveCombatBroadcast({ state, results })),
     ).toEqual(transportFixtures.s2c.combatResult);
   });
 

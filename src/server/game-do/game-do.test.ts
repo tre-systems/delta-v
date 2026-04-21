@@ -32,10 +32,7 @@ import {
   saveCheckpoint,
 } from './archive';
 import { GameDO } from './game-do';
-import {
-  toMovementResultMessage,
-  toStateUpdateMessage,
-} from './message-builders';
+import { toStateUpdateMessage } from './message-builders';
 
 const transportFixtures = JSON.parse(
   readFileSync(
@@ -1025,9 +1022,19 @@ describe('GameDO', () => {
           options?: { restartTurnTimer?: boolean; events?: unknown[] },
         ) => Promise<void>;
       }
-    ).publishStateChange(state, toMovementResultMessage(movementResult), {
-      restartTurnTimer: false,
-    });
+    ).publishStateChange(
+      state,
+      {
+        type: 'movementResult',
+        movements: movementResult.movements,
+        ordnanceMovements: movementResult.ordnanceMovements,
+        events: movementResult.events,
+        state: movementResult.state,
+      },
+      {
+        restartTurnTimer: false,
+      },
+    );
 
     const messages = ws.sent.map((payload) => JSON.parse(payload) as S2C);
 

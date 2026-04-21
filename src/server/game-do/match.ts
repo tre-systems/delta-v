@@ -8,7 +8,6 @@ import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { RoomConfig } from '../protocol';
 import { allocateMatchIdentity, saveMatchCreatedAt } from './archive';
 import type { StatefulServerMessage } from './message-builders';
-import { toGameStartMessage } from './message-builders';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 
 type InitGameDeps = {
@@ -73,13 +72,15 @@ export const initGameSession = async (deps: InitGameDeps): Promise<void> => {
   }
 
   const gameState = createResult.value;
-  const gameStartMessage = toGameStartMessage(gameState);
-
   await deps.clearRoomArchivedFlag();
   await saveMatchCreatedAt(deps.storage, gameId, Date.now());
-  await deps.publishStateChange(gameState, gameStartMessage, {
-    events: buildInitEvents(gameState, matchSeed),
-  });
+  await deps.publishStateChange(
+    gameState,
+    { type: 'gameStart', state: gameState },
+    {
+      events: buildInitEvents(gameState, matchSeed),
+    },
+  );
 };
 
 type HandleRematchDeps = {
