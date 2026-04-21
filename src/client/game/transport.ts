@@ -252,15 +252,6 @@ export interface LocalGameTransportDeps {
   startLocalGame: (scenario: string) => void;
 }
 
-const handleLocalEmplacementSuccess = (
-  deps: Pick<LocalGameTransportDeps, 'logText'>,
-): void => {
-  // Emplacement state has already been applied through the shared
-  // local-resolution path; log only so we do not stack a success toast
-  // alongside engine/logistics lines for the same action.
-  deps.logText(TOAST.gameplay.orbitalBaseEmplaced, 'log-env');
-};
-
 const handleLocalFleetReady = (
   deps: Pick<
     LocalGameTransportDeps,
@@ -326,72 +317,32 @@ export const createLocalGameTransport = (
     onAnimationComplete: deps.onAnimationComplete,
     onTransitionToPhase: deps.transitionToPhase,
     onAdvanceToNextAttacker: deps.advanceToNextAttacker,
-    onEmplacementSuccess: () => handleLocalEmplacementSuccess(deps),
+    // Emplacement state has already been applied through the shared
+    // local-resolution path; log only so we do not stack a success toast
+    // alongside engine/logistics lines for the same action.
+    onEmplacementSuccess: () =>
+      deps.logText(TOAST.gameplay.orbitalBaseEmplaced, 'log-env'),
     onFleetReady: (purchases) => handleLocalFleetReady(deps, purchases),
     onRematch: () => deps.startLocalGame(deps.getScenario()),
   });
 
-const createTypedMessageSender = <Args extends unknown[]>(
-  send: (msg: unknown) => void,
-  type: string,
-  buildPayload?: (...args: Args) => Record<string, unknown>,
-): ((...args: Args) => void) => {
-  return (...args: Args) => {
-    const payload = buildPayload?.(...args);
-    send(payload ? { type, ...payload } : { type });
-  };
-};
-
 export const createWebSocketTransport = (
   send: (msg: unknown) => void,
 ): GameTransport => ({
-  submitAstrogation: createTypedMessageSender(
-    send,
-    'astrogation',
-    (orders) => ({
-      orders,
-    }),
-  ),
-  submitCombat: createTypedMessageSender(send, 'combat', (attacks) => ({
-    attacks,
-  })),
-  submitSingleCombat: createTypedMessageSender(
-    send,
-    'combatSingle',
-    (attack) => ({
-      attack,
-    }),
-  ),
-  endCombat: createTypedMessageSender(send, 'endCombat'),
-  submitOrdnance: createTypedMessageSender(send, 'ordnance', (launches) => ({
-    launches,
-  })),
-  submitEmplacement: createTypedMessageSender(
-    send,
-    'emplaceBase',
-    (emplacements) => ({
-      emplacements,
-    }),
-  ),
-  submitFleetReady: createTypedMessageSender(
-    send,
-    'fleetReady',
-    (purchases) => ({
-      purchases,
-    }),
-  ),
-  submitLogistics: createTypedMessageSender(send, 'logistics', (transfers) => ({
-    transfers,
-  })),
-  submitSurrender: createTypedMessageSender(send, 'surrender', (shipIds) => ({
-    shipIds,
-  })),
-  skipOrdnance: createTypedMessageSender(send, 'skipOrdnance'),
-  skipCombat: createTypedMessageSender(send, 'skipCombat'),
-  skipLogistics: createTypedMessageSender(send, 'skipLogistics'),
-  beginCombat: createTypedMessageSender(send, 'beginCombat'),
-  requestRematch: createTypedMessageSender(send, 'rematch'),
-  sendChat: createTypedMessageSender(send, 'chat', (text) => ({
-    text,
-  })),
+  submitAstrogation: (orders) => send({ type: 'astrogation', orders }),
+  submitCombat: (attacks) => send({ type: 'combat', attacks }),
+  submitSingleCombat: (attack) => send({ type: 'combatSingle', attack }),
+  endCombat: () => send({ type: 'endCombat' }),
+  submitOrdnance: (launches) => send({ type: 'ordnance', launches }),
+  submitEmplacement: (emplacements) =>
+    send({ type: 'emplaceBase', emplacements }),
+  submitFleetReady: (purchases) => send({ type: 'fleetReady', purchases }),
+  submitLogistics: (transfers) => send({ type: 'logistics', transfers }),
+  submitSurrender: (shipIds) => send({ type: 'surrender', shipIds }),
+  skipOrdnance: () => send({ type: 'skipOrdnance' }),
+  skipCombat: () => send({ type: 'skipCombat' }),
+  skipLogistics: () => send({ type: 'skipLogistics' }),
+  beginCombat: () => send({ type: 'beginCombat' }),
+  requestRematch: () => send({ type: 'rematch' }),
+  sendChat: (text) => send({ type: 'chat', text }),
 });
