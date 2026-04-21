@@ -99,10 +99,24 @@ export const aiCombat = (
       homeHex != null &&
       myBestObjectiveDistance != null
     ) {
-      const enemyPressureDistance = hexDistance(enemy.position, homeHex);
+      const predictedEnemy = {
+        q: enemy.position.q + enemy.velocity.dq,
+        r: enemy.position.r + enemy.velocity.dr,
+      };
+      const enemyPressureDistance = Math.min(
+        hexDistance(enemy.position, homeHex),
+        hexDistance(predictedEnemy, homeHex),
+      );
+      const enemyObjectiveDistance = targetHex
+        ? Math.min(
+            hexDistance(enemy.position, targetHex),
+            hexDistance(predictedEnemy, targetHex),
+          )
+        : Number.POSITIVE_INFINITY;
       const isStrategicThreat =
         enemyPressureDistance <= 4 ||
-        enemyPressureDistance + 5 < myBestObjectiveDistance;
+        enemyPressureDistance + 5 < myBestObjectiveDistance ||
+        enemyObjectiveDistance + 1 < myBestObjectiveDistance;
 
       if (!isStrategicThreat) {
         continue;
