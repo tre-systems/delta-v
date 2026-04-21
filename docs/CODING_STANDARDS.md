@@ -40,6 +40,8 @@ Guidance:
 - If an imperative boundary binds DOM, window, or other long-lived event listeners, own explicit teardown via `dispose()` or equivalent returned disposers.
 - Prefer `createXxx()` factories for new client modules; do not add a class unless the platform requires it or a rare case genuinely needs `instanceof`.
 - Do not extract one-use adapter factories or wrapper modules that only rename callbacks, repackage a dependency bag, or relay to a single call site. Keep that wiring inline unless the helper owns real state, lifecycle, policy, or reuse.
+- Do not extract a generic factory to build trivial object literals. A helper like `createTypedMessageSender(send, type, buildPayload)` that produces `(...args) => send({ type, ...buildPayload(...args) })` adds no type safety over the inline literal `(orders) => send({ type: 'astrogation', orders })`, and hides the wire/data shape from readers. Write one literal per concrete case; repetition documents intent.
+- Method-reference forwarding: when a dep-bag field exposes a stable function from an inner object, write `applyGameState: deps.applyGameState` rather than `applyGameState: (s) => deps.applyGameState(s)`. Identity arrow wrappers add no value and clutter the adapter.
 - When `client-kernel.ts` grows, extract responsibilities into `game/*` helpers first; avoid inflating the kernel with unrelated logic.
 
 ### DOM helpers (`src/client/dom.ts`)
@@ -68,6 +70,7 @@ All `innerHTML` writes go through `setTrustedHTML()` or `clearHTML()` in `dom.ts
 - Extract pure helper modules before introducing new patterns or libraries.
 - Reduce duplication first; do not split files only to satisfy a size target.
 - Prefer inlining single-call-site wrappers when the extracted helper adds no policy, validation, or durable state.
+- Do not introduce tiny intra-file helper functions or one-entry lookup tables that only merge defaults, rename booleans, or wrap a single branch of the caller. Keep those expressions local unless the helper captures a reused domain rule.
 - Keep orchestrators focused on coordination, not business logic.
 - When a file grows large, split by real responsibility boundaries.
 - When a stable public entry point grows too large, keep the entry file thin and re-export narrower domain modules.
