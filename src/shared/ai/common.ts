@@ -274,6 +274,75 @@ export const projectShipAfterCourse = (
   lifecycle: course.outcome === 'landing' ? 'landed' : 'active',
 });
 
+export const estimateTurnsToTargetLanding = (
+  ship: Ship,
+  targetBody: string,
+  map: SolarSystemMap,
+  destroyedBases: HexKey[],
+  maxAdditionalTurns = 2,
+): number | null => {
+  if (!targetBody) {
+    return null;
+  }
+
+  const directions = [null, 0, 1, 2, 3, 4, 5] as const;
+  const queue: Array<{ ship: Ship; turns: number }> = [{ ship, turns: 0 }];
+  const seen = new Set<string>();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (!current) {
+      break;
+    }
+
+    const key = JSON.stringify({
+      position: current.ship.position,
+      velocity: current.ship.velocity,
+      fuel: current.ship.fuel,
+      lifecycle: current.ship.lifecycle,
+      pendingGravityEffects: current.ship.pendingGravityEffects,
+      turns: current.turns,
+    });
+
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+
+    if (current.turns >= maxAdditionalTurns) {
+      continue;
+    }
+
+    for (const burn of directions) {
+      for (const land of [false, true]) {
+        const nextCourse = computeCourse(current.ship, burn, map, {
+          land,
+          destroyedBases,
+        });
+
+        if (nextCourse.outcome === 'crash') {
+          continue;
+        }
+
+        if (
+          nextCourse.outcome === 'landing' &&
+          nextCourse.landedAt === targetBody
+        ) {
+          return current.turns + 1;
+        }
+
+        queue.push({
+          ship: projectShipAfterCourse(current.ship, nextCourse),
+          turns: current.turns + 1,
+        });
+      }
+    }
+  }
+
+  return null;
+};
+
 const isSingleShipObjectiveDuel = (state: GameState): boolean => {
   const caps = deriveCapabilities(state.scenarioRules);
   if (caps.isCheckpointRace || caps.targetWinRequiresPassengers) {

@@ -40,6 +40,7 @@ import type {
   SolarSystemMap,
 } from '../types';
 import { maxBy, minBy } from '../util';
+import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
 import type { AIDifficulty } from './types';
 
@@ -735,6 +736,8 @@ export const aiOrdnance = (
   const launches: OrdnanceLaunch[] = [];
   const caps = deriveCapabilities(state.scenarioRules);
   const player = state.players[playerId];
+  const opponentId: PlayerId = playerId === 0 ? 1 : 0;
+  const opponent = state.players[opponentId];
   const targetHex = player.targetBody
     ? (map.bodies.find((body) => body.name === player.targetBody)?.center ??
       null)
@@ -759,36 +762,32 @@ export const aiOrdnance = (
     homeHex != null &&
     operationalAttackers.length === 1 &&
     enemyOperationalAttackers.length === 1;
-  const myBestObjectiveDistance =
-    !singleShipObjectiveDuel || targetHex == null
-      ? null
-      : Math.min(
-          ...operationalAttackers.map((ship) =>
-            hexDistance(ship.position, targetHex),
-          ),
-        );
+  const myLandingTurns =
+    singleShipObjectiveDuel &&
+    player.targetBody &&
+    operationalAttackers.length === 1
+      ? estimateTurnsToTargetLanding(
+          operationalAttackers[0],
+          player.targetBody,
+          map,
+          state.destroyedBases,
+        )
+      : null;
+  const enemyLandingTurns =
+    singleShipObjectiveDuel &&
+    opponent?.targetBody &&
+    enemyOperationalAttackers.length === 1
+      ? estimateTurnsToTargetLanding(
+          enemyOperationalAttackers[0],
+          opponent.targetBody,
+          map,
+          state.destroyedBases,
+        )
+      : null;
   const shouldPreserveLandingLine =
     singleShipObjectiveDuel &&
-    targetHex != null &&
-    myBestObjectiveDistance != null &&
-    (myBestObjectiveDistance <= 2 ||
-      (myBestObjectiveDistance <= 3 &&
-        enemyOperationalAttackers.every((enemy) => {
-          const predictedEnemy = hexAdd(enemy.position, enemy.velocity);
-          const enemyPressureDistance = Math.min(
-            hexDistance(enemy.position, homeHex),
-            hexDistance(predictedEnemy, homeHex),
-          );
-          const enemyObjectiveDistance = Math.min(
-            hexDistance(enemy.position, targetHex),
-            hexDistance(predictedEnemy, targetHex),
-          );
-
-          return (
-            enemyPressureDistance > 4 &&
-            enemyObjectiveDistance > myBestObjectiveDistance + 1
-          );
-        })));
+    myLandingTurns === 1 &&
+    (enemyLandingTurns == null || enemyLandingTurns > 1);
 
   if (cfg.ordnanceSkipChance > 0 && rng() < cfg.ordnanceSkipChance) {
     return launches;

@@ -782,6 +782,27 @@ describe('aiOrdnance', () => {
 
     expect(aiOrdnance(state, 1, map, 'hard')).toEqual([]);
   });
+  it('skips torpedoes when it already has the faster landing line in biplanetary', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('BIP-ORD-RACE-LINE'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemyShip = must(state.ships.find((s) => s.owner === 0));
+
+    aiShip.position = { q: -8, r: -5 };
+    aiShip.velocity = { dq: 0, dr: -1 };
+    aiShip.lifecycle = 'active';
+    aiShip.cargoUsed = 0;
+
+    enemyShip.position = { q: -7, r: -5 };
+    enemyShip.velocity = { dq: 0, dr: 0 };
+    enemyShip.lifecycle = 'active';
+
+    expect(aiOrdnance(state, 1, map, 'hard')).toEqual([]);
+  });
   it('does not propose ordnance from ships that resupplied this turn', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
@@ -1103,6 +1124,29 @@ describe('aiCombat', () => {
     aiShip.lifecycle = 'active';
 
     enemyShip.position = hexAdd(aiShip.position, { dq: 1, dr: 0 });
+    enemyShip.lastMovementPath = [enemyShip.position];
+    enemyShip.velocity = { dq: 0, dr: 0 };
+    enemyShip.lifecycle = 'active';
+    enemyShip.detected = true;
+
+    expect(aiCombat(state, 1, map, 'hard')).toEqual([]);
+  });
+  it('skips combat when it already has the faster landing line in biplanetary', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('BIP-COMBAT-RACE-LINE'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemyShip = must(state.ships.find((s) => s.owner === 0));
+
+    aiShip.position = { q: -8, r: -5 };
+    aiShip.lastMovementPath = [aiShip.position];
+    aiShip.velocity = { dq: 0, dr: -1 };
+    aiShip.lifecycle = 'active';
+
+    enemyShip.position = { q: -7, r: -5 };
     enemyShip.lastMovementPath = [enemyShip.position];
     enemyShip.velocity = { dq: 0, dr: 0 };
     enemyShip.lifecycle = 'active';

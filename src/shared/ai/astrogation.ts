@@ -26,6 +26,7 @@ import { aiCombat } from './combat';
 import {
   estimateFuelForTravelDistance,
   estimateRemainingCheckpointTourCost,
+  estimateTurnsToTargetLanding,
   findNearestBase,
   getHomeDefenseThreat,
   getInterceptContinuationPreference,
@@ -94,81 +95,6 @@ const resolvePreferredLandingTarget = (
   return map.bodies.find((body) => body.name === bodyName)?.center ?? null;
 };
 
-const estimateAdditionalTurnsToTargetLanding = (
-  ship: Ship,
-  course: ReturnType<typeof computeCourse>,
-  targetBody: string,
-  map: SolarSystemMap,
-  destroyedBases: HexKey[],
-  maxAdditionalTurns = 2,
-): number | null => {
-  if (course.outcome === 'landing') {
-    return course.landedAt === targetBody ? 0 : null;
-  }
-
-  const directions = [null, 0, 1, 2, 3, 4, 5] as const;
-  const queue: Array<{ ship: Ship; turns: number }> = [
-    {
-      ship: projectShipAfterCourse(ship, course),
-      turns: 0,
-    },
-  ];
-  const seen = new Set<string>();
-
-  while (queue.length > 0) {
-    const current = queue.shift();
-
-    if (!current) {
-      break;
-    }
-
-    const key = JSON.stringify({
-      position: current.ship.position,
-      velocity: current.ship.velocity,
-      fuel: current.ship.fuel,
-      lifecycle: current.ship.lifecycle,
-      pendingGravityEffects: current.ship.pendingGravityEffects,
-      turns: current.turns,
-    });
-
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-
-    if (current.turns >= maxAdditionalTurns) {
-      continue;
-    }
-
-    for (const burn of directions) {
-      for (const land of [false, true]) {
-        const nextCourse = computeCourse(current.ship, burn, map, {
-          land,
-          destroyedBases,
-        });
-
-        if (nextCourse.outcome === 'crash') {
-          continue;
-        }
-
-        if (
-          nextCourse.outcome === 'landing' &&
-          nextCourse.landedAt === targetBody
-        ) {
-          return current.turns + 1;
-        }
-
-        queue.push({
-          ship: projectShipAfterCourse(current.ship, nextCourse),
-          turns: current.turns + 1,
-        });
-      }
-    }
-  }
-
-  return null;
-};
-
 const scoreTargetLandingLookahead = (
   ship: Ship,
   course: ReturnType<typeof computeCourse>,
@@ -177,13 +103,17 @@ const scoreTargetLandingLookahead = (
   destroyedBases: HexKey[],
   cfg: ReturnType<typeof resolveAIConfig>,
 ): number => {
-  const turnsToLanding = estimateAdditionalTurnsToTargetLanding(
-    ship,
-    course,
-    targetBody,
-    map,
-    destroyedBases,
-  );
+  const turnsToLanding =
+    course.outcome === 'landing'
+      ? course.landedAt === targetBody
+        ? 0
+        : null
+      : estimateTurnsToTargetLanding(
+          projectShipAfterCourse(ship, course),
+          targetBody,
+          map,
+          destroyedBases,
+        );
 
   if (turnsToLanding === null || turnsToLanding === 0) {
     return 0;
@@ -198,6 +128,105 @@ const scoreTargetLandingLookahead = (
   }
 
   return 0;
+};
+
+const scoreObjectiveRaceLine = (
+  ship: Ship,
+  course: ReturnType<typeof computeCourse>,
+  targetBody: string,
+  enemyShip: Ship | null,
+  enemyTargetBody: string,
+  map: SolarSystemMap,
+  destroyedBases: HexKey[],
+  cfg: ReturnType<typeof resolveAIConfig>,
+): number => {
+  if (!targetBody || !enemyShip || !enemyTargetBody) {
+    return 0;
+  }
+
+  const currentLandingTurns = estimateTurnsToTargetLanding(
+    ship,
+    targetBody,
+    map,
+    destroyedBases,
+    3,
+  );
+  const nextLandingTurns =
+    course.outcome === 'landing'
+      ? course.landedAt === targetBody
+        ? 0
+        : null
+      : estimateTurnsToTargetLanding(
+          projectShipAfterCourse(ship, course),
+          targetBody,
+          map,
+          destroyedBases,
+          3,
+        );
+  const enemyLandingTurns = estimateTurnsToTargetLanding(
+    enemyShip,
+    enemyTargetBody,
+    map,
+    destroyedBases,
+    3,
+  );
+  let score = 0;
+  const nearFinish =
+    currentLandingTurns === 1 ||
+    currentLandingTurns === 2 ||
+    nextLandingTurns === 1 ||
+    nextLandingTurns === 2 ||
+    enemyLandingTurns === 1 ||
+    enemyLandingTurns === 2;
+
+  if (!nearFinish) {
+    return 0;
+  }
+
+  if (
+    currentLandingTurns !== null &&
+    currentLandingTurns <= 2 &&
+    nextLandingTurns === null
+  ) {
+    score -= cfg.navTargetLandingBonus * 0.18;
+  }
+
+  if (
+    currentLandingTurns === 1 &&
+    nextLandingTurns !== null &&
+    nextLandingTurns > 1
+  ) {
+    score -= cfg.navTargetLandingBonus * 0.28;
+  }
+
+  if (currentLandingTurns === 2 && nextLandingTurns === 1) {
+    score += cfg.navImminentLandingBonus * 0.95;
+  }
+
+  if (
+    currentLandingTurns === 2 &&
+    nextLandingTurns !== null &&
+    nextLandingTurns > 2
+  ) {
+    score -= cfg.navImminentLandingBonus * 0.4;
+  }
+
+  if (
+    nextLandingTurns === 1 &&
+    (enemyLandingTurns == null || enemyLandingTurns > 1)
+  ) {
+    score += cfg.navImminentLandingBonus * 0.6;
+  }
+
+  if (
+    enemyLandingTurns === 1 &&
+    nextLandingTurns !== null &&
+    nextLandingTurns > 1
+  ) {
+    score -= cfg.navImminentLandingBonus * 0.3;
+  }
+
+  return score;
 };
 
 const pickFuelAwareCheckpointTarget = (
@@ -693,6 +722,27 @@ export const aiAstrogation = (
   const enemyShips = state.ships.filter(
     (ship) => ship.owner !== playerId && ship.lifecycle !== 'destroyed',
   );
+  const myCombatShips = state.ships.filter(
+    (ship) =>
+      ship.owner === playerId &&
+      ship.lifecycle !== 'destroyed' &&
+      ship.baseStatus !== 'emplaced' &&
+      canAttack(ship),
+  );
+  const enemyCombatShips = enemyShips.filter(canAttack);
+  const objectiveRaceOpponent =
+    !caps.isCheckpointRace &&
+    !caps.targetWinRequiresPassengers &&
+    !!player.targetBody &&
+    !!player.homeBody &&
+    myCombatShips.length === 1 &&
+    enemyCombatShips.length === 1
+      ? enemyCombatShips[0]
+      : null;
+  const objectiveRaceOpponentTargetBody =
+    objectiveRaceOpponent != null
+      ? (state.players[objectiveRaceOpponent.owner]?.targetBody ?? '')
+      : '';
   const homeDefenseThreat =
     !escapeWins && !passengerEscortMission
       ? getHomeDefenseThreat(state, playerId, map, enemyShips)
@@ -1108,6 +1158,24 @@ export const aiAstrogation = (
           ship,
           course,
           shipTargetBody,
+          map,
+          state.destroyedBases,
+          cfg,
+        );
+      }
+
+      if (
+        objectiveRaceOpponent != null &&
+        ship.id === myCombatShips[0]?.id &&
+        shipTargetBody &&
+        !seekingFuel
+      ) {
+        score += scoreObjectiveRaceLine(
+          ship,
+          course,
+          shipTargetBody,
+          objectiveRaceOpponent,
+          objectiveRaceOpponentTargetBody,
           map,
           state.destroyedBases,
           cfg,
