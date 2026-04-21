@@ -734,8 +734,67 @@ export const aiOrdnance = (
   );
   const launches: OrdnanceLaunch[] = [];
   const caps = deriveCapabilities(state.scenarioRules);
+  const player = state.players[playerId];
+  const targetHex = player.targetBody
+    ? (map.bodies.find((body) => body.name === player.targetBody)?.center ??
+      null)
+    : null;
+  const homeHex = player.homeBody
+    ? (map.bodies.find((body) => body.name === player.homeBody)?.center ?? null)
+    : null;
+  const operationalAttackers = state.ships.filter(
+    (ship) =>
+      ship.owner === playerId && ship.lifecycle === 'active' && canAttack(ship),
+  );
+  const enemyOperationalAttackers = state.ships.filter(
+    (ship) =>
+      ship.owner !== playerId &&
+      ship.lifecycle !== 'destroyed' &&
+      canAttack(ship),
+  );
+  const singleShipObjectiveDuel =
+    !caps.isCheckpointRace &&
+    !caps.targetWinRequiresPassengers &&
+    targetHex != null &&
+    homeHex != null &&
+    operationalAttackers.length === 1 &&
+    enemyOperationalAttackers.length === 1;
+  const myBestObjectiveDistance =
+    !singleShipObjectiveDuel || targetHex == null
+      ? null
+      : Math.min(
+          ...operationalAttackers.map((ship) =>
+            hexDistance(ship.position, targetHex),
+          ),
+        );
+  const shouldPreserveLandingLine =
+    singleShipObjectiveDuel &&
+    targetHex != null &&
+    myBestObjectiveDistance != null &&
+    (myBestObjectiveDistance <= 2 ||
+      (myBestObjectiveDistance <= 3 &&
+        enemyOperationalAttackers.every((enemy) => {
+          const predictedEnemy = hexAdd(enemy.position, enemy.velocity);
+          const enemyPressureDistance = Math.min(
+            hexDistance(enemy.position, homeHex),
+            hexDistance(predictedEnemy, homeHex),
+          );
+          const enemyObjectiveDistance = Math.min(
+            hexDistance(enemy.position, targetHex),
+            hexDistance(predictedEnemy, targetHex),
+          );
+
+          return (
+            enemyPressureDistance > 4 &&
+            enemyObjectiveDistance > myBestObjectiveDistance + 1
+          );
+        })));
 
   if (cfg.ordnanceSkipChance > 0 && rng() < cfg.ordnanceSkipChance) {
+    return launches;
+  }
+
+  if (shouldPreserveLandingLine) {
     return launches;
   }
 
