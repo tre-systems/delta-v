@@ -1,5 +1,5 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import { byId } from '../dom';
+import { byId, listen } from '../dom';
 import {
   deriveInteractionMode,
   type InteractionMode,
@@ -19,12 +19,10 @@ import { createHUDChromeView } from './hud-chrome-view';
 import { applyHudLayoutMetrics, clearHudLayoutMetrics } from './layout-metrics';
 import { createLayoutSync } from './layout-sync';
 import { createLobbyView, type LobbyView } from './lobby-view';
-import { bindMobileSync } from './mobile-sync';
 import { createOverlayStateStore } from './overlay-state';
 import { createOverlayView } from './overlay-view';
 import { mapInteractionModeToUIScreenMode } from './screens';
 import { createShipListView } from './ship-list-view';
-import { bindViewportEvents } from './viewport-events';
 import { applyUIVisibility } from './visibility';
 
 const HUD_MODES: ReadonlySet<InteractionMode> = new Set<InteractionMode>([
@@ -146,27 +144,37 @@ export const createUIManager = (deps: UIManagerDeps) => {
     ),
   );
 
-  bindMobileSync({
-    initialMatches: mobileQuery.matches,
-    setHudMobile: (matches) => hudChromeView.setMobile(matches),
-    setShipListMobile: (matches) => shipListView.setMobile(matches),
-    setLogMobile: (matches, viewportWidth) => {
-      const mode = peekInteractionMode();
-      log.setMobile(matches, mode !== null && isHudMode(mode), viewportWidth);
-    },
-    bindViewport: (onMobileChange, onResize) => {
-      withScope(scope, () => {
-        bindViewportEvents({
-          mobileQuery,
-          onMobileChange,
-          onViewportResize: () => {
-            queueLayoutSync();
-            onResize();
-          },
-          trackDispose: (dispose) => scope.add(dispose),
-        });
-      });
-    },
+  let isMobile = mobileQuery.matches;
+
+  const peekHudVisible = () => {
+    const mode = peekInteractionMode();
+    return mode !== null && isHudMode(mode);
+  };
+
+  const applyMobileState = (matches: boolean) => {
+    isMobile = matches;
+    hudChromeView.setMobile(matches);
+    shipListView.setMobile(matches);
+    log.setMobile(matches, peekHudVisible(), window.innerWidth);
+  };
+
+  const onViewportResize = () => {
+    queueLayoutSync();
+    if (isMobile) {
+      log.setMobile(true, peekHudVisible(), window.innerWidth);
+    }
+  };
+
+  applyMobileState(isMobile);
+
+  withScope(scope, () => {
+    listen(mobileQuery, 'change', (event) => {
+      applyMobileState((event as MediaQueryListEvent).matches);
+    });
+    listen(window, 'resize', onViewportResize);
+    if (window.visualViewport) {
+      listen(window.visualViewport, 'resize', onViewportResize);
+    }
   });
 
   withScope(scope, () => {
