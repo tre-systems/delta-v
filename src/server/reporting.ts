@@ -52,27 +52,27 @@ export const corsHeaders: Record<string, string> = {
 };
 
 const MAX_REPORT_BODY = 4096;
-const RATE_LIMIT_MAP_MAX_KEYS = 1000;
+export const RATE_LIMIT_MAP_MAX_KEYS = 1000;
 
-const CREATE_RATE_WINDOW_MS = 60_000;
-const CREATE_RATE_LIMIT = 5;
+export const CREATE_RATE_WINDOW_MS = 60_000;
+export const CREATE_RATE_LIMIT = 5;
 
-const TELEMETRY_RATE_WINDOW_MS = 60_000;
-const TELEMETRY_RATE_LIMIT = 120;
+export const TELEMETRY_RATE_WINDOW_MS = 60_000;
+export const TELEMETRY_RATE_LIMIT = 120;
 
-const ERROR_REPORT_RATE_WINDOW_MS = 60_000;
-const ERROR_REPORT_RATE_LIMIT = 40;
+export const ERROR_REPORT_RATE_WINDOW_MS = 60_000;
+export const ERROR_REPORT_RATE_LIMIT = 40;
 
-const JOIN_PROBE_WINDOW_MS = 60_000;
+export const JOIN_PROBE_WINDOW_MS = 60_000;
 /** Preflight for real joins and quick-match ticket polling (per hashed IP, per isolate). */
-const JOIN_PROBE_LIMIT = 100;
+export const JOIN_PROBE_LIMIT = 100;
 
-const REPLAY_PROBE_WINDOW_MS = 60_000;
+export const REPLAY_PROBE_WINDOW_MS = 60_000;
 /** Replay history probes — separate bucket so replay scraping cannot starve joins. */
-const REPLAY_PROBE_LIMIT = 250;
+export const REPLAY_PROBE_LIMIT = 250;
 
-const WS_CONNECT_WINDOW_MS = 60_000;
-const WS_CONNECT_LIMIT = 20;
+export const WS_CONNECT_WINDOW_MS = 60_000;
+export const WS_CONNECT_LIMIT = 20;
 
 export const createRateMap = new Map<
   string,
@@ -184,20 +184,17 @@ export const logSampledOperationalEvent = (
   console.log(`[${label}]`, payload);
 };
 
-export const isCreateRateLimitedInMemory = (ipHash: string): boolean =>
-  checkWindowedRateLimit(
+export const isCreateRateLimited = async (
+  env: { CREATE_RATE_LIMITER?: CreateRateLimiterBinding },
+  ipHash: string,
+): Promise<boolean> => {
+  const localBlocked = checkWindowedRateLimit(
     createRateMap,
     ipHash,
     CREATE_RATE_LIMIT,
     CREATE_RATE_WINDOW_MS,
     RATE_LIMIT_MAP_MAX_KEYS,
   );
-
-export const isCreateRateLimited = async (
-  env: { CREATE_RATE_LIMITER?: CreateRateLimiterBinding },
-  ipHash: string,
-): Promise<boolean> => {
-  const localBlocked = isCreateRateLimitedInMemory(ipHash);
   if (env.CREATE_RATE_LIMITER) {
     const result = await env.CREATE_RATE_LIMITER.limit({
       key: `create:${ipHash}`,
@@ -208,51 +205,6 @@ export const isCreateRateLimited = async (
 
   return localBlocked;
 };
-
-export const isJoinProbeRateLimited = (ipHash: string): boolean =>
-  checkWindowedRateLimit(
-    joinProbeRateMap,
-    ipHash,
-    JOIN_PROBE_LIMIT,
-    JOIN_PROBE_WINDOW_MS,
-    2000,
-  );
-
-export const isReplayProbeRateLimited = (ipHash: string): boolean =>
-  checkWindowedRateLimit(
-    replayProbeRateMap,
-    ipHash,
-    REPLAY_PROBE_LIMIT,
-    REPLAY_PROBE_WINDOW_MS,
-    2000,
-  );
-
-export const isWsConnectRateLimited = (ipHash: string): boolean =>
-  checkWindowedRateLimit(
-    wsConnectRateMap,
-    ipHash,
-    WS_CONNECT_LIMIT,
-    WS_CONNECT_WINDOW_MS,
-    RATE_LIMIT_MAP_MAX_KEYS,
-  );
-
-export const isErrorReportRateLimitedInMemory = (ipHash: string): boolean =>
-  checkWindowedRateLimit(
-    errorReportRateMap,
-    ipHash,
-    ERROR_REPORT_RATE_LIMIT,
-    ERROR_REPORT_RATE_WINDOW_MS,
-    RATE_LIMIT_MAP_MAX_KEYS,
-  );
-
-export const isTelemetryReportRateLimitedInMemory = (ipHash: string): boolean =>
-  checkWindowedRateLimit(
-    telemetryReportRateMap,
-    ipHash,
-    TELEMETRY_RATE_LIMIT,
-    TELEMETRY_RATE_WINDOW_MS,
-    RATE_LIMIT_MAP_MAX_KEYS,
-  );
 
 // Prefer the global [[ratelimits]] namespace when bound. In its absence
 // (local dev, test environments, or mis-deployed workers) fall back to
@@ -270,7 +222,13 @@ export const isTelemetryReportRateLimited = async (
     });
     return !result.success;
   }
-  return isTelemetryReportRateLimitedInMemory(ipHash);
+  return checkWindowedRateLimit(
+    telemetryReportRateMap,
+    ipHash,
+    TELEMETRY_RATE_LIMIT,
+    TELEMETRY_RATE_WINDOW_MS,
+    RATE_LIMIT_MAP_MAX_KEYS,
+  );
 };
 
 export const isErrorReportRateLimited = async (
@@ -283,7 +241,13 @@ export const isErrorReportRateLimited = async (
     });
     return !result.success;
   }
-  return isErrorReportRateLimitedInMemory(ipHash);
+  return checkWindowedRateLimit(
+    errorReportRateMap,
+    ipHash,
+    ERROR_REPORT_RATE_LIMIT,
+    ERROR_REPORT_RATE_WINDOW_MS,
+    RATE_LIMIT_MAP_MAX_KEYS,
+  );
 };
 
 // Hard cap on any single string field we persist. The /error and
