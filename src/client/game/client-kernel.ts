@@ -11,7 +11,12 @@ import { track } from '../telemetry';
 import { createTutorial } from '../tutorial';
 import { createUIManager } from '../ui/ui';
 import { createActionDeps } from './action-deps';
-import { createCameraController } from './camera-controller';
+import {
+  type CameraControllerDeps,
+  cycleShip,
+  focusNearestEnemy,
+  focusOwnFleet,
+} from './camera-controller';
 import { setAIDifficulty } from './client-context-store';
 import { setupClientRuntime } from './client-runtime';
 import { resetCombatState as resetCombat } from './combat-actions';
@@ -129,13 +134,18 @@ export const createGameClient = () => {
     },
   });
 
-  const camera = createCameraController({
+  const cameraDeps: CameraControllerDeps = {
     getGameState: () => ctx.gameStateSignal.peek(),
     getPlayerId: () => ctx.playerId as PlayerId,
     getPlanningState: () => ctx.planningState,
     renderer,
     logText: (text, cssClass) => ui.log.logText(text, cssClass),
-  });
+  };
+  const camera = {
+    cycleShip: (direction: 1 | -1) => cycleShip(cameraDeps, direction),
+    focusNearestEnemy: () => focusNearestEnemy(cameraDeps),
+    focusOwnFleet: () => focusOwnFleet(cameraDeps),
+  };
 
   const actionDeps = createActionDeps({
     getGameState: () => ctx.gameStateSignal.peek(),
