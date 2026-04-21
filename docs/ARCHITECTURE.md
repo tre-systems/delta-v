@@ -71,7 +71,7 @@ flowchart TB
   W -->|GET /api/matches?status=live| L
 
   M -.->|once paired<br/>idFromName| GAME
-  GAME -.->|game_started /<br/>game_ended notifications| L
+  GAME -.->|register /<br/>deregister| L
 
   D[(D1<br/>events<br/>match_archive<br/>player<br/>match_rating)]
   R[(R2<br/>MATCH_ARCHIVE<br/>matches/*.json)]
@@ -163,10 +163,10 @@ stateDiagram-v2
   ordnance --> astrogation
   ordnance --> gameOver
 
-  logistics --> combat
   logistics --> astrogation
   logistics --> gameOver
 
+  combat --> logistics
   combat --> astrogation
   combat --> gameOver
 
@@ -211,7 +211,7 @@ Diagram maintenance rule: when command flow, phase transitions, or persistence/p
 - **Event-sourced authoritative state.** Match state is a projection of an event stream plus checkpoints — live play, replay, and reconnect share one code path.
 - **Scenario-driven.** `ScenarioRules` (a flat flag bag) and `aiConfigOverrides` (a partial AI config) let scenarios vary gameplay without branching engine code.
 - **Narrow class usage.** The only production `class` is `GameDO extends DurableObject`. Everything else uses `createXxx()` factories.
-- **Zero runtime UI framework.** Canvas 2D rendering plus a 213-line local signals library; no React / Vue / Immer / etc.
+- **Zero runtime UI framework.** Canvas 2D rendering plus a small local signals library (`src/client/reactive.ts`); no React / Vue / Immer / etc.
 
 Each of these stances is walked through in [`patterns/`](../patterns/README.md) with examples and tradeoffs.
 
@@ -318,11 +318,12 @@ The backend leverages Cloudflare's edge network.
 
 #### Seat Assignment and Disconnect Grace
 
-`resolveSeatAssignment()` in `src/server/protocol.ts` uses a three-step fallback:
+`resolveSeatAssignment()` in `src/server/protocol.ts` uses a fallback order:
 
 1. Player-token match → returning player gets their seat, even if the previous socket is still open.
-2. Tokenless join → allowed when an open seat has no player token (default guest flow).
-3. No seats available → reject.
+2. Presented token with no match → reject (`403`).
+3. Tokenless join → allowed when an open seat has no player token (default guest flow).
+4. No open unclaimed seats → reject (`409`).
 
 On disconnect, the DO stores a marker (player ID + 30 s deadline) and schedules an alarm. Reconnect within 30 s with a valid token clears the marker; alarm-fire with the marker intact ends the game by forfeit.
 
@@ -466,7 +467,7 @@ A narrow dependency surface is the default.
 
 **Client→Server (C2S)**: `fleetReady`, `astrogation`, `ordnance`, `emplaceBase`, `skipOrdnance`, `beginCombat`, `combat`, `combatSingle`, `endCombat`, `skipCombat`, `logistics`, `skipLogistics`, `surrender`, `rematch`, `chat`, `ping`
 
-**Server→Client (S2C)**: `welcome`, `spectatorWelcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `combatSingleResult`, `stateUpdate`, `gameOver`, `rematchPending`, `chat`, `error`, `pong`, `opponentStatus`
+**Server→Client (S2C)**: `welcome`, `spectatorWelcome`, `matchFound`, `gameStart`, `movementResult`, `combatResult`, `combatSingleResult`, `stateUpdate`, `gameOver`, `rematchPending`, `chat`, `error`, `actionAccepted`, `actionRejected`, `pong`, `opponentStatus`
 
 All messages are discriminated unions validated at the protocol boundary. Chat payloads are trimmed before validation and blank post-trim messages are rejected, so non-UI clients cannot inject empty log entries. Clients never mutate authoritative state. The server persists authoritative events plus optional checkpoints, and replay/reconnect are derived from that same persisted stream.
 
@@ -513,14 +514,12 @@ main.ts → game/client-kernel.ts (createGameClient — composition root)
   ├→ game/message-handler.ts, game/client-message-plans.ts (typed S2C handling)
   ├→ game/client-runtime.ts (browser event wiring + URL auto-join)
   ├→ game/main-interactions.ts (UI/input/keyboard → GameCommand)
-  ├→ game/action-deps.ts (lazy-cached deps for action handlers + presentation)
   ├→ game/state-transition.ts (client-state entry effects and screen changes)
   ├→ game/transport.ts (WebSocket, Local, and LocalGame transport factories)
   ├→ game/phase.ts (derive ClientState from GameState)
   ├→ game/keyboard.ts (KeyboardAction → GameCommand)
   ├→ game/hud-view-model.ts, game/astrogation-orders.ts (derived HUD/orders)
   ├→ game/[astrogation|combat|ordnance]-actions.ts (phase-specific actions)
-  ├→ game/planning.ts (user input accumulation)
   ├→ shared/types/{domain,protocol,scenario} (bounded shared type ownership)
   ├→ shared/engine/game-engine.ts (createGame, local resolution)
   ├→ shared/hex.ts (coordinate math)

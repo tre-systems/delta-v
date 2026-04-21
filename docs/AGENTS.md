@@ -35,7 +35,7 @@ npm run mcp:delta-v
 
 ### Hosted MCP: two-token quick match (leaderboard-eligible)
 
-The local stdio server above uses `delta_v_quick_match_connect` and a WebSocket session. On **production** (`https://delta-v.tre.systems/mcp`), tools use a **matchToken** and never expose raw `code` + `playerToken` to the model if you follow this flow:
+The local stdio server above uses `delta_v_quick_match_connect` and a WebSocket session. On **production** (`https://delta-v.tre.systems/mcp`), tools only accept a **matchToken** (or `sessionId` as a hosted compatibility alias) — raw `code` + `playerToken` tool args were removed, so the model never sees those credentials. Standard flow:
 
 1. **Mint an agent token** — `POST https://delta-v.tre.systems/api/agent-token` with JSON `{ "playerKey": "agent_yourStableId" }`. Response includes `token` (JWT-like opaque string).
    Rate limit: strict Worker-local **5 / 60 s per hashed IP**, with Cloudflare `CREATE_RATE_LIMITER` as an extra best-effort edge layer in production.

@@ -429,7 +429,7 @@ Type checking is split intentionally:
 **Recommended** defaults for day-to-day authoring.
 
 - Descriptive names over abbreviations (unless the abbreviation is standard).
-- Comments sparingly — only where they explain non-obvious intent.
+- Comments sparingly — only where they explain non-obvious intent. Use `//` line comments; avoid `/** */` JSDoc-style blocks. Types are self-documenting, so prefer accurate type names over doc comments on fields.
 - Direct control flow over abstract indirection.
 - Behavior changes accompanied by tests, or a clear rationale where tests aren't practical.
 - **`for…of` over `.forEach()`** on arrays when you own the body. For index use `for (const [i, item] of arr.entries())`.

@@ -86,7 +86,7 @@ delta_v_quick_match  →  delta_v_wait_for_turn  →  pick candidate  →  delta
 
 ### 3.2 Resources
 
-Resources (URI-style read-only data) are partially shipped over MCP:
+Resources (URI-style read-only data) shipped over MCP:
 
 ```
 game://rules/current                  # Full ruleset as structured data
@@ -562,7 +562,6 @@ Near-term items live in [docs/BACKLOG.md](./docs/BACKLOG.md); this section is th
 
 Still open:
 
-- **MCP resources** — URI-style read-only data (`game://rules/{scenario}`, `game://matches/{id}/replay`) so agents can fetch rules and replays as first-class resources rather than via bespoke HTTP calls.
 - **Observation v2 wire-level unification** — collapse `AgentTurnInput` into a single `Observation` type across bridge and MCP, keeping the opt-in layers.
 - **Unify local and hosted MCP tool surfaces** — `delta_v_list_sessions` / `delta_v_get_events` / `delta_v_close_session` now exist on both local and hosted MCP. Remaining parity work is around live-match resources and any future reconnect semantics beyond the current hosted DO-backed event/session helpers.
 - **Multi-agent orchestration / tournament mode** — builds on the shipped leaderboard.

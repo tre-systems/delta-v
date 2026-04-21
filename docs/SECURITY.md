@@ -123,7 +123,7 @@ Distinct from competitive integrity — these are paths where a motivated attack
 - Abandoned `/create` rooms still consume a `GameDO` for up to the 5-minute inactivity window, but `archiveRoomState()` now purges match-scoped event/checkpoint residue on timeout. See [OBSERVABILITY.md](./OBSERVABILITY.md#orphan-rooms-and-inactivity-cleanup) for the exact lifecycle and operator signals.
 - `GET /replay/{code}` re-projects the full event stream on every uncached hit. Terminal-state responses are cached (`public, max-age=60, s-maxage=3600` — 1 h at the CDN, 1 min in-browser) so repeated scrapes of finished matches don't hit the DO; mid-match timelines remain `no-store` and still pay the projection cost per request.
 
-Stores **without** automatic application-level retention: D1 `match_archive`, D1 `player` (one row per unique playerKey with a claimed username), D1 `match_rating` (one row per rated match), R2 `matches/{gameId}.json`, and per-room DO storage. D1 `events` is the only table with a scheduled purge today (see the "Data retention" section below for operational levers on the rest).
+Stores **without** automatic application-level retention: D1 `player` (one row per unique playerKey with a claimed username), D1 `match_rating` (one row per rated match), and per-room DO storage. D1 `events` (30-day purge) and D1 `match_archive` + R2 `matches/{gameId}.json` (180-day purge) both have scheduled purges today (see the "Data retention" section below for operational levers on the rest).
 
 ### 5. Bot challenge protection (optional)
 
@@ -196,12 +196,12 @@ When the current per-isolate limits stop being sufficient for the product shape,
 What persists today:
 
 - **D1 `events`** (telemetry/errors, server-side lifecycle rows). **30-day rolling window** via the daily `scheduled` Worker cron (`wrangler.toml` `crons = ["0 4 * * *"]` → `purgeOldEvents`).
-- **D1 `match_archive`** — one row per completed match (metadata index). No automatic TTL.
+- **D1 `match_archive`** — one row per completed match (metadata index). **180-day rolling window** via the same daily cron (`purgeExpiredMatchArchives` — `MATCH_ARCHIVE_RETENTION_MS` in `src/server/game-do/match-archive.ts`), which also deletes the paired R2 object.
 - **D1 `player`** / **D1 `match_rating`** — leaderboard ownership and per-rated-match snapshots. No automatic TTL.
-- **R2 `MATCH_ARCHIVE`** (when bound) — full JSON per match at `matches/{gameId}.json`. No automatic TTL.
+- **R2 `MATCH_ARCHIVE`** (when bound) — full JSON per match at `matches/{gameId}.json`. Purged alongside its `match_archive` row on the 180-day cron.
 - **Durable Object storage** — live match chunks, checkpoints, room config; evicted when the DO is archived on inactivity (plus optional R2 archive at match end).
 
-**Operational control:** Cloudflare D1 export/backup, R2 lifecycle rules (tiering or delete after N days), and manual SQL (`DELETE` batches) when a shorter retention window is mandated for the un-purged tables.
+**Operational control:** Cloudflare D1 export/backup, R2 lifecycle rules (tiering or additional delete-after-N-days policies), and manual SQL (`DELETE` batches) when a shorter retention window is mandated for the un-purged tables.
 
 **User deletion requests:** if a jurisdiction requires erasure, use **`anon_id`** and time windows in `events` (subject to the 30-day window), **`player_key`** in `player` / `match_rating`, and **`gameId` / `room_code`** correlation for `match_archive` and R2 archives — document a runbook when needed. Automated purge or stricter programs are ops/engineering work when the product requires it.
 
