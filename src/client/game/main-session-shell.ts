@@ -1,5 +1,7 @@
+import type { MovementResult } from '../../shared/engine/game-engine';
 import { isValidScenario, SCENARIOS } from '../../shared/map-data';
 import type {
+  CombatResult,
   GameState,
   PlayerId,
   SolarSystemMap,
@@ -9,7 +11,6 @@ import { hide } from '../dom';
 import type { Renderer } from '../renderer/renderer';
 import type { Tutorial } from '../tutorial';
 import type { UIManager } from '../ui/ui';
-import type { ActionDeps } from './action-deps';
 import {
   setLatencyMs,
   setOpponentDisconnectDeadlineMs,
@@ -23,11 +24,12 @@ import {
   advanceToNextAttacker,
   autoSkipCombatIfNoTargets as autoSkipCombat,
   beginCombatPhase as beginCombat,
+  type CombatActionDeps,
 } from './combat-actions';
 import { type ConnectionManager, createConnectionManager } from './connection';
 import { applyClientGameState } from './game-state-store';
 import type { HudController } from './hud-controller';
-import { runAITurn as runAI } from './local-game-flow';
+import { type LocalGameFlowDeps, runAITurn as runAI } from './local-game-flow';
 import {
   exitArchivedReplayFromMain,
   exitToMenuFromMain,
@@ -59,13 +61,32 @@ import type { TurnTelemetryTracker } from './turn-telemetry';
 
 type ToastType = 'error' | 'info' | 'success';
 
+export interface MainSessionShellActionDeps {
+  combatDeps: CombatActionDeps;
+  localGameFlowDeps: LocalGameFlowDeps;
+  presentMovementResult: (
+    state: GameState,
+    movements: MovementResult['movements'],
+    ordnanceMovements: MovementResult['ordnanceMovements'],
+    events: MovementResult['events'],
+    onComplete: () => void,
+  ) => void;
+  presentCombatResults: (
+    previousState: GameState,
+    state: GameState,
+    results: CombatResult[],
+    resetCombatFlag?: boolean,
+  ) => void;
+  showGameOverOutcome: (won: boolean, reason: string) => void;
+}
+
 export interface MainSessionShellDeps {
   ctx: ClientSession;
   map: SolarSystemMap;
   renderer: Renderer;
   ui: UIManager;
   hud: HudController;
-  actionDeps: ActionDeps;
+  actionDeps: MainSessionShellActionDeps;
   turnTelemetry: TurnTelemetryTracker;
   playerProfile: Pick<PlayerProfileService, 'getProfile'>;
   sessionTokens: Pick<
@@ -375,7 +396,6 @@ export const createMainSessionShell = (
     renderer: args.renderer,
     ui: args.ui,
     hud: args.hud,
-    actionDeps: args.actionDeps,
     turnTelemetry: args.turnTelemetry,
     sessionApi,
     sessionTokens: args.sessionTokens,

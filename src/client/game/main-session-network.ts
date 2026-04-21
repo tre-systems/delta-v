@@ -6,7 +6,6 @@ import type { GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import type { Renderer } from '../renderer/renderer';
 import type { UIManager } from '../ui/ui';
-import type { ActionDeps } from './action-deps';
 import { setScenario, setWaitingScreenState } from './client-context-store';
 import type { ConnectionManager } from './connection';
 import type { HudController } from './hud-controller';
@@ -42,7 +41,6 @@ export interface MainNetworkDeps {
   renderer: Renderer;
   ui: UIManager;
   hud: HudController;
-  actionDeps: ActionDeps;
   turnTelemetry: TurnTelemetryTracker;
   sessionApi: Pick<SessionApi, 'validateJoin' | 'fetchArchivedReplay'>;
   /** Abort an in-flight archived-replay `fetch` (e.g. user hits Cancel / menu). */

@@ -7,7 +7,8 @@ import type {
 } from '../../shared/types/domain';
 import { isShipFleetPurchase } from '../../shared/types/domain';
 import type { UIEvent } from '../ui/events';
-import type { ActionDeps } from './action-deps';
+import type { AstrogationActionDeps } from './astrogation-actions';
+import type { CombatActionDeps } from './combat-actions';
 import {
   type CommandRouterDeps,
   type CommandRouterSessionRead,
@@ -24,6 +25,7 @@ import {
   type MainNetworkDeps,
   startLocalGameFromMain,
 } from './main-session-network';
+import type { OrdnanceActionDeps } from './ordnance-actions';
 import type { ReplayController } from './replay-controller';
 import type { SessionApi } from './session-api';
 import type { ClientSession } from './session-model';
@@ -69,10 +71,11 @@ type MainInteractionDeps = {
   canvas: Pick<HTMLCanvasElement, 'clientWidth' | 'clientHeight'>;
   map: SolarSystemMap;
   ctx: MainInteractionSession;
-  actionDeps: Pick<
-    ActionDeps,
-    'astrogationDeps' | 'combatDeps' | 'ordnanceDeps'
-  >;
+  actionDeps: {
+    astrogationDeps: AstrogationActionDeps;
+    combatDeps: CombatActionDeps;
+    ordnanceDeps: OrdnanceActionDeps;
+  };
   ui: MainInteractionUI;
   renderer: CommandRouterDeps['renderer'];
   camera: MainInteractionCamera;
