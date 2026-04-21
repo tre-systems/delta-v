@@ -107,7 +107,7 @@ The AI and Simplification sections above can land as two parallel PR streams wit
 | 1.5 | Retune passenger-carrier doctrine (P1) | `logistics.ts`, `astrogation.ts` |
 | 1.6 | Objective-discipline regression tests + simulation thresholds (P2) | AI test files, `scripts/simulate-ai.ts` |
 
-Internal sequencing within Stream 1: 1.2 and 1.4 both edit `scoring.ts`; 1.1 and 1.3 both edit `common.ts`; 1.1 and 1.5 both edit `astrogation.ts`. Land 1.6 last so its regression fixtures lock in the new behaviour from 1.1–1.5 rather than the old baseline.
+Internal sequencing within Stream 1: 1.1 and 1.3 are a natural paired PR (`common.ts`), and 1.2 plus 1.4 are a natural paired PR (`scoring.ts`, with shared objective-weight tuning). 1.1 and 1.5 also both touch `astrogation.ts`, so do not run those in parallel unless one rebases after the other lands. Land 1.6 last so its regression fixtures lock in the new behaviour from 1.1–1.5 rather than the old baseline.
 
 **Stream 2 — Simplification tail** (every change under `src/client/game/**` + `src/server/game-do/{projection,archive}.ts`)
 
@@ -122,7 +122,7 @@ Internal sequencing within Stream 1: 1.2 and 1.4 both edit `scoring.ts`; 1.1 and
 | 2.7 | Drop projection.ts `getProjectedCurrentState` pass-through (P3) | `projection.ts`, `archive.ts` |
 | 2.8 | Un-export `filterReplayTimelineForViewer` (P3) | `projection.ts` |
 
-Internal sequencing within Stream 2: 2.2 and 2.3 both edit `transport.ts` (land the bigger sender-factory collapse first, sweep the emplacement wrapper after); 2.7 and 2.8 both edit `projection.ts` (either order works, but run them back-to-back so the file settles in one review).
+Internal sequencing within Stream 2: 2.2 and 2.3 should land together as one `transport.ts` cleanup PR; 2.7 and 2.8 should land together as one `projection.ts` cleanup PR. The rest are effectively independent and can be reviewed in any order.
 
 **Isolation check:** Stream 1 files under `src/shared/ai/**` + `scripts/simulate-ai.ts`; Stream 2 files under `src/client/game/**` + `src/server/game-do/projection.ts` + `src/server/game-do/archive.ts`. No file appears in both. The only cross-stream coupling is `AIDifficulty` (imported by `src/client/game/transport.ts`), but Stream 1 tunes policy weights and scoring behaviour rather than the difficulty enum, so no rebase is expected.
 
