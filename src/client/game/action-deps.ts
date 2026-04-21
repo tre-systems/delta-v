@@ -1,6 +1,4 @@
-import type { MovementResult } from '../../shared/engine/game-engine';
 import type {
-  CombatResult,
   GameState,
   PlayerId,
   SolarSystemMap,
@@ -16,14 +14,10 @@ import type { ClientState } from './phase';
 import type { PlanningStore } from './planning';
 import {
   type PresentationDeps,
-  presentCombatResults as presentCombat,
-  presentMovementResult as presentMovement,
-  showGameOverOutcome as showGameOver,
+  presentCombatResults,
+  showGameOverOutcome as presentGameOver,
+  presentMovementResult,
 } from './presentation';
-
-// Sub-dep bundles are created lazily and cached so `createActionDeps` does not
-// allocate fresh astrogation/combat/ordnance/local-flow objects on every access
-// (those getters are read frequently from input and the game loop).
 
 export interface ActionDepsArgs {
   getGameState: () => GameState | null;
@@ -46,28 +40,15 @@ export interface ActionDepsArgs {
   track: (event: string, props?: Record<string, unknown>) => void;
 }
 
-const createCachedValue = <T>(build: () => T): (() => T) => {
-  let cached: T | undefined;
-
-  return () => {
-    if (cached === undefined) {
-      cached = build();
-    }
-
-    return cached;
-  };
-};
-
 export const createActionDeps = (args: ActionDepsArgs) => {
   const showToast = (message: string, type: 'error' | 'info' | 'success') => {
     args.ui.overlay.showToast(message, type);
   };
-
   const logText = (text: string) => {
     args.ui.log.logText(text);
   };
 
-  const getPresentationDeps = createCachedValue<PresentationDeps>(() => ({
+  const presentationDeps: PresentationDeps = {
     applyGameState: args.applyGameState,
     setState: args.setState,
     resetCombatState: args.resetCombatState,
@@ -76,9 +57,9 @@ export const createActionDeps = (args: ActionDepsArgs) => {
     onGameOverShown: args.onGameOverShown,
     renderer: args.renderer,
     ui: args.ui,
-  }));
+  };
 
-  const getAstrogationDeps = createCachedValue<AstrogationActionDeps>(() => ({
+  const astrogationDeps: AstrogationActionDeps = {
     getGameState: args.getGameState,
     getClientState: args.getClientState,
     getPlayerId: args.getPlayerId,
@@ -86,9 +67,9 @@ export const createActionDeps = (args: ActionDepsArgs) => {
     planningState: args.planningState,
     showToast,
     logText,
-  }));
+  };
 
-  const getCombatDeps = createCachedValue<CombatActionDeps>(() => ({
+  const combatDeps: CombatActionDeps = {
     getGameState: args.getGameState,
     getClientState: args.getClientState,
     getPlayerId: args.getPlayerId,
@@ -97,9 +78,9 @@ export const createActionDeps = (args: ActionDepsArgs) => {
     planningState: args.planningState,
     showToast,
     logText,
-  }));
+  };
 
-  const getOrdnanceDeps = createCachedValue<OrdnanceActionDeps>(() => ({
+  const ordnanceDeps: OrdnanceActionDeps = {
     getGameState: args.getGameState,
     getClientState: args.getClientState,
     getPlayerId: args.getPlayerId,
@@ -108,38 +89,6 @@ export const createActionDeps = (args: ActionDepsArgs) => {
     planningState: args.planningState,
     showToast,
     logText,
-  }));
-
-  const presentMovementWithPresentationDeps = (
-    state: GameState,
-    movements: MovementResult['movements'],
-    ordnanceMovements: MovementResult['ordnanceMovements'],
-    events: MovementResult['events'],
-    onComplete: () => void,
-  ) => {
-    presentMovement(
-      getPresentationDeps(),
-      state,
-      movements,
-      ordnanceMovements,
-      events,
-      onComplete,
-    );
-  };
-
-  const presentCombatWithPresentationDeps = (
-    previousState: GameState,
-    state: GameState,
-    results: CombatResult[],
-    resetCombatFlag = true,
-  ) => {
-    presentCombat(
-      getPresentationDeps(),
-      previousState,
-      state,
-      results,
-      resetCombatFlag,
-    );
   };
 
   const showGameOverOutcome = (won: boolean, reason: string) => {
@@ -150,58 +99,79 @@ export const createActionDeps = (args: ActionDepsArgs) => {
       mode: args.getIsLocalGame() ? 'local' : 'multiplayer',
       turn: args.getGameState()?.turnNumber,
     });
-    showGameOver(getPresentationDeps(), won, reason);
+    presentGameOver(presentationDeps, won, reason);
   };
 
-  const getLocalGameFlowDeps = createCachedValue<LocalGameFlowDeps>(() => ({
+  const localGameFlowDeps: LocalGameFlowDeps = {
     getGameState: args.getGameState,
     getPlayerId: args.getPlayerId,
     getMap: args.getMap,
     getAIDifficulty:
       args.getAIDifficulty as LocalGameFlowDeps['getAIDifficulty'],
     applyGameState: args.applyGameState,
-    presentMovementResult: presentMovementWithPresentationDeps,
-    presentCombatResults: presentCombatWithPresentationDeps,
-    showGameOverOutcome,
-    transitionToPhase: args.transitionToPhase,
-    logText,
-    showToast,
-  }));
-
-  const presentMovementResult = (
-    state: GameState,
-    movements: MovementResult['movements'],
-    ordnanceMovements: MovementResult['ordnanceMovements'],
-    events: MovementResult['events'],
-    onComplete: () => void,
-  ) => {
-    presentMovementWithPresentationDeps(
+    presentMovementResult: (
       state,
       movements,
       ordnanceMovements,
       events,
-      onComplete,
-    );
+      done,
+    ) =>
+      presentMovementResult(
+        presentationDeps,
+        state,
+        movements,
+        ordnanceMovements,
+        events,
+        done,
+      ),
+    presentCombatResults: (prev, state, results, resetCombatFlag = true) =>
+      presentCombatResults(
+        presentationDeps,
+        prev,
+        state,
+        results,
+        resetCombatFlag,
+      ),
+    showGameOverOutcome,
+    transitionToPhase: args.transitionToPhase,
+    logText,
+    showToast,
   };
 
   return {
-    get astrogationDeps() {
-      return getAstrogationDeps();
-    },
-    get combatDeps() {
-      return getCombatDeps();
-    },
-    get ordnanceDeps() {
-      return getOrdnanceDeps();
-    },
-    get localGameFlowDeps() {
-      return getLocalGameFlowDeps();
-    },
-    get presentationDeps() {
-      return getPresentationDeps();
-    },
-    presentMovementResult,
-    presentCombatResults: presentCombatWithPresentationDeps,
+    astrogationDeps,
+    combatDeps,
+    ordnanceDeps,
+    localGameFlowDeps,
+    presentationDeps,
+    presentMovementResult: (
+      state: GameState,
+      movements: Parameters<typeof presentMovementResult>[2],
+      ordnanceMovements: Parameters<typeof presentMovementResult>[3],
+      events: Parameters<typeof presentMovementResult>[4],
+      onComplete: () => void,
+    ) =>
+      presentMovementResult(
+        presentationDeps,
+        state,
+        movements,
+        ordnanceMovements,
+        events,
+        onComplete,
+      ),
+    presentCombatResults: (
+      previousState: GameState,
+      state: GameState,
+      results: Parameters<typeof presentCombatResults>[3],
+      resetCombatFlag = true,
+    ) =>
+      presentCombatResults(
+        presentationDeps,
+        previousState,
+        state,
+        results,
+        resetCombatFlag,
+      ),
     showGameOverOutcome,
   };
 };
