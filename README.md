@@ -139,7 +139,7 @@ Both editions compile every doc in this index into a single consolidated PDF wit
    npm install
    ```
 
-3. **Install Playwright's Chromium** (pre-commit and CI use it for browser smoke tests).
+3. **Install Playwright's Chromium** (pre-push and CI use it for browser smoke tests).
 
    ```bash
    npx playwright install chromium

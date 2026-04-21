@@ -16,7 +16,7 @@ Delta-V ships the **Worker and static assets as one version line** ([ARCHITECTUR
 
 4. **D1 migrations (forward-only)**
    - Add any new migration as `migrations/000N_description.sql`; the filename ordering is authoritative.
-   - Apply locally: `npx wrangler d1 migrations apply delta-v-telemetry --local` (the CI job + pre-commit hook already do this).
+   - Apply locally: `npx wrangler d1 migrations apply delta-v-telemetry --local` (the CI job + pre-push hook already do this).
    - The `deploy` job runs `wrangler d1 migrations apply delta-v-telemetry --remote` **before** the Worker deploys. Remember: rollback is "redeploy previous Worker on a compatible schema", not automatic down-migration.
 
 5. **Client bundle**
