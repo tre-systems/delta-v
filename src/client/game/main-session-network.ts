@@ -22,12 +22,9 @@ import {
   beginArchivedReplaySession,
   beginJoinGameSession,
   beginSpectateGameSession,
-  type ExitToMenuSessionDeps,
   exitToMenuSession,
   type JoinGameSessionDeps,
-  type LocalGameSessionDeps,
   resumeLocalGameSession,
-  type SpectateGameSessionDeps,
   startLocalGameSession,
 } from './session-controller';
 import { buildGameRoute } from './session-links';
@@ -67,17 +64,6 @@ export interface MainNetworkDeps {
   stopTurnTimer: () => void;
 }
 
-type MainRemoteSessionBridge = Pick<
-  SpectateGameSessionDeps,
-  | 'ctx'
-  | 'resetTurnTelemetry'
-  | 'replaceRoute'
-  | 'buildGameRoute'
-  | 'connect'
-  | 'setWaitingScreenState'
-  | 'setState'
->;
-
 const replaceMainRoute = (route: string): void => {
   history.replaceState(null, '', route);
 };
@@ -89,77 +75,48 @@ const resolveScenario = (scenario: string) => {
   return { def: SCENARIOS[key], key };
 };
 
-const createMainRemoteSessionBridge = (
-  deps: Pick<
-    MainNetworkDeps,
-    'ctx' | 'turnTelemetry' | 'connection' | 'setState'
-  >,
-): MainRemoteSessionBridge => ({
-  ctx: deps.ctx,
-  resetTurnTelemetry: () => deps.turnTelemetry.reset(),
-  replaceRoute: replaceMainRoute,
-  buildGameRoute,
-  connect: (gameCode) => deps.connection.connect(gameCode),
-  setWaitingScreenState: (state) => setWaitingScreenState(deps.ctx, state),
-  setState: deps.setState,
-});
-
-const createMainLocalSessionDeps = (
-  deps: MainNetworkDeps,
-): LocalGameSessionDeps => ({
-  ctx: deps.ctx,
-  createLocalTransport: deps.createLocalTransport,
-  createLocalGameState: (selectedScenario) => {
-    const { def, key } = resolveScenario(selectedScenario);
-    return createGame(
-      def,
-      deps.map,
-      asGameId('LOCAL'),
-      findBaseHex,
-      undefined,
-      key,
-    );
-  },
-  getScenarioName: (selectedScenario) =>
-    resolveScenario(selectedScenario).def.name,
-  resetTurnTelemetry: () => deps.turnTelemetry.reset(),
-  clearTrails: () => deps.renderer.clearTrails(),
-  clearLog: () => deps.ui.log.clear(),
-  setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),
-  logText: (text) => deps.ui.log.logText(text),
-  trackGameCreated: (details) => {
-    deps.track('game_created', details);
-    deps.track('ai_game_started', {
-      scenario: details.scenario,
-      difficulty: details.difficulty,
-    });
-  },
-  applyGameState: deps.applyGameState,
-  logScenarioBriefing: () => deps.hud.logScenarioBriefing(),
-  setState: deps.setState,
-  runLocalAI: deps.runLocalAI,
-});
-
-const createMainExitSessionDeps = (
-  deps: MainNetworkDeps,
-  route = '/',
-): ExitToMenuSessionDeps => ({
-  ctx: deps.ctx,
-  stopPing: () => deps.connection.stopPing(),
-  stopTurnTimer: deps.stopTurnTimer,
-  closeConnection: () => deps.connection.close(),
-  resetTurnTelemetry: () => deps.turnTelemetry.reset(),
-  replaceRoute: () => replaceMainRoute(route),
-  setState: deps.setState,
-});
-
 export const startLocalGameFromMain = (
   deps: MainNetworkDeps,
   scenario: string,
 ): void => {
   deps.ui.overlay.hideGameOver();
   deps.ui.log.setLocalGame(true);
-  startLocalGameSession(createMainLocalSessionDeps(deps), scenario);
+  startLocalGameSession(
+    {
+      ctx: deps.ctx,
+      createLocalTransport: deps.createLocalTransport,
+      createLocalGameState: (selectedScenario) => {
+        const { def, key } = resolveScenario(selectedScenario);
+        return createGame(
+          def,
+          deps.map,
+          asGameId('LOCAL'),
+          findBaseHex,
+          undefined,
+          key,
+        );
+      },
+      getScenarioName: (selectedScenario) =>
+        resolveScenario(selectedScenario).def.name,
+      resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+      clearTrails: () => deps.renderer.clearTrails(),
+      clearLog: () => deps.ui.log.clear(),
+      setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),
+      logText: (text) => deps.ui.log.logText(text),
+      trackGameCreated: (details) => {
+        deps.track('game_created', details);
+        deps.track('ai_game_started', {
+          scenario: details.scenario,
+          difficulty: details.difficulty,
+        });
+      },
+      applyGameState: deps.applyGameState,
+      logScenarioBriefing: () => deps.hud.logScenarioBriefing(),
+      setState: deps.setState,
+      runLocalAI: deps.runLocalAI,
+    },
+    scenario,
+  );
 };
 
 export const resumeLocalGameFromMain = (
@@ -168,14 +125,60 @@ export const resumeLocalGameFromMain = (
 ): void => {
   deps.ui.overlay.hideGameOver();
   deps.ui.log.setLocalGame(true);
-  resumeLocalGameSession(createMainLocalSessionDeps(deps), snapshot);
+  resumeLocalGameSession(
+    {
+      ctx: deps.ctx,
+      createLocalTransport: deps.createLocalTransport,
+      createLocalGameState: (selectedScenario) => {
+        const { def, key } = resolveScenario(selectedScenario);
+        return createGame(
+          def,
+          deps.map,
+          asGameId('LOCAL'),
+          findBaseHex,
+          undefined,
+          key,
+        );
+      },
+      getScenarioName: (selectedScenario) =>
+        resolveScenario(selectedScenario).def.name,
+      resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+      clearTrails: () => deps.renderer.clearTrails(),
+      clearLog: () => deps.ui.log.clear(),
+      setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),
+      logText: (text) => deps.ui.log.logText(text),
+      trackGameCreated: (details) => {
+        deps.track('game_created', details);
+        deps.track('ai_game_started', {
+          scenario: details.scenario,
+          difficulty: details.difficulty,
+        });
+      },
+      applyGameState: deps.applyGameState,
+      logScenarioBriefing: () => deps.hud.logScenarioBriefing(),
+      setState: deps.setState,
+      runLocalAI: deps.runLocalAI,
+    },
+    snapshot,
+  );
 };
 
 export const beginSpectateGameFromMain = (
   deps: MainNetworkDeps,
   code: string,
 ): void => {
-  beginSpectateGameSession(createMainRemoteSessionBridge(deps), code);
+  beginSpectateGameSession(
+    {
+      ctx: deps.ctx,
+      resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+      replaceRoute: replaceMainRoute,
+      buildGameRoute,
+      connect: (gameCode) => deps.connection.connect(gameCode),
+      setWaitingScreenState: (state) => setWaitingScreenState(deps.ctx, state),
+      setState: deps.setState,
+    },
+    code,
+  );
 };
 
 export const beginArchivedReplayFromMain = (
@@ -205,7 +208,15 @@ export const beginArchivedReplayFromMain = (
     showToast: (message, type) => deps.ui.overlay.showToast(message, type),
     exitToMenu: () => {
       deps.abortInflightArchivedReplayFetch?.();
-      exitToMenuSession(createMainExitSessionDeps(deps, '/matches'));
+      exitToMenuSession({
+        ctx: deps.ctx,
+        stopPing: () => deps.connection.stopPing(),
+        stopTurnTimer: deps.stopTurnTimer,
+        closeConnection: () => deps.connection.close(),
+        resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+        replaceRoute: () => replaceMainRoute('/matches'),
+        setState: deps.setState,
+      });
     },
     setScenario: (scenario) => setScenario(deps.ctx, scenario),
   };
@@ -230,7 +241,13 @@ export const beginJoinGameFromMain = (
 ): void => {
   deps.ui.log.setLocalGame(false);
   const joinDeps: JoinGameSessionDeps = {
-    ...createMainRemoteSessionBridge(deps),
+    ctx: deps.ctx,
+    resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+    replaceRoute: replaceMainRoute,
+    buildGameRoute,
+    connect: (gameCode) => deps.connection.connect(gameCode),
+    setWaitingScreenState: (state) => setWaitingScreenState(deps.ctx, state),
+    setState: deps.setState,
     getStoredPlayerToken: (gameCode) =>
       deps.sessionTokens.getStoredPlayerToken(gameCode),
     storePlayerToken: (gameCode, token) =>
@@ -241,7 +258,19 @@ export const beginJoinGameFromMain = (
     exitToMenu: () => exitToMenuFromMain(deps),
     selectCodeInput: () => deps.ui.selectCodeInput(),
     fallbackToSpectator: (gameCode) =>
-      beginSpectateGameSession(createMainRemoteSessionBridge(deps), gameCode),
+      beginSpectateGameSession(
+        {
+          ctx: deps.ctx,
+          resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+          replaceRoute: replaceMainRoute,
+          buildGameRoute,
+          connect: (nextGameCode) => deps.connection.connect(nextGameCode),
+          setWaitingScreenState: (state) =>
+            setWaitingScreenState(deps.ctx, state),
+          setState: deps.setState,
+        },
+        gameCode,
+      ),
   };
   void beginJoinGameSession(joinDeps, code, playerToken);
 };
@@ -260,10 +289,26 @@ export const handleServerMessageFromMain = (
 
 export const exitToMenuFromMain = (deps: MainNetworkDeps): void => {
   deps.abortInflightArchivedReplayFetch?.();
-  exitToMenuSession(createMainExitSessionDeps(deps));
+  exitToMenuSession({
+    ctx: deps.ctx,
+    stopPing: () => deps.connection.stopPing(),
+    stopTurnTimer: deps.stopTurnTimer,
+    closeConnection: () => deps.connection.close(),
+    resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+    replaceRoute: () => replaceMainRoute('/'),
+    setState: deps.setState,
+  });
 };
 
 export const exitArchivedReplayFromMain = (deps: MainNetworkDeps): void => {
   deps.abortInflightArchivedReplayFetch?.();
-  exitToMenuSession(createMainExitSessionDeps(deps, '/matches'));
+  exitToMenuSession({
+    ctx: deps.ctx,
+    stopPing: () => deps.connection.stopPing(),
+    stopTurnTimer: deps.stopTurnTimer,
+    closeConnection: () => deps.connection.close(),
+    resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+    replaceRoute: () => replaceMainRoute('/matches'),
+    setState: deps.setState,
+  });
 };
