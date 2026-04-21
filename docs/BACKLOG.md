@@ -40,32 +40,6 @@ The current AI tests cover safety, escape-edge behavior, and one Bi-Planetary ho
 
 Action: add focused regression fixtures for "take the landing line", "do not abandon the carrier's scoring route without immediate danger", and "narrow the existing Bi-Planetary defense test to real emergency cases". Extend the simulation harness with per-scenario objective-completion expectations or at least warnings when objective scenarios resolve almost entirely by elimination.
 
-## Simplification & abstraction debt (2026-04-21, refreshed)
-
-The earlier simplification sweeps have now removed most of the originally-reported client indirection: `action-deps.ts`, the tiny `network.ts` helpers, the old `phase.ts` builder layer, `phase-entry.ts`'s rule-wrapper padding, `main-session-network.ts`'s adapter factories, and the WebSocket transport sender factory are all already gone.
-
-The Stream 1 client-simplification tail (authoritative-update adapter layer, one-use command-router dep factory, tiny game-over presentation plan, UI manager facade wrappers, and the session-prep helper cluster) all landed 2026-04-21. No open client simplification items remain in this section.
-
-## Workstream split (2026-04-21, refreshed)
-
-The earlier AI-vs-simplification split is mostly landed. The remaining open work now separates more cleanly into one **client simplification** stream and one **metadata / MCP / replay polish** stream, again with no file overlap. The AI balance follow-ups stay outside this split because they still touch `src/shared/ai/**` broadly and need simulation iteration rather than mechanical cleanup.
-
-**Stream 1 — Client simplification tail** (landed 2026-04-21; no open items remain in this stream)
-
-**Stream 2 — Metadata / MCP polish** (all changes under `static/.well-known`, `src/shared/scenario-definitions.ts`, `src/shared/agent/**`, `packages/mcp-adapter/**`, and `scripts/delta-v-mcp-server.ts`)
-
-| # | Entry | Primary files |
-|---|---|---|
-| 2.1 | Scenario descriptions drift between source and `/.well-known/agent.json` | `static/.well-known/agent.json`, `src/shared/scenario-definitions.ts`, `src/shared/agent/discovery.test.ts`, optional generator under `scripts/` |
-| 2.2 | Unknown / expired `sessionId` is indistinguishable from missing credentials over MCP | `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts` |
-| 2.3 | Retire legacy `{code, playerToken}` tool args once leaderboard stabilises | `packages/mcp-adapter/src/handlers.ts`, `scripts/quick-match-agent.ts`, `scripts/llm-player.ts`, `docs/DELTA_V_MCP.md` |
-
-Internal sequencing within Stream 2: 2.2 and 2.3 should be treated as a single `handlers.ts` track because both change the same MCP target-resolution surface (2.2 tightens the unknown-sessionId error shape, 2.3 then drops one of the two accepted target shapes entirely, so doing them in order keeps the error paths consistent). 2.1 is independent and can land before or after those.
-
-**Isolation check:** Stream 1 touches only `src/client/game/**` and `src/client/ui/ui.ts`. Stream 2 touches static discovery metadata, shared scenario/discovery metadata, MCP adapter tooling, and the stdio MCP script. No file appears in both. The ongoing AI-balance items under `src/shared/ai/**` and `scripts/simulate-ai.ts` are intentionally excluded from this split.
-
-**Effort balance:** Stream 1 is a medium mechanical cleanup stream with one P2 core item plus four smaller P3 items. Stream 2 is lighter and tightly themed around the agent-facing surface: one source-of-truth cleanup plus a paired MCP adapter pass. That gives one stream to someone focused on client code hygiene and one to someone focused on agent/runtime surfaces.
-
 ## Launch-readiness snapshot (2026-04-19)
 
 Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md) pass log). Update or remove this section when the listed items are resolved or reassessed.
@@ -139,35 +113,11 @@ During exploratory testing 2026-04-19 via Claude-in-Chrome MCP, a Play-vs-AI (Du
 
 **Files:** potentially `src/client/ui/button-bindings.ts`, `src/client/game/ordnance.ts`, `src/client/game/command-router.ts`
 
-### Note: MCP-automated tabs report `document.hidden === true`
-
-Claude-in-Chrome MCP tabs run in a non-foreground Chrome window, so `document.hidden === true` / `visibilityState === 'hidden'` even when JS is responsive. That makes `renderer.animateMovements` take its fast-path (`onComplete()` synchronously, no RAF loop), which is correct behaviour for hidden tabs but means exploratory passes can't observe the actual animation pacing. If we need to verify animation timing under MCP automation, the skill or docs should note "force the window foreground" as a precondition, or we fake `document.visibilityState` per-tab.
-
-**Files:** `.claude/skills/play/SKILL.md`, `docs/EXPLORATORY_TESTING.md`
-
 ### Contrast audit (quantified)
 
 Run WCAG contrast / readability measurements each release using [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md) § **Contrast & readability** and [A11Y.md](./A11Y.md); tune CSS from findings.
 
 **Files:** `static/styles/*.css`, `docs/MANUAL_TEST_PLAN.md`, `docs/A11Y.md`
-
-### Stronger high-contrast modes
-
-Spot-check remaining HUD / systems chrome if playtesters still see flat contrast. **Done for this slice:** `#scenarioSelect` / `#waiting` panels aligned with `#menu` under **prefers-contrast: more** and **forced-colors**; game-over shell, card, kicker, and replay strip use explicit Canvas/contrast-friendly panels.
-
-**Files:** `static/styles/base.css`, `static/styles/components.css`, `static/styles/hud.css`, `static/styles/overlays.css`, `static/styles/systems.css`
-
-### Tutorial: deepen task-first flow
-
-Spotlight-driven steps and tighter coupling to HUD hints. **Done for this slice:** per-step **Help** opens the overlay and scrolls to the matching rules section.
-
-**Files:** `src/client/tutorial.ts`, `src/client/ui/hud-chrome-view.ts`, `static/index.html`, `static/styles/overlays.css`
-
-### Help overlay: active-section highlighting (optional)
-
-Highlight the section in view on scroll, or collapse long groups with `<details>`.
-
-**Files:** `static/index.html`, `static/styles/overlays.css`, optional small script in `src/client/ui/`
 
 ### Enforce notification channel precedence in code
 
@@ -186,22 +136,6 @@ Remaining audit: session UI effects / reactive wiring, telemetry-driven copy, an
 **Remaining:** other tactical picks that are still pointer-first.
 
 **Files:** `src/client/game-client-browser.ts`, `src/client/game/client-runtime.ts`, `src/client/game/input-events.ts`, `src/client/game/input.ts`, `src/client/game/combat.ts`, `src/client/ui/hud.ts`, `static/index.html`
-
-### Burn-arrow tap targets (verification)
-
-Revisit burn/overload hit targets only if playtesting reports misses at very small `hexSize` (picks resolve by neighboring hex cell, not only the painted disk — `resolveBurnToggle` / `resolveOverloadToggle` in `input.ts`).
-
-**Files:** `src/client/renderer/course.ts`, `src/client/renderer/vectors.ts`, `src/client/game/input.ts`, `src/client/input-interaction.ts`
-
-### Homepage layout: cluttered menu hides the "cool stuff"
-
-**Done for this slice:** the menu no longer hides the social/discovery surfaces behind tiny text links. Leaderboard and Recent Matches now sit as discover tiles, the private-code path lives behind a disclosure, and the old footer clutter has been demoted into slim footer actions instead of competing with the primary CTAs.
-
-**Done for this slice:** the difficulty row now explains the intended Easy/Normal/Hard play-style gap directly in the menu, so the selector is less opaque even if the tier win-rate gap stays moderate.
-
-**Remaining:** only revisit this if playtesting still says the home screen feels too settings-heavy or the AI difficulty selector needs a stronger modal-driven presentation. That would be a larger product design pass, not a launch blocker.
-
-**Files:** `static/index.html`, `static/styles/components.css`, `src/client/ui/lobby-view.ts`
 
 ---
 
@@ -335,12 +269,6 @@ So the worst same-difficulty seat-bias inversion has largely been fixed. The rea
 
 **Files:** `src/shared/ai/config.ts`, `src/shared/ai/`, `src/client/ui/lobby.ts` (difficulty selector copy), `scripts/simulate-ai.ts`
 
-### "Mutual destruction — last attacker loses" tiebreak feels arbitrary
-
-Surfaced once per 100-game duel run (`Mutual destruction — last attacker loses!`). The current rule punishes the player whose attack triggered the simultaneous wipeout, which can feel unfair to the attacker (they were "winning until they weren't"). At minimum, the game-over screen should explain the rule clearly; ideally, consider a different tiebreak (e.g. coin flip with both players notified, or a draw outcome). Low frequency means this is polish, not P0/P1.
-
-**Files:** `src/shared/engine/victory.ts`, `src/client/ui/game-over.ts`, `docs/SPEC.md`
-
 ---
 
 ## Agent & MCP ergonomics
@@ -357,64 +285,11 @@ Gaps in local vs hosted MCP parity, first-class resources, and structured reject
 
 **Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/protocol.ts`, `src/shared/protocol.ts`, `scripts/delta-v-mcp-server.ts`, `src/client/game/client-message-plans.ts`
 
-### Scenario descriptions drift between source and `/.well-known/agent.json`
-
-Found via R3 doc-consistency sweep on 2026-04-21. `static/.well-known/agent.json` is a hand-maintained static JSON file. `src/shared/scenario-definitions.ts` owns the real in-engine descriptions used by the lobby's scenario cards. Four scenarios have diverged:
-
-| Scenario | Source description | agent.json description |
-|---|---|---|
-| escape | `3 pilgrim transports flee Terra — enforcers must stop them` | `Pilgrim transport and escorts flee Enforcer interceptors` |
-| evacuation | `A crowded transport flees Luna for Terra with corvette and frigate escorts — win only by landing survivors; a corsair tries to cut you off` | `Evacuate Luna before the enemy fleet overruns it` |
-| convoy | `Escort a liner with colonists (and tanker) from Mars to Venus — transfer passengers to safety; pirates intercept` | `Escort or interdict a convoy to Venus` |
-| duel | `Frigates face off across Mercury — use gravity to outmaneuver your opponent` | `Frigates clash near Mercury — last ship standing wins` |
-
-`src/shared/agent/discovery.test.ts` asserts scenario **ids** match but does not compare descriptions, so any source-side rewording silently drifts. Five scenarios match today (biplanetary, blockade, interplanetaryWar, fleetAction, grandTour), so the fix is either (a) generate `agent.json` scenario blocks at build time from the source of truth, or (b) tighten the discovery test to assert `name` and `description` equality with a readable diff. Option (a) is cleaner and matches how `SCENARIOS` already feeds the runtime and the MCP resources.
-
-**Files:** `static/.well-known/agent.json`, `src/shared/scenario-definitions.ts`, `src/shared/agent/discovery.test.ts`, `scripts/` (a new generator if we go with option a).
-
-### Unknown / expired `sessionId` is indistinguishable from missing credentials over MCP
-
-Found via R5 on 2026-04-21. Every hosted MCP tool that accepts `sessionId` (`delta_v_get_state`, `delta_v_get_observation`, `delta_v_send_action`, `delta_v_send_chat`, `delta_v_wait_for_turn`) returns the **same** error when the `sessionId` doesn't resolve to an active session:
-
-```json
-{"result":{"content":[{"type":"text","text":"Provide either matchToken, or both code and playerToken"}],"isError":true}}
-```
-
-An agent that passed `sessionId: "not-a-real-session"` gets the same message as one that called with empty arguments. The message implies "you forgot to pass credentials" when the real cause is "the sessionId you passed is unknown, stale, or expired." Agents have no principled way to retry (reconnect vs re-queue vs re-derive matchToken) without guessing which failure mode they're in.
-
-Action: branch the validation in `packages/mcp-adapter/src/handlers.ts` (`matchTargetSchema` / `resolveMatchTarget`) so the error clearly states the failure mode — "Unknown or expired sessionId. Pass `matchToken` or `{code, playerToken}` to establish a new connection," or similar — and keep the "no credentials provided" copy reserved for the genuine empty-args case.
-
-**Files:** `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts` (for parity with local MCP), `src/shared/agent/` (if a shared error-shape enum makes sense).
-
-### Retire legacy `{code, playerToken}` tool args once leaderboard stabilises
-
-Hosted MCP tools still accept either `matchToken` or `{code, playerToken}` via `matchTargetSchema` in `packages/mcp-adapter/src/handlers.ts`. Carrying both doubles tool-args surface area and forces every call site to branch on auth mode. Once the public leaderboard is live and all active agents have migrated to `matchToken`, drop the legacy union and simplify the adapter — consistent with the pre-launch-deletions stance elsewhere.
-
-**Files:** `packages/mcp-adapter/src/handlers.ts`, `scripts/quick-match-agent.ts`, `scripts/llm-player.ts`, `docs/DELTA_V_MCP.md`
-
 ---
 
 ## Cost & abuse hardening
 
 Findings from a 2026-04-17 cost-surface review. Baseline controls are documented in [SECURITY.md](./SECURITY.md).
-
-**Still backlog / trigger-gated:** WAF or `[[ratelimits]]` if baseline throttles prove insufficient; Turnstile on human name claim; proof-of-work on bulk agent name claims; spectator delay for serious competition. File hooks sit under [Future features](#future-features-not-currently-planned) where applicable.
-
-### Strict cross-colo rate limits for state-changing POSTs (only if needed)
-
-The docs now reflect the shipped model accurately: `/create`, `/api/agent-token`, `/quick-match`, and `/api/claim-name` use a strict Worker-local **5 / 60 s per hashed IP** bucket plus Cloudflare `CREATE_RATE_LIMITER` as an extra best-effort edge layer in production. That is enough for accidental floods and single-isolate abuse, but not a true global cap.
-
-If cross-colo or distributed issuance becomes a real problem, the next step is a D1 or Durable Object counter so the limit is global rather than per isolate plus best-effort edge binding.
-
-**Files:** `static/.well-known/agent.json`, `wrangler.toml`, `src/server/reporting.ts`, `src/server/index.ts`, `docs/SECURITY.md`
-
-### Private-room code space + unauthenticated join (intentional UX trade-off)
-
-Confirmed 2026-04-19: `POST /create` returns a 5-char code from a 32-char alphabet (~33.6M codes); `WebSocket(/ws/<code>)` with no `playerToken` auto-seats the connecting client as player 1 and issues a fresh playerToken. Brute-forcing the 5-char code is theoretically feasible (~3 h to find a random active room from a populated server, multi-IP).
-
-**Decision (2026-04-19, product):** this is *not* a launch-blocker. Frictionless start (no login, share-and-join) outweighs private-room hijack defence. Document the trade-off and skip auth/captcha/invite-token work; revisit only if real-world griefing is observed post-launch. The actually-actionable bit that remains is the bare 1006 close shape on a full room when no player token or spectator flag is provided.
-
-**Files:** —
 
 ### Clear the transitive `hono` advisory in the MCP adapter chain
 
@@ -462,46 +337,6 @@ Exploratory pass 2026-04-20: the existing `trackEvent` calls cover matchmaking l
 **Remaining:** optional further deduplication if `match.ts` should call `runPublicationPipeline` without the `publishStateChange` indirection.
 
 **Files:** `src/server/game-do/match.ts`, `src/server/game-do/publication.ts`, `src/server/game-do/game-do.ts`, `src/shared/prng.ts`
-
-### Boundary hardening and explicit client seams
-
-Hide clone-sensitive engine mutators behind non-exported modules, extend import-boundary enforcement to the missing directions, and finish the client kernel DI cleanup so `WebSocket` and `fetch` are injected rather than reached directly.
-
-**Done for this slice:** browser telemetry/error reporting now runs through a configured runtime from `src/client/main.ts`, so the client no longer reaches global `fetch` directly inside `src/client/telemetry.ts`; the seam is covered in `src/client/telemetry.test.ts`. `src/client/game/connection.ts` and `src/client/game/session-api.ts` also now require injected `WebSocket` / `fetch` / `location` dependencies instead of silently falling back to globals, with the explicit-seam path covered in their Vitest suites. The leaderboard claim/rank helpers now follow the same pattern: `src/client/leaderboard/api.ts` requires injected `fetch`, while `src/client/ui/lobby-view.ts` owns the browser default wrapper and the seam is covered in `src/client/leaderboard/api.test.ts`.
-
-**Done for this slice:** import-boundary enforcement now checks the whole `shared/` layer for browser/Cloudflare globals, not just `shared/engine/`, so agent helpers, protocol code, and shared utilities cannot quietly pick up `window`, `document`, or Worker runtime APIs outside the engine boundary.
-
-**Files:** `src/shared/engine/victory.ts`, `src/shared/engine/turn-advance.ts`, `src/shared/import-boundary.test.ts`, `src/server/import-boundary.test.ts`, `src/client/game/client-kernel.ts`, `src/client/game/connection.ts`, `src/client/game/session-api.ts`, `biome.json`
-
----
-
-## Type safety & scenario definitions
-
-### Close remaining stringly-typed registries and IDs
-
-Tighten scenario/body registries around closed keys; brand ship / ordnance identifiers so lookup-heavy paths stop depending on plain `string` (wire `isHexKey` coverage exists in Vitest — extend to call sites and registries).
-
-**Done for this slice:** the server create/init protocol path now preserves validated `ScenarioKey` values through `parseCreatePayload`, `parseInitPayload`, `RoomConfig`, and the public room/http handlers instead of widening them back to plain `string` immediately after validation.
-
-**Done for this slice:** combat payload parsing now brands `targetId` as `ShipId` or `OrdnanceId` at validation time based on `targetType`, instead of pushing an untyped string through the shared combat path until later casts.
-
-**Done for this slice:** shared combat resolution and conflict projection now narrow ship-vs-ordnance targets with explicit guards, so those hot paths no longer need ad hoc `as ShipId` / `as OrdnanceId` assertions after `targetType` checks.
-
-**Done for this slice:** combat phase target tracking now uses a branded `CombatTargetKey` helper instead of raw `${targetType}:${targetId}` strings in engine state, replay projection, and AI combat planning.
-
-**Files:** `src/shared/hex.ts`, `src/shared/ids.ts`, `src/shared/map-data.ts`, `src/shared/types/domain.ts`, `src/server/room-routes.ts`, `src/server/game-do/http-handlers.ts`, `src/client/game/main-session-network.ts`
-
----
-
-## Testing & client consistency
-
-### Broaden engine and protocol coverage
-
-Optional positive/negative `contracts.json` rows for parameterless phase one-shots (`skipOrdnance`, `endCombat`, …) beyond current coverage. Deeper `transport.json` vs live Durable Object message parity.
-
-**Done for this slice:** `transport.json` now fixture-covers the submitter-only `actionAccepted` / `actionRejected` envelopes as reviewed wire shapes, so the newer guard/engine rejection metadata is locked to the same normalized transport fixtures as `gameStart`, `stateUpdate`, `movementResult`, and `combatResult`.
-
-**Files:** `src/shared/__fixtures__/contracts.json`, `src/shared/protocol.test.ts`, `src/server/game-do/__fixtures__/transport.json`, `src/server/game-do/publication.test.ts`
 
 ---
 
