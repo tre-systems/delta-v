@@ -66,7 +66,7 @@ import type {
   PublishStateChangeOptions,
   StatefulServerMessage,
 } from './message-builders';
-import { type PublicationDeps, runPublicationPipeline } from './publication';
+import { runPublicationPipeline } from './publication';
 import {
   createDisconnectMarker,
   getNextAlarmAt,
@@ -555,35 +555,6 @@ export class GameDO extends DurableObject<Env> {
     };
   }
 
-  private createPublicationDeps(): PublicationDeps {
-    return {
-      storage: this.storage,
-      env: this.env,
-      waitUntil: (promise) => this.waitUntil(promise),
-      getGameCode: () => this.getGameCode(),
-      getRoomConfig: () => this.getRoomConfig(),
-      verifyProjectionParity: (state) => this.verifyProjectionParity(state),
-      broadcastStateChange: (state, primaryMessage) =>
-        this.broadcastStateChange(state, primaryMessage),
-      startTurnTimer: (state) => this.startTurnTimer(state),
-    };
-  }
-
-  private createGameStateActionDeps(
-    ws: WebSocket,
-  ): Parameters<typeof runGameStateAction>[0] {
-    return {
-      getCurrentGameState: () => this.getCurrentGameState(),
-      getGameCode: () => this.getGameCode(),
-      reportEngineError: (code, phase, turn, err) =>
-        this.reportEngineError(code, phase, turn, err),
-      sendError: (message, code) =>
-        this.send(ws, { type: 'error', message, code }),
-      sendActionAccepted: (accepted) => this.send(ws, accepted),
-      sendActionRejected: (rejected) => this.send(ws, rejected),
-    };
-  }
-
   private isSpectatorSocket(socket: WebSocket): boolean {
     return this.getTags(socket).includes('spectator');
   }
@@ -792,7 +763,18 @@ export class GameDO extends DurableObject<Env> {
     this.idempotencyCache.clear();
     const { lastTurnAutoPlayed: _drop, ...publicationOpts } = options ?? {};
     await runPublicationPipeline(
-      this.createPublicationDeps(),
+      {
+        storage: this.storage,
+        env: this.env,
+        waitUntil: (promise) => this.waitUntil(promise),
+        getGameCode: () => this.getGameCode(),
+        getRoomConfig: () => this.getRoomConfig(),
+        verifyProjectionParity: (nextState) =>
+          this.verifyProjectionParity(nextState),
+        broadcastStateChange: (nextState, nextPrimaryMessage) =>
+          this.broadcastStateChange(nextState, nextPrimaryMessage),
+        startTurnTimer: (nextState) => this.startTurnTimer(nextState),
+      },
       state,
       primaryMessage,
       publicationOpts,
@@ -897,7 +879,16 @@ export class GameDO extends DurableObject<Env> {
     },
   ): Promise<void> {
     await runGameStateAction(
-      this.createGameStateActionDeps(ws),
+      {
+        getCurrentGameState: () => this.getCurrentGameState(),
+        getGameCode: () => this.getGameCode(),
+        reportEngineError: (code, phase, turn, err) =>
+          this.reportEngineError(code, phase, turn, err),
+        sendError: (message, code) =>
+          this.send(ws, { type: 'error', message, code }),
+        sendActionAccepted: (accepted) => this.send(ws, accepted),
+        sendActionRejected: (rejected) => this.send(ws, rejected),
+      },
       action,
       onSuccess,
       preCheck,
