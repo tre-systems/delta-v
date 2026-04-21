@@ -42,53 +42,15 @@ Action: add focused regression fixtures for "take the landing line", "do not aba
 
 ## Simplification & abstraction debt (2026-04-21, refreshed)
 
-The earlier simplification sweeps have now removed most of the originally-reported client indirection: `action-deps.ts`, the tiny `network.ts` helpers, the old `phase.ts` builder layer, `phase-entry.ts`'s rule-wrapper padding, `main-session-network.ts`'s adapter factories, and the WebSocket transport sender factory are all already gone. What remains is the thinner tail below plus one older `projection.ts` cleanup that still survives.
+The earlier simplification sweeps have now removed most of the originally-reported client indirection: `action-deps.ts`, the tiny `network.ts` helpers, the old `phase.ts` builder layer, `phase-entry.ts`'s rule-wrapper padding, `main-session-network.ts`'s adapter factories, and the WebSocket transport sender factory are all already gone.
 
-### Remove authoritative-update adapter layer (P2)
-
-`src/client/game/message-handler.ts` still repackages `MessageHandlerDeps` into `AuthoritativeUpdateDeps` via `toAuthoritativeUpdateDeps()`, then immediately wraps `applyAuthoritativeUpdate()` again in `applyMovementResultPlan()`, `applyCombatResultPlan()`, `applyCombatSingleResultPlan()`, `applyStateUpdatePlan()`, and `applyGameOverPlan()`. The indirection is now mostly ceremony: a single deps adapter and several one-line plan shims on the hot message-dispatch path.
-
-Action: build the authoritative-update deps once or inline them at the dispatcher boundary, then collapse the one-line `apply*Plan()` wrappers so the message flow is easier to read without chasing tagged payload constructors across several helpers.
-
-### Inline one-use command-router dep factory (P3)
-
-`src/client/game/main-interactions.ts` still creates `CommandRouterDeps` through a local `createCommandRouterDeps()` helper that is called exactly once. It mainly closes over already-local wrappers (`sendFleetReady`, `sendSurrender`, camera helpers) and immediately feeds the result into `dispatchGameCommand()`.
-
-Action: inline the `CommandRouterDeps` object where `commandRouterDeps` is created. Keep extracted helpers only where they still hold real branching or telemetry policy.
-
-### Merge tiny game-over plan back into presentation (P3)
-
-`src/client/game/presentation.ts` still keeps `deriveGameOverPlan()` as a small single-caller shim. It picks log text, CSS class, result sound, and optional stats, then `showGameOverOutcome()` immediately consumes it.
-
-Action: inline the `deriveGameOverPlan()` branching into `showGameOverOutcome()` unless a broader presentation plan object emerges that is reused elsewhere.
-
-### Flatten UI manager facade wrappers (P3)
-
-`src/client/ui/ui.ts` still returns a wrapper-heavy `UIManager` facade with lots of one-line pass-throughs to `lobbyView`, `hudChromeView`, and `shipListView`, plus `Parameters<typeof ...>` type plumbing. The public surface is assembled locally and does not hide a separate module boundary.
-
-Action: flatten the returned facade where possible so the UI manager exposes direct methods or narrower typed fields without the extra wrapper noise.
-
-### Inline tiny session prep helpers (P3)
-
-`src/client/game/session-controller.ts` still uses a cluster of local helpers (`clearReconnectUiState()`, `prepareRemoteSession()`, `clearRemoteSessionState()`, `prepareLocalSession()`) that mostly wrap short sequences of `set*` calls. They do remove repetition, but they also make the actual session-state mutations harder to read because the entry/exit flows are one indirection away from the setters.
-
-Action: inline the short prep/reset sequences into the nearby session flows unless a helper still carries a real policy distinction that would be duplicated incorrectly.
+The Stream 1 client-simplification tail (authoritative-update adapter layer, one-use command-router dep factory, tiny game-over presentation plan, UI manager facade wrappers, and the session-prep helper cluster) all landed 2026-04-21. No open client simplification items remain in this section.
 
 ## Workstream split (2026-04-21, refreshed)
 
 The earlier AI-vs-simplification split is mostly landed. The remaining open work now separates more cleanly into one **client simplification** stream and one **metadata / MCP / replay polish** stream, again with no file overlap. The AI balance follow-ups stay outside this split because they still touch `src/shared/ai/**` broadly and need simulation iteration rather than mechanical cleanup.
 
-**Stream 1 — Client simplification tail** (all changes under `src/client/game/**` + `src/client/ui/ui.ts`)
-
-| # | Entry | Primary files |
-|---|---|---|
-| 1.1 | Remove authoritative-update adapter layer (P2) | `message-handler.ts`, `authoritative-updates.ts` |
-| 1.2 | Inline one-use command-router dep factory (P3) | `main-interactions.ts` |
-| 1.3 | Merge tiny game-over plan back into presentation (P3) | `presentation.ts` |
-| 1.4 | Flatten UI manager facade wrappers (P3) | `src/client/ui/ui.ts` |
-| 1.5 | Inline tiny session prep helpers (P3) | `session-controller.ts` |
-
-Internal sequencing within Stream 1: 1.1 should land first because it is the only item that meaningfully touches the message/presentation hot path. 1.2, 1.3, 1.4, and 1.5 are otherwise independent and can land in any order. The only same-file grouping worth calling out is that 1.1 and 1.3 both interact with presentation behavior, so they are a reasonable paired PR if someone wants a single "presentation/message cleanup" slice.
+**Stream 1 — Client simplification tail** (landed 2026-04-21; no open items remain in this stream)
 
 **Stream 2 — Metadata / MCP polish** (all changes under `static/.well-known`, `src/shared/scenario-definitions.ts`, `src/shared/agent/**`, `packages/mcp-adapter/**`, and `scripts/delta-v-mcp-server.ts`)
 
