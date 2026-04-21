@@ -41,11 +41,7 @@ import {
   buildBotAction,
   SERVER_AGENT_AI_DIFFICULTY,
 } from './bot';
-import {
-  broadcastMessage,
-  broadcastStateChange,
-  sendSocketMessage,
-} from './broadcast';
+import { broadcastMessage, broadcastStateChange } from './broadcast';
 import { parseCoachMessage, setCoachDirective } from './coach';
 import { isDurableObjectCodeUpdateError } from './code-update';
 import { type GameDoFetchDeps, handleGameDoFetch } from './fetch';
@@ -627,12 +623,6 @@ export class GameDO extends DurableObject<Env> {
     };
   }
 
-  private createJoinCheckDeps(): Parameters<typeof handleJoinCheckRequest>[0] {
-    return {
-      resolveJoinAttempt: (playerToken) => this.resolveJoinAttempt(playerToken),
-    };
-  }
-
   private createReplayRequestDeps(): Parameters<typeof handleReplayRequest>[0] {
     return {
       storage: this.storage,
@@ -652,16 +642,6 @@ export class GameDO extends DurableObject<Env> {
       clearRoomArchivedFlag: () => this.clearRoomArchivedFlag(),
       publishStateChange: (state, primaryMessage, options) =>
         this.publishStateChange(state, primaryMessage, options),
-    };
-  }
-
-  private createRematchDeps(): Parameters<typeof handleRematchRequest>[0] {
-    return {
-      storage: this.storage,
-      initGame: () => this.initGame(),
-      broadcast: (msg) => this.broadcast(msg),
-      getRequiredVotes: async () =>
-        getRequiredRematchVotes(await this.getRoomConfig()),
     };
   }
 
@@ -973,7 +953,13 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async handleJoinCheck(request: Request): Promise<Response> {
-    return handleJoinCheckRequest(this.createJoinCheckDeps(), request);
+    return handleJoinCheckRequest(
+      {
+        resolveJoinAttempt: (playerToken) =>
+          this.resolveJoinAttempt(playerToken),
+      },
+      request,
+    );
   }
 
   private async handleReplayRequest(request: Request): Promise<Response> {
@@ -1131,7 +1117,16 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async handleRematch(playerId: PlayerId, _ws: WebSocket) {
-    await handleRematchRequest(this.createRematchDeps(), playerId);
+    await handleRematchRequest(
+      {
+        storage: this.storage,
+        initGame: () => this.initGame(),
+        broadcast: (msg) => this.broadcast(msg),
+        getRequiredVotes: async () =>
+          getRequiredRematchVotes(await this.getRoomConfig()),
+      },
+      playerId,
+    );
   }
 
   private broadcastStateChange(
@@ -1165,7 +1160,9 @@ export class GameDO extends DurableObject<Env> {
 
   // --- Messaging ---
   private send(ws: WebSocket, msg: S2C) {
-    sendSocketMessage(ws, msg);
+    try {
+      ws.send(JSON.stringify(msg));
+    } catch {}
   }
 
   private broadcast(msg: S2C) {

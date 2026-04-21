@@ -7,12 +7,6 @@ import {
   toStateUpdateMessage,
 } from './message-builders';
 
-export const sendSocketMessage = (ws: WebSocket, msg: S2C) => {
-  try {
-    ws.send(JSON.stringify(msg));
-  } catch {}
-};
-
 export const broadcastMessage = (
   sockets: {
     getWebSockets: (tag?: string) => WebSocket[];
