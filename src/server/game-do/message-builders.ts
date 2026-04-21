@@ -39,13 +39,6 @@ export type PublishStateChangeOptions = {
   };
 };
 
-type GameStartMessage = Extract<
-  S2C,
-  {
-    type: 'gameStart';
-  }
->;
-
 type BroadcastFallback = 'none' | 'stateUpdate';
 type MovementResolution = MovementResult | StateUpdateResult;
 type CombatResolution = {
@@ -60,42 +53,6 @@ export const STATEFUL_SERVER_MESSAGE_TYPES = [
   'combatSingleResult',
   'stateUpdate',
 ] as const satisfies readonly StatefulServerMessage['type'][];
-
-export const toMovementResultMessage = ({
-  movements,
-  ordnanceMovements,
-  events,
-  state,
-}: MovementResult): StatefulServerMessage => ({
-  type: 'movementResult',
-  movements,
-  ordnanceMovements,
-  events,
-  state,
-});
-
-export const toCombatResultMessage = (
-  state: GameState,
-  results: CombatResult[],
-): StatefulServerMessage => ({
-  type: 'combatResult',
-  results,
-  state,
-});
-
-export const toCombatSingleResultMessage = (
-  state: GameState,
-  result: CombatResult,
-): StatefulServerMessage => ({
-  type: 'combatSingleResult',
-  result,
-  state,
-});
-
-export const toGameStartMessage = (state: GameState): GameStartMessage => ({
-  type: 'gameStart',
-  state,
-});
 
 export const toStateUpdateMessage = (
   state: GameState,
@@ -136,7 +93,14 @@ export const resolveMovementBroadcast = (
   fallback: BroadcastFallback = 'none',
 ): StatefulServerMessage | undefined => {
   if (isMovementResult(result)) {
-    return toMovementResultMessage(result);
+    const { movements, ordnanceMovements, events, state } = result;
+    return {
+      type: 'movementResult',
+      movements,
+      ordnanceMovements,
+      events,
+      state,
+    };
   }
 
   return fallback === 'stateUpdate'
@@ -149,7 +113,11 @@ export const resolveCombatBroadcast = (
   fallback: BroadcastFallback = 'none',
 ): StatefulServerMessage | undefined => {
   if (hasCombatResults(result)) {
-    return toCombatResultMessage(result.state, result.results);
+    return {
+      type: 'combatResult',
+      results: result.results,
+      state: result.state,
+    };
   }
 
   return fallback === 'stateUpdate'
