@@ -307,27 +307,28 @@ Defaults are permissive — omitting a field means the feature is enabled. The p
 
 ## Map Data
 
-The solar-system map is generated from TypeScript body definitions (`src/shared/map-data.ts`), not a JSON asset. Each hex becomes a `MapHex`:
+The solar-system map is generated from TypeScript body definitions (`src/shared/map-data.ts`), not a JSON asset. Each hex becomes a `MapHex` keyed by hex coordinate in the generated map:
 
 ```typescript
 interface MapHex {
-  q: number;
-  r: number;
   terrain: 'space' | 'asteroid' | 'planetSurface' | 'sunSurface';
   gravity?: {
-    direction: HexDirection;
-    type: 'full' | 'weak';
-    body: string;                          // owning body
+    direction: number;                     // hex direction index 0..5
+    bodyName: string;                      // owning body
+    strength: 'full' | 'weak';
   };
   base?: {
-    owner: string;                         // 'neutral' or player faction
-    type: 'planetary' | 'asteroid' | 'orbital';
+    name: string;
+    bodyName: string;                      // owning body
   };
-  body?: { name: string };                 // hex is covered by this body
+  body?: {
+    name: string;
+    destructive: boolean;                  // Sol / large bodies destroy on contact
+  };
 }
 ```
 
-`buildSolarSystemMap()` produces the `MapHex[]` at engine entry. See [patterns/scenarios-and-config.md#data-driven-solar-system-map](../patterns/scenarios-and-config.md#data-driven-solar-system-map).
+`buildSolarSystemMap()` produces a `SolarSystemMap` (hex map, celestial-body list, bounds) used at engine entry. See [patterns/scenarios-and-config.md#data-driven-solar-system-map](../patterns/scenarios-and-config.md#data-driven-solar-system-map).
 
 ## Error Model
 
@@ -341,6 +342,8 @@ enum ErrorCode {
   NOT_ALLOWED, INVALID_PLAYER,             // authorization
   RESOURCE_LIMIT,                          // resources
   STATE_CONFLICT,                          // consistency
+  ROOM_NOT_FOUND, ROOM_FULL,               // room lifecycle
+  GAME_IN_PROGRESS, GAME_COMPLETED,        // match lifecycle
 }
 ```
 
