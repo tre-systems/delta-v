@@ -6,6 +6,46 @@ Sections are grouped by theme and ordered by priority within each group: gamepla
 
 Shipped work lives in `git log`, not here. Recurring review procedures live in [REVIEW_PLAN.md](./REVIEW_PLAN.md). Architecture rationale lives in [ARCHITECTURE.md](./ARCHITECTURE.md). Exploratory-pass technique lives in [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md).
 
+## Simplification & abstraction debt (2026-04-21)
+
+Client review follow-up: the current code is generally well-factored, but parts of the client orchestration layer have accumulated adapter-style modules that mostly rename callbacks, repackage dependency bags, or add single-use indirection. These are good cleanup candidates because they slow navigation without adding much policy, reuse, or state ownership.
+
+### Inline main-session adapter factories (P2)
+
+Flatten the dependency-builder layer in the main session shell so the control flow reads in one place instead of bouncing through adapter modules. The biggest target is `src/client/game/main-deps.ts`, where `createMainStateTransitionDeps()`, `createMainMessageHandlerDeps()`, and `createMainPhaseTransitionDeps()` mostly forward fields from `createMainSessionShell()` into other shapes.
+
+Action: build those dependency objects inline in `src/client/game/main-session-shell.ts`, then remove the now-redundant factory layer and trim tests that only verify the adapter exists rather than real behavior.
+
+### Collapse session-controller bridge builders (P2)
+
+`src/client/game/main-session-network.ts` repeats the same pattern for session flows: `createMainRemoteSessionBridge()`, `createMainLocalSessionDeps()`, `createMainJoinSessionDeps()`, `createMainExitSessionDeps()`, and `createMainArchivedReplaySessionDeps()` mostly restate `deps.*` behind one-use wrappers.
+
+Action: inline the bridge objects at the `startLocalGameSession()` / `beginJoinGameSession()` / `beginSpectateGameSession()` / `beginArchivedReplaySession()` / `exitToMenuSession()` call sites and keep only helpers that still own real validation or branching logic after the pass.
+
+### Simplify authoritative message dispatch adapters (P2)
+
+`src/client/game/message-handler.ts` currently wraps authoritative updates in `createAuthoritativeUpdateDeps()` and then routes several message kinds through tiny `apply*Plan()` helpers whose main job is to build another object and call `applyAuthoritativeUpdate()`.
+
+Action: collapse this into a more direct dispatch path. Prefer one local authoritative-update adapter object or direct calls from the handler map, and remove wrapper helpers that do not add branching or policy.
+
+### Inline `UIManager` facade assembly (P3)
+
+`src/client/ui/ui.ts` already owns the relevant state, views, and disposers, but still builds the public facade through tiny wrapper modules such as `session-actions.ts`, `hud-actions.ts`, and `event-bridge.ts`.
+
+Action: define the returned `UIManager` surface directly inside `createUIManager()`, delete wrapper modules that only rename or relay local callbacks, and keep extracted helpers only where they own real lifecycle state (for example `layout-sync.ts`).
+
+### Inline viewport/mobile wiring into `createUIManager()` (P3)
+
+`src/client/ui/mobile-sync.ts` and `src/client/ui/viewport-events.ts` are single-use setup helpers called only from `src/client/ui/ui.ts`. They mostly coordinate callback plumbing and make the UI setup path harder to scan than the behavior itself.
+
+Action: move this wiring into `createUIManager()` unless a helper still owns non-trivial state after refactoring. Keep `layout-sync.ts` unless the RAF scheduling also becomes clearer inlined.
+
+### Merge tiny presentation shims back into their callers (P3)
+
+`src/client/game/briefing.ts` and `src/client/game/endgame.ts` are both single-caller presentation helpers. `deriveScenarioBriefingEntries()` currently maps lines to `{ text, cssClass: '' }`, and `deriveGameOverPlan()` is a small conditional used only by `showGameOverOutcome()`.
+
+Action: inline or merge these into the nearest real owner (`hud-controller.ts`, `presentation.ts`, or `selection.ts`) unless a broader presentation abstraction emerges during the cleanup.
+
 ## Launch-readiness snapshot (2026-04-19)
 
 Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md) pass log). Update or remove this section when the listed items are resolved or reassessed.

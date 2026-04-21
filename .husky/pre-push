@@ -1,0 +1,94 @@
+zero_sha="0000000000000000000000000000000000000000"
+
+is_doc_path() {
+  case "$1" in
+    README.md|AGENT_SPEC.md|docs/*|patterns/*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+run_boundary_checks() {
+  # Grep-based boundary checks
+  if grep -rn '\.innerHTML\s*=' src/client/ --include='*.ts' | grep -v 'dom.ts' | grep -v '\.test\.ts'; then
+    echo "ERROR: Direct innerHTML assignment found outside dom.ts. Use setTrustedHTML() instead."
+    exit 1
+  fi
+
+  if grep -rn 'Math\.random' src/shared/engine/ --include='*.ts' | grep -v '\.test\.ts' | grep -v '= Math\.random'; then
+    echo "ERROR: Math.random found in engine code. Use injected rng parameter instead."
+    exit 1
+  fi
+
+  if grep -rn 'console\.\(log\|warn\|error\)' src/shared/ --include='*.ts' | grep -v '\.test\.ts'; then
+    echo "ERROR: console methods found in shared code. Shared layer must be side-effect free."
+    exit 1
+  fi
+}
+
+collect_pushed_files() {
+  while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "$local_ref" ] && continue
+
+    if [ "$local_sha" = "$zero_sha" ]; then
+      continue
+    fi
+
+    if [ "$remote_sha" = "$zero_sha" ]; then
+      git rev-list "$local_sha" --not --remotes |
+        while IFS= read -r commit; do
+          [ -z "$commit" ] && continue
+          git show --pretty='' --name-only "$commit"
+        done
+      continue
+    fi
+
+    git diff --name-only "$remote_sha" "$local_sha"
+  done | sort -u
+}
+
+pushed_files="$(collect_pushed_files)"
+
+if [ -z "$pushed_files" ]; then
+  exit 0
+fi
+
+docs_only=1
+while IFS= read -r path; do
+  [ -z "$path" ] && continue
+  if ! is_doc_path "$path"; then
+    docs_only=0
+    break
+  fi
+done <<EOF
+$pushed_files
+EOF
+
+if [ "$docs_only" -eq 1 ]; then
+  echo "Documentation-only push: running doc link checks."
+  npm run check:doc-links
+  exit 0
+fi
+
+echo "Running pre-push verification: lint, boundary checks, typecheck, coverage, e2e, a11y, simulation."
+npm run lint
+run_boundary_checks
+npm run typecheck:all
+
+# Local D1 for wrangler dev during e2e (idempotent if already applied).
+npx wrangler d1 migrations apply delta-v-telemetry --local
+
+# Fresh coverage dir avoids occasional ENOENT on coverage/.tmp (stale merge state).
+rm -rf coverage
+mkdir -p coverage/.tmp
+npm run test:coverage
+
+# Free port + no reuse: avoids clashing with dev servers or a stuck process on a fixed port.
+E2E_PORT="$(node -e "const n=require('net');const s=n.createServer();s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port));s.close();});")"
+export E2E_PORT
+DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e
+DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e:a11y
+npm run simulate all 60 -- --ci
