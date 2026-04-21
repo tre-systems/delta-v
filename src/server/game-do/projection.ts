@@ -19,7 +19,7 @@ import { buildReplayMessageFromEvents } from './replay-reconstruct';
 
 const map = buildSolarSystemMap();
 
-export const filterReplayTimelineForViewer = (
+const filterReplayTimelineForViewer = (
   timeline: ReplayTimeline,
   viewerId: ViewerId,
 ): ReplayTimeline => ({
@@ -44,7 +44,7 @@ const toCheckpointReplayEntry = (checkpoint: Checkpoint): ReplayEntry => ({
   } satisfies ReplayMessage,
 });
 
-const projectCurrentStateFromStream = (
+export const projectCurrentStateFromEvents = (
   eventStreamTail: EventEnvelope[],
   checkpoint: Checkpoint | null,
 ): GameState | null => {
@@ -62,18 +62,12 @@ export const getProjectedCurrentStateForViewer = (
   checkpoint: Checkpoint | null,
   viewerId: ViewerId,
 ): GameState | null => {
-  const latestState = projectCurrentStateFromStream(
+  const latestState = projectCurrentStateFromEvents(
     eventStreamTail,
     checkpoint,
   );
   return latestState ? filterStateForPlayer(latestState, viewerId) : null;
 };
-
-export const getProjectedCurrentState = (
-  eventStreamTail: EventEnvelope[],
-  checkpoint: Checkpoint | null,
-): GameState | null =>
-  projectCurrentStateFromStream(eventStreamTail, checkpoint);
 
 // Events that are part of one movement-resolution or combat-resolution
 // batch. Grouping these together lets us reconstruct live-style

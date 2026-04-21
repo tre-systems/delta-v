@@ -19,9 +19,9 @@ import {
 } from './archive-storage';
 import {
   getProjectedCurrentStateForViewer,
-  getProjectedCurrentState as getProjectedCurrentStateFromEvents,
   getProjectionParityDiff,
   hasProjectedStateParity,
+  projectCurrentStateFromEvents,
   projectReplayTimeline,
 } from './projection';
 
@@ -203,7 +203,7 @@ export const getProjectedCurrentStateRaw = async (
     checkpoint?.seq ?? 0,
   );
 
-  return getProjectedCurrentStateFromEvents(eventStreamTail, checkpoint);
+  return projectCurrentStateFromEvents(eventStreamTail, checkpoint);
 };
 
 export const getProjectedReplayTimeline = async (
