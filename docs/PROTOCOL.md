@@ -51,49 +51,16 @@ Public read endpoints (`/healthz`, `/api/matches`, `/api/leaderboard`, `/api/lea
 ## Room Lifecycle
 
 ```mermaid
-sequenceDiagram
-  participant C1 as Creator client
-  participant W as Worker
-  participant G as GameDO
-  participant C2 as Guest client
-
-  C1->>W: POST /create
-  W->>G: /init(room code, scenario, seat 0)
-  G-->>C1: code + creator playerToken
-
-  opt optional preflight
-    C2->>W: GET /join/{code}
-    W->>G: validate join / reconnect
-    G-->>C2: { ok, scenario, seatStatus }
-  end
-
-  C1->>G: WebSocket /ws/{code}?playerToken=...
-  C2->>G: WebSocket /ws/{code}
-  G-->>C1: welcome
-  G-->>C2: welcome
-
-  alt both seats connected
-    G->>G: createGame()
-    G-->>C1: gameStart
-    G-->>C2: gameStart
-  end
-
-  loop turn loop
-    C1->>G: C2S action
-    C2->>G: C2S action
-    G->>G: validate, resolve, append events, restart timer
-    G-->>C1: state-bearing S2C result
-    G-->>C2: state-bearing S2C result
-  end
-
-  alt disconnect
-    C2-xG: socket drops
-    G->>G: 30 s grace timer
-    C2->>G: reconnect with playerToken
-    G-->>C2: projected welcome/state
-  else grace expires
-    G->>G: forfeit / archive path
-  end
+flowchart LR
+  A["Create room"] --> B["Join or reconnect check"]
+  B --> C["WebSocket connect"]
+  C --> D{"Both seats present"}
+  D -->|Yes| E["Start game"]
+  D -->|No| C
+  E --> F["Turn loop and state results"]
+  F --> G{"Disconnect"}
+  G -->|No| F
+  G -->|Yes| H["Grace timer -> reconnect or forfeit"]
 ```
 
 ```
