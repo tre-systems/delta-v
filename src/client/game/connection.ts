@@ -4,10 +4,7 @@ import type { GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { getConnectCloseToastMessage } from '../messages/server-error-presentation';
 import { TOAST } from '../messages/toasts';
-import {
-  deriveDisconnectHandling,
-  deriveReconnectAttemptPlan,
-} from './network';
+import { deriveReconnectAttemptPlan } from './network';
 import type { ClientState } from './phase';
 import { buildWebSocketUrl } from './session-links';
 import type { ReconnectOverlayState } from './session-ui-state';
@@ -204,28 +201,27 @@ export const createConnectionManager = (
   const handleDisconnect = () => {
     stopPing();
     const currentState = deps.getClientState();
-    const handling = deriveDisconnectHandling(
-      currentState,
-      deps.getGameCode(),
-      deps.getGameState(),
-    );
+    const canReconnect =
+      currentState !== 'menu' &&
+      currentState !== 'gameOver' &&
+      currentState !== 'connecting' &&
+      Boolean(deps.getGameCode());
 
-    if (handling.attemptReconnect) {
+    if (canReconnect) {
       attemptReconnect();
       return;
     }
 
-    if (handling.nextState === 'menu') {
-      if (currentState === 'connecting') {
-        connectFailureToast();
-      }
-      deps.exitToMenu();
+    if (currentState === 'menu' || currentState === 'gameOver') {
       return;
     }
 
-    if (handling.nextState) {
-      deps.setState(handling.nextState);
+    // Otherwise we were mid-flow without a reconnect target (menu-bound);
+    // surface the connecting-failure toast and route back to the menu.
+    if (currentState === 'connecting') {
+      connectFailureToast();
     }
+    deps.exitToMenu();
   };
 
   const handleSocketClose = (socket: WebSocket, ev: CloseEvent) => {
