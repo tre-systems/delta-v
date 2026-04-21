@@ -1,4 +1,5 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
+import { byId } from '../dom';
 import {
   deriveInteractionMode,
   type InteractionMode,
@@ -11,7 +12,6 @@ import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { MOBILE_BREAKPOINT_PX } from '../ui-breakpoints';
 import { bindStaticButtonEvents } from './button-events';
 import { composeDisposers } from './dispose-group';
-import { getUIElements } from './elements';
 import { createUIEventBridge } from './event-bridge';
 import type { UIEvent } from './events';
 import { createFleetBuildingView } from './fleet-building-view';
@@ -54,17 +54,15 @@ export interface UIManagerDeps {
 
 export const createUIManager = (deps: UIManagerDeps) => {
   const scope = createDisposalScope();
-  const {
-    menuEl,
-    scenarioEl,
-    waitingEl,
-    hudEl,
-    topBarEl,
-    bottomBarEl,
-    gameOverEl,
-    shipListEl,
-    fleetBuildingEl,
-  } = getUIElements();
+  const menuEl = byId('menu');
+  const scenarioEl = byId('scenarioSelect');
+  const waitingEl = byId('waiting');
+  const hudEl = byId('hud');
+  const topBarEl = byId('topBar');
+  const bottomBarEl = byId('bottomBar');
+  const gameOverEl = byId('gameOver');
+  const shipListEl = byId('shipList');
+  const fleetBuildingEl = byId('fleetBuilding');
   const mobileQuery = window.matchMedia(
     `(max-width: ${MOBILE_BREAKPOINT_PX}px)`,
   );
