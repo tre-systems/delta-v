@@ -37,8 +37,6 @@ import {
   resolveCombatBroadcast,
   resolveMovementBroadcast,
   type StatefulServerMessage,
-  toCombatSingleResultMessage,
-  toMovementResultMessage,
   toStateUpdateMessage,
 } from './message-builders';
 
@@ -224,11 +222,13 @@ export const createGameStateActionHandlers = (deps: ActionDeps) => {
           await deps.getActionRng(),
         ),
       publish: async (playerId, result) => {
-        await publishForActor(
-          playerId,
-          result,
-          toMovementResultMessage(result),
-        );
+        await publishForActor(playerId, result, {
+          type: 'movementResult',
+          movements: result.movements,
+          ordnanceMovements: result.ordnanceMovements,
+          events: result.events,
+          state: result.state,
+        });
       },
     }),
     emplaceBase: defineGameStateActionHandler({
@@ -315,7 +315,11 @@ export const createGameStateActionHandlers = (deps: ActionDeps) => {
         await publishForActor(
           playerId,
           result,
-          toCombatSingleResultMessage(result.state, r),
+          {
+            type: 'combatSingleResult',
+            result: r,
+            state: result.state,
+          },
           { restartTurnTimer: false },
         );
       },
