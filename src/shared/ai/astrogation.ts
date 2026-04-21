@@ -617,6 +617,9 @@ export const aiAstrogation = (
         const fuelForTrip = estimateFuelForTravelDistance(distToTarget, speed);
         const targetHasRefuelBase =
           nextBody === player.homeBody || caps.sharedBases.includes(nextBody);
+        if (targetHasRefuelBase && ship.fuel <= fuelForTrip + 2) {
+          seekingFuel = true;
+        }
         const continuationFuel =
           targetHasRefuelBase || shipTargetHex == null
             ? 0
@@ -696,7 +699,7 @@ export const aiAstrogation = (
       weakGravityChoices?: Record<HexKey, boolean>;
     };
     const directions = [0, 1, 2, 3, 4, 5] as const;
-    const inOrbit = canBurnFuel && detectOrbit(ship, map) !== null;
+    const inOrbit = detectOrbit(ship, map) !== null;
     const options: BurnOption[] = [
       { burn: null, overload: null },
       ...(canBurnFuel
