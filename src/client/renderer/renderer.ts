@@ -21,10 +21,7 @@ import { createCamera } from './camera';
 import { SPECTATOR_PLAYER_ID } from './colours';
 import { buildCombatEffectsForResults } from './combat-fx';
 import { drawAstrogationCoursePreviewLayer } from './course-draw';
-import {
-  drawShipIcon as drawShipIconFn,
-  interpolatePath as interpolatePathFn,
-} from './draw';
+import { drawShipIcon, interpolatePath } from './draw';
 import {
   type CombatEffect,
   drawCombatEffects,
@@ -38,21 +35,21 @@ import {
 } from './frame';
 import { drawMinimapOverlay } from './minimap-draw';
 import {
-  renderCombatOverlay as renderCombatOverlayFn,
-  renderOrdnance as renderOrdnanceFn,
-  renderTorpedoGuidance as renderTorpedoGuidanceFn,
+  renderCombatOverlay,
+  renderOrdnance,
+  renderTorpedoGuidance,
 } from './overlay';
 import {
   generateStars,
-  renderAsteroids as renderAsteroidsFn,
-  renderBaseMarkers as renderBaseMarkersFn,
-  renderBodies as renderBodiesFn,
-  renderDetectionRanges as renderDetectionRangesFn,
-  renderGravityIndicators as renderGravityIndicatorsFn,
-  renderHexGrid as renderHexGridFn,
-  renderLandingTarget as renderLandingTargetFn,
-  renderMapBorder as renderMapBorderFn,
-  renderStars as renderStarsFn,
+  renderAsteroids,
+  renderBaseMarkers,
+  renderBodies,
+  renderDetectionRanges,
+  renderGravityIndicators,
+  renderHexGrid,
+  renderLandingTarget,
+  renderMapBorder,
+  renderStars,
   type Star,
 } from './scene';
 import { drawShipsLayer } from './ships';
@@ -171,7 +168,7 @@ export const createRenderer = (
       planningState,
       map: solarMap,
       hexSize: HEX_SIZE,
-      drawShipIcon: drawShipIconFn,
+      drawShipIcon: drawShipIcon,
       zoom: camera.zoom,
     });
   };
@@ -260,28 +257,28 @@ export const createRenderer = (
 
     if (map) {
       if (!renderedStatic) {
-        renderStarsFn(layerCtx, stars, camera.zoom);
-        renderHexGridFn(layerCtx, map, HEX_SIZE, (x, y) =>
+        renderStars(layerCtx, stars, camera.zoom);
+        renderHexGrid(layerCtx, map, HEX_SIZE, (x, y) =>
           camera.isVisible(x, y),
         );
-        renderAsteroidsFn(
+        renderAsteroids(
           layerCtx,
           map,
           gameState?.destroyedAsteroids ?? [],
           HEX_SIZE,
           (x, y) => camera.isVisible(x, y),
         );
-        renderGravityIndicatorsFn(layerCtx, map, HEX_SIZE, (x, y) =>
+        renderGravityIndicators(layerCtx, map, HEX_SIZE, (x, y) =>
           camera.isVisible(x, y),
         );
-        renderBodiesFn(layerCtx, map, HEX_SIZE, now, camera.zoom);
+        renderBodies(layerCtx, map, HEX_SIZE, now, camera.zoom);
       }
       if (gameState) {
-        renderMapBorderFn(layerCtx, map, gameState, playerId, HEX_SIZE, now);
+        renderMapBorder(layerCtx, map, gameState, playerId, HEX_SIZE, now);
       }
-      renderBaseMarkersFn(layerCtx, map, gameState, playerId, HEX_SIZE);
+      renderBaseMarkers(layerCtx, map, gameState, playerId, HEX_SIZE);
       if (gameState) {
-        renderLandingTargetFn(
+        renderLandingTarget(
           layerCtx,
           map,
           gameState,
@@ -295,7 +292,7 @@ export const createRenderer = (
 
     if (gameState && map) {
       drawBaseThreatZones(layerCtx, gameState, map);
-      renderDetectionRangesFn(
+      renderDetectionRanges(
         layerCtx,
         gameState,
         playerId,
@@ -305,7 +302,7 @@ export const createRenderer = (
         animState() !== null,
       );
       drawCourseLayers(layerCtx, gameState, map);
-      renderOrdnanceFn({
+      renderOrdnance({
         ctx: layerCtx,
         state: gameState,
         playerId,
@@ -313,10 +310,10 @@ export const createRenderer = (
         hexSize: HEX_SIZE,
         now,
         interpolatePath: (path, progress) =>
-          interpolatePathFn(path, progress, HEX_SIZE),
+          interpolatePath(path, progress, HEX_SIZE),
         zoom: camera.zoom,
       });
-      renderTorpedoGuidanceFn({
+      renderTorpedoGuidance({
         ctx: layerCtx,
         state: gameState,
         playerId,
@@ -326,7 +323,7 @@ export const createRenderer = (
         now,
         zoom: camera.zoom,
       });
-      renderCombatOverlayFn({
+      renderCombatOverlay({
         ctx: layerCtx,
         state: gameState,
         playerId,
