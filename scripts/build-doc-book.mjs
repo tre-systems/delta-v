@@ -7,6 +7,7 @@ import { PDFDocument } from "pdf-lib";
 
 import {
   BOOK_CSS,
+  annexBreakHtml,
   buildChapterIdByFile,
   chapterHtml,
   displayPath,
@@ -24,6 +25,7 @@ const outDir = path.join(repoRoot, "tmp", "documentation-book");
 const outHtml = path.join(outDir, "delta-v-documentation-book.html");
 const outPdf = path.join(outDir, "delta-v-documentation-book.pdf");
 const outMainPdf = path.join(outDir, "delta-v-documentation-book.main.pdf");
+const publishedPdf = path.join(repoRoot, "docs", "delta-v-documentation-book.pdf");
 
 const appendixAssets = [
   "docs/map.png",
@@ -82,9 +84,25 @@ function visualAppendixHtml() {
         ${assetFigures}
       </div>
     </section>
-    <section class="appendix-section appendix-note">
-      <h1>Appendix C. External Reference PDF</h1>
-      <p>The original <code>${escapeHtml(displayPath(externalPdfAppendix))}</code> is appended after this page so the final output remains a single consolidated PDF.</p>
+    ${annexBreakHtml(
+      "External Reference PDF",
+      `The original ${displayPath(
+        externalPdfAppendix,
+      )} is appended after this divider so the final output remains a single consolidated PDF.`,
+    )}
+  `;
+}
+
+function imprintHtml() {
+  return `
+    <section class="intro-note">
+      <h1>Editorial Note</h1>
+      <p>
+        This edition is arranged as a handbook rather than a file dump. Stable architectural and rules material appears first. More volatile operational worksheets and the live backlog are intentionally moved to the end as annexes.
+      </p>
+      <p>
+        The Markdown files remain the canonical source. This book is an edited reading order over those sources, not an alternative authority.
+      </p>
     </section>
   `;
 }
@@ -143,10 +161,12 @@ const html = `<!doctype html>
     <section class="toc">
       <h1>Contents</h1>
       <p>
-        The book is ordered for comprehension rather than alphabetically. Orientation comes first, followed by architecture and patterns, then rules, operations, integrations, and backlog state.
+        The book is ordered for comprehension rather than alphabetically. Orientation comes first, followed by architecture and patterns, then rules, operations, integrations, and finally the more volatile annex material.
       </p>
       ${tocHtml(chapters)}
     </section>
+
+    ${imprintHtml()}
 
     <section class="intro-note">
       <h1>How To Read This Book</h1>
@@ -155,6 +175,7 @@ const html = `<!doctype html>
         <li>Read Part III if you are changing game rules, scenarios, or art direction.</li>
         <li>Read Part IV if you are shipping, testing, hardening, or diagnosing the project.</li>
         <li>Read Part V if you are building external agents or integrating via MCP or raw protocols.</li>
+        <li>Treat Part VI as annex material: useful, but more time-sensitive than the core handbook.</li>
         <li>The appendix gathers the non-Markdown visual references and the original bundled PDF so the output is genuinely consolidated.</li>
       </ul>
     </section>
@@ -204,7 +225,35 @@ for (const pdfPath of [outMainPdf, path.join(repoRoot, externalPdfAppendix)]) {
   }
 }
 
+mergedPdf.setTitle("Delta-V Documentation Book");
+mergedPdf.setAuthor("Delta-V repository");
+mergedPdf.setSubject(
+  "Technical handbook compiled from the canonical Delta-V repository documentation.",
+);
+mergedPdf.setKeywords([
+  "Delta-V",
+  "documentation",
+  "architecture",
+  "game rules",
+  "MCP",
+  "agents",
+]);
+mergedPdf.setProducer("pdf-lib");
+mergedPdf.setCreator("Delta-V documentation pipeline");
+
 const mergedBytes = await mergedPdf.save();
 await fs.writeFile(outPdf, mergedBytes);
+await fs.copyFile(outPdf, publishedPdf);
 
-console.log(JSON.stringify({ html: outHtml, pdf: outPdf, mainPdf: outMainPdf }, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      html: outHtml,
+      pdf: outPdf,
+      mainPdf: outMainPdf,
+      publishedPdf,
+    },
+    null,
+    2,
+  ),
+);
