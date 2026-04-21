@@ -902,31 +902,6 @@ const resolveAgentIdentity = async (
   };
 };
 
-const missingAgentTokenSecretResponse = (): Response =>
-  Response.json(
-    {
-      error: 'server_misconfigured',
-      message:
-        'AGENT_TOKEN_SECRET is not set on this deployment. Contact the operator.',
-    },
-    { status: 500 },
-  );
-
-const payloadTooLargeResponse = (): Response =>
-  Response.json(
-    {
-      error: 'payload_too_large',
-      message: `MCP request body exceeds the ${MCP_MAX_BODY_BYTES}-byte cap.`,
-    },
-    { status: 413 },
-  );
-
-const tooManyMcpRequestsResponse = (): Response =>
-  new Response('Too many requests', {
-    status: 429,
-    headers: { 'Retry-After': '60' },
-  });
-
 const isMcpRateLimitedInMemory = (key: string): boolean => {
   const now = Date.now();
   if (mcpRateLimitMap.size > MCP_RATE_LIMIT_MAP_MAX_KEYS) {
@@ -947,55 +922,30 @@ const isMcpRateLimitedInMemory = (key: string): boolean => {
   return existing.count > MCP_RATE_LIMIT;
 };
 
-// Rate-limit key: bind to the agentToken when available (a legitimate
-// agent uses one token across calls, so this blocks single-agent spam),
-// otherwise fall back to the hashed client IP for unauthenticated / legacy
-// callers. Hashing avoids storing raw IPs in the ratelimit namespace key.
-const deriveRateLimitKey = async (request: Request): Promise<string> => {
-  const bearer = extractBearerToken(request.headers.get('Authorization'));
-  if (bearer) {
-    return `agent:${await hashAgentToken(bearer)}`;
-  }
-  const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-  return `ip:${await hashIp(ip)}`;
-};
-
 const enforceMcpRateLimit = async (
   env: Env,
   request: Request,
 ): Promise<Response | null> => {
-  const key = await deriveRateLimitKey(request);
+  const bearer = extractBearerToken(request.headers.get('Authorization'));
+  const key = bearer
+    ? `agent:${await hashAgentToken(bearer)}`
+    : `ip:${await hashIp(request.headers.get('cf-connecting-ip') ?? 'unknown')}`;
   const localBlocked = isMcpRateLimitedInMemory(key);
   if (!env.MCP_RATE_LIMITER) {
-    return localBlocked ? tooManyMcpRequestsResponse() : null;
+    return localBlocked
+      ? new Response('Too many requests', {
+          status: 429,
+          headers: { 'Retry-After': '60' },
+        })
+      : null;
   }
   const { success } = await env.MCP_RATE_LIMITER.limit({ key });
-  return localBlocked || !success ? tooManyMcpRequestsResponse() : null;
-};
-
-const enforceMcpBodySize = async (
-  request: Request,
-): Promise<{ ok: true; body: string } | { ok: false; response: Response }> => {
-  if (request.method !== 'POST') {
-    return { ok: true, body: '' };
-  }
-  const declared = request.headers.get('content-length');
-  if (declared && Number(declared) > MCP_MAX_BODY_BYTES) {
-    return { ok: false, response: payloadTooLargeResponse() };
-  }
-  let body: string;
-  try {
-    body = await request.text();
-  } catch {
-    return {
-      ok: false,
-      response: Response.json({ error: 'bad_body' }, { status: 400 }),
-    };
-  }
-  if (body.length > MCP_MAX_BODY_BYTES) {
-    return { ok: false, response: payloadTooLargeResponse() };
-  }
-  return { ok: true, body };
+  return localBlocked || !success
+    ? new Response('Too many requests', {
+        status: 429,
+        headers: { 'Retry-After': '60' },
+      })
+    : null;
 };
 
 // Per-request entry. Stateless: each request spins up a fresh McpServer +
@@ -1024,13 +974,45 @@ export const handleMcpHttpRequest = async (
       route: '/mcp',
       reason: 'server_misconfigured',
     });
-    return missingAgentTokenSecretResponse();
+    return Response.json(
+      {
+        error: 'server_misconfigured',
+        message:
+          'AGENT_TOKEN_SECRET is not set on this deployment. Contact the operator.',
+      },
+      { status: 500 },
+    );
   }
 
   // Size-cap the JSON-RPC payload before anything else touches it so a
   // multi-megabyte body never reaches the MCP transport.
-  const bodyCheck = await enforceMcpBodySize(request);
-  if (!bodyCheck.ok) return bodyCheck.response;
+  let body = '';
+  if (request.method === 'POST') {
+    const declared = request.headers.get('content-length');
+    if (declared && Number(declared) > MCP_MAX_BODY_BYTES) {
+      return Response.json(
+        {
+          error: 'payload_too_large',
+          message: `MCP request body exceeds the ${MCP_MAX_BODY_BYTES}-byte cap.`,
+        },
+        { status: 413 },
+      );
+    }
+    try {
+      body = await request.text();
+    } catch {
+      return Response.json({ error: 'bad_body' }, { status: 400 });
+    }
+    if (body.length > MCP_MAX_BODY_BYTES) {
+      return Response.json(
+        {
+          error: 'payload_too_large',
+          message: `MCP request body exceeds the ${MCP_MAX_BODY_BYTES}-byte cap.`,
+        },
+        { status: 413 },
+      );
+    }
+  }
 
   // Global rate limit keyed on agentToken (preferred) or hashed IP.
   // Limits spam of delta_v_quick_match (each call polls the matchmaker
@@ -1058,7 +1040,7 @@ export const handleMcpHttpRequest = async (
       ? new Request(request.url, {
           method: request.method,
           headers: request.headers,
-          body: bodyCheck.body,
+          body,
         })
       : request;
 
@@ -1075,7 +1057,14 @@ export const handleMcpHttpRequest = async (
   } catch (error) {
     await transport.close();
     if (error instanceof MissingAgentTokenSecretError) {
-      return missingAgentTokenSecretResponse();
+      return Response.json(
+        {
+          error: 'server_misconfigured',
+          message:
+            'AGENT_TOKEN_SECRET is not set on this deployment. Contact the operator.',
+        },
+        { status: 500 },
+      );
     }
     throw error;
   }
