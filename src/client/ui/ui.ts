@@ -12,11 +12,9 @@ import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { MOBILE_BREAKPOINT_PX } from '../ui-breakpoints';
 import { bindStaticButtonEvents } from './button-events';
 import { composeDisposers } from './dispose-group';
-import { createUIEventBridge } from './event-bridge';
 import type { UIEvent } from './events';
 import { createFleetBuildingView } from './fleet-building-view';
 import { createGameLogView } from './game-log-view';
-import { createHudActions } from './hud-actions';
 import { createHUDChromeView } from './hud-chrome-view';
 import { applyHudLayoutMetrics, clearHudLayoutMetrics } from './layout-metrics';
 import { createLayoutSync } from './layout-sync';
@@ -25,7 +23,6 @@ import { bindMobileSync } from './mobile-sync';
 import { createOverlayStateStore } from './overlay-state';
 import { createOverlayView } from './overlay-view';
 import { mapInteractionModeToUIScreenMode } from './screens';
-import { createSessionActions } from './session-actions';
 import { createShipListView } from './ship-list-view';
 import { bindViewportEvents } from './viewport-events';
 import { applyUIVisibility } from './visibility';
@@ -67,8 +64,10 @@ export const createUIManager = (deps: UIManagerDeps) => {
     `(max-width: ${MOBILE_BREAKPOINT_PX}px)`,
   );
 
-  const eventBridge = createUIEventBridge();
-  const emit = (event: UIEvent) => eventBridge.emit(event);
+  let onEvent: ((event: UIEvent) => void) | null = null;
+  const emit = (event: UIEvent) => {
+    onEvent?.(event);
+  };
   const scenarioActiveSignal = signal(false);
   const clientStateSignal = signal<ReadonlySignal<ClientState> | null>(null);
 
@@ -232,37 +231,23 @@ export const createUIManager = (deps: UIManagerDeps) => {
     fleetBuildingView.showWaiting();
   };
 
-  const hudActions = createHudActions({
-    update: (input) => hudChromeView.update(input),
-    updateLatency: (latencyMs) => hudChromeView.updateLatency(latencyMs),
-    updateFleetStatus: (status, ariaLabel) =>
-      hudChromeView.updateFleetStatus(status, ariaLabel),
-    updateShipList: (ships, selectedId, burns) =>
-      shipListView.update(ships, selectedId, burns),
-    toggleHelpOverlay: () => hudChromeView.toggleHelpOverlay(),
-    openHelpSection: (sectionElementId) =>
-      hudChromeView.openHelpSection(sectionElementId),
-    updateSoundButton: (muted) => hudChromeView.updateSoundButton(muted),
-    showAttackButton: (isVisible) => hudChromeView.showAttackButton(isVisible),
-    showFireButton: (isVisible, count) =>
-      hudChromeView.showFireButton(isVisible, count),
-  });
-  const sessionActions = createSessionActions({
-    setPlayerId: (id) => log.setPlayerId(id),
-    setMenuLoading: (loading, kind) => lobbyView.setMenuLoading(loading, kind),
-    setWaitingState: (state) => lobbyView.setWaitingState(state),
-  });
-
   return {
     get onEvent() {
-      return eventBridge.getOnEvent();
+      return onEvent;
     },
     set onEvent(handler: ((event: UIEvent) => void) | null) {
-      eventBridge.setOnEvent(handler);
+      onEvent = handler;
     },
     log,
     overlay,
-    ...sessionActions,
+    setPlayerId: (id: Parameters<typeof log.setPlayerId>[0]) =>
+      log.setPlayerId(id),
+    setMenuLoading: (
+      loading: Parameters<typeof lobbyView.setMenuLoading>[0],
+      kind?: Parameters<typeof lobbyView.setMenuLoading>[1],
+    ) => lobbyView.setMenuLoading(loading, kind),
+    setWaitingState: (state: Parameters<typeof lobbyView.setWaitingState>[0]) =>
+      lobbyView.setWaitingState(state),
     showMenu,
     showScenarioSelect,
     showFleetBuilding,
@@ -274,7 +259,25 @@ export const createUIManager = (deps: UIManagerDeps) => {
     bindClientStateSignal: (signal: ReadonlySignal<ClientState>) => {
       clientStateSignal.value = signal;
     },
-    ...hudActions,
+    updateHUD: (input: Parameters<typeof hudChromeView.update>[0]) => {
+      hudChromeView.update(input);
+    },
+    updateLatency: (latencyMs: number | null) =>
+      hudChromeView.updateLatency(latencyMs),
+    updateFleetStatus: (status: string, ariaLabel?: string) =>
+      hudChromeView.updateFleetStatus(status, ariaLabel),
+    updateShipList: (...args: Parameters<typeof shipListView.update>): void => {
+      shipListView.update(...args);
+    },
+    toggleHelpOverlay: () => hudChromeView.toggleHelpOverlay(),
+    openHelpSection: (sectionElementId: string) =>
+      hudChromeView.openHelpSection(sectionElementId),
+    updateSoundButton: (muted: boolean) =>
+      hudChromeView.updateSoundButton(muted),
+    showAttackButton: (isVisible: boolean) =>
+      hudChromeView.showAttackButton(isVisible),
+    showFireButton: (isVisible: boolean, count: number) =>
+      hudChromeView.showFireButton(isVisible, count),
     dispose() {
       resetLayoutMetrics();
       scope.dispose();
