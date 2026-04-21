@@ -45,6 +45,7 @@ import {
   pickNextCheckpoint,
 } from './ai/common';
 import { AI_CONFIG } from './ai/config';
+import { scorePassengerEscortCourse } from './ai/logistics';
 import {
   assessNukeBallisticToEnemy,
   evaluateOrdnanceLaunchIntercept,
@@ -525,6 +526,63 @@ describe('aiAstrogation', () => {
     expect(linerOrder.burn).not.toBeNull();
     expect(tankerOrder.overload).toBeNull();
     expect(tankerOrder.burn).toBe(linerOrder.burn);
+  });
+
+  it('keeps escort scoring tethered to the passenger carrier outside immediate threat range', () => {
+    const carrier = createTestShip({
+      id: asShipId('carrier'),
+      owner: 0,
+      originalOwner: 0,
+      position: { q: 0, r: 0 },
+    });
+    const escort = createTestShip({
+      id: asShipId('escort'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'frigate',
+      position: { q: 4, r: 0 },
+    });
+    const distantThreat = createTestShip({
+      id: asShipId('threat'),
+      owner: 1,
+      originalOwner: 1,
+      position: { q: 0, r: 7 },
+    });
+    const closingCourse = {
+      destination: { q: 2, r: 0 },
+      path: [
+        { q: 4, r: 0 },
+        { q: 3, r: 0 },
+        { q: 2, r: 0 },
+      ],
+      newVelocity: { dq: 0, dr: 0 },
+      fuelSpent: 1,
+      gravityEffects: [],
+      enteredGravityEffects: [],
+      outcome: 'normal' as const,
+    };
+    const driftingCourse = {
+      destination: { q: 5, r: 0 },
+      path: [
+        { q: 4, r: 0 },
+        { q: 5, r: 0 },
+      ],
+      newVelocity: { dq: 0, dr: 0 },
+      fuelSpent: 1,
+      gravityEffects: [],
+      enteredGravityEffects: [],
+      outcome: 'normal' as const,
+    };
+
+    expect(
+      scorePassengerEscortCourse(escort, closingCourse, carrier, [
+        distantThreat,
+      ]),
+    ).toBeGreaterThan(
+      scorePassengerEscortCourse(escort, driftingCourse, carrier, [
+        distantThreat,
+      ]),
+    );
   });
 
   it('allows corrective-burn objective lines outside the emergency search case', () => {
@@ -1374,6 +1432,35 @@ describe('aiAstrogation — checkpoint race', () => {
       expect(orders[0].burn).toBeGreaterThanOrEqual(0);
       expect(orders[0].burn).toBeLessThanOrEqual(5);
     }
+  });
+  it('grandTour: prefers a refuel base before a non-base checkpoint when continuation fuel is unsafe', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-FUEL-SAFE'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 0));
+    state.players[0].visitedBodies = ['Sol'];
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: -4, r: -4 };
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.fuel = 4;
+
+    const [order] = aiAstrogation(state, 0, map, 'hard');
+    const course = computeCourse(aiShip, order.burn ?? null, map, {
+      destroyedBases: state.destroyedBases,
+    });
+    const mercury = must(map.bodies.find((body) => body.name === 'Mercury'));
+    const venus = must(map.bodies.find((body) => body.name === 'Venus'));
+    const terra = must(map.bodies.find((body) => body.name === 'Terra'));
+
+    expect(
+      Math.min(
+        hexDistance(course.destination, venus.center),
+        hexDistance(course.destination, terra.center),
+      ),
+    ).toBeLessThan(hexDistance(course.destination, mercury.center));
   });
   it('grandTour: does not use overloads since combatDisabled', () => {
     const state = createGameOrThrow(
