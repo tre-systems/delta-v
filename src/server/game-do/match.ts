@@ -24,33 +24,6 @@ type InitGameDeps = {
   ) => Promise<void>;
 };
 
-const buildInitEvents = (
-  gameState: GameState,
-  matchSeed: number,
-): EngineEvent[] => {
-  const initEvents: EngineEvent[] = [
-    {
-      type: 'gameCreated',
-      scenario: gameState.scenario,
-      turn: gameState.turnNumber,
-      phase: gameState.phase,
-      matchSeed,
-    },
-  ];
-
-  for (const ship of gameState.ships) {
-    if (ship.identity?.hasFugitives) {
-      initEvents.push({
-        type: 'fugitiveDesignated',
-        shipId: ship.id,
-        playerId: ship.owner,
-      });
-    }
-  }
-
-  return initEvents;
-};
-
 export const initGameSession = async (deps: InitGameDeps): Promise<void> => {
   const [roomConfig, scenarioInfo] = await Promise.all([
     deps.getRoomConfig(),
@@ -74,11 +47,31 @@ export const initGameSession = async (deps: InitGameDeps): Promise<void> => {
   const gameState = createResult.value;
   await deps.clearRoomArchivedFlag();
   await saveMatchCreatedAt(deps.storage, gameId, Date.now());
+  const events: EngineEvent[] = [
+    {
+      type: 'gameCreated',
+      scenario: gameState.scenario,
+      turn: gameState.turnNumber,
+      phase: gameState.phase,
+      matchSeed,
+    },
+  ];
+
+  for (const ship of gameState.ships) {
+    if (ship.identity?.hasFugitives) {
+      events.push({
+        type: 'fugitiveDesignated',
+        shipId: ship.id,
+        playerId: ship.owner,
+      });
+    }
+  }
+
   await deps.publishStateChange(
     gameState,
     { type: 'gameStart', state: gameState },
     {
-      events: buildInitEvents(gameState, matchSeed),
+      events,
     },
   );
 };
