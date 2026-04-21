@@ -6,6 +6,40 @@ Sections are grouped by theme and ordered by priority within each group: gamepla
 
 Shipped work lives in `git log`, not here. Recurring review procedures live in [REVIEW_PLAN.md](./REVIEW_PLAN.md). Architecture rationale lives in [ARCHITECTURE.md](./ARCHITECTURE.md). Exploratory-pass technique lives in [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md).
 
+## AI objective discipline (2026-04-21)
+
+Fresh hard-vs-hard simulation samples suggest the heuristic AI is still treating several objective scenarios as attrition fights instead of races or escorts. On 2026-04-21, `biplanetary` ended `120/120` by `Fleet eliminated!`; `blockade` ended `78/80` by elimination and `2/80` by mutual destruction; `evacuation` ended `78/80` by elimination and only `2/80` by `Landed on Terra with colonists!`; `convoy` ended `66/80` by elimination, `10/80` by `Landed on Venus with colonists!`, and `4/80` by timeout. The balance harness currently considers those runs "healthy", but from a gameplay perspective they show that the AI under-values the actual win criteria.
+
+### Reweight target-body races around imminent completion, not just distance (P1)
+
+`src/shared/ai/scoring.ts` currently rewards target-body progress mostly through distance reduction, velocity alignment, and a large terminal landing bonus. That means "already on a clean landing line next turn" and "still technically getting closer but drifting into a fight" can score too similarly until the final landing turn.
+
+Action: extend objective navigation scoring so orbit setup, next-turn landing windows, braking discipline, and preserving a favored race line score much more strongly. Penalize leaving a line that remains ahead on projected landing time even if the detour improves local combat geometry.
+
+### Narrow the Bi-Planetary home-screening override to true emergency states (P1)
+
+`src/shared/ai/common.ts` applies `getHomeDefenseThreat()` plus `scoreObjectiveHomeDefenseCourse()` to single-ship target-body duels. In practice that can pull a Bi-Planetary ship off its own landing race and back toward home whenever the opponent is merely projected closer to the home world than the AI is to its target.
+
+Action: replace the coarse "screen home if opponent is ahead by a couple of hexes" rule with a race-aware check that only defends when the opponent is genuinely about to win first and the intercept line improves that outcome more than continuing the AI's own scoring run.
+
+### Make combat and ordnance choices prove they help the scenario objective (P1)
+
+`src/shared/ai/scoring.ts`, `src/shared/ai/combat.ts`, and `src/shared/ai/ordnance.ts` still value many engagements on local odds, range, and disabled-target bonuses, even in scenarios where the right answer is to keep flying or cover the carrier. The current "objective contested" check is too soft: it keeps combat incentives alive in race scenarios long after the better strategic move is to continue the win line.
+
+Action: add scenario-aware combat and ordnance gates so target-body racers, blockade runners, and passenger carriers only trade position or fire when the engagement materially delays the enemy objective or protects an otherwise losing objective line.
+
+### Retune passenger-carrier doctrine so arrival outranks hull quality (P1)
+
+The escort scenarios already have bespoke passenger logic in `src/shared/ai/logistics.ts` and `src/shared/ai/astrogation.ts`, but the fresh samples still end overwhelmingly by elimination. The current carrier/transfer scoring appears too willing to prioritize stronger or safer hulls over simply keeping the passengers on the best arrival line.
+
+Action: revisit `scorePassengerCarrier()`, transfer thresholds, and escort posture so the AI strongly prefers preserving a viable destination runner. Reassign passengers only when the new carrier materially improves arrival odds, not just combat strength or generic ship value.
+
+### Add objective-discipline regression tests and simulation thresholds (P2)
+
+The current AI tests cover safety, escape-edge behavior, and one Bi-Planetary home-screening case, but they do not assert that target-body and passenger scenarios actually behave like target-body and passenger scenarios. `scripts/simulate-ai.ts` records win reasons, yet CI only checks crash-free execution and broad seat-balance thresholds.
+
+Action: add focused regression fixtures for "take the landing line", "do not abandon the carrier's scoring route without immediate danger", and "narrow the existing Bi-Planetary defense test to real emergency cases". Extend the simulation harness with per-scenario objective-completion expectations or at least warnings when objective scenarios resolve almost entirely by elimination.
+
 ## Simplification & abstraction debt (2026-04-21)
 
 Client review follow-up: the current code is generally well-factored, but parts of the client orchestration layer have accumulated adapter-style modules that mostly rename callbacks, repackage dependency bags, or add single-use indirection. These are good cleanup candidates because they slow navigation without adding much policy, reuse, or state ownership.
