@@ -53,19 +53,25 @@ The game server is authoritative. Agents submit inputs; the server validates, re
 
 ## 2. Architecture
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                   Authoritative Game Core                │
-│   Cloudflare Durable Object — state, rules, clocks, RNG  │
-└──────────────┬───────────────────────────┬───────────────┘
-               │                           │
-     ┌─────────▼──────────┐     ┌──────────▼──────────┐
-     │   Agent Adapter    │     │      Human UI        │
-     │                    │     │                      │
-     │  MCP stdio + HTTP  │     │  Browser client      │
-     │  stdin / HTTP      │     │  Canvas renderer     │
-     │  raw WebSocket     │     │  DOM overlays        │
-     └────────────────────┘     └──────────────────────┘
+```mermaid
+flowchart TB
+  subgraph Core["Authoritative Game Core"]
+    DO["GameDO<br/>state, rules, clocks, RNG"]
+  end
+
+  subgraph AgentSide["Agent adapter"]
+    MCP["MCP stdio / HTTP"]
+    Raw["Raw WebSocket / bridge"]
+  end
+
+  subgraph HumanSide["Human UI"]
+    Browser["Browser client"]
+    Canvas["Canvas renderer + DOM overlays"]
+  end
+
+  MCP --> DO
+  Raw --> DO
+  Browser --> Canvas --> DO
 ```
 
 The agent adapter and human UI consume the **same** authoritative state projections. Neither has privileged access. The adapter adds agent ergonomics (pre-computed candidates, legal action masks, summaries, phase-guarded submissions) but never bypasses validation. The engine lives in `src/shared/` and is side-effect-free — the DO is a thin shell, and any new agent surface delegates validation to the same engine the browser uses.
@@ -80,6 +86,28 @@ Canonical tool catalog for local (stdio) and remote (HTTP) MCP: [docs/DELTA_V_MC
 
 ```
 delta_v_quick_match  →  delta_v_wait_for_turn  →  pick candidate  →  delta_v_send_action  →  loop
+```
+
+```mermaid
+sequenceDiagram
+  participant A as Agent
+  participant M as MCP adapter
+  participant G as GameDO
+
+  A->>M: delta_v_quick_match
+  M->>G: queue / connect
+  G-->>M: session + match handle
+  M-->>A: matchToken or sessionId
+  loop Until game over
+    A->>M: delta_v_wait_for_turn
+    M->>G: wait for actionable state
+    G-->>M: observation + candidates
+    M-->>A: AgentTurnInput
+    A->>M: delta_v_send_action
+    M->>G: authoritative action
+    G-->>M: action result / next observation
+    M-->>A: ActionResult
+  end
 ```
 
 `delta_v_wait_for_turn` blocks until it is this agent's turn; agents do not poll. `delta_v_send_action` auto-stamps `ActionGuards` by default so stale submissions are rejected with fresh state rather than silently accepted. When the action result carries `autoSkipLikely: true`, agents should `wait_for_turn` instead of immediately submitting the returned `nextPhase`. For hosted MCP, clients must send `Accept: application/json, text/event-stream` on `POST /mcp`. `delta_v_quick_match_connect` remains available as a compatibility alias for `delta_v_quick_match`.
