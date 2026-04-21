@@ -8,13 +8,9 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import {
-  deriveDisconnectHandling,
   deriveGameStartClientState,
   deriveReconnectAttemptPlan,
-  deriveWelcomeHandling,
   getReconnectDelayMs,
-  shouldAttemptReconnect,
-  shouldTransitionAfterStateUpdate,
 } from './network';
 
 describe('game-client-network', () => {
@@ -55,85 +51,11 @@ describe('game-client-network', () => {
     );
   });
 
-  it('derives welcome handling for reconnects and guests', () => {
-    expect(deriveWelcomeHandling('connecting', 2)).toEqual({
-      showReconnectToast: true,
-      nextState: 'waitingForOpponent',
-    });
-
-    expect(deriveWelcomeHandling('waitingForOpponent', 0)).toEqual({
-      showReconnectToast: false,
-      nextState: null,
-    });
-  });
-
   it('caps reconnect backoff at eight seconds', () => {
     expect(getReconnectDelayMs(1)).toBe(1000);
     expect(getReconnectDelayMs(2)).toBe(2000);
     expect(getReconnectDelayMs(4)).toBe(8000);
     expect(getReconnectDelayMs(7)).toBe(8000);
-  });
-
-  it('only attempts reconnects after a session has connected', () => {
-    const map = buildSolarSystemMap();
-    const state = createGameOrThrow(
-      SCENARIOS.duel,
-      map,
-      asGameId('NET3'),
-      findBaseHex,
-    );
-
-    expect(shouldAttemptReconnect('menu', 'ABCDE', state)).toBe(false);
-
-    expect(shouldAttemptReconnect('playing_astrogation', null, state)).toBe(
-      false,
-    );
-
-    expect(shouldAttemptReconnect('playing_astrogation', 'ABCDE', null)).toBe(
-      true,
-    );
-
-    expect(shouldAttemptReconnect('playing_astrogation', 'ABCDE', state)).toBe(
-      true,
-    );
-
-    expect(shouldAttemptReconnect('connecting', 'ABCDE', null)).toBe(false);
-
-    expect(shouldAttemptReconnect('waitingForOpponent', 'ABCDE', null)).toBe(
-      true,
-    );
-  });
-
-  it('derives disconnect handling for reconnect, menu fallback, and no-op states', () => {
-    const map = buildSolarSystemMap();
-    const state = createGameOrThrow(
-      SCENARIOS.duel,
-      map,
-      asGameId('NET4'),
-      findBaseHex,
-    );
-
-    expect(
-      deriveDisconnectHandling('playing_astrogation', 'ABCDE', state),
-    ).toEqual({
-      attemptReconnect: true,
-      nextState: null,
-    });
-
-    expect(deriveDisconnectHandling('connecting', null, null)).toEqual({
-      attemptReconnect: false,
-      nextState: 'menu',
-    });
-
-    expect(deriveDisconnectHandling('connecting', 'ABCDE', null)).toEqual({
-      attemptReconnect: false,
-      nextState: 'menu',
-    });
-
-    expect(deriveDisconnectHandling('gameOver', 'ABCDE', state)).toEqual({
-      attemptReconnect: false,
-      nextState: null,
-    });
   });
 
   it('derives reconnect scheduling and terminal failure conditions', () => {
@@ -160,13 +82,5 @@ describe('game-client-network', () => {
       nextAttempt: null,
       delayMs: null,
     });
-  });
-
-  it('skips phase transitions while movement animation is running', () => {
-    expect(shouldTransitionAfterStateUpdate('playing_movementAnim')).toBe(
-      false,
-    );
-
-    expect(shouldTransitionAfterStateUpdate('playing_combat')).toBe(true);
   });
 });

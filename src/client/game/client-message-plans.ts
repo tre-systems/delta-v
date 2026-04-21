@@ -14,11 +14,7 @@ import type {
   LogisticsTransferLogEvent,
   S2C,
 } from '../../shared/types/protocol';
-import {
-  deriveGameStartClientState,
-  deriveWelcomeHandling,
-  shouldTransitionAfterStateUpdate,
-} from './network';
+import { deriveGameStartClientState } from './network';
 import type { ClientState } from './phase';
 
 export type ClientMessagePlan =
@@ -129,26 +125,22 @@ export const deriveClientMessagePlan = (
   msg: S2C,
 ): ClientMessagePlan => {
   switch (msg.type) {
-    case 'welcome': {
-      const welcome = deriveWelcomeHandling(currentState, reconnectAttempts);
+    case 'welcome':
       return {
         kind: 'welcome',
         playerId: msg.playerId,
         code: msg.code,
         playerToken: msg.playerToken,
-        showReconnectToast: welcome.showReconnectToast,
-        nextState: welcome.nextState,
+        showReconnectToast: reconnectAttempts > 0,
+        nextState: currentState === 'connecting' ? 'waitingForOpponent' : null,
       };
-    }
-    case 'spectatorWelcome': {
-      const welcome = deriveWelcomeHandling(currentState, reconnectAttempts);
+    case 'spectatorWelcome':
       return {
         kind: 'spectatorWelcome',
         code: msg.code,
-        showReconnectToast: welcome.showReconnectToast,
-        nextState: welcome.nextState,
+        showReconnectToast: reconnectAttempts > 0,
+        nextState: currentState === 'connecting' ? 'waitingForOpponent' : null,
       };
-    }
     case 'matchFound':
       return { kind: 'matchFound' };
     case 'gameStart':
@@ -179,7 +171,7 @@ export const deriveClientMessagePlan = (
         result: msg.result,
       };
     case 'stateUpdate': {
-      const shouldTransition = shouldTransitionAfterStateUpdate(currentState);
+      const shouldTransition = currentState !== 'playing_movementAnim';
       const transfers = msg.transferEvents;
 
       if (transfers !== undefined && transfers.length > 0) {
