@@ -298,6 +298,9 @@ export const getHomeDefenseThreat = (
   map: SolarSystemMap,
   enemyShips: Ship[],
 ): Ship | null => {
+  const HOME_DEFENSE_EMERGENCY_RANGE = 4;
+  const HOME_DEFENSE_MIN_OBJECTIVE_ADVANTAGE = 5;
+
   if (!isSingleShipObjectiveDuel(state)) {
     return null;
   }
@@ -345,7 +348,11 @@ export const getHomeDefenseThreat = (
     homeHex,
   );
 
-  return threatDistance + 2 < myBestObjectiveDistance ? threat : null;
+  return threatDistance <= HOME_DEFENSE_EMERGENCY_RANGE &&
+    threatDistance + HOME_DEFENSE_MIN_OBJECTIVE_ADVANTAGE <
+      myBestObjectiveDistance
+    ? threat
+    : null;
 };
 
 export const scoreObjectiveHomeDefenseCourse = (
