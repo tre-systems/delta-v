@@ -83,8 +83,10 @@ const OBJECTIVE_WARNING_POLICIES: Record<string, ObjectiveWarningPolicy> = {
   },
   blockade: {
     objectiveReasonMatchers: [/^Landed on .*?!$/],
-    minObjectiveShare: 0.05,
-    maxEliminationShare: 0.9,
+    // Asymmetric interception race: the runner should still attempt Mars,
+    // but defender wins by destruction are expected and goal-consistent.
+    // Keep balance checks, but do not treat low landing share as objective
+    // drift the way we do in symmetric landing races.
   },
   evacuation: {
     objectiveReasonMatchers: [/with colonists!/],
