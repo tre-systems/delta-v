@@ -62,6 +62,56 @@ export const estimateFuelForTravelDistance = (
   currentSpeed = 0,
 ): number => Math.ceil((distance * 2) / 3) + currentSpeed + 1;
 
+const GRAND_TOUR_CHECKPOINT_SET = new Set([
+  'Sol',
+  'Mercury',
+  'Venus',
+  'Terra',
+  'Mars',
+  'Jupiter',
+  'Io',
+  'Callisto',
+]);
+
+const GRAND_TOUR_ROUTE_BY_HOME: Record<string, readonly string[]> = {
+  Luna: [
+    'Sol',
+    'Mercury',
+    'Venus',
+    'Terra',
+    'Mars',
+    'Jupiter',
+    'Io',
+    'Callisto',
+  ],
+  Mars: [
+    'Callisto',
+    'Io',
+    'Jupiter',
+    'Terra',
+    'Venus',
+    'Mercury',
+    'Sol',
+    'Mars',
+  ],
+};
+
+const resolveGrandTourRoute = (
+  player: {
+    homeBody: string;
+  },
+  checkpoints: readonly string[],
+): readonly string[] | null => {
+  if (
+    checkpoints.length !== GRAND_TOUR_CHECKPOINT_SET.size ||
+    checkpoints.some((body) => !GRAND_TOUR_CHECKPOINT_SET.has(body))
+  ) {
+    return null;
+  }
+
+  return GRAND_TOUR_ROUTE_BY_HOME[player.homeBody] ?? null;
+};
+
 export const pickNextCheckpoint = (
   player: {
     visitedBodies?: string[];
@@ -76,8 +126,18 @@ export const pickNextCheckpoint = (
 ): string | null => {
   const visited = new Set(player.visitedBodies ?? []);
   const unvisited = checkpoints.filter((body) => !visited.has(body));
+  const scriptedGrandTourRoute = resolveGrandTourRoute(player, checkpoints);
 
   if (unvisited.length === 0) return player.homeBody;
+  if (scriptedGrandTourRoute) {
+    const nextWaypoint = scriptedGrandTourRoute.find(
+      (body) => !visited.has(body),
+    );
+    if (nextWaypoint) {
+      return nextWaypoint;
+    }
+    return player.homeBody;
+  }
 
   if (!shipPos) return unvisited[0];
 

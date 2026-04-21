@@ -1509,7 +1509,7 @@ describe('aiAstrogation — emplaced ships', () => {
   });
 });
 describe('aiAstrogation — checkpoint race', () => {
-  it('grandTour: chooses the next checkpoint by remaining tour cost', () => {
+  it('grandTour: follows the scripted waypoint route for each home world', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,
       map,
@@ -1522,10 +1522,30 @@ describe('aiAstrogation — checkpoint race', () => {
 
     expect(
       pickNextCheckpoint(state.players[0], checkpoints, map, p0Ship.position),
-    ).toBe('Mercury');
+    ).toBe('Sol');
     expect(
       pickNextCheckpoint(state.players[1], checkpoints, map, p1Ship.position),
     ).toBe('Callisto');
+  });
+
+  it('grandTour: advances to the next scripted waypoint after each visit', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-ROUTE-PROGRESS'),
+      findBaseHex,
+    );
+    const checkpoints = state.scenarioRules.checkpointBodies ?? [];
+
+    state.players[0].visitedBodies = ['Luna', 'Sol', 'Mercury'];
+    state.players[1].visitedBodies = ['Mars', 'Callisto', 'Io'];
+
+    expect(pickNextCheckpoint(state.players[0], checkpoints, map)).toBe(
+      'Venus',
+    );
+    expect(pickNextCheckpoint(state.players[1], checkpoints, map)).toBe(
+      'Jupiter',
+    );
   });
 
   it('grandTour: AI navigates toward unvisited bodies', () => {
