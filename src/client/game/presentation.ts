@@ -15,10 +15,40 @@ import {
   playThrust,
   playVictory,
 } from '../audio';
-import { deriveGameOverPlan } from './endgame';
 import { deriveLandingLogEntries } from './landings';
 import type { ClientState } from './phase';
+import { getGameOverStats } from './selection';
 import type { GameOverStats } from './types';
+
+export interface GameOverPlan {
+  stats: GameOverStats | undefined;
+  logText: string;
+  logClass: 'log-landed' | 'log-eliminated';
+  resultSound: 'victory' | 'defeat';
+}
+
+export const deriveGameOverPlan = (
+  state: GameState | null,
+  playerId: number,
+  won: boolean,
+  reason: string,
+): GameOverPlan => {
+  if (playerId < 0) {
+    return {
+      stats: state ? getGameOverStats(state, -1) : undefined,
+      logText: `GAME OVER: ${reason}`,
+      logClass: 'log-landed',
+      resultSound: 'defeat',
+    };
+  }
+
+  return {
+    stats: state ? getGameOverStats(state, playerId as PlayerId) : undefined,
+    logText: `${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`,
+    logClass: won ? 'log-landed' : 'log-eliminated',
+    resultSound: won ? 'victory' : 'defeat',
+  };
+};
 
 export interface PresentationDeps {
   applyGameState: (state: GameState) => void;
