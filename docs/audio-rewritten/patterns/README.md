@@ -1,0 +1,9 @@
+# Delta-V Pattern Catalogue
+
+A guided tour of the patterns that hold Delta-V together. Read these when you want to understand why the code looks the way it does — not just the rules or the module inventory, but the recurring design choices and their tradeoffs.
+
+Each chapter is self-contained. Start wherever the question is.
+
+The catalogue is organized into six chapters. The first chapter, Engine and Architecture, answers questions like how event sourcing works, why the engine is side-effect-free, how layer boundaries are enforced, and where random-number generation comes from. The second chapter, Client, covers how input becomes game state, what state lives where, how the canvas renderer stays fast, and what replaces a user-interface framework. The third chapter, Protocol and Persistence, explains how events are stored and replayed, what shape each WebSocket message takes, how viewer-aware filtering works, and how Durable Object hibernation survives disconnects. The fourth chapter, Type System and Validation, explores what a branded type is, where input validation happens, how error codes travel, and how abuse is rate-limited. The fifth chapter, Scenarios and Config, describes how AI difficulty actually varies, how scenarios are defined declaratively, what the scenario-rules flags do, and how the solar-system map is built. The sixth and final chapter, Testing, covers where tests live, when property-based tests are used, how Durable Objects are mocked, and what coverage is enforced.
+
+Each chapter follows the same structure. First, it describes what the pattern is — a short description of its shape. Next, it explains where it lives, pointing to the canonical implementation. Finally, it covers why the pattern is shaped that way, laying out the tradeoffs behind the choice. Actionable follow-ups live in the backlog document rather than inside the chapters themselves.
