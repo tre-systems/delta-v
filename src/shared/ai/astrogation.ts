@@ -11,6 +11,7 @@ import {
   skipOrdnance,
 } from '../engine/game-engine';
 import { type HexKey, hexDistance, hexKey, hexVecLength } from '../hex';
+import { findBaseHexes } from '../map-data';
 import { computeCourse, detectOrbit } from '../movement';
 import { deriveCapabilities } from '../scenario-capabilities';
 import type {
@@ -74,6 +75,22 @@ export const __setLookaheadBiasForSweep = (
 const createLookaheadRng = (difficulty: AIDifficulty): (() => number) => {
   const bias = LOOKAHEAD_BIAS_BY_DIFFICULTY[difficulty];
   return () => bias;
+};
+
+const resolvePreferredLandingTarget = (
+  bodyName: string,
+  origin: { q: number; r: number },
+  map: SolarSystemMap,
+): { q: number; r: number } | null => {
+  const bases = findBaseHexes(map, bodyName);
+
+  if (bases.length > 0) {
+    return (
+      minBy(bases, (base) => hexDistance(origin, base)) ?? bases[0] ?? null
+    );
+  }
+
+  return map.bodies.find((body) => body.name === bodyName)?.center ?? null;
 };
 
 const getPassengerEmergencyEscortOrders = (
@@ -465,8 +482,9 @@ export const aiAstrogation = (
   const passengerEscortMission = isPassengerEscortMission(state, playerId);
   const opponentId: PlayerId = playerId === 0 ? 1 : 0;
   const enemyEscaping = state.players[opponentId]?.escapeWins === true;
+  const enemyHasTargetObjective = !!state.players[opponentId]?.targetBody;
   const enemyHasPassengerObjective =
-    !!state.players[opponentId]?.targetBody &&
+    enemyHasTargetObjective &&
     state.ships.some(
       (ship) =>
         ship.owner === opponentId &&
@@ -591,6 +609,14 @@ export const aiAstrogation = (
     let shipTargetBody = targetBody;
     let seekingFuel = false;
 
+    if (shipTargetBody) {
+      shipTargetHex = resolvePreferredLandingTarget(
+        shipTargetBody,
+        ship.position,
+        map,
+      );
+    }
+
     if (
       passengerEscortMission &&
       primaryPassengerCarrier != null &&
@@ -608,7 +634,7 @@ export const aiAstrogation = (
         pickNextCheckpoint(player, checkpoints, map, ship.position) ?? '';
       shipTargetBody = nextBody;
       shipTargetHex = nextBody
-        ? (map.bodies.find((body) => body.name === nextBody)?.center ?? null)
+        ? resolvePreferredLandingTarget(nextBody, ship.position, map)
         : null;
 
       if (shipTargetHex && ship.lifecycle !== 'landed') {
@@ -652,6 +678,26 @@ export const aiAstrogation = (
             }
           }
         }
+
+        const orbitBody = detectOrbit(ship, map);
+        const orbitCenter = orbitBody
+          ? resolvePreferredLandingTarget(orbitBody, ship.position, map)
+          : null;
+        const orbitHasRefuelBase =
+          orbitBody != null &&
+          (orbitBody === player.homeBody ||
+            caps.sharedBases.includes(orbitBody));
+
+        if (
+          orbitBody &&
+          orbitCenter &&
+          orbitHasRefuelBase &&
+          ship.fuel <= fuelForTrip + continuationFuel + 1
+        ) {
+          shipTargetBody = orbitBody;
+          shipTargetHex = orbitCenter;
+          seekingFuel = true;
+        }
       }
     }
 
@@ -663,8 +709,11 @@ export const aiAstrogation = (
     let bestFuelSpent = Number.POSITIVE_INFINITY;
     const stats = SHIP_STATS[ship.type];
     const canBurnFuel = ship.fuel > 0;
+    const currentOrbitBody = detectOrbit(ship, map);
     const interceptingEnemy =
-      (enemyEscaping || enemyHasPassengerObjective) &&
+      (enemyEscaping ||
+        enemyHasPassengerObjective ||
+        enemyHasTargetObjective) &&
       !escapeWins &&
       shipTargetHex == null;
     const nearbyEnemy = enemyShips.some(
@@ -798,6 +847,7 @@ export const aiAstrogation = (
           isRace: !!checkpoints,
           enemyEscaping,
           enemyHasPassengerObjective,
+          enemyHasTargetObjective,
           shipIndex: shipIdx,
         }) + gravityRiskPenalty;
 
@@ -812,6 +862,25 @@ export const aiAstrogation = (
           homeDefenseThreat,
           homeDefenseHex,
         );
+      }
+
+      if (
+        currentOrbitBody &&
+        shipTargetBody &&
+        currentOrbitBody === shipTargetBody &&
+        course.outcome !== 'landing'
+      ) {
+        score -= cfg.navImminentLandingBonus * 2;
+      }
+
+      if (
+        seekingFuel &&
+        currentOrbitBody &&
+        (currentOrbitBody === player.homeBody ||
+          caps.sharedBases.includes(currentOrbitBody)) &&
+        course.outcome !== 'landing'
+      ) {
+        score -= cfg.fuelSeekLandingBonus;
       }
 
       let comparisonCourse = course;
@@ -887,6 +956,7 @@ export const aiAstrogation = (
             isRace: !!checkpoints,
             enemyEscaping,
             enemyHasPassengerObjective,
+            enemyHasTargetObjective,
             shipIndex: shipIdx,
           });
           const altDefenseScore =

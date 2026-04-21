@@ -639,11 +639,15 @@ const isSingleShipObjectiveDuelThreat = (
     hexDistance(enemy.position, targetHex),
     hexDistance(predictedEnemy, targetHex),
   );
+  const enemyClosingOnObjective =
+    enemyObjectiveDistance <= 2 ||
+    (enemyObjectiveDistance <= 5 &&
+      enemyObjectiveDistance + 3 < myObjectiveDistance);
 
   return (
     enemyPressureDistance <= 4 ||
     enemyPressureDistance + 5 < myObjectiveDistance ||
-    enemyObjectiveDistance + 1 < myObjectiveDistance
+    enemyClosingOnObjective
   );
 };
 

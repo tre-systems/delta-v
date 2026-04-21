@@ -130,6 +130,15 @@ export const scoreNavigation = (
     score -= cfg.navStayLandedPenalty * mult;
   }
 
+  if (
+    ship.lifecycle !== 'landed' &&
+    course.outcome !== 'landing' &&
+    hexVecLength(ship.velocity) === 0 &&
+    hexVecLength(course.newVelocity) === 0
+  ) {
+    score -= cfg.navStayLandedPenalty * 5 * mult;
+  }
+
   // Velocity alignment: prefer velocity pointing
   // toward target
   const velDist = hexDistance(
@@ -282,6 +291,7 @@ export const scoreCombatPositioning = (
   shipIndex: number,
   cfg: AIDifficultyConfig,
   enemyHasPassengerObjective = false,
+  enemyHasTargetObjective = false,
 ): number => {
   if (enemyShips.length === 0) return 0;
   const mult = cfg.multiplier;
@@ -289,7 +299,8 @@ export const scoreCombatPositioning = (
   let score = 0;
   const myStrength = getCombatStrength([ship]);
   const intercepting =
-    (enemyEscaping || enemyHasPassengerObjective) && noPrimaryObjective;
+    (enemyEscaping || enemyHasPassengerObjective || enemyHasTargetObjective) &&
+    noPrimaryObjective;
   // Distribute ships across targets to avoid
   // all chasing the same one (config-driven)
   const assignedTarget =
@@ -415,6 +426,31 @@ export const scoreCombatPositioning = (
         continue;
       }
 
+      if (targetHex) {
+        const predictedEnemy = hexAdd(enemy.position, enemy.velocity);
+        const currentTargetDist = hexDistance(
+          hexAdd(course.destination, course.newVelocity),
+          targetHex,
+        );
+        const enemyTargetDist = Math.min(
+          hexDistance(enemy.position, targetHex),
+          hexDistance(predictedEnemy, targetHex),
+        );
+        const raceLead = enemyTargetDist - currentTargetDist;
+
+        score += raceLead * 12 * mult;
+
+        if (raceLead >= 2) {
+          score += 30 * mult;
+        } else if (raceLead <= -2) {
+          score -= 24 * mult;
+        }
+
+        if (raceLead >= 0 && dist <= 3) {
+          score -= (4 - dist) * 24 * mult;
+        }
+      }
+
       if (myStrength >= enemyStr) {
         score += Math.max(0, 10 - dist) * cfg.objectiveStrongWeight * mult;
       } else {
@@ -441,6 +477,7 @@ export interface ScoreCourseParams {
   isRace?: boolean;
   enemyEscaping?: boolean;
   enemyHasPassengerObjective?: boolean;
+  enemyHasTargetObjective?: boolean;
   shipIndex?: number;
 }
 
@@ -558,6 +595,7 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
     shipIndex ?? 0,
     cfg,
     !!p.enemyHasPassengerObjective,
+    !!p.enemyHasTargetObjective,
   );
 
   return score;

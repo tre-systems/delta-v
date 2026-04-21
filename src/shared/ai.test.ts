@@ -981,7 +981,7 @@ describe('aiCombat', () => {
   });
   it('attacks nearby enemy with reasonable odds', () => {
     const state = createGameOrThrow(
-      SCENARIOS.biplanetary,
+      SCENARIOS.duel,
       map,
       asGameId('TEST'),
       findBaseHex,
@@ -1209,6 +1209,38 @@ describe('AI scenario handling', () => {
     expect(dreadnaught.lifecycle).toBe('active');
     const orders = aiAstrogation(state, 1, map);
     expect(orders).toHaveLength(1);
+  });
+  it('blockade: interceptor flies an actual intercept line against the runner objective', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.blockade,
+      map,
+      asGameId('BK-INTERCEPT'),
+      findBaseHex,
+    );
+    const runner = must(state.ships.find((s) => s.owner === 0));
+    const blocker = must(state.ships.find((s) => s.owner === 1));
+
+    runner.position = { q: -2, r: 1 };
+    runner.velocity = { dq: 1, dr: -1 };
+    runner.lifecycle = 'active';
+    blocker.position = { q: -6, r: 2 };
+    blocker.velocity = { dq: 0, dr: 0 };
+    blocker.lifecycle = 'active';
+
+    const [order] = aiAstrogation(state, 1, map, 'hard');
+    const course = computeCourse(blocker, order.burn ?? null, map, {
+      overload: order.overload ?? null,
+      destroyedBases: state.destroyedBases,
+    });
+    const drift = computeCourse(blocker, null, map, {
+      destroyedBases: state.destroyedBases,
+    });
+    const predictedRunner = hexAdd(runner.position, runner.velocity);
+
+    expect(order.burn).not.toBeNull();
+    expect(hexDistance(course.destination, predictedRunner)).toBeLessThan(
+      hexDistance(drift.destination, predictedRunner),
+    );
   });
   it('blockade: runner AI navigates toward Mars', () => {
     const state = createGameOrThrow(
@@ -1461,6 +1493,62 @@ describe('aiAstrogation — checkpoint race', () => {
         hexDistance(course.destination, terra.center),
       ),
     ).toBeLessThan(hexDistance(course.destination, mercury.center));
+  });
+  it('grandTour: lands on a shared-base checkpoint when continuation fuel is unsafe', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-ORBIT-REFUEL'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 0));
+    const venusBase = must(findBaseHex(map, 'Venus'));
+
+    state.players[0].visitedBodies = ['Sol', 'Mercury'];
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: venusBase.q, r: venusBase.r + 1 };
+    aiShip.velocity = { dq: 0, dr: -1 };
+    aiShip.pendingGravityEffects = [
+      {
+        hex: { q: venusBase.q, r: venusBase.r + 1 },
+        direction: 3,
+        bodyName: 'Venus',
+        strength: 'full',
+        ignored: false,
+      },
+    ];
+    aiShip.fuel = 2;
+
+    const [order] = aiAstrogation(state, 0, map, 'hard');
+    const course = computeCourse(aiShip, order.burn ?? null, map, {
+      land: order.land,
+      overload: order.overload ?? null,
+      destroyedBases: state.destroyedBases,
+    });
+
+    expect(course.outcome).toBe('landing');
+    if (course.outcome === 'landing') {
+      expect(course.landedAt).toBe('Venus');
+    }
+  });
+  it('grandTour: does not stall while active and stationary near the next checkpoint', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-NO-STALL'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 0));
+
+    state.players[0].visitedBodies = ['Luna', 'Sol', 'Mercury'];
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: -1, r: 4 };
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.fuel = 13;
+
+    const [order] = aiAstrogation(state, 0, map, 'hard');
+
+    expect(order.burn).not.toBeNull();
   });
   it('grandTour: does not use overloads since combatDisabled', () => {
     const state = createGameOrThrow(
