@@ -547,17 +547,29 @@ describe('handleMcpHttpRequest', () => {
         latestEventId: 0,
       }),
     );
-    const token = 'X'.repeat(32);
+    const { token: agentToken } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_events',
+    });
+    const { token: matchToken } = await issueMatchToken({
+      secret: TEST_SECRET,
+      code: 'ABCDE',
+      playerToken: 'X'.repeat(32),
+      agentToken,
+    });
     const res = await handleMcpHttpRequest(
-      post({
-        jsonrpc: '2.0',
-        id: 24,
-        method: 'tools/call',
-        params: {
-          name: 'delta_v_get_events',
-          arguments: { code: 'ABCDE', playerToken: token, afterEventId: 7 },
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 24,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_get_events',
+            arguments: { matchToken, afterEventId: 7 },
+          },
         },
-      }),
+        agentToken,
+      ),
       env,
     );
     expect(res.status).toBe(200);
@@ -624,10 +636,21 @@ describe('handleMcpHttpRequest', () => {
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      result: { structuredContent: { sessions: Array<{ code: string }> } };
+      result: {
+        structuredContent: {
+          sessions: Array<{
+            code: string;
+            sessionId?: string;
+            matchToken?: string;
+          }>;
+        };
+      };
     };
     expect(body.result.structuredContent.sessions).toHaveLength(1);
     expect(body.result.structuredContent.sessions[0]?.code).toBe('ABCDE');
+    expect(body.result.structuredContent.sessions[0]?.sessionId).toBe(
+      body.result.structuredContent.sessions[0]?.matchToken,
+    );
   });
 
   it('forwards delta_v_get_state to the GAME DO', async () => {
@@ -640,23 +663,37 @@ describe('handleMcpHttpRequest', () => {
         hasState: false,
       }),
     );
-    const token = 'X'.repeat(32);
+    const { token: agentToken } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_state',
+    });
+    const { token: matchToken } = await issueMatchToken({
+      secret: TEST_SECRET,
+      code: 'ABCDE',
+      playerToken: 'X'.repeat(32),
+      agentToken,
+    });
     const res = await handleMcpHttpRequest(
-      post({
-        jsonrpc: '2.0',
-        id: 3,
-        method: 'tools/call',
-        params: {
-          name: 'delta_v_get_state',
-          arguments: { code: 'ABCDE', playerToken: token },
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 3,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_get_state',
+            arguments: { matchToken },
+          },
         },
-      }),
+        agentToken,
+      ),
       env,
     );
     expect(res.status).toBe(200);
     expect(calls).toHaveLength(1);
     expect(new URL(calls[0].url).pathname).toBe('/mcp/state');
-    expect(new URL(calls[0].url).searchParams.get('playerToken')).toBe(token);
+    expect(new URL(calls[0].url).searchParams.get('playerToken')).toBe(
+      'X'.repeat(32),
+    );
 
     const body = (await res.json()) as { result: { isError?: boolean } };
     expect(body.result.isError).not.toBe(true);
@@ -681,19 +718,27 @@ describe('handleMcpHttpRequest', () => {
     });
 
     const res = await handleMcpHttpRequest(
-      post({
-        jsonrpc: '2.0',
-        id: 30,
-        method: 'tools/call',
-        params: {
-          name: 'delta_v_quick_match',
-          arguments: {
-            playerKey: 'agent_test_wait_false',
-            username: 'Bot',
-            waitForOpponent: false,
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 30,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_quick_match',
+            arguments: {
+              playerKey: 'agent_test_wait_false',
+              username: 'Bot',
+              waitForOpponent: false,
+            },
           },
         },
-      }),
+        (
+          await issueAgentToken({
+            secret: TEST_SECRET,
+            playerKey: 'agent_test_wait_false',
+          })
+        ).token,
+      ),
       env,
     );
 
@@ -710,25 +755,34 @@ describe('handleMcpHttpRequest', () => {
     });
   });
 
-  it('rejects malformed code on tool call', async () => {
+  it('rejects tool call with an invalid matchToken', async () => {
     const { env } = buildEnv(() => new Response('{}'));
+    const { token: agentToken } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_invalid_match',
+    });
     const res = await handleMcpHttpRequest(
-      post({
-        jsonrpc: '2.0',
-        id: 4,
-        method: 'tools/call',
-        params: {
-          name: 'delta_v_get_state',
-          arguments: {
-            code: 'lower',
-            playerToken: 'X'.repeat(32),
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 4,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_get_state',
+            arguments: {
+              matchToken: 'not-a-real-match-token',
+            },
           },
         },
-      }),
+        agentToken,
+      ),
       env,
     );
-    const body = (await res.json()) as { result: { isError: boolean } };
+    const body = (await res.json()) as {
+      result: { isError: boolean; content?: Array<{ text?: string }> };
+    };
     expect(body.result.isError).toBe(true);
+    expect(body.result.content?.[0]?.text).toContain('Invalid matchToken');
   });
 
   it('rejects an invalid Bearer token with 401', async () => {
@@ -783,7 +837,7 @@ describe('handleMcpHttpRequest', () => {
     expect(res.status).toBe(200);
   });
 
-  it('resolves matchToken into code+playerToken when calling get_state', async () => {
+  it('resolves matchToken into the hosted seat credentials when calling get_state', async () => {
     const { env, calls } = buildEnv(() =>
       Response.json({
         ok: true,
@@ -901,7 +955,7 @@ describe('handleMcpHttpRequest', () => {
     expect(body.result.isError).toBe(true);
   });
 
-  it('rejects tool call with neither matchToken nor code+playerToken', async () => {
+  it('rejects tool call without a hosted match handle', async () => {
     const { env } = buildEnv(() => new Response('{}'));
     const res = await handleMcpHttpRequest(
       post({
@@ -915,8 +969,64 @@ describe('handleMcpHttpRequest', () => {
       }),
       env,
     );
-    const body = (await res.json()) as { result: { isError: boolean } };
+    const body = (await res.json()) as {
+      result: { isError: boolean; content?: Array<{ text?: string }> };
+    };
     expect(body.result.isError).toBe(true);
+    expect(body.result.content?.[0]?.text).toContain('Provide matchToken');
+  });
+
+  it('rejects unknown hosted sessionId with a stale-session message', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const { token } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_stale_session',
+    });
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 14,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_get_state',
+            arguments: { sessionId: 'not-a-real-session' },
+          },
+        },
+        token,
+      ),
+      env,
+    );
+    const body = (await res.json()) as {
+      result: { isError: boolean; content?: Array<{ text?: string }> };
+    };
+    expect(body.result.isError).toBe(true);
+    expect(body.result.content?.[0]?.text).toContain(
+      'Unknown or expired sessionId',
+    );
+  });
+
+  it('requires Authorization bearer for delta_v_quick_match', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const res = await handleMcpHttpRequest(
+      post({
+        jsonrpc: '2.0',
+        id: 15,
+        method: 'tools/call',
+        params: {
+          name: 'delta_v_quick_match',
+          arguments: { scenario: 'duel' },
+        },
+      }),
+      env,
+    );
+    const body = (await res.json()) as {
+      result: { isError: boolean; content?: Array<{ text?: string }> };
+    };
+    expect(body.result.isError).toBe(true);
+    expect(body.result.content?.[0]?.text).toContain(
+      'delta_v_quick_match requires Authorization',
+    );
   });
 
   it('forwards delta_v_send_action body to the GAME DO', async () => {
@@ -927,22 +1037,33 @@ describe('handleMcpHttpRequest', () => {
         actionType: 'skipOrdnance',
       }),
     );
-    const token = 'X'.repeat(32);
+    const { token: agentToken } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_send_action',
+    });
+    const { token: matchToken } = await issueMatchToken({
+      secret: TEST_SECRET,
+      code: 'ABCDE',
+      playerToken: 'X'.repeat(32),
+      agentToken,
+    });
     await handleMcpHttpRequest(
-      post({
-        jsonrpc: '2.0',
-        id: 5,
-        method: 'tools/call',
-        params: {
-          name: 'delta_v_send_action',
-          arguments: {
-            code: 'ABCDE',
-            playerToken: token,
-            action: { type: 'skipOrdnance' },
-            waitForResult: true,
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 5,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_send_action',
+            arguments: {
+              matchToken,
+              action: { type: 'skipOrdnance' },
+              waitForResult: true,
+            },
           },
         },
-      }),
+        agentToken,
+      ),
       env,
     );
     expect(calls).toHaveLength(1);

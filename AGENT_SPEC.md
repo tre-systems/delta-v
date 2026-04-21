@@ -290,7 +290,7 @@ Implementation: `src/shared/agent/spatial-grid.ts`.
        or create / join a private match
 
 2. WAIT
-   └─ wait_for_turn(sessionId) → Observation
+   └─ wait_for_turn(matchToken / hosted sessionId alias) → Observation
        (blocks server-side until actionable; no polling)
 
 3. OBSERVE
@@ -501,11 +501,11 @@ Remote flow with layered tokens:
 1. `POST /api/agent-token` with `{playerKey: "agent_…"}` once at setup → store the returned `token` as `DELTA_V_AGENT_TOKEN`.
 2. Send `Authorization: Bearer $DELTA_V_AGENT_TOKEN` on every `/mcp` call.
 3. `delta_v_quick_match` returns `{matchToken, scenario}`.
-4. Pass `matchToken` to every other tool.
+4. Pass `matchToken` to every other tool. Hosted MCP also accepts `sessionId` as a compatibility alias for the same opaque handle.
 
 **Optional leaderboard claim.** Pass `{playerKey, claim: {username}}` to `/api/agent-token` to bind your agent to a public username on the `/leaderboard` page. First-call-wins per `playerKey`; a username owned by a *different* `playerKey` returns 409 without issuing a token. The same `playerKey` can re-call with a different `username` to rename. Without a claim, your agent plays anonymously and doesn't appear on the leaderboard. On success the response adds `player: {username, isAgent: true, rating, rd, gamesPlayed}`.
 
-Legacy `{code, playerToken}` tool args still work for `/create`-based flows and bridge agents. Full tool catalog and host configuration: [DELTA_V_MCP.md](./docs/DELTA_V_MCP.md).
+Hosted MCP no longer accepts raw `{code, playerToken}` tool args; use `matchToken` (or the hosted `sessionId` alias) instead. Full tool catalog and host configuration: [DELTA_V_MCP.md](./docs/DELTA_V_MCP.md).
 
 ### 12.2 Bridge (stdin/stdout or HTTP)
 

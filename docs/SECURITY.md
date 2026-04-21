@@ -39,11 +39,11 @@ Agents that connect via the hosted MCP endpoint (`POST https://delta-v.tre.syste
 
 Both are HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET` (set via `wrangler secret put AGENT_TOKEN_SECRET` in production). The Worker **fails closed** when the secret is unset: `/mcp` and `/api/agent-token` return `500 server_misconfigured` instead of signing with a placeholder. The default `wrangler.toml` `[vars]` keeps `DEV_MODE = "0"`. For local `wrangler dev`, copy `.dev.vars.example` to `.dev.vars` and set `DEV_MODE=1` so the deterministic placeholder can engage when `AGENT_TOKEN_SECRET` is unset (Wrangler merges `.dev.vars` over `[vars]`). Production deploys do not load `.dev.vars`, so the placeholder path never engages there. `npm run deploy` also runs `scripts/check-deploy-secrets.mjs`, which calls `wrangler secret list` and refuses to proceed when `AGENT_TOKEN_SECRET` is missing on the target environment.
 
-`matchToken` embeds a SHA-256 hash of the issuing `agentToken`. Hosted MCP **requires** the matching `agentToken` as `Authorization: Bearer …` on every tool call that passes `matchToken`, so a leaked blob alone cannot be replayed.
+`matchToken` embeds a SHA-256 hash of the issuing `agentToken`. Hosted MCP **requires** the matching `agentToken` as `Authorization: Bearer …` on every tool call that passes `matchToken` (or the hosted compatibility alias `sessionId`), so a leaked blob alone cannot be replayed.
 
 `POST /quick-match` with an `agent_…` `playerKey` also requires a valid agent Bearer (or a preceding `POST /api/agent-token` mint step used by the shared queue helper) so leaderboard rows are not tagged `is_agent` from the prefix alone.
 
-The legacy `{code, playerToken}` tool-arg path is preserved for `/create` users and bridge agents that don't go through the agentToken flow.
+Hosted MCP no longer accepts raw `{code, playerToken}` tool args. Agents must mint an `agentToken`, call `delta_v_quick_match` or `delta_v_list_sessions`, and then use the returned `matchToken` (or hosted `sessionId` alias) on later tool calls.
 
 Token revocation is currently coarse: rotate `AGENT_TOKEN_SECRET` to invalidate every issued token. Per-token revocation lists are out of scope for v1; agents that suspect a leak should re-issue and rotate the secret.
 

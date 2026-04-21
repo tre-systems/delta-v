@@ -371,7 +371,9 @@ const getSessionOrThrow = (sessionId: string): DeltaVSession => {
 const resolveSessionIdOrThrow = ({ sessionId, matchToken }: SessionRefArgs) => {
   const resolved = sessionId ?? matchToken;
   if (!resolved) {
-    throw new Error('Provide sessionId (local alias: matchToken).');
+    throw new Error(
+      'Provide sessionId (local alias: matchToken). Start a session with delta_v_quick_match_connect or recover one with delta_v_list_sessions.',
+    );
   }
   return resolved;
 };

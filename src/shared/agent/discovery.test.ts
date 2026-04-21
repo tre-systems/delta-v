@@ -105,9 +105,23 @@ describe('.well-known/agent.json', () => {
   const manifest = readJson<AgentManifest>('static/.well-known/agent.json');
 
   it('lists exactly the scenarios the engine ships', () => {
-    const manifestIds = manifest.scenarios.map((s) => s.id).sort();
-    const engineIds = Object.keys(SCENARIOS).sort();
-    expect(manifestIds).toEqual(engineIds);
+    const manifestScenarios = manifest.scenarios
+      .map((scenario) => ({
+        id: scenario.id,
+        name: scenario.name,
+        tags: [...(scenario.tags ?? [])].sort(),
+        description: scenario.description,
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id));
+    const engineScenarios = Object.entries(SCENARIOS)
+      .map(([id, scenario]) => ({
+        id,
+        name: scenario.name,
+        tags: [...(scenario.tags ?? [])].sort(),
+        description: scenario.description,
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id));
+    expect(manifestScenarios).toEqual(engineScenarios);
   });
 
   it('enumerates every C2S message type', () => {
