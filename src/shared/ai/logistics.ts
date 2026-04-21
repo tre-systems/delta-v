@@ -13,7 +13,7 @@ import type {
   TransferOrder,
 } from '../types';
 import { maxBy, minBy } from '../util';
-import { findNearestBase } from './common';
+import { estimateFuelForTravelDistance, findNearestBase } from './common';
 import { AI_CONFIG, type AIDifficultyConfig } from './config';
 import { scoreCourse } from './scoring';
 import type { AIDifficulty } from './types';
@@ -37,9 +37,10 @@ const estimateDesiredFuel = (
     : findNearestBase(ship.position, player.bases, map);
   const reserve =
     targetHex != null
-      ? Math.ceil((hexDistance(ship.position, targetHex) * 2) / 3) +
-        hexVecLength(ship.velocity) +
-        1
+      ? estimateFuelForTravelDistance(
+          hexDistance(ship.position, targetHex),
+          hexVecLength(ship.velocity),
+        )
       : Math.max(5, Math.ceil(stats.fuel * 0.6));
 
   return Math.min(stats.fuel, reserve);
@@ -196,19 +197,24 @@ export const scorePassengerEscortCourse = (
     course.destination,
     primaryCarrier.position,
   );
+  const formationScore =
+    (currentCarrierDist - newCarrierDist) * 18 -
+    Math.max(0, newCarrierDist - 2) * 24 +
+    (newCarrierDist <= 1 ? 30 : newCarrierDist === 2 ? 14 : 0);
   const carrierThreatDist = hexDistance(
     primaryCarrier.position,
     primaryThreat.position,
   );
 
   if (carrierThreatDist > 6) {
-    return 0;
+    return formationScore;
   }
 
   if (shipStrength >= threatStrength) {
     let score =
       (currentThreatDist - newThreatDist) * 32 -
-      Math.max(0, newCarrierDist - 3) * 18;
+      Math.max(0, newCarrierDist - 3) * 18 +
+      formationScore;
 
     if (newThreatDist <= 2) {
       score += 40;
@@ -223,7 +229,8 @@ export const scorePassengerEscortCourse = (
 
   let score =
     (newThreatDist - currentThreatDist) * 12 +
-    (currentCarrierDist - newCarrierDist) * 20;
+    (currentCarrierDist - newCarrierDist) * 20 +
+    formationScore;
 
   if (newThreatDist <= 1) {
     score -= 110;

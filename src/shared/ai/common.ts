@@ -57,6 +57,11 @@ export const findNearestBase = (
   return nearest ? parseHexKey(nearest) : null;
 };
 
+export const estimateFuelForTravelDistance = (
+  distance: number,
+  currentSpeed = 0,
+): number => Math.ceil((distance * 2) / 3) + currentSpeed + 1;
+
 export const pickNextCheckpoint = (
   player: {
     visitedBodies?: string[];

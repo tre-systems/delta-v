@@ -23,6 +23,7 @@ import type {
 import { maxBy, minBy } from '../util';
 import { aiCombat } from './combat';
 import {
+  estimateFuelForTravelDistance,
   findNearestBase,
   getHomeDefenseThreat,
   getInterceptContinuationPreference,
@@ -613,9 +614,29 @@ export const aiAstrogation = (
       if (shipTargetHex && ship.lifecycle !== 'landed') {
         const distToTarget = hexDistance(ship.position, shipTargetHex);
         const speed = hexVecLength(ship.velocity);
-        const fuelForTrip = Math.ceil((distToTarget * 2) / 3) + speed + 1;
+        const fuelForTrip = estimateFuelForTravelDistance(distToTarget, speed);
+        const targetHasRefuelBase =
+          nextBody === player.homeBody || caps.sharedBases.includes(nextBody);
+        const continuationFuel =
+          targetHasRefuelBase || shipTargetHex == null
+            ? 0
+            : (() => {
+                const continuationBase = findNearestBase(
+                  shipTargetHex,
+                  player.bases,
+                  map,
+                );
 
-        if (ship.fuel < fuelForTrip) {
+                if (!continuationBase) {
+                  return Number.POSITIVE_INFINITY;
+                }
+
+                return estimateFuelForTravelDistance(
+                  hexDistance(shipTargetHex, continuationBase),
+                );
+              })();
+
+        if (ship.fuel < fuelForTrip + continuationFuel) {
           const basePos = findNearestBase(ship.position, player.bases, map);
 
           if (basePos) {
@@ -659,7 +680,15 @@ export const aiAstrogation = (
       ship.fuel >= 2 &&
       !ship.overloadUsed &&
       deriveCapabilities(state.scenarioRules).combatEnabled &&
-      (!objectiveDriveDiscipline || nearbyEnemy);
+      (!objectiveDriveDiscipline || nearbyEnemy) &&
+      !(
+        passengerEscortMission &&
+        primaryPassengerCarrier != null &&
+        ship.id !== primaryPassengerCarrier.id &&
+        canAttack(ship) &&
+        (ship.passengersAboard ?? 0) === 0 &&
+        primaryPassengerThreatDist > 5
+      );
     type BurnOption = {
       burn: number | null;
       overload: number | null;
