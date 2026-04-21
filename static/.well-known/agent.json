@@ -11,10 +11,10 @@
 
   "scenarios": [
     { "id": "biplanetary",      "name": "Bi-Planetary",        "tags": ["Beginner"],   "description": "1v1 corvettes race to land on the opponent's world" },
-    { "id": "escape",           "name": "Escape",              "tags": ["Asymmetric"], "description": "Pilgrim transport and escorts flee Enforcer interceptors" },
-    { "id": "evacuation",       "name": "Lunar Evacuation",    "tags": ["Escort"],     "description": "Evacuate Luna before the enemy fleet overruns it" },
-    { "id": "convoy",           "name": "Convoy",              "tags": ["Escort"],     "description": "Escort or interdict a convoy to Venus" },
-    { "id": "duel",             "name": "Duel",                "tags": ["Combat"],     "description": "Frigates clash near Mercury — last ship standing wins" },
+    { "id": "escape",           "name": "Escape",              "tags": ["Asymmetric"], "description": "3 pilgrim transports flee Terra — enforcers must stop them" },
+    { "id": "evacuation",       "name": "Lunar Evacuation",    "tags": ["Escort"],     "description": "A crowded transport flees Luna for Terra with corvette and frigate escorts — win only by landing survivors; a corsair tries to cut you off" },
+    { "id": "convoy",           "name": "Convoy",              "tags": ["Escort"],     "description": "Escort a liner with colonists (and tanker) from Mars to Venus — transfer passengers to safety; pirates intercept" },
+    { "id": "duel",             "name": "Duel",                "tags": ["Combat"],     "description": "Frigates face off across Mercury — use gravity to outmaneuver your opponent" },
     { "id": "blockade",         "name": "Blockade Runner",     "tags": ["Speed"],      "description": "Packet ship races past a corvette to reach Mars" },
     { "id": "interplanetaryWar","name": "Interplanetary War",  "tags": ["Epic"],       "description": "Build your fleet with MegaCredits — total war across the solar system" },
     { "id": "fleetAction",      "name": "Fleet Action",        "tags": ["Fleet"],      "description": "Build your fleet and clash — Mars vs Venus" },
@@ -26,7 +26,7 @@
       "id": "mcp",
       "method": "POST",
       "path": "/mcp",
-      "description": "Streamable-HTTP MCP endpoint (stateless JSON). Each call is a single JSON-RPC POST and must include Accept: application/json, text/event-stream. Optional Authorization: Bearer <agentToken> header authenticates the call and unlocks the matchToken flow. Use the MCP SDK or any compatible client. See `mcp.remote` above for the tool list.",
+      "description": "Streamable-HTTP MCP endpoint (stateless JSON). Each call is a single JSON-RPC POST and must include Accept: application/json, text/event-stream plus Authorization: Bearer <agentToken>. Use the MCP SDK or any compatible client. See `mcp.remote` above for the tool list.",
       "rateLimit": "20 per 60 s per agentToken hash (or hashed IP without Bearer) via Cloudflare edge limiter"
     },
     {
@@ -195,7 +195,7 @@
       "auth": {
         "scheme": "Bearer",
         "tokenIssuance": "POST /api/agent-token with { playerKey: \"agent_...\" } returns a 24h Bearer token. Send as Authorization: Bearer <token> on every /mcp call.",
-        "optional": "Auth is optional — without it, tools accept legacy { code, playerToken } args. With it, delta_v_quick_match returns an opaque matchToken that hides raw match credentials from the agent's LLM context."
+        "required": "Hosted MCP requires Authorization: Bearer <agentToken> on every call. delta_v_quick_match returns an opaque matchToken; pass that matchToken (or the hosted compatibility alias sessionId) to later tools instead of raw match credentials."
       },
       "tools": [
         "delta_v_quick_match",

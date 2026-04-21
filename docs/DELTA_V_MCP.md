@@ -14,7 +14,7 @@ Related docs:
 | Transport | Entry point | Shape | Session model |
 | --- | --- | --- | --- |
 | **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_reconnect`, `delta_v_close_session`). Outbound responses are **queued** so concurrent tool completions cannot corrupt stdout framing. Many MCP hosts still invoke tools **serially** (next call starts after the prior returns); use **local HTTP** (`npm run mcp:delta-v:http`) when you need concurrent tool requests from **separate processes** or hosts that pipeline multiple `tools/call` before prior responses return. |
-| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Layered `agentToken` (Bearer) + `matchToken` (tool arg). Clients must send `Accept: application/json, text/event-stream` or the endpoint rejects the call. The GAME DO now persists hosted seat event buffers so `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` work without Worker memory. `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
+| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Requires `Authorization: Bearer <agentToken>` on every call, plus opaque per-match `matchToken` tool args for in-match tools. Hosted also accepts `sessionId` as a compatibility alias for the same opaque token. Clients must send `Accept: application/json, text/event-stream` or the endpoint rejects the call. The GAME DO now persists hosted seat event buffers so `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` work without Worker memory. `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
 | **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
 
 ### Stdio quick match: operational notes
@@ -221,7 +221,7 @@ curl -s https://delta-v.tre.systems/mcp \
 
 ## Tool catalog
 
-All tools accept `sessionId` unless otherwise noted.
+Local MCP tools accept `sessionId` unless otherwise noted. Hosted in-match tools use `matchToken`; `sessionId` is accepted there as a compatibility alias for the same opaque handle.
 
 | Tool | Purpose | Key args | Returns |
 | --- | --- | --- | --- |
@@ -230,13 +230,13 @@ All tools accept `sessionId` unless otherwise noted.
 | `delta_v_pair_quick_match_tickets` | Local dev helper: resolve two queued tickets into one match and connect both seats | `leftTicket`, `rightTicket`, `serverUrl?` | `{ code, scenario, left: { sessionId }, right: { sessionId } }` |
 | `delta_v_list_sessions` | List active sessions. Local: in-memory stdio sessions. Hosted: active live matches for the authenticated agent, with fresh `matchToken`s. | none | `{ sessions[] }` |
 | `delta_v_reconnect` | Reopen a dropped local WebSocket using the stored seat | `sessionId` | `{ reconnected, connectionStatus }` |
-| `delta_v_get_state` | Raw authoritative state | `sessionId` | `{ state, latestEventId }` |
-| `delta_v_get_observation` | Agent observation payload | `sessionId`, include flags as above, `compactState?` (default **true** on local stdio/local HTTP — compact `state`; pass **false** for full `GameState`) | `AgentTurnInput`-compatible object |
-| `delta_v_wait_for_turn` | Block until actionable turn window | `sessionId`, `timeoutMs?`, same include flags + optional `compactState` (same local default as above) | same shape as `get_observation` |
-| `delta_v_get_events` | Read buffered event stream. Hosted returns the DO-backed seat buffer keyed by `matchToken` / `{code, playerToken}`. | `sessionId`, `afterEventId?`, `limit?`, `clear?` | `{ events[], bufferedRemaining }` |
-| `delta_v_send_action` | Submit C2S action | `sessionId`, `action`, optional `compactState` when `includeNextObservation` | `{ actionType }` (or richer action result when enabled, including `guardStatus`, `autoSkipLikely`) |
-| `delta_v_send_chat` | Send chat message | `sessionId`, `text` (alias: `message`) | `{ text }` |
-| `delta_v_close_session` | Close session helper state. Local closes the owned WebSocket session; hosted clears the DO-backed helper/event buffer for that seat without invalidating the match itself. | `sessionId` | `{ closed }` |
+| `delta_v_get_state` | Raw authoritative state | local: `sessionId`; hosted: `matchToken` or `sessionId` | `{ state, latestEventId }` |
+| `delta_v_get_observation` | Agent observation payload | local: `sessionId`; hosted: `matchToken` or `sessionId`, plus include flags as above, `compactState?` (default **true** on local stdio/local HTTP — compact `state`; pass **false** for full `GameState`) | `AgentTurnInput`-compatible object |
+| `delta_v_wait_for_turn` | Block until actionable turn window | local: `sessionId`; hosted: `matchToken` or `sessionId`, `timeoutMs?`, same include flags + optional `compactState` (same local default as above) | same shape as `get_observation` |
+| `delta_v_get_events` | Read buffered event stream. Hosted returns the DO-backed seat buffer keyed by `matchToken` / `sessionId`. | local: `sessionId`; hosted: `matchToken` or `sessionId`, `afterEventId?`, `limit?`, `clear?` | `{ events[], bufferedRemaining }` |
+| `delta_v_send_action` | Submit C2S action | local: `sessionId`; hosted: `matchToken` or `sessionId`, `action`, optional `compactState` when `includeNextObservation` | `{ actionType }` (or richer action result when enabled, including `guardStatus`, `autoSkipLikely`) |
+| `delta_v_send_chat` | Send chat message | local: `sessionId`; hosted: `matchToken` or `sessionId`, `text` (alias: `message`) | `{ text }` |
+| `delta_v_close_session` | Close session helper state. Local closes the owned WebSocket session; hosted clears the DO-backed helper/event buffer for that seat without invalidating the match itself. | local: `sessionId`; hosted: `matchToken` or `sessionId` | `{ closed }` |
 
 ## Rate limits and body caps
 
@@ -270,7 +270,7 @@ Astrogation:
 
 ```json
 {
-  "sessionId": "<session-id>",
+  "matchToken": "<match-token>",
   "action": {
     "type": "astrogation",
     "orders": [
@@ -284,7 +284,7 @@ Skip ordnance:
 
 ```json
 {
-  "sessionId": "<session-id>",
+  "matchToken": "<match-token>",
   "action": { "type": "skipOrdnance" }
 }
 ```
@@ -293,7 +293,7 @@ Combat:
 
 ```json
 {
-  "sessionId": "<session-id>",
+  "matchToken": "<match-token>",
   "action": {
     "type": "combat",
     "attacks": [

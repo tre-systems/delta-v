@@ -8,15 +8,11 @@
 //
 // Two-token authorization model:
 //   - agentToken (Authorization: Bearer …): long-lived (24h) HMAC-signed
-//     identity. Issued by POST /api/agent-token. Required for matchToken
-//     issuance; optional otherwise (legacy code+playerToken still works).
+//     identity. Issued by POST /api/agent-token. Required on every hosted MCP
+//     call so the adapter can mint and validate per-match credentials.
 //   - matchToken (tool args): per-match HMAC blob returned by
-//     delta_v_quick_match. Replaces raw {code, playerToken} so neither
-//     credential ever appears in the agent's LLM context window.
-//
-// Both schemas remain valid simultaneously — agents that already drive the
-// remote MCP via {code, playerToken} keep working, and new agents can opt
-// into the layered token flow without a breaking change.
+//     delta_v_quick_match or delta_v_list_sessions. The hosted adapter also
+//     accepts sessionId as a compatibility alias for the same opaque token.
 
 import {
   McpServer,
@@ -61,7 +57,6 @@ import {
   RULES_RESOURCE_MIME_TYPE,
   readRulesResourceText,
 } from '../../../src/shared/agent';
-import { isPlayerToken, isRoomCode } from '../../../src/shared/ids';
 import { queueRemoteMatch } from './quick-match';
 
 // Maximum JSON-RPC payload the hosted MCP endpoint will parse. The tool
@@ -106,16 +101,6 @@ const ok = <T extends JsonRecord>(summary: string, structuredContent: T) => ({
 
 const fail = (message: string): never => {
   throw new Error(message);
-};
-
-const requireRoomCode = (raw: string): string => {
-  if (!isRoomCode(raw)) fail(`Invalid room code: ${raw}`);
-  return raw;
-};
-
-const requirePlayerToken = (raw: string): string => {
-  if (!isPlayerToken(raw)) fail('Invalid playerToken');
-  return raw;
 };
 
 const callDurableObject = (
@@ -231,14 +216,11 @@ const includeOptionsSchema = {
   compactState: z.boolean().optional(),
 };
 
-// Identifier schema for in-match tools: accept EITHER a matchToken (opaque,
-// returned by quick_match) OR a raw {code, playerToken} pair (legacy /
-// /create users). Both fields are optional so the schema can express
-// "either-or" via runtime check; validation happens in resolveMatchTarget.
+// Identifier schema for hosted in-match tools: accept the canonical opaque
+// matchToken, or sessionId as a compatibility alias used by some MCP hosts.
 const matchTargetSchema = {
+  sessionId: z.string().optional(),
   matchToken: z.string().optional(),
-  code: z.string().length(5).optional(),
-  playerToken: z.string().optional(),
 };
 
 interface MatchTarget {
@@ -246,48 +228,52 @@ interface MatchTarget {
   playerToken: string;
 }
 
-// Resolve a matchToken or {code, playerToken} into the concrete pair the DO
-// needs. matchToken takes precedence when both are present. Validates the
-// agentTokenHash binding when matchToken + agentIdentity are both supplied.
+// Resolve the hosted match handle into the concrete {code, playerToken} pair
+// the GAME DO needs. matchToken is canonical; sessionId is a compatibility
+// alias used by some MCP hosts. All hosted in-match tools require the same
+// Bearer token that minted the match handle.
 const resolveMatchTarget = async (
   args: {
+    sessionId?: string;
     matchToken?: string;
-    code?: string;
-    playerToken?: string;
   },
   env: Env,
   agentIdentity: AgentIdentity | null,
 ): Promise<MatchTarget> => {
-  if (args.matchToken) {
-    const secret = resolveAgentTokenSecret(env);
-    const verified = await verifyMatchToken(args.matchToken, { secret });
-    if (!verified.ok) {
-      fail(`Invalid matchToken: ${verified.reason}`);
-    }
-    if (!verified.ok) throw new Error('unreachable');
-    if (!agentIdentity) {
-      fail(
-        'matchToken requires Authorization: Bearer <agentToken> — the token is bound to the issuing agent',
-      );
-    } else {
-      const expected = await hashAgentToken(agentIdentity.rawAgentToken);
-      if (verified.payload.agentTokenHash !== expected) {
-        fail(
-          'matchToken does not bind to the supplied agentToken — likely issued for a different agent',
-        );
-      }
-      return {
-        code: verified.payload.code,
-        playerToken: verified.payload.playerToken,
-      };
-    }
+  const sessionHandle = args.matchToken ?? args.sessionId;
+  if (!sessionHandle) {
+    fail(
+      'Provide matchToken (hosted alias: sessionId). Start a match with delta_v_quick_match or recover one with delta_v_list_sessions.',
+    );
   }
-  if (!args.code || !args.playerToken) {
-    fail('Provide either matchToken, or both code and playerToken');
+  if (!agentIdentity) {
+    fail(
+      'Hosted MCP requires Authorization: Bearer <agentToken>. Mint one via POST /api/agent-token, then call delta_v_quick_match.',
+    );
+  }
+  const requiredSessionHandle = sessionHandle as string;
+  const authenticatedAgent = agentIdentity as AgentIdentity;
+
+  const secret = resolveAgentTokenSecret(env);
+  const verified = await verifyMatchToken(requiredSessionHandle, { secret });
+  if (!verified.ok) {
+    if (args.sessionId && !args.matchToken) {
+      fail(
+        'Unknown or expired sessionId. Pass a fresh matchToken/sessionId from delta_v_quick_match or delta_v_list_sessions.',
+      );
+    }
+    fail(`Invalid matchToken: ${verified.reason}`);
+  }
+  if (!verified.ok) throw new Error('unreachable');
+  const expected = await hashAgentToken(authenticatedAgent.rawAgentToken);
+  if (verified.payload.agentTokenHash !== expected) {
+    fail(
+      'matchToken does not bind to the supplied agentToken — likely issued for a different agent',
+    );
   }
   return {
-    code: requireRoomCode(args.code as string),
-    playerToken: requirePlayerToken(args.playerToken as string),
+    code: verified.payload.code,
+    playerToken: verified.payload.playerToken,
   };
 };
 
@@ -304,7 +290,7 @@ export const buildMcpServer = (
     { name: 'delta-v-mcp-remote', version: '0.1.0' },
     {
       instructions:
-        'Use this server to play Delta-V via the hosted MCP endpoint. Recommended flow: (1) call POST /api/agent-token once with your stable agent_-prefixed playerKey to obtain an agentToken; (2) send it as Authorization: Bearer <token> on every /mcp request; (3) call delta_v_quick_match (no args needed) to receive an opaque matchToken; (4) drive the game via delta_v_wait_for_turn / delta_v_send_action passing matchToken in args (matchToken always requires the same Bearer). Legacy {code, playerToken} args are still accepted for /create users.',
+        'Use this server to play Delta-V via the hosted MCP endpoint. Recommended flow: (1) call POST /api/agent-token once with your stable agent_-prefixed playerKey to obtain an agentToken; (2) send it as Authorization: Bearer <token> on every /mcp request; (3) call delta_v_quick_match (no args needed) to receive an opaque matchToken; (4) drive the game via delta_v_wait_for_turn / delta_v_send_action passing matchToken in args (sessionId is accepted as a hosted compatibility alias).',
     },
   );
 
@@ -503,16 +489,22 @@ export const buildMcpServer = (
     pollMs?: number;
     timeoutMs?: number;
   }) => {
+    if (agentIdentity === null) {
+      fail(
+        'delta_v_quick_match requires Authorization: Bearer <agentToken>. Mint one via POST /api/agent-token first.',
+      );
+    }
+    const authenticatedAgent = agentIdentity as AgentIdentity;
+
     const playerKey =
       args.playerKey ??
-      agentIdentity?.payload.playerKey ??
+      authenticatedAgent.payload.playerKey ??
       `agent_remote_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
     const username =
-      args.username ?? agentIdentity?.payload.playerKey ?? 'agent';
+      args.username ?? authenticatedAgent.payload.playerKey ?? 'agent';
     const verifiedLeaderboardAgent = Boolean(
-      agentIdentity &&
-        playerKey.startsWith('agent_') &&
-        agentIdentity.payload.playerKey === playerKey,
+      playerKey.startsWith('agent_') &&
+        authenticatedAgent.payload.playerKey === playerKey,
     );
     const matched = await queueRemoteMatch(env, {
       scenario: args.scenario ?? 'duel',
@@ -538,31 +530,20 @@ export const buildMcpServer = (
       );
     }
 
-    if (agentIdentity) {
-      const secret = resolveAgentTokenSecret(env);
-      const { token: matchToken, expiresAt } = await issueMatchToken({
-        secret,
-        code: matched.code,
-        playerToken: matched.playerToken,
-        agentToken: agentIdentity.rawAgentToken,
-      });
-      return ok(`Matched into a new game (scenario ${matched.scenario}).`, {
-        matchToken,
-        matchTokenExpiresAt: expiresAt,
-        scenario: matched.scenario,
-        rendezvousCode: args.rendezvousCode ?? null,
-        ticket: matched.ticket,
-        playerKey,
-      });
-    }
-
-    // Legacy path: no agentToken → return raw credentials so the existing
-    // {code, playerToken} tool args still work.
-    return ok(`Matched into ${matched.code} (scenario ${matched.scenario}).`, {
+    const secret = resolveAgentTokenSecret(env);
+    const { token: matchToken, expiresAt } = await issueMatchToken({
+      secret,
       code: matched.code,
       playerToken: matched.playerToken,
-      ticket: matched.ticket,
+      agentToken: authenticatedAgent.rawAgentToken,
+    });
+    return ok(`Matched into a new game (scenario ${matched.scenario}).`, {
+      matchToken,
+      sessionId: matchToken,
+      matchTokenExpiresAt: expiresAt,
       scenario: matched.scenario,
+      rendezvousCode: args.rendezvousCode ?? null,
+      ticket: matched.ticket,
       playerKey,
     });
   };
@@ -571,7 +552,7 @@ export const buildMcpServer = (
     'delta_v_quick_match',
     {
       description:
-        'Queue for public matchmaking. With waitForOpponent=false, returns a queued ticket immediately so another client can join later; otherwise blocks until paired. With agentToken auth (Authorization: Bearer header) returns { matchToken, scenario } when matched — the matchToken is opaque and replaces code+playerToken in subsequent tool calls. Without auth, returns the legacy { code, playerToken, scenario } pair on match. username/playerKey are inferred from the agentToken when present.',
+        'Queue for public matchmaking. Requires Authorization: Bearer <agentToken>. With waitForOpponent=false, returns a queued ticket immediately so another client can join later; otherwise blocks until paired. On match, returns { matchToken, sessionId, scenario } where matchToken is the canonical opaque handle for later tool calls and sessionId is a hosted compatibility alias. username/playerKey are inferred from the agentToken when present.',
       inputSchema: quickMatchInputSchema,
     },
     quickMatchHandler,
@@ -636,6 +617,7 @@ export const buildMcpServer = (
           });
           return {
             matchToken,
+            sessionId: matchToken,
             matchTokenExpiresAt: expiresAt,
             code: sessionBody.session.code,
             scenario: sessionBody.session.scenario,
