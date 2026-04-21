@@ -59,6 +59,7 @@ type MainInteractionHud = {
 
 type MainInteractionReplay = Pick<
   ReplayController,
+  | 'controlsSignal'
   | 'selectMatch'
   | 'toggleReplay'
   | 'exitReplay'
@@ -266,6 +267,16 @@ export const createMainInteractionController = (
         joinGame(plan.code, plan.playerToken);
         return;
       case 'command':
+        // When the top-bar × is clicked during replay playback, route it
+        // to exitReplay (→ /matches) rather than exitToMenu (→ /). The
+        // replay bar no longer has its own EXIT button.
+        if (
+          plan.command.type === 'exitToMenu' &&
+          deps.replayController.controlsSignal.peek().active
+        ) {
+          deps.replayController.exitReplay();
+          return;
+        }
         dispatch(plan.command);
         return;
       case 'selectReplayMatch':
