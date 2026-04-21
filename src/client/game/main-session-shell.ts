@@ -5,6 +5,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
+import { hide } from '../dom';
 import type { Renderer } from '../renderer/renderer';
 import type { Tutorial } from '../tutorial';
 import type { UIManager } from '../ui/ui';
@@ -28,11 +29,6 @@ import { applyClientGameState } from './game-state-store';
 import type { HudController } from './hud-controller';
 import { runAITurn as runAI } from './local-game-flow';
 import {
-  createMainMessageHandlerDeps,
-  createMainPhaseTransitionDeps,
-  createMainStateTransitionDeps,
-} from './main-deps';
-import {
   exitArchivedReplayFromMain,
   exitToMenuFromMain,
   handleServerMessageFromMain,
@@ -41,7 +37,10 @@ import {
 } from './main-session-network';
 import type { MessageHandlerDeps } from './message-handler';
 import type { ClientState } from './phase';
-import { transitionClientPhase } from './phase-controller';
+import {
+  type PhaseControllerDeps,
+  transitionClientPhase,
+} from './phase-controller';
 import type { PlayerProfileService } from './player-profile-service';
 import {
   createReplayController,
@@ -50,7 +49,10 @@ import {
 import { createSessionApi, type SessionApi } from './session-api';
 import type { ClientSession } from './session-model';
 import type { SessionTokenService } from './session-token-service';
-import { applyClientStateTransition } from './state-transition';
+import {
+  applyClientStateTransition,
+  type StateTransitionDeps,
+} from './state-transition';
 import type { TurnTimerManager } from './timer';
 import { createLocalGameTransport } from './transport';
 import type { TurnTelemetryTracker } from './turn-telemetry';
@@ -267,60 +269,80 @@ export const createMainSessionShell = (
   });
   args.ui.overlay.bindReplayControlsSignal(replayController.controlsSignal);
 
-  const stateTransitionDeps = createMainStateTransitionDeps({
-    ctx: args.ctx,
+  const stateTransitionDeps: StateTransitionDeps = {
+    get ctx() {
+      return args.ctx;
+    },
     getMap: () => args.map,
-    renderer: args.renderer,
     ui: args.ui,
-    actionDeps: args.actionDeps,
-    turnTelemetry: args.turnTelemetry,
     tutorial: args.tutorial,
+    renderer: args.renderer,
     turnTimer: args.turnTimer,
-    tooltipEl: args.tooltipEl,
+    onStateChanged: (prev, next) =>
+      args.turnTelemetry.onStateChanged(prev, next),
+    hideTooltip: () => hide(args.tooltipEl),
     autoSkipCombatIfNoTargets: () => autoSkipCombat(args.actionDeps.combatDeps),
-  });
+  };
 
   setState = (newState: ClientState) => {
     replayController.clearForState(newState);
     applyClientStateTransition(stateTransitionDeps, newState);
   };
 
-  const phaseControllerDeps = createMainPhaseTransitionDeps({
-    ctx: args.ctx,
-    renderer: args.renderer,
-    ui: args.ui,
-    hud: args.hud,
-    actionDeps: args.actionDeps,
-    turnTelemetry: args.turnTelemetry,
+  const phaseControllerDeps: PhaseControllerDeps = {
+    get gameState() {
+      return args.ctx.gameState;
+    },
+    get currentState() {
+      return args.ctx.state;
+    },
+    get playerId() {
+      return args.ctx.playerId as PlayerId;
+    },
+    get lastLoggedTurn() {
+      return args.turnTelemetry.getLastLoggedTurn();
+    },
+    get isLocalGame() {
+      return args.ctx.isLocalGame;
+    },
+    get scenario() {
+      return args.ctx.scenario;
+    },
+    onTurnLogged: (turnNumber, context) =>
+      args.turnTelemetry.onTurnLogged(turnNumber, context),
+    logTurn: (turnNumber, playerLabel) =>
+      args.ui.log.logTurn(turnNumber, playerLabel),
+    beginCombat: () => beginCombat(args.actionDeps.combatDeps),
     setState: (state) => setState(state),
     runLocalAI: () => {
       void runLocalAI();
     },
-    beginCombat: () => beginCombat(args.actionDeps.combatDeps),
-  });
+  };
 
   transitionToPhase = () => {
     transitionClientPhase(phaseControllerDeps);
   };
 
-  messageHandlerDeps = createMainMessageHandlerDeps({
+  messageHandlerDeps = {
     ctx: args.ctx,
-    renderer: args.renderer,
-    ui: args.ui,
-    hud: args.hud,
-    actionDeps: args.actionDeps,
-    turnTelemetry: args.turnTelemetry,
-    storePlayerToken: (code, token) =>
-      args.sessionTokens.storePlayerToken(code, token),
     setState: (state) => setState(state),
     applyGameState: (state) => applyGameState(state),
     transitionToPhase: () => transitionToPhase(),
-    onAnimationComplete,
+    presentMovementResult: args.actionDeps.presentMovementResult,
+    presentCombatResults: args.actionDeps.presentCombatResults,
+    showGameOverOutcome: args.actionDeps.showGameOverOutcome,
     advanceToNextAttacker: () =>
       advanceToNextAttacker(args.actionDeps.combatDeps),
+    storePlayerToken: (code, token) =>
+      args.sessionTokens.storePlayerToken(code, token),
+    resetTurnTelemetry: () => args.turnTelemetry.reset(),
+    onAnimationComplete,
     logScenarioBriefing: () => args.hud.logScenarioBriefing(),
     trackEvent: args.track,
-  });
+    deserializeState: (raw) => raw,
+    renderer: args.renderer,
+    ui: args.ui,
+  };
 
   const createLocalTransport = () => {
     return createLocalGameTransport({
