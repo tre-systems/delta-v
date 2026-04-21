@@ -92,6 +92,42 @@ Action: inline the `deps.logText(...)` call into the `onEmplacementSuccess` lamb
 
 Action: drop the `export` keyword. No other edits required.
 
+## Workstream split (2026-04-21)
+
+The AI and Simplification sections above can land as two parallel PR streams with **zero file overlap**. Neither stream touches the wire protocol, shared state types, or e2e fixtures; they can run on `main` concurrently.
+
+**Stream 1 — AI objective discipline** (every change under `src/shared/ai/**` + `scripts/simulate-ai.ts`)
+
+| # | Entry | Primary files |
+|---|---|---|
+| 1.1 | Grand Tour AI stalls in Mercury gravity well (P1) | `common.ts`, `astrogation.ts` |
+| 1.2 | Reweight target-body races around imminent completion (P1) | `scoring.ts` |
+| 1.3 | Narrow Bi-Planetary home-screening override (P1) | `common.ts` |
+| 1.4 | Combat/ordnance objective gates (P1) | `scoring.ts`, `combat.ts`, `ordnance.ts` |
+| 1.5 | Retune passenger-carrier doctrine (P1) | `logistics.ts`, `astrogation.ts` |
+| 1.6 | Objective-discipline regression tests + simulation thresholds (P2) | AI test files, `scripts/simulate-ai.ts` |
+
+Internal sequencing within Stream 1: 1.2 and 1.4 both edit `scoring.ts`; 1.1 and 1.3 both edit `common.ts`; 1.1 and 1.5 both edit `astrogation.ts`. Land 1.6 last so its regression fixtures lock in the new behaviour from 1.1–1.5 rather than the old baseline.
+
+**Stream 2 — Simplification tail** (every change under `src/client/game/**` + `src/server/game-do/{projection,archive}.ts`)
+
+| # | Entry | Primary files |
+|---|---|---|
+| 2.1 | Inline action dependency assembly (P2) | `action-deps.ts`, `client-kernel.ts` |
+| 2.2 | Collapse WebSocket transport message-sender factory (P2) | `transport.ts` |
+| 2.3 | Inline `handleLocalEmplacementSuccess` log wrapper (P3) | `transport.ts` |
+| 2.4 | Collapse tiny network plan helpers (P3) | `network.ts`, `client-message-plans.ts`, `connection.ts` |
+| 2.5 | Remove phase-plan builder indirection (P3) | `phase.ts`, `phase-controller.ts` |
+| 2.6 | Inline state-entry rule wrappers (P3) | `phase-entry.ts` |
+| 2.7 | Drop projection.ts `getProjectedCurrentState` pass-through (P3) | `projection.ts`, `archive.ts` |
+| 2.8 | Un-export `filterReplayTimelineForViewer` (P3) | `projection.ts` |
+
+Internal sequencing within Stream 2: 2.2 and 2.3 both edit `transport.ts` (land the bigger sender-factory collapse first, sweep the emplacement wrapper after); 2.7 and 2.8 both edit `projection.ts` (either order works, but run them back-to-back so the file settles in one review).
+
+**Isolation check:** Stream 1 files under `src/shared/ai/**` + `scripts/simulate-ai.ts`; Stream 2 files under `src/client/game/**` + `src/server/game-do/projection.ts` + `src/server/game-do/archive.ts`. No file appears in both. The only cross-stream coupling is `AIDifficulty` (imported by `src/client/game/transport.ts`), but Stream 1 tunes policy weights and scoring behaviour rather than the difficulty enum, so no rebase is expected.
+
+**Effort balance:** Stream 1 is heavier per item (real game-design tuning, simulation iteration, regression fixtures), fewer items. Stream 2 is 8 mechanical items. If one reviewer pair is stronger on game design and another on code-hygiene, that split maps cleanly; otherwise either stream can be picked up first.
+
 ## Launch-readiness snapshot (2026-04-19)
 
 Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md) pass log). Update or remove this section when the listed items are resolved or reassessed.
