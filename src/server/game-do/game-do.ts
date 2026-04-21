@@ -44,7 +44,7 @@ import {
 import { broadcastMessage, broadcastStateChange } from './broadcast';
 import { parseCoachMessage, setCoachDirective } from './coach';
 import { isDurableObjectCodeUpdateError } from './code-update';
-import { type GameDoFetchDeps, handleGameDoFetch } from './fetch';
+import { handleGameDoFetch } from './fetch';
 import {
   handleInitRequest,
   handleJoinCheckRequest,
@@ -57,7 +57,7 @@ import {
   handleRematchRequest,
   initGameSession,
 } from './match';
-import { handleMcpRequest, type McpRequestDeps } from './mcp-handlers';
+import { handleMcpRequest } from './mcp-handlers';
 import {
   appendHostedMcpSeatEvent,
   clearAllHostedMcpSessionState,
@@ -84,12 +84,7 @@ import {
   reportSideChannelFailure,
   verifyGameDoProjectionParity,
 } from './telemetry';
-import {
-  type GameDoWebSocketCloseDeps,
-  type GameDoWebSocketMessageDeps,
-  handleGameDoWebSocketClose,
-  handleGameDoWebSocketMessage,
-} from './ws';
+import { handleGameDoWebSocketClose, handleGameDoWebSocketMessage } from './ws';
 export interface Env {
   ASSETS: Fetcher;
   GAME: DurableObjectNamespace;
@@ -531,31 +526,6 @@ export class GameDO extends DurableObject<Env> {
     );
   }
 
-  private createFetchDeps(): GameDoFetchDeps {
-    return {
-      handleInit: (request) => this.handleInit(request),
-      handleJoinCheck: (request) => this.handleJoinCheck(request),
-      handleReplayRequest: (request) => this.handleReplayRequest(request),
-      handleMcpRequest: (request) => this.handleMcpRequest(request),
-      resolveJoinAttempt: (token) => this.resolveJoinAttempt(token),
-      getConnectedSeatCountAfterJoin: (seatOpen, playerId) =>
-        this.getConnectedSeatCountAfterJoin(seatOpen, playerId),
-      isAgentSeat: (playerId) => this.isAgentSeat(playerId),
-      saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
-      clearDisconnectMarker: () => this.clearDisconnectMarker(),
-      replacePlayerSockets: (playerId) => this.replacePlayerSockets(playerId),
-      send: (ws, msg) => this.send(ws, msg),
-      broadcast: (msg) => this.broadcast(msg),
-      getLatestGameId: () => this.getLatestGameId(),
-      storage: this.storage,
-      initGame: () => this.initGame(),
-      touchInactivity: () => this.touchInactivity(),
-      acceptWebSocket: (server, tags) => this.acceptWebSocket(server, tags),
-      getRoomConfig: () => this.getRoomConfig(),
-      getSpectatorCount: () => this.getWebSockets('spectator').length,
-    };
-  }
-
   private createAlarmDeps(): GameDoAlarmDeps {
     return {
       now: Date.now(),
@@ -611,37 +581,6 @@ export class GameDO extends DurableObject<Env> {
         this.send(ws, { type: 'error', message, code }),
       sendActionAccepted: (accepted) => this.send(ws, accepted),
       sendActionRejected: (rejected) => this.send(ws, rejected),
-    };
-  }
-
-  private createInitRequestDeps(): Parameters<typeof handleInitRequest>[0] {
-    return {
-      getRoomConfig: () => this.getRoomConfig(),
-      saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
-      setGameCode: (code) => this.setGameCode(code),
-      touchInactivity: () => this.touchInactivity(),
-    };
-  }
-
-  private createReplayRequestDeps(): Parameters<typeof handleReplayRequest>[0] {
-    return {
-      storage: this.storage,
-      getRoomConfig: () => this.getRoomConfig(),
-      getLatestGameId: () => this.getLatestGameId(),
-      touchInactivity: () => this.touchInactivity(),
-    };
-  }
-
-  private createInitGameDeps(): Parameters<typeof initGameSession>[0] {
-    return {
-      storage: this.storage,
-      map: this.map,
-      getRoomConfig: () => this.getRoomConfig(),
-      getScenario: () => this.getScenario(),
-      getGameCode: () => this.getGameCode(),
-      clearRoomArchivedFlag: () => this.clearRoomArchivedFlag(),
-      publishStateChange: (state, primaryMessage, options) =>
-        this.publishStateChange(state, primaryMessage, options),
     };
   }
 
@@ -704,34 +643,32 @@ export class GameDO extends DurableObject<Env> {
 
   // --- WebSocket lifecycle ---
   async fetch(request: Request): Promise<Response> {
-    return handleGameDoFetch(this.createFetchDeps(), request);
-  }
-
-  private createWebSocketMessageDeps(): GameDoWebSocketMessageDeps {
-    return {
-      msgRates: this.msgRates,
-      getPlayerId: (socket) => this.getPlayerId(socket),
-      isSpectatorSocket: (socket) => this.isSpectatorSocket(socket),
-      touchInactivity: () => this.touchInactivity(),
-      send: (socket, outbound) => this.send(socket, outbound),
-      isGameStateActionMessage,
-      dispatchGameStateAction: (playerId, socket, msg) =>
-        this.dispatchSocketGameStateAction(playerId, socket, msg),
-      dispatchAuxMessage: (socket, playerId, msg) =>
-        this.dispatchSocketAuxMessage(socket, playerId, msg),
-    };
-  }
-
-  private createWebSocketCloseDeps(): GameDoWebSocketCloseDeps {
-    return {
-      consumeReplacedSocket: (socket) => this.replacedSockets.delete(socket),
-      getPlayerId: (socket) => this.getPlayerId(socket),
-      getCurrentGameState: () => this.getCurrentGameState(),
-      shouldTrackDisconnectForPlayer: (playerId) =>
-        this.shouldTrackDisconnectForPlayer(playerId),
-      setDisconnectMarker: (playerId) => this.setDisconnectMarker(playerId),
-      broadcast: (msg) => this.broadcast(msg),
-    };
+    return handleGameDoFetch(
+      {
+        handleInit: (innerRequest) => this.handleInit(innerRequest),
+        handleJoinCheck: (innerRequest) => this.handleJoinCheck(innerRequest),
+        handleReplayRequest: (innerRequest) =>
+          this.handleReplayRequest(innerRequest),
+        handleMcpRequest: (innerRequest) => this.handleMcpRequest(innerRequest),
+        resolveJoinAttempt: (token) => this.resolveJoinAttempt(token),
+        getConnectedSeatCountAfterJoin: (seatOpen, playerId) =>
+          this.getConnectedSeatCountAfterJoin(seatOpen, playerId),
+        isAgentSeat: (playerId) => this.isAgentSeat(playerId),
+        saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
+        clearDisconnectMarker: () => this.clearDisconnectMarker(),
+        replacePlayerSockets: (playerId) => this.replacePlayerSockets(playerId),
+        send: (ws, msg) => this.send(ws, msg),
+        broadcast: (msg) => this.broadcast(msg),
+        getLatestGameId: () => this.getLatestGameId(),
+        storage: this.storage,
+        initGame: () => this.initGame(),
+        touchInactivity: () => this.touchInactivity(),
+        acceptWebSocket: (server, tags) => this.acceptWebSocket(server, tags),
+        getRoomConfig: () => this.getRoomConfig(),
+        getSpectatorCount: () => this.getWebSockets('spectator').length,
+      },
+      request,
+    );
   }
 
   async webSocketMessage(
@@ -740,7 +677,18 @@ export class GameDO extends DurableObject<Env> {
   ): Promise<void> {
     try {
       return await handleGameDoWebSocketMessage(
-        this.createWebSocketMessageDeps(),
+        {
+          msgRates: this.msgRates,
+          getPlayerId: (socket) => this.getPlayerId(socket),
+          isSpectatorSocket: (socket) => this.isSpectatorSocket(socket),
+          touchInactivity: () => this.touchInactivity(),
+          send: (socket, outbound) => this.send(socket, outbound),
+          isGameStateActionMessage,
+          dispatchGameStateAction: (playerId, socket, msg) =>
+            this.dispatchSocketGameStateAction(playerId, socket, msg),
+          dispatchAuxMessage: (socket, playerId, msg) =>
+            this.dispatchSocketAuxMessage(socket, playerId, msg),
+        },
         ws,
         message,
       );
@@ -770,7 +718,16 @@ export class GameDO extends DurableObject<Env> {
   async webSocketClose(ws: WebSocket): Promise<void> {
     try {
       return await handleGameDoWebSocketClose(
-        this.createWebSocketCloseDeps(),
+        {
+          consumeReplacedSocket: (socket) =>
+            this.replacedSockets.delete(socket),
+          getPlayerId: (socket) => this.getPlayerId(socket),
+          getCurrentGameState: () => this.getCurrentGameState(),
+          shouldTrackDisconnectForPlayer: (playerId) =>
+            this.shouldTrackDisconnectForPlayer(playerId),
+          setDisconnectMarker: (playerId) => this.setDisconnectMarker(playerId),
+          broadcast: (msg) => this.broadcast(msg),
+        },
         ws,
       );
     } catch (error) {
@@ -949,7 +906,15 @@ export class GameDO extends DurableObject<Env> {
 
   // --- Game logic (delegates to engine) ---
   private async handleInit(request: Request): Promise<Response> {
-    return handleInitRequest(this.createInitRequestDeps(), request);
+    return handleInitRequest(
+      {
+        getRoomConfig: () => this.getRoomConfig(),
+        saveRoomConfig: (roomConfig) => this.saveRoomConfig(roomConfig),
+        setGameCode: (code) => this.setGameCode(code),
+        touchInactivity: () => this.touchInactivity(),
+      },
+      request,
+    );
   }
 
   private async handleJoinCheck(request: Request): Promise<Response> {
@@ -963,32 +928,15 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async handleReplayRequest(request: Request): Promise<Response> {
-    return handleReplayRequest(this.createReplayRequestDeps(), request);
-  }
-
-  private createMcpRequestDeps(): McpRequestDeps {
-    return {
-      getRoomConfig: () => this.getRoomConfig(),
-      getCurrentGameState: () => this.getCurrentGameState(),
-      getGameCode: () => this.getGameCode(),
-      reportEngineError: (code, phase, turn, err) =>
-        this.reportEngineError(code, phase, turn, err),
-      reportObservationTimeout: (props) =>
-        reportSideChannelFailure(
-          { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
-          'mcp_observation_timeout',
-          props,
-        ),
-      handlers: this.gameStateActionHandlers,
-      idempotencyCache: this.idempotencyCache,
-      stateWaiters: this.stateWaiters,
-      broadcast: (msg) => this.broadcast(msg),
-      touchInactivity: () => this.touchInactivity(),
-      storage: this.storage,
-      initGameIfReady: () => this.maybeInitGameForMcp(),
-      consumeLastTurnAutoPlayNotice: (playerId) =>
-        this.consumeLastTurnAutoPlayNotice(playerId),
-    };
+    return handleReplayRequest(
+      {
+        storage: this.storage,
+        getRoomConfig: () => this.getRoomConfig(),
+        getLatestGameId: () => this.getLatestGameId(),
+        touchInactivity: () => this.touchInactivity(),
+      },
+      request,
+    );
   }
 
   // MCP-only clients never establish a WebSocket, so the WS-upgrade path's
@@ -1011,7 +959,31 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async handleMcpRequest(request: Request): Promise<Response | null> {
-    return handleMcpRequest(this.createMcpRequestDeps(), request);
+    return handleMcpRequest(
+      {
+        getRoomConfig: () => this.getRoomConfig(),
+        getCurrentGameState: () => this.getCurrentGameState(),
+        getGameCode: () => this.getGameCode(),
+        reportEngineError: (code, phase, turn, err) =>
+          this.reportEngineError(code, phase, turn, err),
+        reportObservationTimeout: (props) =>
+          reportSideChannelFailure(
+            { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
+            'mcp_observation_timeout',
+            props,
+          ),
+        handlers: this.gameStateActionHandlers,
+        idempotencyCache: this.idempotencyCache,
+        stateWaiters: this.stateWaiters,
+        broadcast: (msg) => this.broadcast(msg),
+        touchInactivity: () => this.touchInactivity(),
+        storage: this.storage,
+        initGameIfReady: () => this.maybeInitGameForMcp(),
+        consumeLastTurnAutoPlayNotice: (playerId) =>
+          this.consumeLastTurnAutoPlayNotice(playerId),
+      },
+      request,
+    );
   }
 
   // Fire-and-forget notification to the LIVE_REGISTRY singleton DO.
@@ -1099,7 +1071,16 @@ export class GameDO extends DurableObject<Env> {
   private async initGame() {
     this.currentStateCache = null;
     await clearAllHostedMcpSessionState(this.storage);
-    await initGameSession(this.createInitGameDeps());
+    await initGameSession({
+      storage: this.storage,
+      map: this.map,
+      getRoomConfig: () => this.getRoomConfig(),
+      getScenario: () => this.getScenario(),
+      getGameCode: () => this.getGameCode(),
+      clearRoomArchivedFlag: () => this.clearRoomArchivedFlag(),
+      publishStateChange: (state, primaryMessage, options) =>
+        this.publishStateChange(state, primaryMessage, options),
+    });
     // Register the new match in the LIVE_REGISTRY for the /matches page.
     const roomConfig = await this.getRoomConfig();
     const code = await this.getGameCode();
