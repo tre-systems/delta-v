@@ -8,7 +8,6 @@ import { getServerErrorToastMessage } from '../messages/server-error-presentatio
 import { TOAST } from '../messages/toasts';
 import { batch } from '../reactive';
 import {
-  type AuthoritativeUpdate,
   type AuthoritativeUpdateDeps,
   applyAuthoritativeUpdate,
 } from './authoritative-updates';
@@ -136,42 +135,21 @@ const applyGameStartPlan = (
   });
 };
 
-const createAuthoritativeUpdateDeps = (
+const toAuthoritativeUpdateDeps = (
   deps: MessageHandlerDeps,
 ): AuthoritativeUpdateDeps => ({
   getCurrentGameState: () => deps.ctx.gameState,
-  applyGameState: (state) => deps.applyGameState(state),
-  presentMovementResult: (
-    state,
-    movements,
-    ordnanceMovements,
-    events,
-    onComplete,
-  ) =>
-    deps.presentMovementResult(
-      state,
-      movements,
-      ordnanceMovements,
-      events,
-      onComplete,
-    ),
-  presentCombatResults: (previousState, state, results, resetCombat) =>
-    deps.presentCombatResults(previousState, state, results, resetCombat),
-  showGameOverOutcome: (won, reason) => deps.showGameOverOutcome(won, reason),
-  onMovementResultComplete: () => deps.onAnimationComplete(),
-  onCombatResultComplete: () => deps.transitionToPhase(),
-  onCombatSingleResultComplete: () => deps.advanceToNextAttacker(),
-  onStateUpdateComplete: () => deps.transitionToPhase(),
+  applyGameState: deps.applyGameState,
+  presentMovementResult: deps.presentMovementResult,
+  presentCombatResults: deps.presentCombatResults,
+  showGameOverOutcome: deps.showGameOverOutcome,
+  onMovementResultComplete: deps.onAnimationComplete,
+  onCombatResultComplete: deps.transitionToPhase,
+  onCombatSingleResultComplete: deps.advanceToNextAttacker,
+  onStateUpdateComplete: deps.transitionToPhase,
   logText: (text) => deps.ui.log.logText(text),
-  deserializeState: (raw) => deps.deserializeState(raw),
+  deserializeState: deps.deserializeState,
 });
-
-const applyAuthoritativePlan = (
-  deps: MessageHandlerDeps,
-  update: AuthoritativeUpdate,
-): void => {
-  applyAuthoritativeUpdate(createAuthoritativeUpdateDeps(deps), update);
-};
 
 const applyMatchFoundPlan = (): void => {
   playPhaseChange();
@@ -181,7 +159,7 @@ const applyMovementResultPlan: ClientMessagePlanHandler<'movementResult'> = (
   deps,
   plan,
 ): void => {
-  applyAuthoritativePlan(deps, {
+  applyAuthoritativeUpdate(toAuthoritativeUpdateDeps(deps), {
     kind: 'movementResult',
     state: plan.state,
     movements: plan.movements,
@@ -194,7 +172,7 @@ const applyCombatResultPlan: ClientMessagePlanHandler<'combatResult'> = (
   deps,
   plan,
 ): void => {
-  applyAuthoritativePlan(deps, {
+  applyAuthoritativeUpdate(toAuthoritativeUpdateDeps(deps), {
     kind: 'combatResult',
     previousState: must(deps.ctx.gameState),
     state: plan.state,
@@ -206,7 +184,7 @@ const applyCombatResultPlan: ClientMessagePlanHandler<'combatResult'> = (
 const applyCombatSingleResultPlan: ClientMessagePlanHandler<
   'combatSingleResult'
 > = (deps, plan): void => {
-  applyAuthoritativePlan(deps, {
+  applyAuthoritativeUpdate(toAuthoritativeUpdateDeps(deps), {
     kind: 'combatSingleResult',
     previousState: must(deps.ctx.gameState),
     state: plan.state,
@@ -218,7 +196,7 @@ const applyStateUpdatePlan: ClientMessagePlanHandler<'stateUpdate'> = (
   deps,
   plan,
 ): void => {
-  applyAuthoritativePlan(deps, {
+  applyAuthoritativeUpdate(toAuthoritativeUpdateDeps(deps), {
     kind: 'stateUpdate',
     state: plan.state,
     shouldContinue: plan.shouldTransition,
@@ -231,7 +209,7 @@ const applyGameOverPlan: ClientMessagePlanHandler<'gameOver'> = (
   plan,
 ): void => {
   setOpponentDisconnectDeadlineMs(deps.ctx, null);
-  applyAuthoritativePlan(deps, {
+  applyAuthoritativeUpdate(toAuthoritativeUpdateDeps(deps), {
     kind: 'gameOver',
     won: plan.won,
     reason: plan.reason,
