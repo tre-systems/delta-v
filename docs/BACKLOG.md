@@ -40,93 +40,69 @@ The current AI tests cover safety, escape-edge behavior, and one Bi-Planetary ho
 
 Action: add focused regression fixtures for "take the landing line", "do not abandon the carrier's scoring route without immediate danger", and "narrow the existing Bi-Planetary defense test to real emergency cases". Extend the simulation harness with per-scenario objective-completion expectations or at least warnings when objective scenarios resolve almost entirely by elimination.
 
-## Simplification & abstraction debt (2026-04-21)
+## Simplification & abstraction debt (2026-04-21, refreshed)
 
-Review follow-up: two bulk cleanup rounds have already landed today — the main-session adapters, session-network bridges, message-handler dispatch adapters, UIManager facade shims, viewport/mobile wiring, presentation shims, GameDO dep-bag factories, broadcast indirection, reporting rate-limit wrappers, message-builders constructors, archive-compat, and the first single-call sweep are all gone (see git log). What remains below is the tail from those passes plus findings from a 2026-04-21 third-pass review. None of these are launch blockers; they are opportunistic readability wins.
+The earlier simplification sweeps have now removed most of the originally-reported client indirection: `action-deps.ts`, the tiny `network.ts` helpers, the old `phase.ts` builder layer, `phase-entry.ts`'s rule-wrapper padding, `main-session-network.ts`'s adapter factories, and the WebSocket transport sender factory are all already gone. What remains is the thinner tail below plus one older `projection.ts` cleanup that still survives.
 
-### Inline action dependency assembly (P2)
+### Remove authoritative-update adapter layer (P2)
 
-`src/client/game/action-deps.ts` is now mostly a repackaging layer between `createGameClient()` and the downstream action modules. `createActionDeps()` rebuilds `presentationDeps`, `astrogationDeps`, `combatDeps`, `ordnanceDeps`, and `localGameFlowDeps`, then exposes another set of wrapper callbacks that just forward back into `presentation.ts` with the same bag. There is no caching or lifecycle ownership left here; it mainly obscures the composition-root wiring.
+`src/client/game/message-handler.ts` still repackages `MessageHandlerDeps` into `AuthoritativeUpdateDeps` via `toAuthoritativeUpdateDeps()`, then immediately wraps `applyAuthoritativeUpdate()` again in `applyMovementResultPlan()`, `applyCombatResultPlan()`, `applyCombatSingleResultPlan()`, `applyStateUpdatePlan()`, and `applyGameOverPlan()`. The indirection is now mostly ceremony: a single deps adapter and several one-line plan shims on the hot message-dispatch path.
 
-Action: inline the dependency-object assembly into `src/client/game/client-kernel.ts` (or the nearest long-lived owner), and remove `createActionDeps()` unless a smaller shared helper still survives the pass with real policy or reusable state.
+Action: build the authoritative-update deps once or inline them at the dispatcher boundary, then collapse the one-line `apply*Plan()` wrappers so the message flow is easier to read without chasing tagged payload constructors across several helpers.
 
-### Collapse tiny network plan helpers (P3)
+### Inline one-use command-router dep factory (P3)
 
-`src/client/game/network.ts` still contains a handful of exports that mostly restate one caller branch rather than capturing meaningful reconnect policy. `deriveWelcomeHandling()`, `shouldAttemptReconnect()`, `deriveDisconnectHandling()`, and `shouldTransitionAfterStateUpdate()` are all short shape helpers used from `client-message-plans.ts` and `connection.ts`.
+`src/client/game/main-interactions.ts` still creates `CommandRouterDeps` through a local `createCommandRouterDeps()` helper that is called exactly once. It mainly closes over already-local wrappers (`sendFleetReady`, `sendSurrender`, camera helpers) and immediately feeds the result into `dispatchGameCommand()`.
 
-Action: keep the real reconnect timing/policy helpers (`getReconnectDelayMs()`, `deriveReconnectAttemptPlan()`), but inline the tiny welcome/disconnect/state-update wrappers into their single call paths.
+Action: inline the `CommandRouterDeps` object where `commandRouterDeps` is created. Keep extracted helpers only where they still hold real branching or telemetry policy.
 
-### Remove phase-plan builder indirection (P3)
+### Merge tiny game-over plan back into presentation (P3)
 
-`src/client/game/phase.ts` has a short decision tree in `derivePhaseTransition()`, but still routes every branch through `createPhaseTransitionPlan()` and a single-entry `SPECTATOR_PHASE_TRANSITIONS` table. That makes the flow look more generic than it really is and forces readers to bounce between defaults and overrides to understand each return case.
+`src/client/game/presentation.ts` still keeps `deriveGameOverPlan()` as a small single-caller shim. It picks log text, CSS class, result sound, and optional stats, then `showGameOverOutcome()` immediately consumes it.
 
-Action: inline the final `PhaseTransitionPlan` object literals into `derivePhaseTransition()` and keep only extracted logic that reflects a reused game rule, such as the owned-asteroid-hazard check.
+Action: inline the `deriveGameOverPlan()` branching into `showGameOverOutcome()` unless a broader presentation plan object emerges that is reused elsewhere.
 
-### Inline state-entry rule wrappers (P3)
+### Flatten UI manager facade wrappers (P3)
 
-`src/client/game/phase-entry.ts` has a useful `CLIENT_STATE_ENTRY_RULES` table, but a couple of the values are padded out with tiny local helpers: `startRemoteTurnTimer()` just negates `isLocalGame`, and `getFirstOrdnanceActionableShipIdForEntry()` only forwards to `getFirstOrdnanceActionableShipId()` after a null/player guard. Those helpers do not encode reusable policy beyond a single expression.
+`src/client/ui/ui.ts` still returns a wrapper-heavy `UIManager` facade with lots of one-line pass-throughs to `lobbyView`, `hudChromeView`, and `shipListView`, plus `Parameters<typeof ...>` type plumbing. The public surface is assembled locally and does not hide a separate module boundary.
 
-Action: keep the rule-table shape, but inline the small lambdas / booleans and leave extracted selectors only where they genuinely serve multiple state entries or carry a non-trivial rule.
+Action: flatten the returned facade where possible so the UI manager exposes direct methods or narrower typed fields without the extra wrapper noise.
 
-### Collapse WebSocket transport message-sender factory (P2)
+### Inline tiny session prep helpers (P3)
 
-`src/client/game/transport.ts:334-397` — `createTypedMessageSender()` is a generic factory that wraps `send({ type, ...payload })` for the WebSocket transport. It is invoked 14 times in `createWebSocketTransport()` (one per outbound message type). Each call site is a trivial arrow-function definition; the factory buys no type safety over the literal form and makes it hard to see at a glance what each method sends on the wire.
+`src/client/game/session-controller.ts` still uses a cluster of local helpers (`clearReconnectUiState()`, `prepareRemoteSession()`, `clearRemoteSessionState()`, `prepareLocalSession()`) that mostly wrap short sequences of `set*` calls. They do remove repetition, but they also make the actual session-state mutations harder to read because the entry/exit flows are one indirection away from the setters.
 
-Action: drop `createTypedMessageSender` and rewrite each field in `createWebSocketTransport` as a plain arrow function, e.g. `submitAstrogation: (orders) => send({ type: 'astrogation', orders })`, `endCombat: () => send({ type: 'endCombat' })`. The result is shorter, more direct, and surfaces the wire format next to the method name. Fixture tests in `src/shared/types/protocol.ts` already pin the message shapes; no coverage change needed.
+Action: inline the short prep/reset sequences into the nearby session flows unless a helper still carries a real policy distinction that would be duplicated incorrectly.
 
-### Drop projection.ts `getProjectedCurrentState` pass-through (P3)
+## Workstream split (2026-04-21, refreshed)
 
-`src/server/game-do/projection.ts:72-76` — `getProjectedCurrentState()` is a pure delegator to the private `projectCurrentStateFromStream()`. Its only consumer is `archive.ts`, which imports it as `getProjectedCurrentStateFromEvents` to avoid shadowing its own `getProjectedCurrentState` export. The rename dance exists purely because `projectCurrentStateFromStream` isn't exported.
+The earlier AI-vs-simplification split is mostly landed. The remaining open work now separates more cleanly into one **client simplification** stream and one **metadata / MCP / replay polish** stream, again with no file overlap. The AI balance follow-ups stay outside this split because they still touch `src/shared/ai/**` broadly and need simulation iteration rather than mechanical cleanup.
 
-Action: export `projectCurrentStateFromStream` from `projection.ts` under a clear name (e.g. `projectCurrentStateFromEvents`) and delete the wrapper + its two-line export. `archive.ts` imports that name directly; no other change needed.
-
-### Inline `handleLocalEmplacementSuccess` log wrapper (P3)
-
-`src/client/game/transport.ts:255-262` — `handleLocalEmplacementSuccess()` is a single-call one-liner: `deps.logText(TOAST.gameplay.orbitalBaseEmplaced, 'log-env')`. Its only caller is `createLocalGameTransport()` at line 329.
-
-Action: inline the `deps.logText(...)` call into the `onEmplacementSuccess` lambda in `createLocalGameTransport`. Keep `handleLocalFleetReady` — it has real branching.
-
-### Un-export `filterReplayTimelineForViewer` (P3)
-
-`src/server/game-do/projection.ts:22` — `filterReplayTimelineForViewer` is `export`ed but used only once, inside the same file by `projectReplayTimeline` at line 267. The `export` adds API surface and test-discoverability without any consumer.
-
-Action: drop the `export` keyword. No other edits required.
-
-## Workstream split (2026-04-21)
-
-The AI and Simplification sections above can land as two parallel PR streams with **zero file overlap**. Neither stream touches the wire protocol, shared state types, or e2e fixtures; they can run on `main` concurrently.
-
-**Stream 1 — AI objective discipline** (every change under `src/shared/ai/**` + `scripts/simulate-ai.ts`)
+**Stream 1 — Client simplification tail** (all changes under `src/client/game/**` + `src/client/ui/ui.ts`)
 
 | # | Entry | Primary files |
 |---|---|---|
-| 1.1 | Grand Tour AI stalls in Mercury gravity well (P1) | `common.ts`, `astrogation.ts` |
-| 1.2 | Reweight target-body races around imminent completion (P1) | `scoring.ts` |
-| 1.3 | Narrow Bi-Planetary home-screening override (P1) | `common.ts` |
-| 1.4 | Combat/ordnance objective gates (P1) | `scoring.ts`, `combat.ts`, `ordnance.ts` |
-| 1.5 | Retune passenger-carrier doctrine (P1) | `logistics.ts`, `astrogation.ts` |
-| 1.6 | Objective-discipline regression tests + simulation thresholds (P2) | AI test files, `scripts/simulate-ai.ts` |
+| 1.1 | Remove authoritative-update adapter layer (P2) | `message-handler.ts`, `authoritative-updates.ts` |
+| 1.2 | Inline one-use command-router dep factory (P3) | `main-interactions.ts` |
+| 1.3 | Merge tiny game-over plan back into presentation (P3) | `presentation.ts` |
+| 1.4 | Flatten UI manager facade wrappers (P3) | `src/client/ui/ui.ts` |
+| 1.5 | Inline tiny session prep helpers (P3) | `session-controller.ts` |
 
-Internal sequencing within Stream 1: 1.1 and 1.3 are a natural paired PR (`common.ts`), and 1.2 plus 1.4 are a natural paired PR (`scoring.ts`, with shared objective-weight tuning). 1.1 and 1.5 also both touch `astrogation.ts`, so do not run those in parallel unless one rebases after the other lands. Land 1.6 last so its regression fixtures lock in the new behaviour from 1.1–1.5 rather than the old baseline.
+Internal sequencing within Stream 1: 1.1 should land first because it is the only item that meaningfully touches the message/presentation hot path. 1.2, 1.3, 1.4, and 1.5 are otherwise independent and can land in any order. The only same-file grouping worth calling out is that 1.1 and 1.3 both interact with presentation behavior, so they are a reasonable paired PR if someone wants a single "presentation/message cleanup" slice.
 
-**Stream 2 — Simplification tail** (every change under `src/client/game/**` + `src/server/game-do/{projection,archive}.ts`)
+**Stream 2 — Metadata / MCP polish** (all changes under `static/.well-known`, `src/shared/scenario-definitions.ts`, `src/shared/agent/**`, `packages/mcp-adapter/**`, and `scripts/delta-v-mcp-server.ts`)
 
 | # | Entry | Primary files |
 |---|---|---|
-| 2.1 | Inline action dependency assembly (P2) | `action-deps.ts`, `client-kernel.ts` |
-| 2.2 | Collapse WebSocket transport message-sender factory (P2) | `transport.ts` |
-| 2.3 | Inline `handleLocalEmplacementSuccess` log wrapper (P3) | `transport.ts` |
-| 2.4 | Collapse tiny network plan helpers (P3) | `network.ts`, `client-message-plans.ts`, `connection.ts` |
-| 2.5 | Remove phase-plan builder indirection (P3) | `phase.ts`, `phase-controller.ts` |
-| 2.6 | Inline state-entry rule wrappers (P3) | `phase-entry.ts` |
-| 2.7 | Drop projection.ts `getProjectedCurrentState` pass-through (P3) | `projection.ts`, `archive.ts` |
-| 2.8 | Un-export `filterReplayTimelineForViewer` (P3) | `projection.ts` |
+| 2.1 | Scenario descriptions drift between source and `/.well-known/agent.json` | `static/.well-known/agent.json`, `src/shared/scenario-definitions.ts`, `src/shared/agent/discovery.test.ts`, optional generator under `scripts/` |
+| 2.2 | Unknown / expired `sessionId` is indistinguishable from missing credentials over MCP | `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts` |
+| 2.3 | Retire legacy `{code, playerToken}` tool args once leaderboard stabilises | `packages/mcp-adapter/src/handlers.ts`, `scripts/quick-match-agent.ts`, `scripts/llm-player.ts`, `docs/DELTA_V_MCP.md` |
 
-Internal sequencing within Stream 2: 2.2 and 2.3 should land together as one `transport.ts` cleanup PR; 2.7 and 2.8 should land together as one `projection.ts` cleanup PR. The rest are effectively independent and can be reviewed in any order.
+Internal sequencing within Stream 2: 2.2 and 2.3 should be treated as a single `handlers.ts` track because both change the same MCP target-resolution surface (2.2 tightens the unknown-sessionId error shape, 2.3 then drops one of the two accepted target shapes entirely, so doing them in order keeps the error paths consistent). 2.1 is independent and can land before or after those.
 
-**Isolation check:** Stream 1 files under `src/shared/ai/**` + `scripts/simulate-ai.ts`; Stream 2 files under `src/client/game/**` + `src/server/game-do/projection.ts` + `src/server/game-do/archive.ts`. No file appears in both. The only cross-stream coupling is `AIDifficulty` (imported by `src/client/game/transport.ts`), but Stream 1 tunes policy weights and scoring behaviour rather than the difficulty enum, so no rebase is expected.
+**Isolation check:** Stream 1 touches only `src/client/game/**` and `src/client/ui/ui.ts`. Stream 2 touches static discovery metadata, shared scenario/discovery metadata, MCP adapter tooling, and the stdio MCP script. No file appears in both. The ongoing AI-balance items under `src/shared/ai/**` and `scripts/simulate-ai.ts` are intentionally excluded from this split.
 
-**Effort balance:** Stream 1 is heavier per item (real game-design tuning, simulation iteration, regression fixtures), fewer items. Stream 2 is 8 mechanical items. If one reviewer pair is stronger on game design and another on code-hygiene, that split maps cleanly; otherwise either stream can be picked up first.
+**Effort balance:** Stream 1 is a medium mechanical cleanup stream with one P2 core item plus four smaller P3 items. Stream 2 is lighter and tightly themed around the agent-facing surface: one source-of-truth cleanup plus a paired MCP adapter pass. That gives one stream to someone focused on client code hygiene and one to someone focused on agent/runtime surfaces.
 
 ## Launch-readiness snapshot (2026-04-19)
 
