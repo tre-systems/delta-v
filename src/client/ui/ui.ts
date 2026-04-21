@@ -248,44 +248,27 @@ export const createUIManager = (deps: UIManagerDeps) => {
     },
     log,
     overlay,
-    setPlayerId: (id: Parameters<typeof log.setPlayerId>[0]) =>
-      log.setPlayerId(id),
-    setMenuLoading: (
-      loading: Parameters<typeof lobbyView.setMenuLoading>[0],
-      kind?: Parameters<typeof lobbyView.setMenuLoading>[1],
-    ) => lobbyView.setMenuLoading(loading, kind),
-    setWaitingState: (state: Parameters<typeof lobbyView.setWaitingState>[0]) =>
-      lobbyView.setWaitingState(state),
+    setPlayerId: log.setPlayerId,
+    setMenuLoading: lobbyView.setMenuLoading,
+    setWaitingState: lobbyView.setWaitingState,
     showMenu,
     showScenarioSelect,
     showFleetBuilding,
     showFleetWaiting,
-    selectCodeInput: () => lobbyView.selectCodeInput(),
-    bindTurnTimerSignal: (
-      timerSignal: Parameters<typeof hudChromeView.bindTurnTimerSignal>[0],
-    ) => hudChromeView.bindTurnTimerSignal(timerSignal),
+    selectCodeInput: lobbyView.selectCodeInput,
+    bindTurnTimerSignal: hudChromeView.bindTurnTimerSignal,
     bindClientStateSignal: (signal: ReadonlySignal<ClientState>) => {
       clientStateSignal.value = signal;
     },
-    updateHUD: (input: Parameters<typeof hudChromeView.update>[0]) => {
-      hudChromeView.update(input);
-    },
-    updateLatency: (latencyMs: number | null) =>
-      hudChromeView.updateLatency(latencyMs),
-    updateFleetStatus: (status: string, ariaLabel?: string) =>
-      hudChromeView.updateFleetStatus(status, ariaLabel),
-    updateShipList: (...args: Parameters<typeof shipListView.update>): void => {
-      shipListView.update(...args);
-    },
-    toggleHelpOverlay: () => hudChromeView.toggleHelpOverlay(),
-    openHelpSection: (sectionElementId: string) =>
-      hudChromeView.openHelpSection(sectionElementId),
-    updateSoundButton: (muted: boolean) =>
-      hudChromeView.updateSoundButton(muted),
-    showAttackButton: (isVisible: boolean) =>
-      hudChromeView.showAttackButton(isVisible),
-    showFireButton: (isVisible: boolean, count: number) =>
-      hudChromeView.showFireButton(isVisible, count),
+    updateHUD: hudChromeView.update,
+    updateLatency: hudChromeView.updateLatency,
+    updateFleetStatus: hudChromeView.updateFleetStatus,
+    updateShipList: shipListView.update,
+    toggleHelpOverlay: hudChromeView.toggleHelpOverlay,
+    openHelpSection: hudChromeView.openHelpSection,
+    updateSoundButton: hudChromeView.updateSoundButton,
+    showAttackButton: hudChromeView.showAttackButton,
+    showFireButton: hudChromeView.showFireButton,
     dispose() {
       resetLayoutMetrics();
       scope.dispose();
