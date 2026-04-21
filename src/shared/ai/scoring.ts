@@ -92,6 +92,7 @@ export const scoreNavigation = (
   targetHex: { q: number; r: number },
   targetBody: string,
   cfg: AIDifficultyConfig,
+  isRace = false,
 ): number => {
   const mult = cfg.multiplier;
   let score = 0;
@@ -167,7 +168,12 @@ export const scoreNavigation = (
     score -= (nextTurnDist - currentDist) * cfg.navDistWeight * mult;
   }
 
-  if (targetBody && currentDist <= 3 && course.outcome !== 'landing') {
+  if (
+    targetBody &&
+    !isRace &&
+    currentDist <= 3 &&
+    course.outcome !== 'landing'
+  ) {
     const speed = hexVecLength(course.newVelocity);
 
     score += (currentDist - newDist) * cfg.navTargetLandingBonus * 0.08;
@@ -520,7 +526,14 @@ export const scoreCourse = (p: ScoreCourseParams): number => {
   if (escapeWins) {
     score += scoreEscape(ship, course, cfg, map, escapeEdge);
   } else if (targetHex) {
-    score += scoreNavigation(ship, course, targetHex, targetBody, cfg);
+    score += scoreNavigation(
+      ship,
+      course,
+      targetHex,
+      targetBody,
+      cfg,
+      !!isRace,
+    );
   }
 
   // Race danger
