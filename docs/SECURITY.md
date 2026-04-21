@@ -32,6 +32,31 @@ Together these cover host-seat integrity, reconnect safety, and server authority
 
 Agents that connect via the hosted MCP endpoint (`POST https://delta-v.tre.systems/mcp`) use a layered two-token scheme so raw match credentials never reach the agent's LLM context:
 
+```mermaid
+sequenceDiagram
+  participant A as Agent client
+  participant API as /api/agent-token
+  participant MCP as /mcp
+  participant G as GameDO
+
+  A->>API: POST /api/agent-token
+  API-->>A: agentToken
+  A->>MCP: initialize + Authorization Bearer agentToken
+  A->>MCP: delta_v_quick_match
+  MCP->>G: queue / seat connect
+  G-->>MCP: code + playerToken
+  MCP-->>A: matchToken
+
+  loop each hosted tool call
+    A->>MCP: Bearer agentToken + matchToken
+    MCP->>MCP: verify agentToken signature
+    MCP->>MCP: verify matchToken signature + embedded agent hash
+    MCP->>G: authorized observation / action
+    G-->>MCP: result
+    MCP-->>A: tool response
+  end
+```
+
 | Token | Purpose | Lifetime | Carrier | Source |
 |-------|---------|----------|---------|--------|
 | `agentToken` | Long-lived agent identity (embeds `playerKey`) | 24 h, renewable | `Authorization: Bearer …` header | `POST /api/agent-token` |
@@ -79,6 +104,23 @@ Current status: **acceptable for friendly matches, weak for public matchmaking**
 ### 3. Rate limiting architecture
 
 This is the canonical rate-limit table for the project. Other docs should link here rather than restate values.
+
+```mermaid
+flowchart TB
+  U["client / agent request"] --> E{"edge binding present?"}
+  E -->|yes| EDGE["Cloudflare rate-limit binding"]
+  E -->|no| APP["Worker in-memory gate"]
+  EDGE --> APP
+  APP --> ROUTE{"route class"}
+  ROUTE -->|create / claim / quick-match / agent-token| C["strict hashed-IP local bucket"]
+  ROUTE -->|telemetry / error / mcp| B["binding-backed POST gate + body cap"]
+  ROUTE -->|join / replay / leaderboard / upgrades| G["GET / upgrade probe buckets"]
+  C --> DO{"upgrade or action?"}
+  B --> DO
+  G --> DO
+  DO -->|WebSocket upgrade accepted| S["per-socket message limiter"]
+  S --> CHAT["chat cooldown"]
+```
 
 | Endpoint / scope | Limit | Window | Scope | Binding | On exceed |
 | --- | --- | --- | --- | --- | --- |

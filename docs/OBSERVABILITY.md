@@ -14,6 +14,37 @@ What Delta-V emits today and how to use it for incidents and tuning. Complements
 
 ## Sources
 
+```mermaid
+flowchart TB
+  subgraph Clients
+    T["track() / POST /telemetry"]
+    E["reportError() / POST /error"]
+  end
+
+  subgraph WorkerAndDO["Worker + Durable Objects"]
+    W["src/server/index.ts"]
+    DO["GameDO / matchmaker / lifecycle helpers"]
+    LOG["Workers Logs"]
+  end
+
+  subgraph Storage
+    D1["D1 events"]
+    MA["D1 match_archive"]
+    P["D1 player + match_rating"]
+    R2["R2 MATCH_ARCHIVE"]
+  end
+
+  T --> W
+  E --> W
+  W --> D1
+  W --> LOG
+  DO --> D1
+  DO --> LOG
+  DO --> MA
+  DO --> R2
+  W --> P
+```
+
 | Source                          | What                                                                             | Where to read it                                                       |
 | ------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | **Worker + DO logs**            | `console.log` / `console.error` from `src/server/index.ts`, `GameDO`, handlers   | Cloudflare Workers **Logs** (observability enabled in `wrangler.toml`) |
@@ -75,6 +106,18 @@ From `migrations/0001_create_events.sql`:
 
 Emitted from `src/server/game-do/telemetry.ts` (`reportLifecycleEvent`, `reportSideChannelFailure`) and `src/server/matchmaker-do.ts`. All share `anon_id = null` and `ip_hash = 'server'`. Lifecycle events emit `console.log`; side-channel failures emit `console.error` so the two streams are easy to separate in Workers Logs.
 
+```mermaid
+flowchart LR
+  A["authoritative action"] --> B["engine / publication path"]
+  B --> C{"normal or failure?"}
+  C -->|normal| L["reportLifecycleEvent"]
+  C -->|failure| F["reportSideChannelFailure"]
+  L --> D1["D1 events"]
+  L --> LOG["Workers Logs"]
+  F --> D1
+  F --> LOG
+```
+
 **Lifecycle (normal signals):**
 
 - `game_started` — `{ gameId, code, scenario }`
@@ -122,6 +165,19 @@ Operationally, the two signals to watch are:
 ## Incident triage quickstart
 
 Use this when someone reports "game is broken" or metrics look wrong.
+
+```mermaid
+flowchart TD
+  R["report or metric spike"] --> L["check Workers Logs scope"]
+  L --> Q["run D1 error queries"]
+  Q --> D{"which class?"}
+  D -->|engine_error / parity| S["treat as authority or replay risk"]
+  D -->|client_error only| C["suspect browser or UI regression"]
+  D -->|completion / archive issue| M["inspect match_archive and R2 sample"]
+  S --> DEP["check recent deploy / rollback decision"]
+  C --> UA["split by ua and recent client changes"]
+  M --> SAMPLE["open concrete gameId sample"]
+```
 
 1. Confirm scope quickly in Workers Logs:
    - Is it one room code or many?
