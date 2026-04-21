@@ -1550,6 +1550,30 @@ describe('aiAstrogation — checkpoint race', () => {
 
     expect(order.burn).not.toBeNull();
   });
+  it('grandTour: avoids re-landing on the wrong checkpoint body while racing to the next one', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-NO-WRONG-LAND'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 0));
+
+    state.players[0].visitedBodies = ['Luna', 'Sol', 'Mercury'];
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: 0, r: 4 };
+    aiShip.velocity = { dq: 1, dr: 0 };
+    aiShip.fuel = 12;
+
+    const [order] = aiAstrogation(state, 0, map, 'hard');
+    const course = computeCourse(aiShip, order.burn ?? null, map, {
+      land: order.land,
+      overload: order.overload ?? null,
+      destroyedBases: state.destroyedBases,
+    });
+
+    expect(course.outcome).not.toBe('landing');
+  });
   it('grandTour: does not use overloads since combatDisabled', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,
