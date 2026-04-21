@@ -58,6 +58,27 @@ export const aiCombat = (
       ship.lifecycle !== 'destroyed' &&
       ship.detected,
   );
+  const player = state.players[playerId];
+  const targetHex = player.targetBody
+    ? (map.bodies.find((body) => body.name === player.targetBody)?.center ??
+      null)
+    : null;
+  const homeHex = player.homeBody
+    ? (map.bodies.find((body) => body.name === player.homeBody)?.center ?? null)
+    : null;
+  const singleShipObjectiveDuel =
+    !deriveCapabilities(state.scenarioRules).isCheckpointRace &&
+    !deriveCapabilities(state.scenarioRules).targetWinRequiresPassengers &&
+    targetHex != null &&
+    homeHex != null &&
+    myShips.length === 1 &&
+    enemyShips.filter(canAttack).length === 1;
+  const myBestObjectiveDistance =
+    !singleShipObjectiveDuel || targetHex == null
+      ? null
+      : Math.min(
+          ...myShips.map((ship) => hexDistance(ship.position, targetHex)),
+        );
   const enemyNukes = state.ordnance.filter(
     (ordnance) =>
       ordnance.owner !== playerId &&
@@ -73,6 +94,20 @@ export const aiCombat = (
 
   for (const enemy of enemyShips) {
     if (enemy.lifecycle === 'landed') continue;
+    if (
+      singleShipObjectiveDuel &&
+      homeHex != null &&
+      myBestObjectiveDistance != null
+    ) {
+      const enemyPressureDistance = hexDistance(enemy.position, homeHex);
+      const isStrategicThreat =
+        enemyPressureDistance <= 4 ||
+        enemyPressureDistance + 5 < myBestObjectiveDistance;
+
+      if (!isStrategicThreat) {
+        continue;
+      }
+    }
 
     const attackersForTarget = myShips.filter((attacker) =>
       hasLineOfSight(attacker, enemy, map),

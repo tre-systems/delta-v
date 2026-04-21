@@ -97,6 +97,14 @@ export const scoreNavigation = (
   let score = 0;
   const currentDist = hexDistance(ship.position, targetHex);
   const newDist = hexDistance(course.destination, targetHex);
+  const currentProjectedDist = hexDistance(
+    hexAdd(ship.position, ship.velocity),
+    targetHex,
+  );
+  const nextTurnDist = hexDistance(
+    hexAdd(course.destination, course.newVelocity),
+    targetHex,
+  );
   // Reward getting closer to target
   score += (currentDist - newDist) * cfg.navDistWeight * mult;
   // Bonus for landing on target body (not home!)
@@ -129,11 +137,22 @@ export const scoreNavigation = (
     targetHex,
   );
   score -= velDist * cfg.navVelocityAlignWeight * mult;
-  const nextTurnDist = hexDistance(
-    hexAdd(course.destination, course.newVelocity),
-    targetHex,
-  );
   score += (newDist - nextTurnDist) * cfg.navVelocityAlignWeight * mult;
+  score +=
+    (currentProjectedDist - nextTurnDist) * cfg.navFinalApproachWeight * mult;
+
+  if (
+    targetBody &&
+    nextTurnDist <= cfg.navImminentLandingRange &&
+    hexVecLength(course.newVelocity) <= 1
+  ) {
+    score += cfg.navImminentLandingBonus * mult;
+  } else if (
+    currentProjectedDist <= cfg.navImminentLandingRange &&
+    nextTurnDist > cfg.navImminentLandingRange
+  ) {
+    score -= cfg.navImminentLandingBonus * mult;
+  }
 
   if (newDist > currentDist && nextTurnDist > currentDist) {
     score -= (nextTurnDist - currentDist) * cfg.navDistWeight * mult;
@@ -371,15 +390,24 @@ export const scoreCombatPositioning = (
         ? (() => {
             const predictedEnemy = hexAdd(enemy.position, enemy.velocity);
             const currentTargetDist = hexDistance(
-              course.destination,
+              hexAdd(course.destination, course.newVelocity),
               targetHex,
             );
             const enemyTargetDist = Math.min(
               hexDistance(enemy.position, targetHex),
               hexDistance(predictedEnemy, targetHex),
             );
+            const interceptDistance = hexDistance(
+              hexAdd(course.destination, course.newVelocity),
+              predictedEnemy,
+            );
 
-            return enemyTargetDist <= currentTargetDist + 2 || dist <= 4;
+            return (
+              enemyTargetDist + 1 < currentTargetDist ||
+              (enemyTargetDist <= currentTargetDist &&
+                interceptDistance <= 2 &&
+                dist <= 3)
+            );
           })()
         : true;
 
