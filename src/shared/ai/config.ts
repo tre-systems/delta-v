@@ -47,6 +47,12 @@ export interface AIDifficultyConfig {
   navOvershootRange: number;
   // Penalty for unnecessary braking near the objective.
   navBrakingPenalty: number;
+  // Extra reward for improving the immediate next-turn landing setup.
+  navFinalApproachWeight: number;
+  // Bonus for ending the turn on a controlled one-turn landing line.
+  navImminentLandingBonus: number;
+  // Max projected distance that still counts as an imminent landing setup.
+  navImminentLandingRange: number;
 
   // --- Race / gravity danger (applied when close to strong gravity wells) ---
   // Hex buffer around a gravity well before danger scoring activates.
@@ -208,6 +214,9 @@ export const AI_CONFIG: Readonly<
     navOvershootPenalty: 15,
     navOvershootRange: 8,
     navBrakingPenalty: 25,
+    navFinalApproachWeight: 18,
+    navImminentLandingBonus: 90,
+    navImminentLandingRange: 1,
     gravityDangerPadding: 5,
     gravityDangerSpeedPenalty: 15,
     gravityRiskPenalty: -20,
@@ -276,6 +285,9 @@ export const AI_CONFIG: Readonly<
     navOvershootPenalty: 15,
     navOvershootRange: 8,
     navBrakingPenalty: 25,
+    navFinalApproachWeight: 22,
+    navImminentLandingBonus: 120,
+    navImminentLandingRange: 1,
     gravityDangerPadding: 5,
     gravityDangerSpeedPenalty: 15,
     gravityRiskPenalty: -20,
@@ -347,6 +359,9 @@ export const AI_CONFIG: Readonly<
     navOvershootPenalty: 15,
     navOvershootRange: 8,
     navBrakingPenalty: 25,
+    navFinalApproachWeight: 28,
+    navImminentLandingBonus: 160,
+    navImminentLandingRange: 1,
     gravityDangerPadding: 5,
     gravityDangerSpeedPenalty: 15,
     gravityRiskPenalty: -20,

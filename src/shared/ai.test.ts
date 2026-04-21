@@ -41,14 +41,17 @@ const aiOrdnance = (
 import {
   estimateRemainingCheckpointTourCost,
   findDirectionToward,
+  getHomeDefenseThreat,
   pickNextCheckpoint,
 } from './ai/common';
+import { AI_CONFIG } from './ai/config';
 import {
   assessNukeBallisticToEnemy,
   evaluateOrdnanceLaunchIntercept,
   resolveHardNukeReachThreshold,
   resolveHardNukeScoreFloor,
 } from './ai/ordnance';
+import { scoreCombatPositioning, scoreNavigation } from './ai/scoring';
 import { must } from './assert';
 import { ORDNANCE_MASS, SHIP_STATS } from './constants';
 import {
@@ -376,6 +379,117 @@ describe('aiAstrogation', () => {
 
     expect(order).toBeDefined();
     expect(order.burn).not.toBeNull();
+  });
+
+  it('keeps a clean next-turn landing line over a merely adjacent detour', () => {
+    const ship = createTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+    });
+    const cleanApproach = {
+      destination: { q: 1, r: 0 },
+      path: [
+        { q: 0, r: 0 },
+        { q: 1, r: 0 },
+      ],
+      newVelocity: { dq: 1, dr: 0 },
+      fuelSpent: 1,
+      gravityEffects: [],
+      enteredGravityEffects: [],
+      outcome: 'normal' as const,
+    };
+    const detour = {
+      destination: { q: 1, r: 0 },
+      path: [
+        { q: 0, r: 0 },
+        { q: 1, r: 0 },
+      ],
+      newVelocity: { dq: 0, dr: 1 },
+      fuelSpent: 1,
+      gravityEffects: [],
+      enteredGravityEffects: [],
+      outcome: 'normal' as const,
+    };
+
+    expect(
+      scoreNavigation(
+        ship,
+        cleanApproach,
+        { q: 2, r: 0 },
+        'Mars',
+        AI_CONFIG.hard,
+      ),
+    ).toBeGreaterThan(
+      scoreNavigation(ship, detour, { q: 2, r: 0 }, 'Mars', AI_CONFIG.hard),
+    );
+  });
+
+  it('does not trigger home screening for a merely modest race lead', () => {
+    const state = createTestState({
+      phase: 'astrogation',
+      players: [
+        { homeBody: 'Venus', targetBody: 'Mars' },
+        { homeBody: 'Mars', targetBody: 'Venus' },
+      ],
+      ships: [
+        createTestShip({
+          id: asShipId('p0-racer'),
+          owner: 0,
+          originalOwner: 0,
+          position: { q: -13, r: 16 },
+          velocity: { dq: 0, dr: 0 },
+        }),
+        createTestShip({
+          id: asShipId('p1-racer'),
+          owner: 1,
+          originalOwner: 1,
+          position: { q: -4, r: 3 },
+          velocity: { dq: 0, dr: 0 },
+        }),
+      ],
+    });
+    const enemyShips = state.ships.filter((ship) => ship.owner === 0);
+
+    expect(getHomeDefenseThreat(state, 1, map, enemyShips)).toBeNull();
+  });
+
+  it('does not bias toward combat when the enemy is nearby but behind on the race', () => {
+    const ship = createTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+    });
+    const enemy = createTestShip({
+      id: asShipId('enemy-screen'),
+      owner: 1,
+      originalOwner: 1,
+      position: { q: 1, r: 2 },
+      velocity: { dq: 0, dr: 0 },
+    });
+    const course = {
+      destination: { q: 1, r: 0 },
+      path: [
+        { q: 0, r: 0 },
+        { q: 1, r: 0 },
+      ],
+      newVelocity: { dq: 1, dr: 0 },
+      fuelSpent: 1,
+      gravityEffects: [],
+      enteredGravityEffects: [],
+      outcome: 'normal' as const,
+    };
+
+    expect(
+      scoreCombatPositioning(
+        ship,
+        course,
+        [enemy],
+        false,
+        { q: 2, r: 0 },
+        false,
+        0,
+        AI_CONFIG.hard,
+      ),
+    ).toBe(0);
   });
 
   it('uses a coordinated escape line for immediate passenger threats', () => {
@@ -806,6 +920,35 @@ describe('aiCombat', () => {
       expect(attacks[0].attackerIds).toContain(aiShip.id);
       expect(attacks[0].targetId).toBe(enemyShip.id);
     }
+  });
+  it('skips opportunistic combat in biplanetary when the enemy is not threatening home', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('BIP-COMBAT-GATE'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemyShip = must(state.ships.find((s) => s.owner === 0));
+    const targetBody = must(
+      map.bodies.find((body) => body.name === state.players[1].targetBody),
+    );
+
+    aiShip.position = hexAdd(targetBody.center, {
+      dq: targetBody.surfaceRadius + 2,
+      dr: 0,
+    });
+    aiShip.lastMovementPath = [aiShip.position];
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.lifecycle = 'active';
+
+    enemyShip.position = hexAdd(aiShip.position, { dq: 1, dr: 0 });
+    enemyShip.lastMovementPath = [enemyShip.position];
+    enemyShip.velocity = { dq: 0, dr: 0 };
+    enemyShip.lifecycle = 'active';
+    enemyShip.detected = true;
+
+    expect(aiCombat(state, 1, map, 'hard')).toEqual([]);
   });
   it('skips targets that are blocked by a body', () => {
     const state = createGameOrThrow(
