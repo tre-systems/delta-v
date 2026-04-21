@@ -142,23 +142,6 @@ const createMainLocalSessionDeps = (
   runLocalAI: deps.runLocalAI,
 });
 
-const createMainJoinSessionDeps = (
-  deps: MainNetworkDeps,
-): JoinGameSessionDeps => ({
-  ...createMainRemoteSessionBridge(deps),
-  getStoredPlayerToken: (gameCode) =>
-    deps.sessionTokens.getStoredPlayerToken(gameCode),
-  storePlayerToken: (gameCode, token) =>
-    deps.sessionTokens.storePlayerToken(gameCode, token),
-  validateJoin: (gameCode, token) =>
-    deps.sessionApi.validateJoin(gameCode, token),
-  showToast: (message, type) => deps.ui.overlay.showToast(message, type),
-  exitToMenu: () => exitToMenuFromMain(deps),
-  selectCodeInput: () => deps.ui.selectCodeInput(),
-  fallbackToSpectator: (gameCode) =>
-    beginSpectateGameSession(createMainRemoteSessionBridge(deps), gameCode),
-});
-
 const createMainExitSessionDeps = (
   deps: MainNetworkDeps,
   route = '/',
@@ -197,31 +180,6 @@ export const beginSpectateGameFromMain = (
   beginSpectateGameSession(createMainRemoteSessionBridge(deps), code);
 };
 
-const createMainArchivedReplaySessionDeps = (
-  deps: MainNetworkDeps,
-): ArchivedReplaySessionDeps => ({
-  ctx: deps.ctx,
-  resetTurnTelemetry: () => deps.turnTelemetry.reset(),
-  replaceRoute: replaceMainRoute,
-  buildGameRoute,
-  setWaitingScreenState: (state) => setWaitingScreenState(deps.ctx, state),
-  setState: deps.setState,
-  fetchArchivedReplay: (gameCode, gameId, signal) =>
-    deps.sessionApi.fetchArchivedReplay(gameCode, gameId, signal),
-  applyGameState: deps.applyGameState,
-  startArchivedReplay: (timeline) =>
-    deps.replayController.startArchivedReplay(timeline),
-  clearLog: () => deps.ui.log.clear(),
-  setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),
-  logText: (text, cssClass) => deps.ui.log.logText(text, cssClass),
-  showToast: (message, type) => deps.ui.overlay.showToast(message, type),
-  exitToMenu: () => {
-    deps.abortInflightArchivedReplayFetch?.();
-    exitToMenuSession(createMainExitSessionDeps(deps, '/matches'));
-  },
-  setScenario: (scenario) => setScenario(deps.ctx, scenario),
-});
-
 export const beginArchivedReplayFromMain = (
   deps: MainNetworkDeps,
   code: string,
@@ -231,10 +189,32 @@ export const beginArchivedReplayFromMain = (
   deps.abortInflightArchivedReplayFetch?.();
   const ac = new AbortController();
   deps.registerArchivedReplayFetchAbort?.(ac);
+  const archivedReplayDeps: ArchivedReplaySessionDeps = {
+    ctx: deps.ctx,
+    resetTurnTelemetry: () => deps.turnTelemetry.reset(),
+    replaceRoute: replaceMainRoute,
+    buildGameRoute,
+    setWaitingScreenState: (state) => setWaitingScreenState(deps.ctx, state),
+    setState: deps.setState,
+    fetchArchivedReplay: (gameCode, gameId, signal) =>
+      deps.sessionApi.fetchArchivedReplay(gameCode, gameId, signal),
+    applyGameState: deps.applyGameState,
+    startArchivedReplay: (timeline) =>
+      deps.replayController.startArchivedReplay(timeline),
+    clearLog: () => deps.ui.log.clear(),
+    setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),
+    logText: (text, cssClass) => deps.ui.log.logText(text, cssClass),
+    showToast: (message, type) => deps.ui.overlay.showToast(message, type),
+    exitToMenu: () => {
+      deps.abortInflightArchivedReplayFetch?.();
+      exitToMenuSession(createMainExitSessionDeps(deps, '/matches'));
+    },
+    setScenario: (scenario) => setScenario(deps.ctx, scenario),
+  };
   void (async () => {
     try {
       await beginArchivedReplaySession(
-        createMainArchivedReplaySessionDeps(deps),
+        archivedReplayDeps,
         code,
         gameId,
         ac.signal,
@@ -251,7 +231,21 @@ export const beginJoinGameFromMain = (
   playerToken: string | null,
 ): void => {
   deps.ui.log.setLocalGame(false);
-  void beginJoinGameSession(createMainJoinSessionDeps(deps), code, playerToken);
+  const joinDeps: JoinGameSessionDeps = {
+    ...createMainRemoteSessionBridge(deps),
+    getStoredPlayerToken: (gameCode) =>
+      deps.sessionTokens.getStoredPlayerToken(gameCode),
+    storePlayerToken: (gameCode, token) =>
+      deps.sessionTokens.storePlayerToken(gameCode, token),
+    validateJoin: (gameCode, token) =>
+      deps.sessionApi.validateJoin(gameCode, token),
+    showToast: (message, type) => deps.ui.overlay.showToast(message, type),
+    exitToMenu: () => exitToMenuFromMain(deps),
+    selectCodeInput: () => deps.ui.selectCodeInput(),
+    fallbackToSpectator: (gameCode) =>
+      beginSpectateGameSession(createMainRemoteSessionBridge(deps), gameCode),
+  };
+  void beginJoinGameSession(joinDeps, code, playerToken);
 };
 
 export const handleServerMessageFromMain = (
