@@ -23,11 +23,6 @@ export interface PhaseTransitionPlan {
   turnLogPlayerLabel: string | null;
 }
 
-type TransitionPlanOverrides = Omit<
-  PhaseTransitionPlan,
-  'turnLogNumber' | 'turnLogPlayerLabel'
->;
-
 type ActiveTurnPhase = Extract<
   GameState['phase'],
   'astrogation' | 'ordnance' | 'logistics' | 'combat'
@@ -45,58 +40,15 @@ const hasPendingOwnedAsteroidHazards = (
   });
 };
 
-const DEFAULT_TRANSITION_PLAN: TransitionPlanOverrides = {
-  nextState: null,
-  banner: null,
-  playPhaseSound: false,
-  beginCombatPhase: false,
-  runLocalAI: false,
-};
-
-const SPECTATOR_PHASE_TRANSITIONS: Partial<
-  Record<GameState['phase'], Partial<TransitionPlanOverrides>>
-> = {
-  fleetBuilding: {
-    nextState: 'playing_fleetBuilding',
-  },
-};
-
-const ACTIVE_TURN_PHASE_TRANSITIONS: Record<
+const ACTIVE_TURN_PLANS: Record<
   ActiveTurnPhase,
-  Partial<TransitionPlanOverrides>
+  { nextState: ClientState; banner: string }
 > = {
-  astrogation: {
-    nextState: 'playing_astrogation',
-    banner: 'YOUR TURN',
-    playPhaseSound: true,
-  },
-  ordnance: {
-    nextState: 'playing_ordnance',
-    banner: 'ORDNANCE',
-    playPhaseSound: true,
-  },
-  logistics: {
-    nextState: 'playing_logistics',
-    banner: 'LOGISTICS',
-    playPhaseSound: true,
-  },
-  combat: {
-    nextState: 'playing_combat',
-    banner: 'COMBAT',
-    playPhaseSound: true,
-  },
+  astrogation: { nextState: 'playing_astrogation', banner: 'YOUR TURN' },
+  ordnance: { nextState: 'playing_ordnance', banner: 'ORDNANCE' },
+  logistics: { nextState: 'playing_logistics', banner: 'LOGISTICS' },
+  combat: { nextState: 'playing_combat', banner: 'COMBAT' },
 };
-
-const createPhaseTransitionPlan = (
-  overrides: Partial<TransitionPlanOverrides>,
-  turnLogNumber: number | null,
-  turnLogPlayerLabel: string | null,
-): PhaseTransitionPlan => ({
-  ...DEFAULT_TRANSITION_PLAN,
-  ...overrides,
-  turnLogNumber,
-  turnLogPlayerLabel,
-});
 
 export const derivePhaseTransition = (
   state: GameState,
@@ -109,17 +61,21 @@ export const derivePhaseTransition = (
   const turnLogNumber = shouldLogTurn ? state.turnNumber : null;
 
   if (playerId < 0) {
-    const spectatorTurnLabel = shouldLogTurn
+    const turnLogPlayerLabel = shouldLogTurn
       ? `Player ${state.activePlayer}`
       : null;
-
-    return createPhaseTransitionPlan(
-      state.phase === 'fleetBuilding'
-        ? (SPECTATOR_PHASE_TRANSITIONS[state.phase] ?? {})
-        : { nextState: 'playing_opponentTurn' },
+    return {
+      nextState:
+        state.phase === 'fleetBuilding'
+          ? 'playing_fleetBuilding'
+          : 'playing_opponentTurn',
+      banner: null,
+      playPhaseSound: false,
+      beginCombatPhase: false,
+      runLocalAI: false,
       turnLogNumber,
-      spectatorTurnLabel,
-    );
+      turnLogPlayerLabel,
+    };
   }
 
   const turnLogPlayerLabel = shouldLogTurn
@@ -129,15 +85,15 @@ export const derivePhaseTransition = (
     : null;
 
   if (state.phase === 'fleetBuilding') {
-    return createPhaseTransitionPlan(
-      {
-        nextState: state.players[playerId].ready
-          ? null
-          : 'playing_fleetBuilding',
-      },
+    return {
+      nextState: state.players[playerId].ready ? null : 'playing_fleetBuilding',
+      banner: null,
+      playPhaseSound: false,
+      beginCombatPhase: false,
+      runLocalAI: false,
       turnLogNumber,
       turnLogPlayerLabel,
-    );
+    };
   }
 
   const isMyTurn = state.activePlayer === playerId;
@@ -147,32 +103,38 @@ export const derivePhaseTransition = (
       state.phase === 'combat' &&
       hasPendingOwnedAsteroidHazards(state, playerId)
     ) {
-      return createPhaseTransitionPlan(
-        {
-          beginCombatPhase: true,
-        },
+      return {
+        nextState: null,
+        banner: null,
+        playPhaseSound: false,
+        beginCombatPhase: true,
+        runLocalAI: false,
         turnLogNumber,
         turnLogPlayerLabel,
-      );
+      };
     }
 
-    const activeTurnPhaseTransition =
-      ACTIVE_TURN_PHASE_TRANSITIONS[state.phase as ActiveTurnPhase];
-    if (activeTurnPhaseTransition) {
-      return createPhaseTransitionPlan(
-        activeTurnPhaseTransition,
+    const activeTurnPlan = ACTIVE_TURN_PLANS[state.phase as ActiveTurnPhase];
+    if (activeTurnPlan) {
+      return {
+        nextState: activeTurnPlan.nextState,
+        banner: activeTurnPlan.banner,
+        playPhaseSound: true,
+        beginCombatPhase: false,
+        runLocalAI: false,
         turnLogNumber,
         turnLogPlayerLabel,
-      );
+      };
     }
   }
 
-  return createPhaseTransitionPlan(
-    {
-      nextState: 'playing_opponentTurn',
-      runLocalAI: isLocalGame && state.activePlayer !== playerId,
-    },
+  return {
+    nextState: 'playing_opponentTurn',
+    banner: null,
+    playPhaseSound: false,
+    beginCombatPhase: false,
+    runLocalAI: isLocalGame && state.activePlayer !== playerId,
     turnLogNumber,
     turnLogPlayerLabel,
-  );
+  };
 };
