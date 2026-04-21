@@ -2,7 +2,6 @@
 // Each step is independently testable; the pipeline runner preserves ordering.
 
 import type { EngineEvent } from '../../shared/engine/engine-events';
-import type { GameId } from '../../shared/ids';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { scheduleMatchRatingUpdate } from '../leaderboard/rating-writer';
 import type { RoomConfig } from '../protocol';
@@ -38,93 +37,6 @@ export interface PublicationOptions {
   events?: EngineEvent[];
 }
 
-const assertKnownStatefulMessage = (
-  message: StatefulServerMessage,
-): StatefulServerMessage => {
-  if (
-    !STATEFUL_SERVER_MESSAGE_TYPES.includes(
-      message.type as (typeof STATEFUL_SERVER_MESSAGE_TYPES)[number],
-    )
-  ) {
-    throw new Error(`Unsupported stateful server message: ${message.type}`);
-  }
-
-  return message;
-};
-
-// Step 1: Append engine events to the event stream.
-const appendEvents = async (
-  storage: DurableObjectStorage,
-  gameId: GameId,
-  actor: PlayerId | null,
-  events: EngineEvent[],
-): Promise<number> => {
-  if (events.length === 0) {
-    return getEventStreamLength(storage, gameId);
-  }
-  await appendEnvelopedEvents(storage, gameId, actor, ...events);
-  return getEventStreamLength(storage, gameId);
-};
-
-// Step 2: Save a checkpoint at turn boundaries or game end.
-const checkpointIfNeeded = async (
-  storage: DurableObjectStorage,
-  gameId: GameId,
-  state: GameState,
-  eventSeq: number,
-  events: EngineEvent[],
-): Promise<void> => {
-  const hasTurnBoundary = events.some(
-    (e) => e.type === 'turnAdvanced' || e.type === 'gameOver',
-  );
-  if (hasTurnBoundary) {
-    await saveCheckpoint(storage, gameId, state, eventSeq);
-  }
-};
-
-// Step 3: Archive completed match to R2 for persistent analysis.
-const archiveIfGameOver = (
-  deps: Pick<PublicationDeps, 'storage' | 'env' | 'waitUntil'>,
-  state: GameState,
-  roomCode: string,
-  events: EngineEvent[],
-): void => {
-  const hasGameOver = events.some((e) => e.type === 'gameOver');
-  if (hasGameOver) {
-    scheduleArchiveCompletedMatch(
-      {
-        storage: deps.storage,
-        r2: deps.env.MATCH_ARCHIVE,
-        db: deps.env.DB,
-        waitUntil: deps.waitUntil,
-      },
-      state,
-      roomCode,
-    );
-  }
-};
-
-// Step 3b: Update Glicko-2 ratings for matchmaker-paired matches.
-// The rating-writer itself no-ops on non-paired rooms and when either
-// participant lacks a `player` row.
-const updateRatingsIfGameOver = (
-  deps: Pick<PublicationDeps, 'env' | 'waitUntil' | 'getRoomConfig'>,
-  state: GameState,
-  events: EngineEvent[],
-): void => {
-  const hasGameOver = events.some((e) => e.type === 'gameOver');
-  if (hasGameOver) {
-    scheduleMatchRatingUpdate(
-      {
-        db: deps.env.DB,
-        waitUntil: deps.waitUntil,
-        getRoomConfig: deps.getRoomConfig,
-      },
-      state,
-    );
-  }
-};
-
 // Pipeline runner: executes all steps in order, preserving the original
 // behavioral contract of GameDO.publishStateChange.
 export const runPublicationPipeline = async (
@@ -136,29 +48,69 @@ export const runPublicationPipeline = async (
   const { actor = null, restartTurnTimer = true, events = [] } = options ?? {};
 
   const roomCode = await deps.getGameCode();
-  const replayMessage = assertKnownStatefulMessage(
-    resolveStateBearingMessage(state, primaryMessage),
-  );
+  const replayMessage = resolveStateBearingMessage(state, primaryMessage);
+
+  if (
+    !STATEFUL_SERVER_MESSAGE_TYPES.includes(
+      replayMessage.type as (typeof STATEFUL_SERVER_MESSAGE_TYPES)[number],
+    )
+  ) {
+    throw new Error(
+      `Unsupported stateful server message: ${replayMessage.type}`,
+    );
+  }
 
   // Step 1: Append events
-  const eventSeq = await appendEvents(
-    deps.storage,
-    state.gameId,
-    actor,
-    events,
-  );
+  const eventSeq =
+    events.length === 0
+      ? await getEventStreamLength(deps.storage, state.gameId)
+      : await (async () => {
+          await appendEnvelopedEvents(
+            deps.storage,
+            state.gameId,
+            actor,
+            ...events,
+          );
+          return getEventStreamLength(deps.storage, state.gameId);
+        })();
 
   // Step 2: Checkpoint
-  await checkpointIfNeeded(deps.storage, state.gameId, state, eventSeq, events);
+  if (
+    events.some(
+      (event) => event.type === 'turnAdvanced' || event.type === 'gameOver',
+    )
+  ) {
+    await saveCheckpoint(deps.storage, state.gameId, state, eventSeq);
+  }
 
   // Step 3: Verify projection parity
   await deps.verifyProjectionParity(state);
 
   // Step 4: Archive if game over
-  archiveIfGameOver(deps, state, roomCode, events);
+  if (events.some((event) => event.type === 'gameOver')) {
+    scheduleArchiveCompletedMatch(
+      {
+        storage: deps.storage,
+        r2: deps.env.MATCH_ARCHIVE,
+        db: deps.env.DB,
+        waitUntil: deps.waitUntil,
+      },
+      state,
+      roomCode,
+    );
 
-  // Step 4b: Update Glicko-2 ratings if game over (paired matches only)
-  updateRatingsIfGameOver(deps, state, events);
+    // Step 4b: Update Glicko-2 ratings if game over (paired matches only)
+    // The rating-writer itself no-ops on non-paired rooms and when either
+    // participant lacks a `player` row.
+    scheduleMatchRatingUpdate(
+      {
+        db: deps.env.DB,
+        waitUntil: deps.waitUntil,
+        getRoomConfig: deps.getRoomConfig,
+      },
+      state,
+    );
+  }
 
   // Step 5: Restart turn timer
   if (restartTurnTimer) {
