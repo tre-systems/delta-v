@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
-import { deriveScenarioBriefingEntries } from './briefing';
+import { getScenarioBriefingLines } from './selection';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: asShipId('ship-0'),
@@ -75,16 +75,16 @@ const createState = (overrides: Partial<GameState> = {}): GameState => ({
   ...overrides,
 });
 
-describe('game-client-briefing', () => {
+describe('getScenarioBriefingLines', () => {
   it('includes fleet for standard landing scenarios', () => {
-    expect(deriveScenarioBriefingEntries(createState(), 0)).toEqual([
-      { text: 'Your fleet: Transport, Packet', cssClass: '' },
+    expect(getScenarioBriefingLines(createState(), 0)).toEqual([
+      'Your fleet: Transport, Packet',
     ]);
   });
 
   it('classifies escape and hidden-identity briefing lines', () => {
     expect(
-      deriveScenarioBriefingEntries(
+      getScenarioBriefingLines(
         createState({
           ships: [
             createShip({
@@ -96,15 +96,12 @@ describe('game-client-briefing', () => {
         0,
       ),
     ).toEqual([
-      { text: 'Your fleet: Transport', cssClass: '' },
-      {
-        text: 'Your \u2605 ship carries the fugitives',
-        cssClass: '',
-      },
+      'Your fleet: Transport',
+      'Your \u2605 ship carries the fugitives',
     ]);
 
     expect(
-      deriveScenarioBriefingEntries(
+      getScenarioBriefingLines(
         createState({
           scenarioRules: { hiddenIdentityInspection: true },
           players: [
@@ -115,17 +112,14 @@ describe('game-client-briefing', () => {
         0,
       ),
     ).toEqual([
-      { text: 'Your fleet: Transport, Packet', cssClass: '' },
-      {
-        text: 'Inspect transports to find the fugitives',
-        cssClass: '',
-      },
+      'Your fleet: Transport, Packet',
+      'Inspect transports to find the fugitives',
     ]);
   });
 
   it('notes race-only for checkpoint scenarios', () => {
     expect(
-      deriveScenarioBriefingEntries(
+      getScenarioBriefingLines(
         createState({
           scenarioRules: {
             checkpointBodies: ['Mars', 'Venus', 'Jupiter'],
@@ -133,9 +127,6 @@ describe('game-client-briefing', () => {
         }),
         0,
       ),
-    ).toEqual([
-      { text: 'Your fleet: Transport, Packet', cssClass: '' },
-      { text: 'No combat \u2014 race only', cssClass: '' },
-    ]);
+    ).toEqual(['Your fleet: Transport, Packet', 'No combat \u2014 race only']);
   });
 });

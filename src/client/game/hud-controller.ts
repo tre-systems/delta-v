@@ -10,14 +10,13 @@ import { hide, setTrustedHTML, show } from '../dom';
 import type { Renderer } from '../renderer/renderer';
 import { HEX_SIZE } from '../renderer/renderer';
 import type { UIManager } from '../ui/ui';
-import { deriveScenarioBriefingEntries } from './briefing';
 import { getTooltipShip } from './hover';
 import { buildHudChromeInputFromViewModel } from './hud-chrome-input';
 import { deriveHudViewModel } from './hud-view-model';
 import { getObjectiveBearingScreenDegrees } from './navigation';
 import type { ClientState } from './phase';
 import type { HudPlanningSnapshot } from './planning';
-import { getSelectedShip } from './selection';
+import { getScenarioBriefingLines, getSelectedShip } from './selection';
 import { buildShipTooltipHtml } from './tooltip';
 
 export interface HudControllerDeps {
@@ -151,11 +150,8 @@ export const createHudController = (deps: HudControllerDeps) => {
       const state = deps.getGameState();
 
       if (!state) return;
-      for (const entry of deriveScenarioBriefingEntries(
-        state,
-        deps.getPlayerId(),
-      )) {
-        deps.ui.log.logText(entry.text, entry.cssClass);
+      for (const line of getScenarioBriefingLines(state, deps.getPlayerId())) {
+        deps.ui.log.logText(line);
       }
     },
 

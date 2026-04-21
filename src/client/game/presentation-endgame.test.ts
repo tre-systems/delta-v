@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
-import { deriveGameOverPlan } from './endgame';
+import { deriveGameOverPlan } from './presentation';
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: asShipId('ship-0'),
