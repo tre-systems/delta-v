@@ -129,11 +129,6 @@
     min-height: 52px;
   }
 
-  .sound-btn,
-  .help-btn {
-    right: calc(var(--hud-edge-right) + 2.1rem);
-  }
-
   .toast-container {
     top: calc(var(--hud-top-offset) + 0.35rem);
   }
