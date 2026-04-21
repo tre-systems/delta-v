@@ -50,6 +50,52 @@ Public read endpoints (`/healthz`, `/api/matches`, `/api/leaderboard`, `/api/lea
 
 ## Room Lifecycle
 
+```mermaid
+sequenceDiagram
+  participant C1 as Creator client
+  participant W as Worker
+  participant G as GameDO
+  participant C2 as Guest client
+
+  C1->>W: POST /create
+  W->>G: /init(room code, scenario, seat 0)
+  G-->>C1: code + creator playerToken
+
+  opt optional preflight
+    C2->>W: GET /join/{code}
+    W->>G: validate join / reconnect
+    G-->>C2: { ok, scenario, seatStatus }
+  end
+
+  C1->>G: WebSocket /ws/{code}?playerToken=...
+  C2->>G: WebSocket /ws/{code}
+  G-->>C1: welcome
+  G-->>C2: welcome
+
+  alt both seats connected
+    G->>G: createGame()
+    G-->>C1: gameStart
+    G-->>C2: gameStart
+  end
+
+  loop turn loop
+    C1->>G: C2S action
+    C2->>G: C2S action
+    G->>G: validate, resolve, append events, restart timer
+    G-->>C1: state-bearing S2C result
+    G-->>C2: state-bearing S2C result
+  end
+
+  alt disconnect
+    C2-xG: socket drops
+    G->>G: 30 s grace timer
+    C2->>G: reconnect with playerToken
+    G-->>C2: projected welcome/state
+  else grace expires
+    G->>G: forfeit / archive path
+  end
+```
+
 ```
 1. POST /create
    → Worker allocates a 5-char room code + creator token → DO /init
@@ -80,6 +126,19 @@ Players are seat-based (Player 0 / Player 1). The creator seat is token-protecte
 ## WebSocket Protocol
 
 JSON messages over WebSocket. Turn-based, so frequency is low. The snippets below are intentionally concise — `src/shared/types/protocol.ts` is authoritative.
+
+```mermaid
+flowchart LR
+  C2S["Client C2S message"] --> V["runtime validation"]
+  V --> D{"action kind"}
+  D -->|state mutating| E["shared engine / authoritative update"]
+  D -->|auxiliary| A["chat / ping / rematch helpers"]
+  E --> P["append events + checkpoint if needed"]
+  P --> F["filterStateForPlayer / spectator"]
+  A --> F
+  F --> S["single state-bearing S2C result"]
+  S --> C["client replaces local state wholesale"]
+```
 
 ### Client → Server (C2S)
 
