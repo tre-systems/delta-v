@@ -140,7 +140,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
-- **Grand Tour AI stalls in Mercury gravity well.** Reported 2026-04-20 mid-match. The AI corvette races toward Mercury (2nd checkpoint, no base), exhausts fuel on arrival, and then cannot continue — with `fuel === 0` the astrogation candidate set collapses to a single coast option and the ship loops in orbit for the rest of the game. Likely fixes: (a) in [pickNextCheckpoint](../src/shared/ai/common.ts) bias toward base-body checkpoints (Venus / Terra / Mars / Callisto) when current fuel is below the round-trip threshold to the next non-base; (b) tighten the `fuelForTrip` reservation at [astrogation.ts:616](../src/shared/ai/astrogation.ts) to include "enough to reach the next *base* after the target", not just the target; (c) when stranded with zero fuel in a gravity well, fall through to a surrender action so the race resolves on the player's clock instead of running out the turn counter. Needs a simulation regression test before shipping.
+- **Grand Tour AI never completes a tour — scenario decides only via progress-tiebreak timeout.** Originally reported 2026-04-20 as a Mercury-specific gravity-well stall. A broader sweep on 2026-04-21 (`npm run simulate -- all 30 --ci`, two separate seeds) shows the problem is universal: **60/60** hard-vs-hard games ended at the 499-turn cap via `Checkpoint race timeout — progress tiebreak`, with P0 winning 0% and P1 winning 100% (seed-1 sample). Zero games were decided by actually visiting all 8 bodies. This is worse than a single-scenario stall — the AI cannot complete the race under any starting configuration. Likely fixes still apply: (a) in [pickNextCheckpoint](../src/shared/ai/common.ts) bias toward base-body checkpoints (Venus / Terra / Mars / Callisto) when current fuel is below the round-trip threshold; (b) tighten the `fuelForTrip` reservation at [astrogation.ts:616](../src/shared/ai/astrogation.ts) to include "enough to reach the next *base* after the target"; (c) when stranded with zero fuel in a gravity well, fall through to surrender so the game resolves quickly. Add a simulation regression that **fails** if fewer than ~30% of `grandTour` games resolve by tour completion vs progress-tiebreak timeout. **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`, `scripts/simulate-ai.ts`, `src/shared/engine/victory.ts` (tiebreak logic).
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
 
@@ -340,6 +340,23 @@ Follow-up seeded sweep 2026-04-20 (`8` base seeds × `30` games = `240` total) s
 
 **Files:** `src/shared/ai/`, `scripts/simulate-ai.ts` (turn cap), `src/shared/scenario-definitions.ts`, `src/shared/engine/victory.ts` (tiebreak)
 
+### Seat-balance drift after 2026-04-21 AI changes
+
+Re-ran the balance sweep after Stream 1's landing-approach / target-race / blockade-objective AI commits (`dcd8626`, `6b08de7`, `cf9b8ee`, `b6b84ec`, `9d9a04c`, `9861219`, `a22baa7`, `8f0a9d1`) shipped to main. Two 30-game hard-vs-hard runs per scenario produced a few scenarios that now drift outside the harness's seat-balance warning band:
+
+| Scenario | P0% | P1% | Draws | Avg turns | Warning |
+|---|---:|---:|---:|---:|---|
+| evacuation | 26.7–33.3 | 66.7–73.3 | 0 | 2.8 | P0 decided rate outside `[35-65%]` |
+| convoy | 73.1–75.0 | 20 | 0–2 | ~42 | P0 decided rate outside `[30-70%]` |
+| fleetAction | 37.9–60.0 | 33–42 | 1–2 | ~30–49 | first run showed P0 outside `[45-80%]` |
+| biplanetary | 50 / 50 | — | 0 | 8.5 | but 96.7% `Fleet eliminated!` / 3.3% objective |
+
+Evacuation specifically: the earlier "**Fixed since opening — Evacuation scenario balance fixed: 100-game sweep now 63/37**" launch-readiness entry no longer holds on 30-game runs; the P0 decided rate swung back to ~33% (P1 dominance). At 2.8 avg turns it's decided very quickly — likely one of the new scoring weights is overshooting. Convoy P0 is now 73-75% (decisive but lopsided). FleetAction has wider seed variance than before.
+
+Needs a 100-game hard-vs-hard sweep to confirm signal vs 30-game noise, then targeted tuning. None of these is a launch-blocker on its own, but stacked with the Grand Tour deadlock they point to collateral damage from the latest AI sweep that wasn't caught by the CI gate (which is deliberately wide at 45-85% P0 for `grandTour` / `duel` only).
+
+**Files:** `src/shared/ai/scoring.ts`, `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`, `src/shared/scenario-definitions.ts`, `scripts/simulate-ai.ts`.
+
 ### AI difficulty tiers still under-differentiate
 
 Earlier diagonal sweep on `duel`, 50 games per cell:
@@ -401,6 +418,35 @@ Gaps in local vs hosted MCP parity, first-class resources, and structured reject
 **Done for this slice:** the remaining room/runtime failures (`ROOM_NOT_FOUND`, `ROOM_FULL`, `GAME_IN_PROGRESS`) are now explicitly covered as intentional plain-error cases, so all engine-invalid submitter-scoped failures are on the structured `actionRejected` path and only true room/runtime conditions stay on the generic error channel.
 
 **Files:** `src/server/game-do/action-guards.ts`, `src/shared/types/protocol.ts`, `src/shared/protocol.ts`, `scripts/delta-v-mcp-server.ts`, `src/client/game/client-message-plans.ts`
+
+### Scenario descriptions drift between source and `/.well-known/agent.json`
+
+Found via R3 doc-consistency sweep on 2026-04-21. `static/.well-known/agent.json` is a hand-maintained static JSON file. `src/shared/scenario-definitions.ts` owns the real in-engine descriptions used by the lobby's scenario cards. Four scenarios have diverged:
+
+| Scenario | Source description | agent.json description |
+|---|---|---|
+| escape | `3 pilgrim transports flee Terra — enforcers must stop them` | `Pilgrim transport and escorts flee Enforcer interceptors` |
+| evacuation | `A crowded transport flees Luna for Terra with corvette and frigate escorts — win only by landing survivors; a corsair tries to cut you off` | `Evacuate Luna before the enemy fleet overruns it` |
+| convoy | `Escort a liner with colonists (and tanker) from Mars to Venus — transfer passengers to safety; pirates intercept` | `Escort or interdict a convoy to Venus` |
+| duel | `Frigates face off across Mercury — use gravity to outmaneuver your opponent` | `Frigates clash near Mercury — last ship standing wins` |
+
+`src/shared/agent/discovery.test.ts` asserts scenario **ids** match but does not compare descriptions, so any source-side rewording silently drifts. Five scenarios match today (biplanetary, blockade, interplanetaryWar, fleetAction, grandTour), so the fix is either (a) generate `agent.json` scenario blocks at build time from the source of truth, or (b) tighten the discovery test to assert `name` and `description` equality with a readable diff. Option (a) is cleaner and matches how `SCENARIOS` already feeds the runtime and the MCP resources.
+
+**Files:** `static/.well-known/agent.json`, `src/shared/scenario-definitions.ts`, `src/shared/agent/discovery.test.ts`, `scripts/` (a new generator if we go with option a).
+
+### Unknown / expired `sessionId` is indistinguishable from missing credentials over MCP
+
+Found via R5 on 2026-04-21. Every hosted MCP tool that accepts `sessionId` (`delta_v_get_state`, `delta_v_get_observation`, `delta_v_send_action`, `delta_v_send_chat`, `delta_v_wait_for_turn`) returns the **same** error when the `sessionId` doesn't resolve to an active session:
+
+```json
+{"result":{"content":[{"type":"text","text":"Provide either matchToken, or both code and playerToken"}],"isError":true}}
+```
+
+An agent that passed `sessionId: "not-a-real-session"` gets the same message as one that called with empty arguments. The message implies "you forgot to pass credentials" when the real cause is "the sessionId you passed is unknown, stale, or expired." Agents have no principled way to retry (reconnect vs re-queue vs re-derive matchToken) without guessing which failure mode they're in.
+
+Action: branch the validation in `packages/mcp-adapter/src/handlers.ts` (`matchTargetSchema` / `resolveMatchTarget`) so the error clearly states the failure mode — "Unknown or expired sessionId. Pass `matchToken` or `{code, playerToken}` to establish a new connection," or similar — and keep the "no credentials provided" copy reserved for the genuine empty-args case.
+
+**Files:** `packages/mcp-adapter/src/handlers.ts`, `scripts/delta-v-mcp-server.ts` (for parity with local MCP), `src/shared/agent/` (if a shared error-shape enum makes sense).
 
 ### Retire legacy `{code, playerToken}` tool args once leaderboard stabilises
 
