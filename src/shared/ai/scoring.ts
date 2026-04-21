@@ -167,6 +167,21 @@ export const scoreNavigation = (
     score -= (nextTurnDist - currentDist) * cfg.navDistWeight * mult;
   }
 
+  if (targetBody && currentDist <= 3 && course.outcome !== 'landing') {
+    const speed = hexVecLength(course.newVelocity);
+
+    score += (currentDist - newDist) * cfg.navTargetLandingBonus * 0.08;
+    score += Math.max(0, 2 - nextTurnDist) * cfg.navImminentLandingBonus * mult;
+
+    if (speed > 1) {
+      score -= (speed - 1) * cfg.navTargetLandingBonus * 0.12;
+    }
+
+    if (newDist > currentDist) {
+      score -= (newDist - currentDist) * cfg.navTargetLandingBonus * 0.2;
+    }
+  }
+
   // Penalty for overshooting (velocity too high
   // near target)
   if (newDist < cfg.navOvershootRange) {
