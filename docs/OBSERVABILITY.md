@@ -84,6 +84,7 @@ Emitted from `src/server/game-do/telemetry.ts` (`reportLifecycleEvent`, `reportS
 - `disconnect_grace_expired` — `{ code, player }` (grace ran out; engine will forfeit)
 - `turn_timeout_fired` — `{ code, gameId, turn, phase, activePlayer }`
 - `matchmaker_paired` — `{ code, scenario, leftKey, rightKey, waitMsLeft, waitMsRight }`
+- `rating_applied` / `rating_skipped` / `rating_failed` — per-match Glicko-2 outcomes (see `src/server/game-do/telemetry.ts` for props)
 
 **Side-channel failures (investigate on spike):**
 
@@ -369,6 +370,6 @@ User-facing policy copy is out of scope here; align any public privacy text with
 
 - No built-in **dashboards** or **alerts** — use Cloudflare + D1 exports or third-party tools. Operational D1 queries are documented above.
 - **Rate limits:** canonical table in [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture); optional cross-edge WAF if distributed abuse is observed.
-- **Retention:** `events` rows older than 30 days are deleted daily by `purgeOldEvents` (cron `0 4 * * *` in `wrangler.toml`). Other tables (`match_archive`, `player`, `match_rating`, R2 archives) have no automatic TTL — see [SECURITY.md § Data retention](./SECURITY.md#data-retention-d1-r2-do).
+- **Retention:** `events` rows older than 30 days are deleted daily by `purgeOldEvents` (cron `0 4 * * *` in `wrangler.toml`); the same cron also calls `purgeExpiredMatchArchives` to remove `match_archive` rows and their R2 objects older than 180 days. Other tables (`player`, `match_rating`) have no automatic TTL — see [SECURITY.md § Data retention](./SECURITY.md#data-retention-d1-r2-do).
 - **`match_rating` intent:** `pre_rating_*` / `post_rating_*` are intentionally kept as an audit/history trail for future player-profile charts, admin anti-cheat review, and balance analysis. They are not dead schema just because the current public app does not read them yet.
 - **Sampling** or caps can be added in `src/server/index.ts` before `insertEvent` if volume grows.

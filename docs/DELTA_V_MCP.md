@@ -36,11 +36,14 @@ Full token model (HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET`): [SECURITY.md#r
 
 ## Resource catalog
 
-Shipped now:
+Shipped now. Concrete URIs advertised by `resources/list` (eleven entries on hosted MCP — one `game://rules/current`, nine per-scenario `game://rules/{scenario}`, and `game://leaderboard/agents`):
 
 - `game://rules/current` — full structured ruleset payload (`application/json`)
-- `game://rules/{scenario}` — scenario-specific structured rules payload (`application/json`)
+- `game://rules/{scenario}` — per-scenario structured rules payload, one concrete URI per shipped scenario (`application/json`)
 - `game://leaderboard/agents` — public agent leaderboard snapshot (`application/json`)
+
+Parameterised resource templates (reachable via `resources/read` and `resources/templates/list`, not enumerated in `resources/list`):
+
 - `game://matches/{id}/observation` — current live observation (`application/json`)
 - `game://matches/{id}/log` — buffered append-only event log (`application/json`)
 - `game://matches/{id}/replay` — latest replay timeline (`application/json`)
@@ -225,8 +228,8 @@ Local MCP tools accept `sessionId` unless otherwise noted. Hosted in-match tools
 
 | Tool | Purpose | Key args | Returns |
 | --- | --- | --- | --- |
-| `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `rendezvousCode?`, `username?`, `playerKey?`, `waitForOpponent?` | matched: `{ sessionId, code, playerId, playerToken, status }`; queued mode: `{ status: "queued", ticket }` |
-| `delta_v_quick_match` | Local alias of `delta_v_quick_match_connect` (name parity with hosted MCP) | same args as above | same payload as above |
+| `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `rendezvousCode?`, `username?`, `playerKey?`, `waitForOpponent?` | local matched: `{ sessionId, matchToken, code, playerId, playerToken, status }`; hosted matched: `{ matchToken, sessionId, matchTokenExpiresAt, scenario, ticket, playerKey }`; queued mode (either): `{ status: "queued", ticket }` |
+| `delta_v_quick_match` | On local MCP this is an alias for `delta_v_quick_match_connect`; on hosted MCP it is the canonical name. | same args as above | same payloads as above |
 | `delta_v_pair_quick_match_tickets` | Local dev helper: resolve two queued tickets into one match and connect both seats | `leftTicket`, `rightTicket`, `serverUrl?` | `{ code, scenario, left: { sessionId }, right: { sessionId } }` |
 | `delta_v_list_sessions` | List active sessions. Local: in-memory stdio sessions. Hosted: active live matches for the authenticated agent, with fresh `matchToken`s. | none | `{ sessions[] }` |
 | `delta_v_reconnect` | Reopen a dropped local WebSocket using the stored seat | `sessionId` | `{ reconnected, connectionStatus }` |

@@ -107,7 +107,7 @@ Exploratory live-session notes (2026-04-17) plus UX/a11y review (2026-04-18). Ea
 
 ### Play-vs-AI Turn 1 Ordnance phase unresponsive (needs manual repro)
 
-During exploratory testing 2026-04-19 via Claude-in-Chrome MCP, a Play-vs-AI (Duel scenario) session got stuck on Turn 1 Ordnance: SKIP SHIP / CONFIRM PHASE buttons didn't respond to programmatic `.click()`, only to physical clicks via the MCP computer tool. Eventually the canvas renderer froze (screenshot calls timed out; `document.querySelector('canvas')` stayed responsive). Could be a real bug (event handler blocking on `isTrusted` or similar) **or** an artefact of the CDP-driven tab not being the foreground window (`document.hidden === true` inside the MCP tab — see note below). The code path goes `src/client/ui/events.ts → ui-event-router.ts → command-router.ts → action-deps.ts`.
+During exploratory testing 2026-04-19 via Claude-in-Chrome MCP, a Play-vs-AI (Duel scenario) session got stuck on Turn 1 Ordnance: SKIP SHIP / CONFIRM PHASE buttons didn't respond to programmatic `.click()`, only to physical clicks via the MCP computer tool. Eventually the canvas renderer froze (screenshot calls timed out; `document.querySelector('canvas')` stayed responsive). Could be a real bug (event handler blocking on `isTrusted` or similar) **or** an artefact of the CDP-driven tab not being the foreground window (`document.hidden === true` inside the MCP tab — see note below). The code path goes `src/client/ui/events.ts → ui-event-router.ts → command-router.ts` (action-deps wiring is now inlined directly in `client-kernel.ts`).
 
 **Triage step:** reproduce manually in a normal foreground browser window (no browser automation). The current report came from a CDP/MCP-controlled tab where synthetic `.click()` failed but physical clicks worked while the tab also reported `document.hidden === true`, so this may be automation-specific rather than a gameplay bug. Do **not** patch button/ordnance routing speculatively until a real-user repro exists. If SKIP SHIP / CONFIRM PHASE respond to real clicks and the renderer stays live, close as CDP-specific; otherwise capture `console.log` / `performance.now()` timing and file as a P1 bug against the failing layer (input dispatch, command routing, phase state, or renderer).
 
@@ -198,7 +198,7 @@ Seat assignment is now randomised in `MatchmakerDO`; keep `match_rating.player_a
 
 Implication for the launch-readiness snapshot: the earlier *first-player advantage* line was over-stated based on 30-game noise. After the latest duel/fleetAction/escape tuning and broader 120- to 240-game follow-up sweeps, the remaining seat-balance work is mostly "keep watching larger seeded samples" rather than obvious scenario imbalance.
 
-**Files:** `src/server/matchmaker-do.ts`, `src/shared/scenarios/duel.ts`, `src/shared/scenarios/biplanetary.ts`, `src/shared/scenarios/escape.ts`, `src/shared/scenarios/blockade.ts`, `src/shared/scenarios/fleet-action.ts`, `src/shared/ai/`, `scripts/simulate-ai.ts`
+**Files:** `src/server/matchmaker-do.ts`, `src/shared/scenario-definitions.ts`, `src/shared/ai/`, `scripts/simulate-ai.ts`
 
 ### High timeout rate in `fleetAction`
 
@@ -267,7 +267,7 @@ So the worst same-difficulty seat-bias inversion has largely been fixed. The rea
 
 **Remaining:** only widen the Hard-vs-Normal gap again if real playtesting still says the tiers feel too similar despite the stronger menu copy.
 
-**Files:** `src/shared/ai/config.ts`, `src/shared/ai/`, `src/client/ui/lobby.ts` (difficulty selector copy), `scripts/simulate-ai.ts`
+**Files:** `src/shared/ai/config.ts`, `src/shared/ai/`, `src/client/ui/lobby-view.ts` (difficulty selector copy), `scripts/simulate-ai.ts`
 
 ---
 
