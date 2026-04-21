@@ -134,6 +134,7 @@ const createController = () => {
     updateSoundButton: vi.fn(),
   };
   const replayController = {
+    controlsSignal: { peek: vi.fn(() => ({ active: false })) },
     selectMatch: vi.fn(),
     toggleReplay: vi.fn(async () => {}),
     exitReplay: vi.fn(),

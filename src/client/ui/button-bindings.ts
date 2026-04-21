@@ -48,7 +48,6 @@ export const STATIC_BUTTON_BINDINGS = [
   { id: 'replayBarNextBtn', event: { type: 'replayNext' } },
   { id: 'replayBarEndBtn', event: { type: 'replayEnd' } },
   { id: 'replayBarSpeedBtn', event: { type: 'replayCycleSpeed' } },
-  { id: 'replayBarExitBtn', event: { type: 'exitReplay' } },
   { id: 'exitBtn', event: { type: 'exit' } },
   // Floating in-game exit (visible only in `hud` mode via buildScreenVisibility).
   // Shares the same `exit` event as the game-over Exit button.

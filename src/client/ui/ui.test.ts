@@ -92,7 +92,6 @@ const installFixture = () => {
     <div id="replayBarProgress">
       <div id="replayBarProgressFill"></div>
     </div>
-    <button id="replayBarExitBtn"></button>
     <div id="reconnectOverlay"></div>
     <div id="reconnectText"></div>
     <div id="reconnectAttempt"></div>

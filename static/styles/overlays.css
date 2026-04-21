@@ -516,9 +516,10 @@
 .help-btn,
 .sound-btn {
   position: fixed;
-  /* Sit to the left of the 230px game-log panel so the floating icons
-   * never overlap log entries or the chat input row. */
-  right: calc(var(--hud-edge-right) + 230px + 0.5rem);
+  /* Snug to the bottom-right edge of the viewport on every game view
+   * (gameplay, spectator, archived replay). They sit below the game log
+   * panel, whose bottom is pushed above them by --hud-bottom-offset. */
+  right: var(--hud-edge-right);
   z-index: 5;
   display: flex;
   align-items: center;
@@ -536,13 +537,13 @@
 }
 
 .help-btn {
-  bottom: calc(0.75rem + var(--safe-bottom));
+  bottom: calc(0.5rem + var(--safe-bottom));
   font-size: 0.82rem;
   font-weight: 600;
 }
 
 .sound-btn {
-  bottom: calc(0.75rem + 2.5rem + var(--safe-bottom));
+  bottom: calc(0.5rem + 2.4rem + var(--safe-bottom));
   padding: 0;
   font-size: 1rem;
   letter-spacing: 0;
@@ -579,11 +580,6 @@ body.replay-bar-active .help-btn {
 
 body.replay-bar-active .sound-btn {
   bottom: calc(4.25rem + 2.5rem + var(--safe-bottom));
-}
-
-body.replay-bar-active .hud-exit-btn {
-  display: none !important;
-  pointer-events: none;
 }
 
 body.game-over-shell-active .hud-exit-btn {
@@ -1133,16 +1129,6 @@ h2.game-over-neutral {
   background: rgba(122, 215, 255, 0.18);
   border-color: rgba(122, 215, 255, 0.35);
   color: #a8e0ff;
-}
-
-.replay-btn-exit {
-  width: auto;
-  border-radius: var(--radius-pill);
-  padding: 0 0.7rem;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
 }
 
 .replay-bar-status {
