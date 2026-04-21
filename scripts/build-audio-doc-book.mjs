@@ -20,7 +20,7 @@ import {
 
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, "tmp", "documentation-book");
-const rewrittenDir = path.join(outDir, "audio-rewritten");
+const rewrittenDir = path.join(repoRoot, "docs", "audio-rewritten");
 const outHtml = path.join(outDir, "delta-v-documentation-book.audio.html");
 const outPdf = path.join(outDir, "delta-v-documentation-book.audio.pdf");
 const publishedPdf = path.join(
