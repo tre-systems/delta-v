@@ -541,6 +541,33 @@ describe('aiAstrogation', () => {
     ).toBe(0);
   });
 
+  it('prefers a short forced landing line when approaching the target world', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('BIP-LANDING-LINE'),
+      findBaseHex,
+    );
+    const racer = must(state.ships.find((ship) => ship.owner === 0));
+    const opponent = must(state.ships.find((ship) => ship.owner === 1));
+
+    state.phase = 'astrogation';
+    state.activePlayer = 0;
+    racer.lifecycle = 'active';
+    racer.position = { q: -7, r: 3 };
+    racer.velocity = { dq: 1, dr: 2 };
+    racer.fuel = 15;
+    opponent.lifecycle = 'active';
+    opponent.position = { q: -8, r: -1 };
+    opponent.velocity = { dq: 0, dr: -3 };
+    opponent.fuel = 14;
+
+    const [order] = aiAstrogation(state, 0, map, 'hard');
+
+    expect(order?.shipId).toBe(racer.id);
+    expect(order?.burn).toBe(2);
+  });
+
   it('uses a coordinated escape line for immediate passenger threats', () => {
     const state = createGameOrThrow(
       SCENARIOS.evacuation,

@@ -94,6 +94,112 @@ const resolvePreferredLandingTarget = (
   return map.bodies.find((body) => body.name === bodyName)?.center ?? null;
 };
 
+const estimateAdditionalTurnsToTargetLanding = (
+  ship: Ship,
+  course: ReturnType<typeof computeCourse>,
+  targetBody: string,
+  map: SolarSystemMap,
+  destroyedBases: HexKey[],
+  maxAdditionalTurns = 2,
+): number | null => {
+  if (course.outcome === 'landing') {
+    return course.landedAt === targetBody ? 0 : null;
+  }
+
+  const directions = [null, 0, 1, 2, 3, 4, 5] as const;
+  const queue: Array<{ ship: Ship; turns: number }> = [
+    {
+      ship: projectShipAfterCourse(ship, course),
+      turns: 0,
+    },
+  ];
+  const seen = new Set<string>();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (!current) {
+      break;
+    }
+
+    const key = JSON.stringify({
+      position: current.ship.position,
+      velocity: current.ship.velocity,
+      fuel: current.ship.fuel,
+      lifecycle: current.ship.lifecycle,
+      pendingGravityEffects: current.ship.pendingGravityEffects,
+      turns: current.turns,
+    });
+
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+
+    if (current.turns >= maxAdditionalTurns) {
+      continue;
+    }
+
+    for (const burn of directions) {
+      for (const land of [false, true]) {
+        const nextCourse = computeCourse(current.ship, burn, map, {
+          land,
+          destroyedBases,
+        });
+
+        if (nextCourse.outcome === 'crash') {
+          continue;
+        }
+
+        if (
+          nextCourse.outcome === 'landing' &&
+          nextCourse.landedAt === targetBody
+        ) {
+          return current.turns + 1;
+        }
+
+        queue.push({
+          ship: projectShipAfterCourse(current.ship, nextCourse),
+          turns: current.turns + 1,
+        });
+      }
+    }
+  }
+
+  return null;
+};
+
+const scoreTargetLandingLookahead = (
+  ship: Ship,
+  course: ReturnType<typeof computeCourse>,
+  targetBody: string,
+  map: SolarSystemMap,
+  destroyedBases: HexKey[],
+  cfg: ReturnType<typeof resolveAIConfig>,
+): number => {
+  const turnsToLanding = estimateAdditionalTurnsToTargetLanding(
+    ship,
+    course,
+    targetBody,
+    map,
+    destroyedBases,
+  );
+
+  if (turnsToLanding === null || turnsToLanding === 0) {
+    return 0;
+  }
+
+  if (turnsToLanding === 1) {
+    return cfg.navTargetLandingBonus * 0.18 + cfg.navImminentLandingBonus;
+  }
+
+  if (turnsToLanding === 2) {
+    return cfg.navTargetLandingBonus * 0.1;
+  }
+
+  return 0;
+};
+
 const pickFuelAwareCheckpointTarget = (
   player: GameState['players'][PlayerId],
   checkpoints: readonly string[],
@@ -991,6 +1097,24 @@ export const aiAstrogation = (
       }
 
       if (
+        shipTargetBody &&
+        !checkpoints &&
+        !passengerEscortMission &&
+        !seekingFuel &&
+        shipTargetHex != null &&
+        hexDistance(ship.position, shipTargetHex) <= 6
+      ) {
+        score += scoreTargetLandingLookahead(
+          ship,
+          course,
+          shipTargetBody,
+          map,
+          state.destroyedBases,
+          cfg,
+        );
+      }
+
+      if (
         checkpoints &&
         course.outcome === 'landing' &&
         course.landedAt !== shipTargetBody &&
@@ -1088,9 +1212,25 @@ export const aiAstrogation = (
                   homeDefenseHex,
                 )
               : 0;
+          const altLandingLookaheadScore =
+            shipTargetBody &&
+            !checkpoints &&
+            !passengerEscortMission &&
+            !seekingFuel &&
+            shipTargetHex != null &&
+            hexDistance(ship.position, shipTargetHex) <= 6
+              ? scoreTargetLandingLookahead(
+                  ship,
+                  altCourse,
+                  shipTargetBody,
+                  map,
+                  state.destroyedBases,
+                  cfg,
+                )
+              : 0;
 
-          if (altScore + altDefenseScore > score) {
-            score = altScore + altDefenseScore;
+          if (altScore + altDefenseScore + altLandingLookaheadScore > score) {
+            score = altScore + altDefenseScore + altLandingLookaheadScore;
             bestLocalWG = weakGravityChoices;
             comparisonCourse = altCourse;
           }
