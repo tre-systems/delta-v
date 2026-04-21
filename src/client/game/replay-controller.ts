@@ -142,9 +142,15 @@ export const createReplayController = (
 
   const updateOverlay = () => {
     const ctx = deps.getClientContext();
+    // While replay is actively playing, state briefly flips to
+    // 'playing_movementAnim' for each animated entry. Treat that as
+    // still-available so the replay bar doesn't flicker hidden between
+    // entries.
+    const isReplayAnimating =
+      replayTimeline !== null && ctx.state === 'playing_movementAnim';
     const available =
       !ctx.isLocalGame &&
-      ctx.state === 'gameOver' &&
+      (ctx.state === 'gameOver' || isReplayAnimating) &&
       ctx.gameCode !== null &&
       ctx.gameState !== null;
 
