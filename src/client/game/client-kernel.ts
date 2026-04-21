@@ -10,7 +10,7 @@ import { createRenderer } from '../renderer/renderer';
 import { track } from '../telemetry';
 import { createTutorial } from '../tutorial';
 import { createUIManager } from '../ui/ui';
-import { createActionDeps } from './action-deps';
+import type { AstrogationActionDeps } from './astrogation-actions';
 import {
   type CameraControllerDeps,
   cycleShip,
@@ -19,8 +19,12 @@ import {
 } from './camera-controller';
 import { setAIDifficulty } from './client-context-store';
 import { setupClientRuntime } from './client-runtime';
-import { resetCombatState as resetCombat } from './combat-actions';
+import {
+  type CombatActionDeps,
+  resetCombatState as resetCombat,
+} from './combat-actions';
 import { createHudController } from './hud-controller';
+import type { LocalGameFlowDeps } from './local-game-flow';
 import {
   attachLocalGameSessionPersistence,
   loadStoredLocalGameSession,
@@ -30,8 +34,15 @@ import { createMainInteractionController } from './main-interactions';
 import type { MainNetworkDeps } from './main-session-network';
 import { resumeLocalGameFromMain } from './main-session-network';
 import { createMainSessionShell } from './main-session-shell';
+import type { OrdnanceActionDeps } from './ordnance-actions';
 import type { ClientState } from './phase';
 import { createPlayerProfileService } from './player-profile-service';
+import {
+  type PresentationDeps,
+  presentCombatResults,
+  showGameOverOutcome as presentGameOver,
+  presentMovementResult,
+} from './presentation';
 import type { ReplayController } from './replay-controller';
 import {
   type ClientSession,
@@ -147,26 +158,134 @@ export const createGameClient = () => {
     focusOwnFleet: () => focusOwnFleet(cameraDeps),
   };
 
-  const actionDeps = createActionDeps({
+  const logText = (text: string) => {
+    ui.log.logText(text);
+  };
+
+  const presentationDeps: PresentationDeps = {
+    applyGameState: (state) => applyGameState(state),
+    setState: (s) => setState(s),
+    resetCombatState,
+    getGameState: () => ctx.gameStateSignal.peek(),
+    getPlayerId: () => ctx.playerId as PlayerId,
+    onGameOverShown: () => replayController.onGameOverShown(),
+    renderer,
+    ui,
+  };
+
+  const astrogationDeps: AstrogationActionDeps = {
+    getGameState: () => ctx.gameStateSignal.peek(),
+    getClientState: () => ctx.stateSignal.peek(),
+    getPlayerId: () => ctx.playerId as PlayerId,
+    getTransport: () => ctx.transport,
+    planningState: ctx.planningState,
+    showToast,
+    logText,
+  };
+
+  const combatDeps: CombatActionDeps = {
     getGameState: () => ctx.gameStateSignal.peek(),
     getClientState: () => ctx.stateSignal.peek(),
     getPlayerId: () => ctx.playerId as PlayerId,
     getTransport: () => ctx.transport,
     getMap: () => map,
-    getAIDifficulty: () => ctx.aiDifficulty,
-    getScenario: () => ctx.scenario,
-    getIsLocalGame: () => ctx.isLocalGame,
     planningState: ctx.planningState,
-    hud,
-    ui,
-    renderer,
-    setState: (s) => setState(s),
-    applyGameState: (s) => applyGameState(s),
-    resetCombatState,
+    showToast,
+    logText,
+  };
+
+  const ordnanceDeps: OrdnanceActionDeps = {
+    getGameState: () => ctx.gameStateSignal.peek(),
+    getClientState: () => ctx.stateSignal.peek(),
+    getPlayerId: () => ctx.playerId as PlayerId,
+    getMap: () => map,
+    getTransport: () => ctx.transport,
+    planningState: ctx.planningState,
+    showToast,
+    logText,
+  };
+
+  const showGameOverOutcome = (won: boolean, reason: string) => {
+    track('game_over', {
+      won,
+      reason,
+      scenario: ctx.scenario,
+      mode: ctx.isLocalGame ? 'local' : 'multiplayer',
+      turn: ctx.gameStateSignal.peek()?.turnNumber,
+    });
+    presentGameOver(presentationDeps, won, reason);
+  };
+
+  const localGameFlowDeps: LocalGameFlowDeps = {
+    getGameState: () => ctx.gameStateSignal.peek(),
+    getPlayerId: () => ctx.playerId as PlayerId,
+    getMap: () => map,
+    getAIDifficulty: () => ctx.aiDifficulty,
+    applyGameState: (state) => applyGameState(state),
+    presentMovementResult: (
+      state,
+      movements,
+      ordnanceMovements,
+      events,
+      done,
+    ) =>
+      presentMovementResult(
+        presentationDeps,
+        state,
+        movements,
+        ordnanceMovements,
+        events,
+        done,
+      ),
+    presentCombatResults: (prev, state, results, resetCombatFlag = true) =>
+      presentCombatResults(
+        presentationDeps,
+        prev,
+        state,
+        results,
+        resetCombatFlag,
+      ),
+    showGameOverOutcome,
     transitionToPhase: () => transitionToPhase(),
-    onGameOverShown: () => replayController.onGameOverShown(),
-    track,
-  });
+    logText,
+    showToast,
+  };
+
+  const actionDeps = {
+    astrogationDeps,
+    combatDeps,
+    ordnanceDeps,
+    localGameFlowDeps,
+    presentMovementResult: (
+      state: GameState,
+      movements: Parameters<typeof presentMovementResult>[2],
+      ordnanceMovements: Parameters<typeof presentMovementResult>[3],
+      events: Parameters<typeof presentMovementResult>[4],
+      onComplete: () => void,
+    ) =>
+      presentMovementResult(
+        presentationDeps,
+        state,
+        movements,
+        ordnanceMovements,
+        events,
+        onComplete,
+      ),
+    presentCombatResults: (
+      previousState: GameState,
+      state: GameState,
+      results: Parameters<typeof presentCombatResults>[3],
+      resetCombatFlag = true,
+    ) =>
+      presentCombatResults(
+        presentationDeps,
+        previousState,
+        state,
+        results,
+        resetCombatFlag,
+      ),
+    showGameOverOutcome,
+  };
 
   const sessionShell = createMainSessionShell({
     ctx,

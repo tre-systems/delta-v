@@ -77,7 +77,6 @@ const createDeps = (): MainNetworkDeps => ({
   hud: {
     logScenarioBriefing: vi.fn(),
   } as unknown as MainNetworkDeps['hud'],
-  actionDeps: {} as unknown as MainNetworkDeps['actionDeps'],
   turnTelemetry: {
     reset: vi.fn(),
   } as unknown as MainNetworkDeps['turnTelemetry'],

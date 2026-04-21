@@ -5,7 +5,7 @@ import type { S2C } from '../../shared/types/protocol';
 import type { Renderer } from '../renderer/renderer';
 import type { Tutorial } from '../tutorial';
 import type { UIManager } from '../ui/ui';
-import type { ActionDeps } from './action-deps';
+import type { MainSessionShellActionDeps } from './main-session-shell';
 import type { ClientSession } from './session-model';
 import type { SessionTokenService } from './session-token-service';
 import type { TurnTimerManager } from './timer';
@@ -161,7 +161,7 @@ const createArgs = () => {
     actionDeps: {
       combatDeps: { tag: 'combat-deps' },
       localGameFlowDeps: { tag: 'local-deps' },
-    } as unknown as ActionDeps,
+    } as unknown as MainSessionShellActionDeps,
     turnTelemetry: {} as TurnTelemetryTracker,
     playerProfile: {
       getProfile: vi.fn(() => ({
