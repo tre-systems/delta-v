@@ -599,11 +599,11 @@ describe('aiOrdnance', () => {
     const launches = aiOrdnance(state, 1, map);
     expect(launches).toHaveLength(0);
   });
-  it('launches torpedo at nearby enemy for warships', () => {
+  it('launches torpedo at nearby enemy in pure combat scenarios', () => {
     const state = createGameOrThrow(
-      SCENARIOS.biplanetary,
+      SCENARIOS.duel,
       map,
-      asGameId('TEST'),
+      asGameId('TORP-DUEL'),
       findBaseHex,
     );
     const aiShip = must(state.ships.find((s) => s.owner === 1));
@@ -621,6 +621,33 @@ describe('aiOrdnance', () => {
       expect(launches[0].torpedoAccel).toBeGreaterThanOrEqual(0);
       expect(launches[0].torpedoAccel).toBeLessThanOrEqual(5);
     }
+  });
+  it('skips opportunistic torpedoes in biplanetary when the enemy is not threatening home', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('BIP-ORD-GATE'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemyShip = must(state.ships.find((s) => s.owner === 0));
+    const targetBody = must(
+      map.bodies.find((body) => body.name === state.players[1].targetBody),
+    );
+
+    aiShip.position = hexAdd(targetBody.center, {
+      dq: targetBody.surfaceRadius + 2,
+      dr: 0,
+    });
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.lifecycle = 'active';
+    aiShip.cargoUsed = 0;
+
+    enemyShip.position = hexAdd(aiShip.position, { dq: 3, dr: 0 });
+    enemyShip.velocity = { dq: 0, dr: 0 };
+    enemyShip.lifecycle = 'active';
+
+    expect(aiOrdnance(state, 1, map, 'hard')).toEqual([]);
   });
   it('does not propose ordnance from ships that resupplied this turn', () => {
     const state = createGameOrThrow(

@@ -586,6 +586,67 @@ export const scoreOrdnanceInterceptTarget = (
   return scoreEnemyTarget(ship, target, state, playerId, map).score;
 };
 
+const isSingleShipObjectiveDuelThreat = (
+  ship: Ship,
+  enemy: Ship,
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+): boolean => {
+  const caps = deriveCapabilities(state.scenarioRules);
+
+  if (caps.isCheckpointRace || caps.targetWinRequiresPassengers) {
+    return true;
+  }
+
+  const player = state.players[playerId];
+  const targetHex = player.targetBody
+    ? (map.bodies.find((body) => body.name === player.targetBody)?.center ??
+      null)
+    : null;
+  const homeHex = player.homeBody
+    ? (map.bodies.find((body) => body.name === player.homeBody)?.center ?? null)
+    : null;
+  const myOperationalAttackers = state.ships.filter(
+    (candidate) =>
+      candidate.owner === playerId &&
+      candidate.lifecycle !== 'destroyed' &&
+      canAttack(candidate),
+  );
+  const enemyOperationalAttackers = state.ships.filter(
+    (candidate) =>
+      candidate.owner !== playerId &&
+      candidate.lifecycle !== 'destroyed' &&
+      canAttack(candidate),
+  );
+
+  if (
+    targetHex == null ||
+    homeHex == null ||
+    myOperationalAttackers.length !== 1 ||
+    enemyOperationalAttackers.length !== 1
+  ) {
+    return true;
+  }
+
+  const myObjectiveDistance = hexDistance(ship.position, targetHex);
+  const predictedEnemy = hexAdd(enemy.position, enemy.velocity);
+  const enemyPressureDistance = Math.min(
+    hexDistance(enemy.position, homeHex),
+    hexDistance(predictedEnemy, homeHex),
+  );
+  const enemyObjectiveDistance = Math.min(
+    hexDistance(enemy.position, targetHex),
+    hexDistance(predictedEnemy, targetHex),
+  );
+
+  return (
+    enemyPressureDistance <= 4 ||
+    enemyPressureDistance + 5 < myObjectiveDistance ||
+    enemyObjectiveDistance + 1 < myObjectiveDistance
+  );
+};
+
 const scoreEnemyTarget = (
   ship: Ship,
   enemy: Ship,
@@ -753,6 +814,13 @@ export const aiOrdnance = (
       torpedoVector !== null;
     const canLaunchMine =
       validateOrdnanceLaunch(state, ship, 'mine', map) === null;
+    const strategicTargetForObjectiveDuel = isSingleShipObjectiveDuelThreat(
+      ship,
+      bestEnemy,
+      state,
+      playerId,
+      map,
+    );
 
     // Early-turn nuke guard ported from scripts/llm-agent-coach.ts:
     // in the first two turns, a nuke is only considered when the enemy is
@@ -778,6 +846,7 @@ export const aiOrdnance = (
       ownOperationalShips > 1 || bestEnemyCurrentDist <= 1;
 
     if (
+      strategicTargetForObjectiveDuel &&
       cfg.willCommitNukes &&
       earlyTurnNukeAllowed &&
       parityDeficitNukeAllowed &&
@@ -861,6 +930,7 @@ export const aiOrdnance = (
     }
 
     if (
+      strategicTargetForObjectiveDuel &&
       Math.min(bestEnemyCurrentDist, bestEnemyPredictedDist) <= torpedoRange &&
       canLaunchTorpedo
     ) {
@@ -874,7 +944,11 @@ export const aiOrdnance = (
       continue;
     }
 
-    if (nearestDist <= mineRange && canLaunchMine) {
+    if (
+      strategicTargetForObjectiveDuel &&
+      nearestDist <= mineRange &&
+      canLaunchMine
+    ) {
       launches.push({
         shipId: ship.id,
         ordnanceType: 'mine',
