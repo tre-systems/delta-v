@@ -45,19 +45,27 @@ export type { CreateRateLimiterBinding, Env } from './env';
 
 import {
   buildReportingCorsHeaders,
+  checkWindowedRateLimit,
   EVENTS_RETENTION_MS,
   handleReport,
   hashIp,
   insertEvent,
   isCreateRateLimited,
   isErrorReportRateLimited,
-  isJoinProbeRateLimited,
-  isReplayProbeRateLimited,
   isTelemetryReportRateLimited,
-  isWsConnectRateLimited,
+  JOIN_PROBE_LIMIT,
+  JOIN_PROBE_WINDOW_MS,
+  joinProbeRateMap,
   logSampledOperationalEvent,
   purgeOldEvents,
+  RATE_LIMIT_MAP_MAX_KEYS,
+  REPLAY_PROBE_LIMIT,
+  REPLAY_PROBE_WINDOW_MS,
+  replayProbeRateMap,
   tooManyRequests,
+  WS_CONNECT_LIMIT,
+  WS_CONNECT_WINDOW_MS,
+  wsConnectRateMap,
 } from './reporting';
 import {
   handleCreate,
@@ -174,9 +182,6 @@ export {
   errorReportRateMap,
   hashIp,
   isCreateRateLimited,
-  isCreateRateLimitedInMemory,
-  isErrorReportRateLimitedInMemory,
-  isTelemetryReportRateLimitedInMemory,
   joinProbeRateMap,
   logSampledOperationalEvent,
   replayProbeRateMap,
@@ -413,7 +418,15 @@ export default {
         const ipHash = await hashIp(
           request.headers.get('cf-connecting-ip') ?? 'unknown',
         );
-        if (isJoinProbeRateLimited(ipHash)) {
+        if (
+          checkWindowedRateLimit(
+            joinProbeRateMap,
+            ipHash,
+            JOIN_PROBE_LIMIT,
+            JOIN_PROBE_WINDOW_MS,
+            2000,
+          )
+        ) {
           return tooManyRequests();
         }
 
@@ -432,7 +445,15 @@ export default {
         const ipHash = await hashIp(
           request.headers.get('cf-connecting-ip') ?? 'unknown',
         );
-        if (isJoinProbeRateLimited(ipHash)) {
+        if (
+          checkWindowedRateLimit(
+            joinProbeRateMap,
+            ipHash,
+            JOIN_PROBE_LIMIT,
+            JOIN_PROBE_WINDOW_MS,
+            2000,
+          )
+        ) {
           return tooManyRequests();
         }
         return handleJoinCheck(request, env, asRoomCode(joinMatch[1]));
@@ -443,7 +464,15 @@ export default {
         const ipHash = await hashIp(
           request.headers.get('cf-connecting-ip') ?? 'unknown',
         );
-        if (isReplayProbeRateLimited(ipHash)) {
+        if (
+          checkWindowedRateLimit(
+            replayProbeRateMap,
+            ipHash,
+            REPLAY_PROBE_LIMIT,
+            REPLAY_PROBE_WINDOW_MS,
+            2000,
+          )
+        ) {
           return tooManyRequests();
         }
         return handleReplayFetch(request, env, asRoomCode(replayMatch[1]));
@@ -507,7 +536,15 @@ export default {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
           const ipHash = await hashIp(ip);
 
-          if (isWsConnectRateLimited(ipHash)) {
+          if (
+            checkWindowedRateLimit(
+              wsConnectRateMap,
+              ipHash,
+              WS_CONNECT_LIMIT,
+              WS_CONNECT_WINDOW_MS,
+              RATE_LIMIT_MAP_MAX_KEYS,
+            )
+          ) {
             return tooManyRequests();
           }
         }
@@ -559,7 +596,15 @@ export default {
         if (!isLoopbackRequest(request)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
           const ipHash = await hashIp(ip);
-          if (isJoinProbeRateLimited(ipHash)) {
+          if (
+            checkWindowedRateLimit(
+              joinProbeRateMap,
+              ipHash,
+              JOIN_PROBE_LIMIT,
+              JOIN_PROBE_WINDOW_MS,
+              2000,
+            )
+          ) {
             return tooManyRequests();
           }
         }
@@ -570,7 +615,15 @@ export default {
         if (!isLoopbackRequest(request)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
           const ipHash = await hashIp(ip);
-          if (isJoinProbeRateLimited(ipHash)) {
+          if (
+            checkWindowedRateLimit(
+              joinProbeRateMap,
+              ipHash,
+              JOIN_PROBE_LIMIT,
+              JOIN_PROBE_WINDOW_MS,
+              2000,
+            )
+          ) {
             return tooManyRequests();
           }
         }
@@ -585,7 +638,15 @@ export default {
         if (!isLoopbackRequest(request)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
           const ipHash = await hashIp(ip);
-          if (isJoinProbeRateLimited(ipHash)) {
+          if (
+            checkWindowedRateLimit(
+              joinProbeRateMap,
+              ipHash,
+              JOIN_PROBE_LIMIT,
+              JOIN_PROBE_WINDOW_MS,
+              2000,
+            )
+          ) {
             return tooManyRequests();
           }
         }
