@@ -1,11 +1,11 @@
 import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import type { Camera } from './camera';
 import {
-  renderAsteroids as renderAsteroidsFn,
-  renderBodies as renderBodiesFn,
-  renderGravityIndicators as renderGravityIndicatorsFn,
-  renderHexGrid as renderHexGridFn,
-  renderStars as renderStarsFn,
+  renderAsteroids,
+  renderBodies,
+  renderGravityIndicators,
+  renderHexGrid,
+  renderStars,
   type Star,
 } from './scene';
 import {
@@ -32,21 +32,21 @@ const repaintStaticLayer = (
   lctx.clearRect(0, 0, input.width, input.height);
   lctx.save();
   input.camera.applyTransform(lctx);
-  renderStarsFn(lctx, input.stars, input.camera.zoom);
-  renderHexGridFn(lctx, input.map, input.hexSize, (x, y) =>
+  renderStars(lctx, input.stars, input.camera.zoom);
+  renderHexGrid(lctx, input.map, input.hexSize, (x, y) =>
     input.camera.isVisible(x, y),
   );
-  renderAsteroidsFn(
+  renderAsteroids(
     lctx,
     input.map,
     input.gameState?.destroyedAsteroids ?? [],
     input.hexSize,
     (x, y) => input.camera.isVisible(x, y),
   );
-  renderGravityIndicatorsFn(lctx, input.map, input.hexSize, (x, y) =>
+  renderGravityIndicators(lctx, input.map, input.hexSize, (x, y) =>
     input.camera.isVisible(x, y),
   );
-  renderBodiesFn(lctx, input.map, input.hexSize, input.now, input.camera.zoom);
+  renderBodies(lctx, input.map, input.hexSize, input.now, input.camera.zoom);
   lctx.restore();
 };
 

@@ -5,11 +5,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import type { AnimationState } from './animation';
-import {
-  drawShipIcon as drawShipIconFn,
-  drawThrustTrail as drawThrustTrailFn,
-  interpolatePath as interpolatePathFn,
-} from './draw';
+import { drawShipIcon, drawThrustTrail, interpolatePath } from './draw';
 import {
   getShipHeading,
   getShipIconAlpha,
@@ -118,7 +114,7 @@ const drawOneShip = ({
   );
 
   drawSelectionRingIfNeeded(ctx, ship.id, planningSelectedShipId, pos);
-  drawShipIconFn({
+  drawShipIcon({
     ctx,
     x: pos.x,
     y: pos.y,
@@ -178,7 +174,7 @@ const shipScreenPlacement = ({
         (now - animState.startTime) / animState.duration,
         1,
       );
-      pos = interpolatePathFn(movement.path, progress, hexSize);
+      pos = interpolatePath(movement.path, progress, hexSize);
       velocity = movement.newVelocity;
       maybeDrawThrustDuringMove(ctx, movement, pos, progress, hexSize);
     } else {
@@ -211,7 +207,7 @@ const maybeDrawThrustDuringMove = (
   const toPx = hexToPixel(movement.to, hexSize);
   const angle = Math.atan2(toPx.y - fromPx.y, toPx.x - fromPx.x);
 
-  drawThrustTrailFn(ctx, pos.x, pos.y, angle + Math.PI, progress);
+  drawThrustTrail(ctx, pos.x, pos.y, angle + Math.PI, progress);
 };
 
 const drawSelectionRingIfNeeded = (
