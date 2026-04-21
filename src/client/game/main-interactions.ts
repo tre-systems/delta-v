@@ -170,7 +170,7 @@ export const createMainInteractionController = (
 
   const commandSession = createCommandSessionRead(deps.ctx);
 
-  const createCommandRouterDeps = (): CommandRouterDeps => ({
+  const commandRouterDeps: CommandRouterDeps = {
     ctx: commandSession,
     astrogationDeps: deps.actionDeps.astrogationDeps,
     combatDeps: deps.actionDeps.combatDeps,
@@ -190,9 +190,7 @@ export const createMainInteractionController = (
     exitToMenu: () => deps.exitToMenu(),
     toggleHelp: () => toggleHelp(),
     updateSoundButton: () => deps.hud.updateSoundButton(),
-  });
-
-  const commandRouterDeps = createCommandRouterDeps();
+  };
 
   const dispatch = (cmd: GameCommand) => {
     dispatchGameCommand(commandRouterDeps, cmd);
