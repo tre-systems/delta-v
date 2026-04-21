@@ -473,6 +473,44 @@ All messages are discriminated unions validated at the protocol boundary. Chat p
 
 ### Multiplayer Session Lifecycle
 
+```mermaid
+sequenceDiagram
+  participant P1 as Player 1 browser
+  participant W as Worker routes
+  participant G as GameDO
+  participant P2 as Player 2 browser
+
+  P1->>W: POST /create
+  W->>G: /init with room code and creator seat
+  G-->>P1: init payload with playerToken
+
+  P2->>W: GET /join/{code}
+  W->>G: join check / seat resolution
+  G-->>P2: join allowed + playerToken
+
+  P1->>G: WebSocket /ws/{code}?playerToken=...
+  P2->>G: WebSocket /ws/{code}?playerToken=...
+  G-->>P1: welcome / gameStart
+  G-->>P2: welcome / gameStart
+
+  loop Turn loop
+    P1->>G: C2S action
+    P2->>G: C2S action
+    G->>G: validate, run engine, append events, checkpoint, reset timers
+    G-->>P1: S2C result / state update
+    G-->>P2: S2C result / state update
+  end
+
+  alt disconnect
+    P1-xG: socket drops
+    G->>G: grace timer
+    P1->>G: reconnect with playerToken
+    G-->>P1: welcome + projected state
+  else grace expires
+    G->>G: forfeit / archive path
+  end
+```
+
 ```
 POST /create → Worker generates room code + creator token → DO /init
 GET /join/{code}?playerToken=X → optional preflight join validation
