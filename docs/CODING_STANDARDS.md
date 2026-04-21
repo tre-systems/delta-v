@@ -39,6 +39,7 @@ Guidance:
 
 - If an imperative boundary binds DOM, window, or other long-lived event listeners, own explicit teardown via `dispose()` or equivalent returned disposers.
 - Prefer `createXxx()` factories for new client modules; do not add a class unless the platform requires it or a rare case genuinely needs `instanceof`.
+- Do not extract one-use adapter factories or wrapper modules that only rename callbacks, repackage a dependency bag, or relay to a single call site. Keep that wiring inline unless the helper owns real state, lifecycle, policy, or reuse.
 - When `client-kernel.ts` grows, extract responsibilities into `game/*` helpers first; avoid inflating the kernel with unrelated logic.
 
 ### DOM helpers (`src/client/dom.ts`)
@@ -66,6 +67,7 @@ All `innerHTML` writes go through `setTrustedHTML()` or `clearHTML()` in `dom.ts
 
 - Extract pure helper modules before introducing new patterns or libraries.
 - Reduce duplication first; do not split files only to satisfy a size target.
+- Prefer inlining single-call-site wrappers when the extracted helper adds no policy, validation, or durable state.
 - Keep orchestrators focused on coordination, not business logic.
 - When a file grows large, split by real responsibility boundaries.
 - When a stable public entry point grows too large, keep the entry file thin and re-export narrower domain modules.

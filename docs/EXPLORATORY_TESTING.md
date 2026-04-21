@@ -18,7 +18,7 @@ A pass typically takes 60-120 minutes of agent or human time and should produce 
 - [Toolkit](#toolkit)
 - [Lenses](#lenses-what-to-look-for)
 - [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile/a11y · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep
-- [Workflow: probe → finding → backlog](#workflow-probe--finding--backlog)
+- [Workflow: probe, finding, backlog](#workflow-probe-finding-backlog)
 - [Anti-patterns](#anti-patterns)
 - [Pass log](#pass-log)
 
@@ -312,7 +312,7 @@ Any of these returning empty for a game that completed in the UI is a finding �
 
 ---
 
-## Workflow: probe → finding → backlog
+## Workflow: probe, finding, backlog
 
 1. **Probe.** Run a recipe (or invent one). Capture exact reproduction: URL, payload, response, console line, screenshot, gameId.
 2. **Triangulate.** Confirm from at least one other vantage. A finding seen from only one tool is one self-edit away from being a tool bug, not an app bug.
