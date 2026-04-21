@@ -31,7 +31,7 @@ npm run simulate:duel-sweep                  # duel pacing/seat-balance across m
 - `--randomize-start` forces per-game seat randomization. Duel, interplanetaryWar, and fleetAction auto-randomize seat anyway so seat-order bias doesn't dominate short batches.
 - CI balance warnings use per-scenario decided-game win-rate bands. Cooperative / race scenarios (Grand Tour) are excluded from balance checks.
 
-**CI + pre-commit iteration count.** Both run `simulate all 60 -- --ci` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) and [`.husky/pre-commit`](../.husky/pre-commit)). `npm run verify` uses 40 to stay responsive for manual invocation. Change all three together if the count changes.
+**CI + pre-push iteration count.** Both run `simulate all 60 -- --ci` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) and [`.husky/pre-push`](../.husky/pre-push)). `npm run verify` uses 40 to stay responsive for manual invocation. Change all three together if the count changes.
 
 `npm run simulate:duel-sweep` runs `scripts/duel-seed-sweep.ts` — the same duel harness across many base seeds in one table, showing pacing (`avgTurn`) and seat balance (`p0/dec%`) variance before changing duel geometry or rules. Options: `--iterations N`, `--from` / `--to`, `--seeds 0,1,2`, `--scenario <key>`, `--json`.
 

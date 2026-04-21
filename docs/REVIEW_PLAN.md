@@ -16,7 +16,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 ## 1. CI and local development friction
 
-**Goal:** pre-commit and CI run cleanly; no hooks need skipping.
+**Goal:** pre-commit, pre-push, and CI run cleanly; no hooks need skipping.
 
 **Key files:** `.husky/pre-commit`, `vitest.config.ts`, `playwright.config.ts`, `.github/workflows/ci.yml`, [CONTRIBUTING.md](./CONTRIBUTING.md), [README.md](../README.md).
 
@@ -24,8 +24,8 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 1. Run `npm run verify` end-to-end. **Pass:** exits 0. **Fail:** file a BACKLOG item with the failing step and error.
 2. Run `npm run test:coverage` three times in a row. **Pass:** no `ENOENT` or stale-merge failures. **Fail:** check Vitest/coverage provider versions for known issues; consider `coverage.clean` or stable `reportsDirectory`.
-3. Run pre-commit with a dev server on port 8787. **Pass:** e2e uses dynamic port, no conflict. **Fail:** check `DELTAV_PRE_COMMIT_E2E` dynamic port logic in `.husky/pre-commit`.
-4. Check that [CONTRIBUTING.md](./CONTRIBUTING.md) documents: what the pre-commit hook runs, what to do when it fails, and the `npm run verify` command. **Pass:** all three are covered. **Fail:** update the doc.
+3. Run pre-push with a dev server already bound to port 8787. **Pass:** e2e uses the dynamically selected `E2E_PORT`, no conflict. **Fail:** check the free-port logic in [`.husky/pre-push`](../.husky/pre-push).
+4. Check that [CONTRIBUTING.md](./CONTRIBUTING.md) documents: what pre-commit runs, what pre-push runs, what to do when either fails, and the `npm run verify` command. **Pass:** all four are covered. **Fail:** update the doc.
 
 ---
 
@@ -126,7 +126,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 | #   | Area                        | Reviewed   | Status             | Notes                                                                                            |
 | --- | --------------------------- | ---------- | ------------------ | ------------------------------------------------------------------------------------------------ |
-| 1   | CI / local dev friction     | 2026-04-04 | pass               | `npm run verify` exits 0; pre-commit dynamic port logic confirmed; CONTRIBUTING.md updated to document grep-based boundary checks |
+| 1   | CI / local dev friction     | 2026-04-04 | pass               | `npm run verify` exits 0; pre-push dynamic-port e2e flow confirmed; CONTRIBUTING.md updated to document hook splits and grep-based boundary checks |
 | 2   | Observability / data / privacy | 2026-04-04 | pass            | docs synced to current D1 event names, payload shapes, retention notes, and sample queries        |
 | 3   | Security posture            | 2026-04-04 | pass               | all 6 checks pass: rate limits match docs, validation exhaustive, no innerHTML/Math.random leaks, crypto RNG for room codes |
 | 4   | Game engine correctness     | 2026-04-04 | pass               | `simulate all 100 --ci` 0 crashes; spec cross-check clean; `combat.ts` 94.01%, `conflict.ts` 91.76% — both above 80% |
