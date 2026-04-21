@@ -196,6 +196,8 @@ Mid-match in a browser tab:
 - Tab-only navigation through the lobby and one full astrogation phase.
 - Cross-reference with [A11Y.md](./A11Y.md) and any open `BACKLOG.md` contrast/audit items.
 
+**Tooling caveat — Chrome MCP cannot emulate mobile.** `resize_window` reports success but the underlying OS window refuses to shrink below the display's minimum (observed ~1260 px inner width on a 14" display), so `window.matchMedia('(max-width: 900px)')` stays `false` and the `<=760px` / `<=420px` responsive breakpoints never activate. Dispatching a synthetic `MediaQueryListEvent('change')` on the query list does **not** route to `addEventListener('change', ...)` handlers (legacy vs modern API quirk). For real mobile verification use the Playwright preview MCP (dev-server flow, `preview_resize` honours the viewport without touching OS window state), or DevTools device emulation driven by a human. Filing mobile bugs from Chrome MCP alone without a real narrow viewport is how false negatives on mobile regressions slip through.
+
 ### R11. Fresh-start: wipe persisted data between runs
 
 For a clean baseline (e.g. before measuring whether a regression introduces ghost rows, or after a destructive test), confirm no live matches first, then truncate the D1 tables and the R2 archive bucket. **Production-only** — confirm scope with the operator first; everything below is destructive and irreversible.
@@ -342,6 +344,7 @@ Things that have wasted exploratory time in past passes — don't repeat them.
 - **Mass-purging production data without a paired check on `?status=live`.** R11 destroys real matches if any are in flight. Always verify zero live matches first, and confirm scope with the operator.
 - **Adding "interesting but not actionable" entries to the backlog.** They drown out real items. If you can't write a fix, you don't have a finding yet — keep probing.
 - **Forgetting that exploratory identities still persist in D1.** Use the reserved non-public prefixes (`QA_*`, `Bot_*`, `Probe_*`) for test callsigns; the leaderboard now filters them, but they remain queryable in operator tables and logs.
+- **Filing bugs from programmatic clicks on hidden elements.** `element.click()` in Chrome MCP fires the handler regardless of `display: none` / `hidden` / `offsetWidth === 0`. Buttons a real user can never reach can still execute their handler from a test harness. Before filing a finding triggered by a DOM click, confirm the element is actually visible (`offsetWidth > 0` and a valid `getBoundingClientRect`) in the state you're probing. A hidden button with the "wrong" behaviour may still be a latent bug worth fixing (if CSS ever changes the button is suddenly reachable), but classify it as such rather than as a user-visible regression.
 
 ---
 
@@ -362,3 +365,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | 2026-04-19 | agent (Opus 4.7) | Post-fix sweep confirmed evacuation rebalanced + seat shuffle shipped; security-header + CORS audit | 2 |
 | 2026-04-19 | agent (Opus 4.7) | Match-history page replay link probe — surfaced broken promise ("Replay →" shows unavailable toast for every match) | 1 |
 | 2026-04-19 | agent (Opus 4.7) | Lobby flows (Join / Forget my callsign / callsign input), reserved-name blocklist gap, final re-verification of shipped fixes | 1 |
+| 2026-04-21 | agent (Opus 4.7) | Post-Stream-2 regression: full Play-vs-AI flow, archived-replay playback, client-state audit (R14), 6-scenario sweep (R7), hard-refresh reconnect (R9), API surface + validation (R1/R2); filed 0 new entries but surfaced Chrome-MCP resize-emulation gap (doc'd in R10) and the latent replay-exit routing quirk that shipped as 2746ca9 | 0 |
