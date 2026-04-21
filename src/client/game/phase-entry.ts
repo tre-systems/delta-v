@@ -56,16 +56,6 @@ const getFirstActionableShipId = (
   return actionable?.id ?? null;
 };
 
-const getFirstOrdnanceActionableShipIdForEntry = (
-  gameState: GameState | null,
-  playerId: PlayerId | -1,
-  map?: SolarSystemMap | null,
-): string | null => {
-  if (playerId < 0) return null;
-  if (!gameState) return null;
-  return getFirstOrdnanceActionableShipId(gameState, playerId as PlayerId, map);
-};
-
 const DEFAULT_ENTRY_PLAN: Omit<
   ClientStateEntryPlan,
   'planningPhaseEntry' | 'tutorialPhase'
@@ -78,8 +68,6 @@ const DEFAULT_ENTRY_PLAN: Omit<
   autoSkipCombatIfNoTargets: false,
 };
 
-const startRemoteTurnTimer = (isLocalGame: boolean): boolean => !isLocalGame;
-
 const CLIENT_STATE_ENTRY_RULES: Record<ClientState, ClientStateEntryRule> = {
   menu: {
     hideTutorial: true,
@@ -89,24 +77,27 @@ const CLIENT_STATE_ENTRY_RULES: Record<ClientState, ClientStateEntryRule> = {
   waitingForOpponent: {},
   playing_fleetBuilding: {},
   playing_astrogation: {
-    startTurnTimer: startRemoteTurnTimer,
+    startTurnTimer: (isLocalGame) => !isLocalGame,
     frameOnShips: true,
     planningPhase: 'astrogation',
     deriveSelectedShipId: getFirstActionableShipId,
     tutorialPhase: 'astrogation',
   },
   playing_ordnance: {
-    startTurnTimer: startRemoteTurnTimer,
+    startTurnTimer: (isLocalGame) => !isLocalGame,
     planningPhase: 'ordnance',
-    deriveSelectedShipId: getFirstOrdnanceActionableShipIdForEntry,
+    deriveSelectedShipId: (gameState, playerId, map) =>
+      gameState && playerId >= 0
+        ? getFirstOrdnanceActionableShipId(gameState, playerId as PlayerId, map)
+        : null,
     tutorialPhase: 'ordnance',
   },
   playing_logistics: {
-    startTurnTimer: startRemoteTurnTimer,
+    startTurnTimer: (isLocalGame) => !isLocalGame,
     hideTutorial: true,
   },
   playing_combat: {
-    startTurnTimer: startRemoteTurnTimer,
+    startTurnTimer: (isLocalGame) => !isLocalGame,
     planningPhase: 'combat',
     deriveSelectedShipId: getFirstActionableShipId,
     autoSkipCombatIfNoTargets: true,
