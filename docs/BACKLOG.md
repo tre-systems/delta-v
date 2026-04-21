@@ -42,7 +42,7 @@ Action: add focused regression fixtures for "take the landing line", "do not aba
 
 ## Simplification & abstraction debt (2026-04-21)
 
-Client review follow-up: the current code is generally well-factored, but parts of the client orchestration layer have accumulated adapter-style modules that mostly rename callbacks, repackage dependency bags, or add single-use indirection. These are good cleanup candidates because they slow navigation without adding much policy, reuse, or state ownership.
+Review follow-up: the current code is generally well-factored, but parts of the client orchestration layer and the GameDO dep-bag layer have accumulated adapter-style modules that mostly rename callbacks, repackage dependency bags, or add single-use indirection. These are good cleanup candidates because they slow navigation without adding much policy, reuse, or state ownership. The first batch of entries (main-deps, session-network, message-handler, UI facade, viewport/mobile, presentation shims) came from a client review; the later server/shared entries came from a follow-up server review on the same date.
 
 ### Inline main-session adapter factories (P2)
 
@@ -78,7 +78,93 @@ Action: move this wiring into `createUIManager()` unless a helper still owns non
 
 `src/client/game/briefing.ts` and `src/client/game/endgame.ts` are both single-caller presentation helpers. `deriveScenarioBriefingEntries()` currently maps lines to `{ text, cssClass: '' }`, and `deriveGameOverPlan()` is a small conditional used only by `showGameOverOutcome()`.
 
-Action: inline or merge these into the nearest real owner (`hud-controller.ts`, `presentation.ts`, or `selection.ts`) unless a broader presentation abstraction emerges during the cleanup.
+Action: inline or merge these into the nearest real owner (`hud-controller.ts`, `presentation.ts`, or `selection.ts`) unless a broader presentation abstraction emerges during the cleanup. As part of this, either drop the `cssClass` field on `BriefingLogEntry` (it is always `''` today) or populate it with real classes — the current stub is inert.
+
+### Inline GameDO dep-bag factories (P2)
+
+`src/server/game-do/game-do.ts` has nine private `create*Deps()` methods (`createFetchDeps`, `createAlarmDeps`, `createPublicationDeps`, `createGameStateActionDeps`, `createInitRequestDeps`, `createJoinCheckDeps`, `createReplayRequestDeps`, `createInitGameDeps`, `createRematchDeps`) that almost exclusively wrap `this.method()` in single-use lambdas so extracted procedures (`handleGameDoFetch`, `runGameDoAlarm`, `runPublicationPipeline`, etc.) can be injected. Each factory is called once next to its consumer. The single-field cases (`createJoinCheckDeps`, `createRematchDeps`) are pure ceremony; the larger bags exist mainly to re-expose instance methods whose `this` binding is lost without a closure.
+
+Action: convert the forwarded-through-lambda private methods to arrow-function fields so `handleInit: this.handleInit` can replace `handleInit: (r) => this.handleInit(r)`. Then inline the single-field factories and collapse the rest onto the simpler arrow-field references.
+
+### Simplify action-deps caching factory (P2)
+
+`src/client/game/action-deps.ts` defines a generic `createCachedValue<T>()` memoizer used five times to build sub-dep bundles (`getPresentationDeps`, `getAstrogationDeps`, `getCombatDeps`, `getOrdnanceDeps`, `getLocalGameFlowDeps`), plus two inner wrappers (`presentMovementWithPresentationDeps`, `presentCombatWithPresentationDeps`) that just forward args to `presentation.ts` with the cached deps. The returned object uses getters to invoke those builders. These deps are read at human-scale frequency, not inner-loop; the cache is a premature optimization and its mutable-closure shape complicates normal refactors.
+
+Action: drop `createCachedValue` and the wrapper methods. Build each sub-dep as a plain object once in `createActionDeps` and expose it as a plain field rather than a getter. Reintroduce memoization only if profiling shows a real cost.
+
+### Drop archive-compat pass-throughs (P3)
+
+`src/server/game-do/archive-compat.ts` exports three thin wrappers (`normalizeArchivedGameState`, `normalizeArchivedStateRecord`, `ensureArchiveStreamCompatibility`) imported only by `archive.ts`. `normalizeArchivedGameState` is literally `migrateGameState` renamed; `ensureArchiveStreamCompatibility` is a one-line delegate to `migrateLegacyEventStreamIfNeeded`; `normalizeArchivedStateRecord` is a trivial spread over the first wrapper.
+
+Action: delete `archive-compat.ts` and import the underlying functions (`migrateGameState`, `migrateLegacyEventStreamIfNeeded`) directly in `archive.ts`.
+
+### Inline reporting rate-limit wrappers (P3)
+
+`src/server/reporting.ts` exports six single-arg wrappers (`isCreateRateLimitedInMemory`, `isJoinProbeRateLimited`, `isReplayProbeRateLimited`, `isWsConnectRateLimited`, `isErrorReportRateLimitedInMemory`, `isTelemetryReportRateLimitedInMemory`) that each bind constants to `checkWindowedRateLimit` and forward one argument. Each is called from `src/server/index.ts` once or twice.
+
+Action: delete the wrappers and call `checkWindowedRateLimit(map, key, limit, window, maxKeys)` directly at each site — the constants already live close to the handlers. Keep the async `isCreateRateLimited`, which owns real branching between the in-memory map and the `CREATE_RATE_LIMITER` binding.
+
+### Collapse message-builders trivial constructors (P3)
+
+`src/server/game-do/message-builders.ts` exports four small wrappers (`toMovementResultMessage`, `toCombatResultMessage`, `toCombatSingleResultMessage`, `toGameStartMessage`) that build object literals with no computation or validation. Callers in `actions.ts`, `publication.ts`, and `match.ts` could write the literals directly with no readability loss.
+
+Action: inline those four constructors at their call sites. Keep `toStateUpdateMessage`, `resolveStateBearingMessage`, `resolveMovementBroadcast`, and `resolveCombatBroadcast` — they branch on transfer events, primary-message presence, or result shape. Retain `STATEFUL_SERVER_MESSAGE_TYPES` and the exported types.
+
+### Flatten broadcast indirection chain (P3)
+
+`src/server/game-do/broadcast.ts` defines `sendSocketMessage` as a one-line `try { ws.send(JSON.stringify(msg)) }` wrapper; `broadcastMessage` repeats the same try-catch in a loop; GameDO's private `send`/`broadcast` then add one more layer before being forwarded into dep bags (see the dep-bag cleanup above). `sendSocketMessage` is used only by `GameDO.send`.
+
+Action: drop the `sendSocketMessage` export and inline the try-catch inside `broadcastMessage` and wherever `this.send` needs it. Once GameDO methods are arrow fields, the private `send`/`broadcast` wrappers can be passed by reference instead of re-wrapped in each dep bag.
+
+### Sweep remaining single-call helpers (P3)
+
+A cluster of small single-call helpers now exist mostly for naming; they should come out in one dedicated PR. All are mechanical, low-risk deletions:
+
+- `src/client/game/camera-controller.ts` — `createCameraController()` returns three closures each wrapping a single `navigation.ts` helper with the same `deps` pattern. Replace with three top-level functions taking `CameraControllerDeps`, or inline at the single input-handler consumer.
+- `src/client/ui/elements.ts` — `getUIElements()` wraps eight `byId()` lookups; replace with a `const` object at the import site.
+- `src/server/game-do/replay-reconstruct.ts` — `isMovementish` / `isCombatish` are single-call type-string predicates; inline the `events.some(...)` at both callers.
+- `src/server/game-do/publication.ts` — `archiveIfGameOver` and `updateRatingsIfGameOver` each wrap an identical `events.some(e => e.type === 'gameOver')` guard around one scheduler call and are only invoked from `runPublicationPipeline`; inline under the existing numbered step comments.
+- `src/server/game-do/match.ts` — `buildInitEvents` is called once from `initGameSession`; inline the array construction.
+- `src/server/game-do/http-handlers.ts` — `deriveJoinSeatStatus` is a single-call ternary helper.
+- `src/server/game-do/mcp-session-state.ts` — `enableHostedMcpSeatEvents` is a one-line `storage.put` wrapper called once.
+- `packages/mcp-adapter/src/handlers.ts` — `requireRoomCode` / `requirePlayerToken` are single-call validators (both at lines 289-290); inline the `isRoomCode` / `isPlayerToken` guards.
+- `src/client/renderer/renderer.ts` — `drawShipIcon as drawShipIconFn`, `renderBodies as renderBodiesFn`, `renderHexGrid as renderHexGridFn`, `renderStars as renderStarsFn`, `renderAsteroids as renderAsteroidsFn`, `renderGravityIndicators as renderGravityIndicatorsFn`, `renderLandingTarget as renderLandingTargetFn`, `renderMapBorder as renderMapBorderFn`, `renderDetectionRanges as renderDetectionRangesFn`, `renderBaseMarkers as renderBaseMarkersFn`, `renderOrdnance as renderOrdnanceFn`, `renderCombatOverlay as renderCombatOverlayFn`, `renderTorpedoGuidance as renderTorpedoGuidanceFn`, `interpolatePath as interpolatePathFn` — no shadowing local exists for any of these renames; drop the `Fn` suffixes.
+
+### Parallelization plan for the simplification work
+
+The 13 entries above split cleanly into two file-disjoint streams that can land as independent PRs without merge conflicts. Neither stream touches `src/shared/**`, the wire protocol, or e2e fixtures; client code never imports server code and vice versa, so the streams stay isolated at build time as well.
+
+**Stream A — Client simplification** (every change under `src/client/**`):
+
+| # | Entry | Primary files |
+|---|---|---|
+| A1 | Inline main-session adapter factories | `main-deps.ts`, `main-session-shell.ts` |
+| A2 | Collapse session-controller bridge builders | `main-session-network.ts`, `main-session-shell.ts` |
+| A3 | Simplify authoritative message dispatch adapters | `message-handler.ts`, `authoritative-updates.ts` |
+| A4 | Inline `UIManager` facade assembly | `ui/ui.ts`, `session-actions.ts`, `hud-actions.ts`, `event-bridge.ts` |
+| A5 | Inline viewport/mobile wiring | `ui/ui.ts`, `mobile-sync.ts`, `viewport-events.ts` |
+| A6 | Merge tiny presentation shims | `briefing.ts`, `endgame.ts`, `hud-controller.ts`, `presentation.ts` |
+| A7 | Simplify action-deps caching factory | `action-deps.ts` |
+| A8 | Client portion of the single-call sweep | `camera-controller.ts`, `ui/elements.ts`, `renderer/renderer.ts` |
+
+Within Stream A, do A1 before A2 (both edit `main-session-shell.ts`) and A4 before A5 (both edit `ui/ui.ts`). Everything else is independent and can be tackled in any order.
+
+**Stream B — Server / DO simplification** (every change under `src/server/**` or `packages/mcp-adapter/**`):
+
+| # | Entry | Primary files |
+|---|---|---|
+| B1 | Inline GameDO dep-bag factories | `game-do/game-do.ts` |
+| B2 | Drop archive-compat pass-throughs | `game-do/archive-compat.ts`, `game-do/archive.ts` |
+| B3 | Inline reporting rate-limit wrappers | `reporting.ts`, `index.ts` |
+| B4 | Collapse message-builders trivial constructors | `game-do/message-builders.ts`, `actions.ts`, `publication.ts`, `match.ts` |
+| B5 | Flatten broadcast indirection chain | `game-do/broadcast.ts`, `game-do.ts` |
+| B6 | Server portion of the single-call sweep | `game-do/replay-reconstruct.ts`, `publication.ts`, `match.ts`, `http-handlers.ts`, `mcp-session-state.ts`, `packages/mcp-adapter/src/handlers.ts` |
+
+Within Stream B, do B1 before B5 (B5 depends on GameDO methods being arrow fields so `send`/`broadcast` can be passed by reference) and do B4 before B6 (both edit `publication.ts` and `match.ts`). B2 and B3 are fully isolated and can slot in anywhere.
+
+**Isolation guarantees:** every file listed above appears in exactly one stream. The dep bags returned by `StatefulServerMessage` builders are server-internal reshapes of `S2C`, so Stream B does not change any type Stream A consumes. Before starting Stream B, a quick `grep "from '.*client'" src/server` should come back empty as a sanity check.
+
+**Effort balance:** Stream B is dominated by B1 (the GameDO arrow-field conversion touches most of `game-do.ts`), which on its own is close in reviewer-time to A1+A2+A3 combined. If two parallel pairs of reviewers are available, each stream can be further split along the lines `A1/A2/A3` vs `A4/A5/A6/A7/A8` and `B1/B5` vs `B2/B3/B4/B6` without breaking the file-disjoint property.
 
 ## Launch-readiness snapshot (2026-04-19)
 
