@@ -41,7 +41,7 @@ import {
   buildBotAction,
   SERVER_AGENT_AI_DIFFICULTY,
 } from './bot';
-import { broadcastMessage, broadcastStateChange } from './broadcast';
+import { broadcastMessage } from './broadcast';
 import { parseCoachMessage, setCoachDirective } from './coach';
 import { isDurableObjectCodeUpdateError } from './code-update';
 import { handleGameDoFetch } from './fetch';
@@ -66,6 +66,7 @@ import type {
   PublishStateChangeOptions,
   StatefulServerMessage,
 } from './message-builders';
+import { toStateUpdateMessage } from './message-builders';
 import { runPublicationPipeline } from './publication';
 import {
   createDisconnectMarker,
@@ -1101,8 +1102,45 @@ export class GameDO extends DurableObject<Env> {
     state: GameState,
     primaryMessage?: StatefulServerMessage,
   ) {
-    broadcastStateChange(this.ctx, state, primaryMessage);
-    const primary = primaryMessage ?? { type: 'stateUpdate', state };
+    const primary = primaryMessage ?? toStateUpdateMessage(state);
+    const hasHiddenInfo =
+      state.scenarioRules.hiddenIdentityInspection ||
+      state.ships.some((ship) => ship.identity && !ship.identity.revealed);
+
+    if (!hasHiddenInfo) {
+      broadcastMessage(this.ctx, primary);
+    } else {
+      for (const playerId of [0, 1] as const) {
+        const playerSockets = this.getWebSockets(`player:${playerId}`);
+
+        if (playerSockets.length === 0) continue;
+
+        const filtered = {
+          ...primary,
+          state: filterStateForPlayer(state, playerId),
+        };
+        const data = JSON.stringify(filtered);
+
+        for (const ws of playerSockets) {
+          try {
+            ws.send(data);
+          } catch {}
+        }
+      }
+
+      const spectatorSockets = this.getWebSockets('spectator');
+      const spectatorData = JSON.stringify({
+        ...primary,
+        state: filterStateForPlayer(state, 'spectator'),
+      });
+
+      for (const ws of spectatorSockets) {
+        try {
+          ws.send(spectatorData);
+        } catch {}
+      }
+    }
+
     for (const playerId of [0, 1] as const) {
       const filtered = {
         ...primary,
@@ -1113,11 +1151,12 @@ export class GameDO extends DurableObject<Env> {
       );
     }
     if (state.phase === 'gameOver') {
-      const gameOver: S2C = {
+      const gameOver = {
         type: 'gameOver',
         winner: state.outcome?.winner ?? 0,
         reason: state.outcome?.reason ?? 'Game over',
-      };
+      } satisfies S2C;
+      broadcastMessage(this.ctx, gameOver);
       for (const playerId of [0, 1] as const) {
         this.waitUntil(
           appendHostedMcpSeatEvent(this.storage, playerId, gameOver),
