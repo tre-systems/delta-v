@@ -3,6 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
+import { PDFDocument } from "pdf-lib";
 
 import {
   BOOK_CSS,
@@ -22,6 +23,11 @@ const outDir = path.join(repoRoot, "tmp", "documentation-book");
 const rewrittenDir = path.join(outDir, "audio-rewritten");
 const outHtml = path.join(outDir, "delta-v-documentation-book.audio.html");
 const outPdf = path.join(outDir, "delta-v-documentation-book.audio.pdf");
+const publishedPdf = path.join(
+  repoRoot,
+  "docs",
+  "delta-v-documentation-book.audio.pdf",
+);
 
 await fs.mkdir(outDir, { recursive: true });
 
@@ -162,4 +168,26 @@ await page.pdf({
 });
 await browser.close();
 
-console.log(JSON.stringify({ html: outHtml, pdf: outPdf, totalWords }, null, 2));
+const pdfBytes = await fs.readFile(outPdf);
+const pdf = await PDFDocument.load(pdfBytes);
+pdf.setTitle("Delta-V Documentation Book - Audio Edition");
+pdf.setAuthor("Delta-V repository");
+pdf.setSubject(
+  "Listener-friendly rewrite of the Delta-V documentation book for text-to-speech reading.",
+);
+pdf.setKeywords([
+  "Delta-V",
+  "documentation",
+  "audio edition",
+  "text to speech",
+  "agents",
+]);
+pdf.setProducer("pdf-lib");
+pdf.setCreator("Delta-V documentation pipeline");
+const rewrittenPdf = await pdf.save();
+await fs.writeFile(outPdf, rewrittenPdf);
+await fs.copyFile(outPdf, publishedPdf);
+
+console.log(
+  JSON.stringify({ html: outHtml, pdf: outPdf, publishedPdf, totalWords }, null, 2),
+);
