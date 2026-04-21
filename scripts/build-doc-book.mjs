@@ -122,6 +122,28 @@ const html = `<!doctype html>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Delta-V Documentation Book</title>
     <style>${BOOK_CSS}</style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script>
+      window.__mermaidReady = false;
+      window.addEventListener("load", async () => {
+        if (!window.mermaid) {
+          window.__mermaidReady = true;
+          return;
+        }
+        window.mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "loose",
+          theme: "neutral",
+        });
+        const nodes = document.querySelectorAll(".mermaid");
+        if (nodes.length === 0) {
+          window.__mermaidReady = true;
+          return;
+        }
+        await window.mermaid.run({ nodes });
+        window.__mermaidReady = true;
+      });
+    </script>
   </head>
   <body>
     <section class="cover">
@@ -150,7 +172,7 @@ const html = `<!doctype html>
           </div>
         </div>
         <p class="source-note">
-          Includes all canonical Markdown docs, the visual reference boards under <code>docs/assets/</code>, and the original appended <code>${escapeHtml(displayPath(externalPdfAppendix))}</code>.
+          Includes all canonical Markdown docs, the visual reference boards under docs/assets/, and the original appended ${escapeHtml(displayPath(externalPdfAppendix))}.
         </p>
       </div>
       <div>
@@ -192,6 +214,9 @@ await fs.writeFile(outHtml, html, "utf8");
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 await page.goto(pathToFileURL(outHtml).href, { waitUntil: "networkidle" });
+await page.waitForFunction(() => window.__mermaidReady === true, null, {
+  timeout: 10_000,
+}).catch(() => null);
 await page.emulateMedia({ media: "print" });
 await page.pdf({
   path: outMainPdf,

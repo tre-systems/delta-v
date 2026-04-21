@@ -371,7 +371,7 @@ export function createRenderer(chapter, chapterIdByFile, repoRoot) {
     const classAttr = language ? ` class="language-${escapeHtml(language)}"` : "";
 
     if (language === "mermaid") {
-      return `<pre class="mermaid-block"><code>${escapeHtml(token.text)}</code></pre>`;
+      return `<div class="mermaid">${escapeHtml(token.text)}</div>`;
     }
 
     return `<pre><code${classAttr}>${escapeHtml(token.text)}</code></pre>`;
@@ -550,10 +550,25 @@ export const BOOK_CSS = `
         word-break: break-word;
       }
 
-      .mermaid-block {
-        background: #f7f2e8;
+      .mermaid {
+        margin: 1rem 0 1.25rem;
+        padding: 0.9rem;
+        background: #fbf7ef;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        text-align: center;
+      }
+
+      .mermaid svg {
+        max-width: 100%;
+        height: auto;
+      }
+
+      .mermaid[data-processed="false"] {
+        white-space: pre-wrap;
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
         color: var(--ink);
-        border: 1px dashed var(--border);
       }
 
       table {
