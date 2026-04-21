@@ -19,6 +19,7 @@ import type {
   SolarSystemMap,
 } from '../types';
 import { minBy, sumBy } from '../util';
+import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
 import type { AIDifficulty } from './types';
 
@@ -59,6 +60,8 @@ export const aiCombat = (
       ship.detected,
   );
   const player = state.players[playerId];
+  const opponentId: PlayerId = playerId === 0 ? 1 : 0;
+  const opponent = state.players[opponentId];
   const targetHex = player.targetBody
     ? (map.bodies.find((body) => body.name === player.targetBody)?.center ??
       null)
@@ -79,6 +82,26 @@ export const aiCombat = (
       : Math.min(
           ...myShips.map((ship) => hexDistance(ship.position, targetHex)),
         );
+  const myLandingTurns =
+    singleShipObjectiveDuel && player.targetBody && myShips.length === 1
+      ? estimateTurnsToTargetLanding(
+          myShips[0],
+          player.targetBody,
+          map,
+          state.destroyedBases,
+        )
+      : null;
+  const enemyLandingTurns =
+    singleShipObjectiveDuel &&
+    opponent?.targetBody &&
+    enemyShips.filter(canAttack).length === 1
+      ? estimateTurnsToTargetLanding(
+          enemyShips.filter(canAttack)[0],
+          opponent.targetBody,
+          map,
+          state.destroyedBases,
+        )
+      : null;
   const enemyNukes = state.ordnance.filter(
     (ordnance) =>
       ordnance.owner !== playerId &&
@@ -87,29 +110,8 @@ export const aiCombat = (
   );
   const shouldPreserveLandingLine =
     singleShipObjectiveDuel &&
-    targetHex != null &&
-    myBestObjectiveDistance != null &&
-    (myBestObjectiveDistance <= 2 ||
-      (myBestObjectiveDistance <= 3 &&
-        enemyShips.every((enemy) => {
-          const predictedEnemy = {
-            q: enemy.position.q + enemy.velocity.dq,
-            r: enemy.position.r + enemy.velocity.dr,
-          };
-          const enemyPressureDistance = Math.min(
-            hexDistance(enemy.position, homeHex),
-            hexDistance(predictedEnemy, homeHex),
-          );
-          const enemyObjectiveDistance = Math.min(
-            hexDistance(enemy.position, targetHex),
-            hexDistance(predictedEnemy, targetHex),
-          );
-
-          return (
-            enemyPressureDistance > 4 &&
-            enemyObjectiveDistance > myBestObjectiveDistance + 1
-          );
-        })));
+    myLandingTurns === 1 &&
+    (enemyLandingTurns == null || enemyLandingTurns > 1);
 
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
     return [];
@@ -128,6 +130,12 @@ export const aiCombat = (
       homeHex != null &&
       myBestObjectiveDistance != null
     ) {
+      if (
+        myLandingTurns === 1 &&
+        (enemyLandingTurns == null || enemyLandingTurns > 1)
+      ) {
+        continue;
+      }
       const predictedEnemy = {
         q: enemy.position.q + enemy.velocity.dq,
         r: enemy.position.r + enemy.velocity.dr,
