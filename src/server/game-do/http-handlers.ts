@@ -25,21 +25,6 @@ export interface JoinAttemptSuccess {
   seatOpen: [boolean, boolean];
 }
 
-type JoinSeatStatus = 'host-only' | 'open' | 'full';
-
-const deriveJoinSeatStatus = ({
-  playerTokens,
-  seatOpen,
-}: {
-  playerTokens: RoomConfig['playerTokens'];
-  seatOpen: JoinAttemptSuccess['seatOpen'];
-}): JoinSeatStatus => {
-  if (playerTokens[1] === null) {
-    return 'host-only';
-  }
-  return seatOpen.some(Boolean) ? 'open' : 'full';
-};
-
 type ResolveJoinDeps = {
   getRoomConfig: () => Promise<RoomConfig | null>;
   isRoomArchived: () => Promise<boolean>;
@@ -191,10 +176,12 @@ export const handleJoinCheckRequest = async (
         {
           ok: true,
           scenario: joinAttempt.value.roomConfig.scenario,
-          seatStatus: deriveJoinSeatStatus({
-            playerTokens: joinAttempt.value.roomConfig.playerTokens,
-            seatOpen: joinAttempt.value.seatOpen,
-          }),
+          seatStatus:
+            joinAttempt.value.roomConfig.playerTokens[1] === null
+              ? 'host-only'
+              : joinAttempt.value.seatOpen.some(Boolean)
+                ? 'open'
+                : 'full',
         },
         { status: 200 },
       )
@@ -207,16 +194,6 @@ type HandleReplayDeps = {
   getLatestGameId: () => Promise<import('../../shared/ids').GameId | null>;
   touchInactivity: () => Promise<void>;
 };
-
-const resolveReplayViewer = (
-  roomConfig: RoomConfig,
-  requestUrl: URL,
-): ViewerId | null =>
-  getReplayViewerId(
-    roomConfig,
-    requestUrl.searchParams.get('playerToken'),
-    requestUrl.searchParams.get('viewer'),
-  );
 
 export const handleReplayRequest = async (
   deps: HandleReplayDeps,
@@ -231,7 +208,11 @@ export const handleReplayRequest = async (
   }
 
   const requestUrl = new URL(request.url);
-  const viewerId = resolveReplayViewer(roomConfig, requestUrl);
+  const viewerId: ViewerId | null = getReplayViewerId(
+    roomConfig,
+    requestUrl.searchParams.get('playerToken'),
+    requestUrl.searchParams.get('viewer'),
+  );
 
   if (viewerId === null) {
     return new Response('Invalid player token', {
