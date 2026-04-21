@@ -18,55 +18,48 @@ export interface CameraControllerDeps {
   logText: (text: string, cssClass?: string) => void;
 }
 
-export const createCameraController = (deps: CameraControllerDeps) => ({
-  cycleShip: (direction: number) => {
-    const state = deps.getGameState();
+export const cycleShip = (
+  deps: CameraControllerDeps,
+  direction: number,
+): void => {
+  const state = deps.getGameState();
+  if (!state) return;
+  const nextShip = getNextSelectedShip(
+    state,
+    deps.getPlayerId(),
+    deps.getPlanningState().selectedShipId,
+    direction,
+  );
+  if (!nextShip) return;
+  deps.getPlanningState().setSelectedShipId(nextShip.id);
+  deps.renderer.centerOnHex(nextShip.position);
+};
 
-    if (!state) return;
-    const nextShip = getNextSelectedShip(
-      state,
-      deps.getPlayerId(),
-      deps.getPlanningState().selectedShipId,
-      direction,
-    );
+export const focusNearestEnemy = (deps: CameraControllerDeps): void => {
+  const state = deps.getGameState();
+  if (!state) return;
+  const position = getNearestEnemyPosition(
+    state,
+    deps.getPlayerId(),
+    deps.renderer.camera.x,
+    deps.renderer.camera.y,
+    HEX_SIZE,
+  );
+  if (!position) {
+    deps.logText(TOAST.gameplay.noDetectedEnemies, 'log-env');
+    return;
+  }
+  deps.renderer.centerOnHex(position);
+};
 
-    if (!nextShip) return;
-    deps.getPlanningState().setSelectedShipId(nextShip.id);
-    deps.renderer.centerOnHex(nextShip.position);
-  },
-
-  focusNearestEnemy: () => {
-    const state = deps.getGameState();
-
-    if (!state) return;
-    const position = getNearestEnemyPosition(
-      state,
-      deps.getPlayerId(),
-      deps.renderer.camera.x,
-      deps.renderer.camera.y,
-      HEX_SIZE,
-    );
-
-    if (!position) {
-      deps.logText(TOAST.gameplay.noDetectedEnemies, 'log-env');
-      return;
-    }
-    deps.renderer.centerOnHex(position);
-  },
-
-  focusOwnFleet: () => {
-    const state = deps.getGameState();
-
-    if (!state) return;
-    const position = getOwnFleetFocusPosition(
-      state,
-      deps.getPlayerId(),
-      deps.getPlanningState().selectedShipId,
-    );
-
-    if (!position) return;
-    deps.renderer.centerOnHex(position);
-  },
-});
-
-export type CameraController = ReturnType<typeof createCameraController>;
+export const focusOwnFleet = (deps: CameraControllerDeps): void => {
+  const state = deps.getGameState();
+  if (!state) return;
+  const position = getOwnFleetFocusPosition(
+    state,
+    deps.getPlayerId(),
+    deps.getPlanningState().selectedShipId,
+  );
+  if (!position) return;
+  deps.renderer.centerOnHex(position);
+};
