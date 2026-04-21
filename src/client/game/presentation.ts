@@ -20,36 +20,6 @@ import type { ClientState } from './phase';
 import { getGameOverStats } from './selection';
 import type { GameOverStats } from './types';
 
-export interface GameOverPlan {
-  stats: GameOverStats | undefined;
-  logText: string;
-  logClass: 'log-landed' | 'log-eliminated';
-  resultSound: 'victory' | 'defeat';
-}
-
-export const deriveGameOverPlan = (
-  state: GameState | null,
-  playerId: number,
-  won: boolean,
-  reason: string,
-): GameOverPlan => {
-  if (playerId < 0) {
-    return {
-      stats: state ? getGameOverStats(state, -1) : undefined,
-      logText: `GAME OVER: ${reason}`,
-      logClass: 'log-landed',
-      resultSound: 'defeat',
-    };
-  }
-
-  return {
-    stats: state ? getGameOverStats(state, playerId as PlayerId) : undefined,
-    logText: `${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`,
-    logClass: won ? 'log-landed' : 'log-eliminated',
-    resultSound: won ? 'victory' : 'defeat',
-  };
-};
-
 export interface PresentationDeps {
   applyGameState: (state: GameState) => void;
   setState: (newState: ClientState) => void;
@@ -168,16 +138,24 @@ export const showGameOverOutcome = (
   deps.setState('gameOver');
   const gameState = deps.getGameState();
   const playerId = deps.getPlayerId();
-  const plan = deriveGameOverPlan(gameState, playerId, won, reason);
-  deps.ui.log.logText(plan.logText, plan.logClass);
+  const isSpectator = playerId < 0;
+  const stats = gameState
+    ? getGameOverStats(gameState, isSpectator ? -1 : (playerId as PlayerId))
+    : undefined;
+  const logText = isSpectator
+    ? `GAME OVER: ${reason}`
+    : `${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`;
+  const logClass: 'log-landed' | 'log-eliminated' =
+    isSpectator || won ? 'log-landed' : 'log-eliminated';
+  deps.ui.log.logText(logText, logClass);
 
   const effectDuration = deps.renderer.triggerGameOverEffect(won);
 
   setTimeout(() => {
-    deps.ui.overlay.showGameOver(won, reason, plan.stats);
+    deps.ui.overlay.showGameOver(won, reason, stats);
     deps.onGameOverShown?.();
 
-    if (plan.resultSound === 'victory') {
+    if (!isSpectator && won) {
       playVictory();
     } else {
       playDefeat();
