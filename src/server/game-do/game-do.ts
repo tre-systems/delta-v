@@ -29,7 +29,7 @@ import {
   isGameStateActionMessage,
   runGameStateAction,
 } from './actions';
-import { type GameDoAlarmDeps, runGameDoAlarm } from './alarm';
+import { runGameDoAlarm } from './alarm';
 import {
   getEventStreamLength,
   getMatchSeed,
@@ -526,35 +526,6 @@ export class GameDO extends DurableObject<Env> {
     );
   }
 
-  private createAlarmDeps(): GameDoAlarmDeps {
-    return {
-      now: Date.now(),
-      storage: this.storage,
-      env: this.env,
-      waitUntil: (promise) => this.waitUntil(promise),
-      getWebSockets: () => this.getWebSockets(),
-      map: this.map,
-      getCurrentGameState: () => this.getCurrentGameState(),
-      getGameCode: () => this.getGameCode(),
-      getActionRng: () => this.getActionRng(),
-      runBotTurn: () => this.runBotTurn(),
-      clearDisconnectMarker: () => this.clearDisconnectMarker(),
-      rescheduleAlarm: () => this.rescheduleAlarm(),
-      publishStateChange: (state, primaryMessage, options) =>
-        this.publishStateChange(state, primaryMessage, options),
-      reportEngineError: (code, phase, turn, err) =>
-        this.reportEngineError(code, phase, turn, err),
-      reportGameAbandoned: (props) => this.reportGameAbandoned(props),
-      reportLifecycle: (event, props) =>
-        reportLifecycleEvent(
-          { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
-          event,
-          props,
-        ),
-      archiveRoomState: () => this.archiveRoomState(),
-    };
-  }
-
   private isSpectatorSocket(socket: WebSocket): boolean {
     return this.getTags(socket).includes('spectator');
   }
@@ -716,7 +687,32 @@ export class GameDO extends DurableObject<Env> {
 
   async alarm(): Promise<void> {
     try {
-      await runGameDoAlarm(this.createAlarmDeps());
+      await runGameDoAlarm({
+        now: Date.now(),
+        storage: this.storage,
+        env: this.env,
+        waitUntil: (promise) => this.waitUntil(promise),
+        getWebSockets: () => this.getWebSockets(),
+        map: this.map,
+        getCurrentGameState: () => this.getCurrentGameState(),
+        getGameCode: () => this.getGameCode(),
+        getActionRng: () => this.getActionRng(),
+        runBotTurn: () => this.runBotTurn(),
+        clearDisconnectMarker: () => this.clearDisconnectMarker(),
+        rescheduleAlarm: () => this.rescheduleAlarm(),
+        publishStateChange: (state, primaryMessage, options) =>
+          this.publishStateChange(state, primaryMessage, options),
+        reportEngineError: (code, phase, turn, err) =>
+          this.reportEngineError(code, phase, turn, err),
+        reportGameAbandoned: (props) => this.reportGameAbandoned(props),
+        reportLifecycle: (event, props) =>
+          reportLifecycleEvent(
+            { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
+            event,
+            props,
+          ),
+        archiveRoomState: () => this.archiveRoomState(),
+      });
     } catch (error) {
       if (isDurableObjectCodeUpdateError(error)) {
         this.reportCodeUpdateEviction('alarm', undefined, error);
