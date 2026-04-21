@@ -113,10 +113,14 @@ export const aiCombat = (
             hexDistance(predictedEnemy, targetHex),
           )
         : Number.POSITIVE_INFINITY;
+      const enemyClosingOnObjective =
+        enemyObjectiveDistance <= 2 ||
+        (enemyObjectiveDistance <= 5 &&
+          enemyObjectiveDistance + 3 < myBestObjectiveDistance);
       const isStrategicThreat =
         enemyPressureDistance <= 4 ||
         enemyPressureDistance + 5 < myBestObjectiveDistance ||
-        enemyObjectiveDistance + 1 < myBestObjectiveDistance;
+        enemyClosingOnObjective;
 
       if (!isStrategicThreat) {
         continue;
