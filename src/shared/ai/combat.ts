@@ -85,8 +85,37 @@ export const aiCombat = (
       ordnance.lifecycle !== 'destroyed' &&
       ordnance.type === 'nuke',
   );
+  const shouldPreserveLandingLine =
+    singleShipObjectiveDuel &&
+    targetHex != null &&
+    myBestObjectiveDistance != null &&
+    (myBestObjectiveDistance <= 2 ||
+      (myBestObjectiveDistance <= 3 &&
+        enemyShips.every((enemy) => {
+          const predictedEnemy = {
+            q: enemy.position.q + enemy.velocity.dq,
+            r: enemy.position.r + enemy.velocity.dr,
+          };
+          const enemyPressureDistance = Math.min(
+            hexDistance(enemy.position, homeHex),
+            hexDistance(predictedEnemy, homeHex),
+          );
+          const enemyObjectiveDistance = Math.min(
+            hexDistance(enemy.position, targetHex),
+            hexDistance(predictedEnemy, targetHex),
+          );
+
+          return (
+            enemyPressureDistance > 4 &&
+            enemyObjectiveDistance > myBestObjectiveDistance + 1
+          );
+        })));
 
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
+    return [];
+  }
+
+  if (shouldPreserveLandingLine) {
     return [];
   }
 

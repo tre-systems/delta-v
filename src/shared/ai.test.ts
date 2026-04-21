@@ -424,6 +424,54 @@ describe('aiAstrogation', () => {
       scoreNavigation(ship, detour, { q: 2, r: 0 }, 'Mars', AI_CONFIG.hard),
     );
   });
+  it('values disciplined final approach more strongly within three hexes of the target', () => {
+    const ship = createTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+    });
+    const disciplinedApproach = {
+      destination: { q: 1, r: 0 },
+      path: [
+        { q: 0, r: 0 },
+        { q: 1, r: 0 },
+      ],
+      newVelocity: { dq: 1, dr: 0 },
+      fuelSpent: 1,
+      gravityEffects: [],
+      enteredGravityEffects: [],
+      outcome: 'normal' as const,
+    };
+    const hotApproach = {
+      destination: { q: 1, r: 0 },
+      path: [
+        { q: 0, r: 0 },
+        { q: 1, r: 0 },
+      ],
+      newVelocity: { dq: 2, dr: 0 },
+      fuelSpent: 1,
+      gravityEffects: [],
+      enteredGravityEffects: [],
+      outcome: 'normal' as const,
+    };
+
+    expect(
+      scoreNavigation(
+        ship,
+        disciplinedApproach,
+        { q: 2, r: 0 },
+        'Mars',
+        AI_CONFIG.hard,
+      ),
+    ).toBeGreaterThan(
+      scoreNavigation(
+        ship,
+        hotApproach,
+        { q: 2, r: 0 },
+        'Mars',
+        AI_CONFIG.hard,
+      ),
+    );
+  });
 
   it('does not trigger home screening for a merely modest race lead', () => {
     const state = createTestState({
