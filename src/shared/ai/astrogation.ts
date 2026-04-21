@@ -25,6 +25,7 @@ import { maxBy, minBy } from '../util';
 import { aiCombat } from './combat';
 import {
   estimateFuelForTravelDistance,
+  estimateRemainingCheckpointTourCost,
   findNearestBase,
   getHomeDefenseThreat,
   getInterceptContinuationPreference,
@@ -91,6 +92,90 @@ const resolvePreferredLandingTarget = (
   }
 
   return map.bodies.find((body) => body.name === bodyName)?.center ?? null;
+};
+
+const pickFuelAwareCheckpointTarget = (
+  player: GameState['players'][PlayerId],
+  checkpoints: readonly string[],
+  ship: Ship,
+  map: SolarSystemMap,
+  sharedBases: readonly string[],
+): string | null => {
+  const nextBody = pickNextCheckpoint(player, checkpoints, map, ship.position);
+
+  if (!nextBody) {
+    return null;
+  }
+
+  const visitedBodies = new Set(player.visitedBodies ?? []);
+  const nextCenter = map.bodies.find((body) => body.name === nextBody)?.center;
+  const nextHasRefuelBase =
+    nextBody === player.homeBody || sharedBases.includes(nextBody);
+
+  if (!nextCenter || nextHasRefuelBase) {
+    return nextBody;
+  }
+
+  const speed = hexVecLength(ship.velocity);
+  const fuelForTrip = estimateFuelForTravelDistance(
+    hexDistance(ship.position, nextCenter),
+    speed,
+  );
+  const continuationBase = findNearestBase(nextCenter, player.bases, map);
+  const continuationFuel =
+    continuationBase == null
+      ? Number.POSITIVE_INFINITY
+      : estimateFuelForTravelDistance(
+          hexDistance(nextCenter, continuationBase),
+        );
+
+  if (ship.fuel >= fuelForTrip + continuationFuel) {
+    return nextBody;
+  }
+
+  const fuelBaseCandidates = checkpoints.filter(
+    (body) =>
+      !visitedBodies.has(body) &&
+      body !== nextBody &&
+      (body === player.homeBody || sharedBases.includes(body)),
+  );
+
+  if (fuelBaseCandidates.length === 0) {
+    return nextBody;
+  }
+
+  const bestFuelCandidate = minBy(fuelBaseCandidates, (body) => {
+    const center = map.bodies.find(
+      (candidate) => candidate.name === body,
+    )?.center;
+
+    if (!center) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    const directFuel = estimateFuelForTravelDistance(
+      hexDistance(ship.position, center),
+      speed,
+    );
+
+    if (directFuel > ship.fuel) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    const remainingTourCost = estimateRemainingCheckpointTourCost(
+      {
+        ...player,
+        visitedBodies: [...visitedBodies, body],
+      },
+      checkpoints,
+      map,
+      center,
+    );
+
+    return hexDistance(ship.position, center) + remainingTourCost;
+  });
+
+  return bestFuelCandidate ?? nextBody;
 };
 
 const getPassengerEmergencyEscortOrders = (
@@ -631,7 +716,13 @@ export const aiAstrogation = (
 
     if (checkpoints && player.visitedBodies) {
       const nextBody =
-        pickNextCheckpoint(player, checkpoints, map, ship.position) ?? '';
+        pickFuelAwareCheckpointTarget(
+          player,
+          checkpoints,
+          ship,
+          map,
+          caps.sharedBases,
+        ) ?? '';
       shipTargetBody = nextBody;
       shipTargetHex = nextBody
         ? resolvePreferredLandingTarget(nextBody, ship.position, map)
@@ -897,6 +988,33 @@ export const aiAstrogation = (
 
       if (seekingFuel && course.outcome === 'landing') {
         score += cfg.fuelSeekLandingBonus;
+      }
+
+      if (
+        checkpoints &&
+        course.outcome === 'landing' &&
+        course.landedAt !== shipTargetBody &&
+        !seekingFuel
+      ) {
+        score -= cfg.navTargetLandingBonus;
+      }
+
+      if (checkpoints && player.visitedBodies) {
+        const destinationHex = map.hexes.get(hexKey(course.destination));
+        const destinationBodyName =
+          destinationHex?.base?.bodyName ?? destinationHex?.gravity?.bodyName;
+
+        if (
+          destinationBodyName &&
+          destinationBodyName !== shipTargetBody &&
+          player.visitedBodies.includes(destinationBodyName)
+        ) {
+          score -= cfg.navTargetLandingBonus;
+
+          if (course.outcome === 'landing') {
+            score -= cfg.navTargetLandingBonus;
+          }
+        }
       }
 
       if (opt.burn === null) {
