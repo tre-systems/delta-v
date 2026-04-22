@@ -785,9 +785,7 @@ export const aiOrdnance = (
         )
       : null;
   const shouldPreserveLandingLine =
-    singleShipObjectiveDuel &&
-    myLandingTurns === 1 &&
-    (enemyLandingTurns == null || enemyLandingTurns > 1);
+    singleShipObjectiveDuel && myLandingTurns === 1 && enemyLandingTurns !== 0;
 
   if (cfg.ordnanceSkipChance > 0 && rng() < cfg.ordnanceSkipChance) {
     return launches;
