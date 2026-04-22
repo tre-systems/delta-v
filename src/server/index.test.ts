@@ -816,6 +816,7 @@ describe('server index worker', () => {
       completedAt: 5678,
       checkpoint: null,
       matchSeed: null,
+      officialBotMatch: false,
       eventStream: [
         {
           seq: 1,

@@ -38,6 +38,7 @@ const makeRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
   created_at: overrides.created_at ?? 1_000,
   completed_at: overrides.completed_at ?? 2_000,
   match_coached: overrides.match_coached ?? 0,
+  official_bot_match: overrides.official_bot_match ?? 0,
   winner_username:
     'winner_username' in overrides ? overrides.winner_username : null,
   loser_username:
@@ -298,9 +299,21 @@ describe('handleMatchesList', () => {
       createdAt: 111,
       completedAt: 222,
       coached: true,
+      officialBotMatch: false,
       winnerUsername: null,
       loserUsername: null,
     });
+  });
+
+  it('surfaces officialBotMatch from archive metadata', async () => {
+    const { db } = mockDb([makeRow({ official_bot_match: 1 })]);
+
+    const response = await handleMatchesList(
+      new Request('https://example/api/matches'),
+      buildEnv(db),
+    );
+    const body = (await response.json()) as MatchListingResponse;
+    expect(body.matches[0].officialBotMatch).toBe(true);
   });
 
   it('does not surface public usernames in the matches listing', async () => {

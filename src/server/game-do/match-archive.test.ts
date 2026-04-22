@@ -8,6 +8,10 @@ import {
   SCENARIOS,
 } from '../../shared/map-data';
 import {
+  OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY,
+  OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+} from '../../shared/player';
+import {
   appendEnvelopedEvents,
   saveCheckpoint,
   saveMatchCreatedAt,
@@ -103,10 +107,12 @@ describe('match archival', () => {
     expect(body.winReason).toBe('Fleet eliminated!');
     expect(body.turnCount).toBe(state.turnNumber);
     expect(body.createdAt).toBe(1234);
+    expect(body.officialBotMatch).toBe(false);
     expect(body.eventStream).toHaveLength(1);
     expect(body.checkpoint).not.toBeNull();
 
-    // D1 should have metadata — 9 columns including match_coached.
+    // D1 should have metadata — 10 columns including match_coached and
+    // official_bot_match.
     expect(db.prepare).toHaveBeenCalledTimes(1);
     expect(db.bind).toHaveBeenCalledWith(
       'ARC-m1',
@@ -118,6 +124,7 @@ describe('match archival', () => {
       expect.any(Number),
       expect.any(Number),
       0, // match_coached: falsy for uncoached match
+      0, // official_bot_match: falsy for human-vs-human match
     );
 
     // The DO-side checkpoint is pruned after the archive lands. R2 now
@@ -168,6 +175,68 @@ describe('match archival', () => {
       expect.any(Number),
       expect.any(Number),
       1, // match_coached: truthy when isMatchCoached returned true
+      0, // official_bot_match: still false here
+    );
+  });
+
+  it('persists official_bot_match when the stable official bot was seated', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const r2 = createMockR2();
+    const db = createMockDb();
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('BOT-m1'),
+      findBaseHex,
+    );
+    state.phase = 'gameOver';
+    state.outcome = { winner: 0, reason: 'Fleet eliminated!' };
+
+    await appendEnvelopedEvents(storage, asGameId('BOT-m1'), null, {
+      type: 'gameCreated',
+      scenario: 'Duel',
+      turn: 1,
+      phase: 'astrogation',
+      matchSeed: 0,
+    });
+    await storage.put('roomConfig', {
+      code: 'BOTRM',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), null],
+      players: [
+        { playerKey: 'human-player', username: 'Pilot 1', kind: 'human' },
+        {
+          playerKey: OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY,
+          username: OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+          kind: 'agent',
+        },
+      ],
+    });
+
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      db as unknown as D1Database,
+      state,
+      'BOTRM',
+    );
+
+    const body = JSON.parse(
+      r2.objects.get('matches/BOT-m1.json') ?? '{}',
+    ) as MatchArchive;
+    expect(body.officialBotMatch).toBe(true);
+    expect(db.bind).toHaveBeenCalledWith(
+      'BOT-m1',
+      'BOTRM',
+      'duel',
+      0,
+      'Fleet eliminated!',
+      state.turnNumber,
+      expect.any(Number),
+      expect.any(Number),
+      0,
+      1,
     );
   });
 
@@ -185,6 +254,7 @@ describe('match archival', () => {
       eventStream: [],
       checkpoint: null,
       matchSeed: null,
+      officialBotMatch: false,
     };
 
     r2.objects.set('matches/FETCH-m1.json', JSON.stringify(archive));
