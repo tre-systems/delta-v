@@ -568,6 +568,44 @@ describe('aiAstrogation', () => {
     expect(order?.burn).toBe(2);
   });
 
+  it('preserves an immediate landing line under Venus gravity in biplanetary', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('BIP-VENUS-GRAVITY-LINE'),
+      findBaseHex,
+    );
+    const racer = must(state.ships.find((ship) => ship.owner === 0));
+    const opponent = must(state.ships.find((ship) => ship.owner === 1));
+
+    state.phase = 'astrogation';
+    state.activePlayer = 0;
+
+    racer.lifecycle = 'active';
+    racer.position = { q: -5, r: 5 };
+    racer.velocity = { dq: 1, dr: 1 };
+    racer.fuel = 13;
+    racer.pendingGravityEffects = [
+      {
+        hex: { q: -5, r: 5 },
+        direction: 4,
+        bodyName: 'Venus',
+        strength: 'full',
+        ignored: false,
+      },
+    ];
+
+    opponent.lifecycle = 'active';
+    opponent.position = { q: -8, r: -4 };
+    opponent.velocity = { dq: 0, dr: -1 };
+    opponent.fuel = 12;
+
+    const [order] = aiAstrogation(state, 0, map, 'hard');
+
+    expect(order?.shipId).toBe(racer.id);
+    expect(order?.burn).toBe(2);
+  });
+
   it('uses a coordinated escape line for immediate passenger threats', () => {
     const state = createGameOrThrow(
       SCENARIOS.evacuation,
