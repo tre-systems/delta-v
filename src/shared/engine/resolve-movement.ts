@@ -89,7 +89,7 @@ export const resolveMovementPhase = (
 
     const isDisabled = ship.damage.disabledTurns > 0;
     const order = queuedOrders.get(ship.id);
-    const burn = isDisabled ? null : (order?.burn ?? null);
+    let burn = isDisabled ? null : (order?.burn ?? null);
     const overload = isDisabled ? null : (order?.overload ?? null);
     const burnCancelledByDisable =
       isDisabled &&
@@ -98,10 +98,44 @@ export const resolveMovementPhase = (
     const from = { ...ship.position };
 
     // Auto-land when orbiting the target body — no need for a
-    // manual toggle in race scenarios.
-    const targetBody = state.players[ship.owner]?.targetBody;
+    // manual toggle in race scenarios. Also auto-land the Grand Tour
+    // return leg: once all checkpoints have been ticked off and the
+    // ship is in orbit of its home body, there is nothing else to do
+    // except touch down, and a tester who "returned to Luna" without
+    // manually pressing LAND ended up staring at a turn that never
+    // ended.
+    const shipPlayer = state.players[ship.owner];
+    const targetBody = shipPlayer?.targetBody;
+    const orbitingBody = detectOrbit(ship, map);
+    const checkpoints = state.scenarioRules.checkpointBodies;
+    const allCheckpointsVisited = Boolean(
+      checkpoints &&
+        shipPlayer?.visitedBodies &&
+        checkpoints.every((b) => shipPlayer.visitedBodies?.includes(b)),
+    );
+    const onReturnLeg =
+      allCheckpointsVisited &&
+      !!shipPlayer?.homeBody &&
+      orbitingBody === shipPlayer.homeBody;
     const shouldAutoLand =
-      !order?.land && targetBody && detectOrbit(ship, map) === targetBody;
+      !order?.land &&
+      ((targetBody && orbitingBody === targetBody) || onReturnLeg);
+
+    // computeCourse commits a planetary-base landing only when 1 fuel
+    // is spent (Triplanetary rule: touch-down burn). For the Grand
+    // Tour return leg we synthesize that burn so a player who arrives
+    // in Luna orbit with nothing queued still lands — the burn
+    // direction is overridden by findLandingBase once orbit is
+    // detected, so the choice here only costs the fuel.
+    if (
+      onReturnLeg &&
+      !order?.land &&
+      !isDisabled &&
+      burn === null &&
+      ship.fuel > 0
+    ) {
+      burn = 0;
+    }
 
     const course = computeCourse(ship, burn, map, {
       overload,
