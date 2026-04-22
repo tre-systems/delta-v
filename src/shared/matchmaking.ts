@@ -20,6 +20,10 @@ export interface QuickMatchQueuedResponse {
   status: 'queued';
   ticket: string;
   scenario: string;
+  /** Server-authored signal for whether the explicit Official Bot fallback can be shown now. */
+  officialBotOfferAvailable: boolean;
+  /** Milliseconds until the fallback becomes available; `null` when the feature is disabled. */
+  officialBotWaitMsRemaining: number | null;
 }
 
 export interface QuickMatchMatchedResponse {
