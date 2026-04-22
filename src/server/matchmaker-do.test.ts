@@ -695,6 +695,86 @@ describe('MatchmakerDO', () => {
     });
   });
 
+  it('records an explicit official bot decline once after the offer is available', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { matchmaker } = createMatchmaker();
+
+    const queued = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    const queuedPayload = (await queued.json()) as { ticket: string };
+
+    now.mockReturnValue(11_000);
+    await matchmaker.fetch(
+      new Request(
+        `https://matchmaker.internal/ticket/${queuedPayload.ticket}`,
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    now.mockReturnValue(1_000 + OFFICIAL_QUICK_MATCH_BOT_WAIT_MS + 1_000);
+    const firstDecline = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          declineOfficialBotMatch: true,
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    await expect(firstDecline.json()).resolves.toMatchObject({
+      status: 'queued',
+      ticket: queuedPayload.ticket,
+      officialBotOfferAvailable: true,
+      officialBotWaitMsRemaining: 0,
+    });
+    expect(logSpy).toHaveBeenCalledWith(
+      '[matchmaker_official_bot_declined]',
+      expect.objectContaining({
+        ticket: queuedPayload.ticket,
+        scenario: 'duel',
+        playerKey: 'playerkey1',
+        waitedMs: OFFICIAL_QUICK_MATCH_BOT_WAIT_MS + 1_000,
+      }),
+    );
+
+    const callsAfterFirstDecline = logSpy.mock.calls.length;
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          declineOfficialBotMatch: true,
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    expect(logSpy.mock.calls).toHaveLength(callsAfterFirstDecline);
+  });
+
   it('allows the stable official bot to pair even when the live registry reports that key as active elsewhere', async () => {
     const now = vi.spyOn(Date, 'now');
     now.mockReturnValue(1_000);
