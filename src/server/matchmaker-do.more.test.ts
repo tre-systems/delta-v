@@ -168,6 +168,8 @@ describe('MatchmakerDO additional coverage', () => {
       status: 'queued',
       ticket: firstPayload.ticket,
       scenario: 'duel',
+      officialBotOfferAvailable: false,
+      officialBotWaitMsRemaining: 19_000,
     });
     expect(initFetch).not.toHaveBeenCalled();
   });
