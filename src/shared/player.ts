@@ -3,6 +3,18 @@ export interface PublicPlayerProfile {
   username: string;
 }
 
+export const OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY =
+  'agent_official_quickmatch_normal';
+export const OFFICIAL_QUICK_MATCH_BOT_USERNAME = 'Official Bot';
+
+export const isOfficialQuickMatchBotPlayerKey = (playerKey: string): boolean =>
+  playerKey === OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY;
+
+export const buildOfficialQuickMatchBotProfile = (): PublicPlayerProfile => ({
+  playerKey: OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY,
+  username: OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+});
+
 const PLAYER_KEY_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 const USERNAME_PATTERN = /^[A-Za-z0-9 _-]{2,20}$/;
 

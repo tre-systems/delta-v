@@ -11,6 +11,11 @@ vi.mock('cloudflare:workers', () => ({
   },
 }));
 
+import { OFFICIAL_QUICK_MATCH_BOT_WAIT_MS } from '../shared/matchmaking';
+import {
+  OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY,
+  OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+} from '../shared/player';
 import { MatchmakerDO } from './matchmaker-do';
 
 type MockStorage = DurableObjectStorage & {
@@ -444,6 +449,200 @@ describe('MatchmakerDO', () => {
         }),
       ]),
     });
+  });
+
+  it('does not fill a queued ticket with the official bot before the production wait threshold', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000);
+    const { matchmaker, initFetch } = createMatchmaker();
+
+    const queued = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    const queuedPayload = (await queued.json()) as { ticket: string };
+
+    now.mockReturnValue(11_000);
+    await matchmaker.fetch(
+      new Request(
+        `https://matchmaker.internal/ticket/${queuedPayload.ticket}`,
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    now.mockReturnValue(1_000 + OFFICIAL_QUICK_MATCH_BOT_WAIT_MS - 500);
+    const response = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          acceptOfficialBotMatch: true,
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: 'queued',
+      ticket: queuedPayload.ticket,
+      scenario: 'duel',
+    });
+    expect(initFetch).not.toHaveBeenCalled();
+  });
+
+  it('fills a queued ticket with the official bot after the production wait threshold when explicitly accepted', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000);
+    const { matchmaker, initFetch } = createMatchmaker();
+
+    const queued = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    const queuedPayload = (await queued.json()) as { ticket: string };
+
+    now.mockReturnValue(11_000);
+    await matchmaker.fetch(
+      new Request(
+        `https://matchmaker.internal/ticket/${queuedPayload.ticket}`,
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    now.mockReturnValue(1_000 + OFFICIAL_QUICK_MATCH_BOT_WAIT_MS + 500);
+    const response = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          acceptOfficialBotMatch: true,
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: 'matched',
+      ticket: queuedPayload.ticket,
+      scenario: 'duel',
+      code: expect.any(String),
+      playerToken: expect.any(String),
+    });
+    expect(initFetch).toHaveBeenCalledTimes(1);
+    const initRequest = initFetch.mock.calls[0]?.[0];
+    if (!initRequest) throw new Error('Expected init request');
+    await expect(initRequest.json()).resolves.toMatchObject({
+      players: expect.arrayContaining([
+        expect.objectContaining({
+          playerKey: 'playerkey1',
+          kind: 'human',
+        }),
+        expect.objectContaining({
+          playerKey: OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY,
+          username: OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+          kind: 'agent',
+        }),
+      ]),
+    });
+  });
+
+  it('allows the stable official bot to pair even when the live registry reports that key as active elsewhere', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000);
+    const { matchmaker, initFetch } = createMatchmaker({
+      liveRegistryFetch: async (request) => {
+        const playerKey = decodeURIComponent(
+          request.url.split('/').at(-1) ?? '',
+        );
+        if (playerKey === OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY) {
+          return Response.json({
+            active: true,
+            code: 'OTHER',
+            scenario: 'duel',
+          });
+        }
+        return Response.json({ active: false });
+      },
+    });
+
+    const queued = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    const queuedPayload = (await queued.json()) as { ticket: string };
+
+    now.mockReturnValue(11_000);
+    await matchmaker.fetch(
+      new Request(
+        `https://matchmaker.internal/ticket/${queuedPayload.ticket}`,
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    now.mockReturnValue(1_000 + OFFICIAL_QUICK_MATCH_BOT_WAIT_MS + 500);
+    const response = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          acceptOfficialBotMatch: true,
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: 'matched',
+      ticket: queuedPayload.ticket,
+      code: expect.any(String),
+      playerToken: expect.any(String),
+    });
+    expect(initFetch).toHaveBeenCalledTimes(1);
   });
 
   it('can assign the waiting player to seat 0 when the shuffle flips', async () => {
