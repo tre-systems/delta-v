@@ -48,6 +48,7 @@ type MockEnv = {
   };
   DB: MockDb;
   AGENT_TOKEN_SECRET?: string;
+  INTERNAL_METRICS_TOKEN?: string;
   DEV_MODE?: string;
   CF_VERSION_METADATA?: {
     id?: string;
@@ -899,6 +900,81 @@ describe('server index worker', () => {
     expect(response.status).toBe(200);
     expect(env.GAME.idFromName).toHaveBeenCalledWith('ABCDE');
     expect(initFetch).toHaveBeenCalledWith(request);
+  });
+
+  it('routes /api/metrics through the auth-gated metrics handler', async () => {
+    const resultsQueue: unknown[] = [
+      [{ day: '2026-04-22', matches: 1 }],
+      [{ scenario: 'duel', matches: 1 }],
+      [{ difficulty: 'normal', games: 1 }],
+      [{ completed: 1, started: 1 }],
+      [{ errors: 0, started: 1 }],
+      [{ succeeded: 0, failed: 0 }],
+      [{ scenario: 'duel', averageMs: 2000, turns: 1 }],
+      [{ count: 0 }],
+      [{ count: 0 }],
+    ];
+    const bind = vi.fn(() => ({
+      all: vi.fn(async () => ({
+        results: (resultsQueue.shift() as unknown[]) ?? [],
+      })),
+    }));
+    const prepare = vi.fn(() => ({ bind }));
+    const { env } = createEnv(undefined, {
+      DB: { prepare } as unknown as MockDb,
+      INTERNAL_METRICS_TOKEN: 'metrics-secret',
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/api/metrics', {
+        headers: {
+          Authorization: 'Bearer metrics-secret',
+        },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      windowDays: 7,
+      officialBot: {
+        acceptedFills: 0,
+        archivedMatches: 0,
+      },
+    });
+  });
+
+  it('allows loopback /api/metrics requests without a bearer token', async () => {
+    const resultsQueue: unknown[] = [
+      [],
+      [],
+      [],
+      [{ completed: 0, started: 0 }],
+      [{ errors: 0, started: 0 }],
+      [{ succeeded: 0, failed: 0 }],
+      [],
+      [{ count: 0 }],
+      [{ count: 0 }],
+    ];
+    const bind = vi.fn(() => ({
+      all: vi.fn(async () => ({
+        results: (resultsQueue.shift() as unknown[]) ?? [],
+      })),
+    }));
+    const prepare = vi.fn(() => ({ bind }));
+    const { env } = createEnv(undefined, {
+      DB: { prepare } as unknown as MockDb,
+      INTERNAL_METRICS_TOKEN: undefined,
+    });
+
+    const response = await worker.fetch(
+      new Request('http://127.0.0.1/api/metrics'),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
   });
 
   it('falls back to static assets for non-game routes', async () => {

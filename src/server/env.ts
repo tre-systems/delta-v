@@ -20,6 +20,10 @@ export interface Env {
   // packages/mcp-adapter/src/handlers.ts.
   MCP_RATE_LIMITER?: CreateRateLimiterBinding;
   MATCH_ARCHIVE?: R2Bucket;
+  // Shared secret for the internal GET /api/metrics route. Send as
+  // `Authorization: Bearer <token>`. Leave unset to disable the route
+  // outside loopback dev/test requests.
+  INTERNAL_METRICS_TOKEN?: string;
   // HMAC secret for signing agentToken / matchToken. Set via
   // `wrangler secret put AGENT_TOKEN_SECRET` in production. Requests
   // that need the secret fail with 500 when it is unset unless

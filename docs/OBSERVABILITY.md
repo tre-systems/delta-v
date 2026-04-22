@@ -53,6 +53,7 @@ flowchart TB
 | **D1 `player` / `match_rating`**| Leaderboard identity + per-rated-match Glicko-2 snapshots                        | Same                                                                   |
 | **R2 `MATCH_ARCHIVE`**          | Full JSON per match (`matches/{gameId}.json`)                                    | R2 bucket browser / API                                                |
 | **Client**                      | `track()` → `POST /telemetry`, `reportError()` → `POST /error`                   | Implemented in `src/client/telemetry.ts`                               |
+| **Internal `GET /api/metrics`** | Auth-gated aggregate snapshot over D1 `events` + `match_archive`                 | Worker route (`Authorization: Bearer <INTERNAL_METRICS_TOKEN>`)        |
 
 ## D1 `events` schema (summary)
 
@@ -155,6 +156,27 @@ Worker entrypoint observability also records two abuse-focused signals:
 
 - `server_create_request` in the D1 `events` table for every `POST /create`, with `{ route, outcome, scenario, payloadBytes, status, error? }`. This covers direct script traffic that never emits first-party client telemetry.
 - sampled `console.log` lines under `[auth-failure]` and `[rate-limit]` for invalid MCP / quick-match Bearers, malformed `POST /api/agent-token` payloads, and create-class / MCP rate-limit hits. Sampling is deterministic per hashed IP so repeated abuse from the same source still leaves a tail signal without flooding logs.
+
+### Internal metrics endpoint
+
+`GET /api/metrics` now exposes a small auth-gated aggregate snapshot for operators. It is intentionally narrow: enough to answer "is the game healthy this week?" without turning the Worker into a dashboard service.
+
+- auth: `Authorization: Bearer <INTERNAL_METRICS_TOKEN>`
+- local dev / test: loopback requests may omit the token when `INTERNAL_METRICS_TOKEN` is unset
+- query: optional `?days=<1-30>` window, default `7`
+
+Current response sections:
+
+- `dailyActiveMatches`
+- `scenarioPlayMix`
+- `aiDifficultyDistribution`
+- `firstTurnCompletion`
+- `wsHealth`
+- `reconnects`
+- `averageTurnDurationByScenario`
+- `officialBot`
+
+This route is the application-supported alternative to pasting ad-hoc SQL for the most common health questions. Raw SQL is still the better tool for one-off investigations.
 
 ## Orphan rooms and inactivity cleanup
 
