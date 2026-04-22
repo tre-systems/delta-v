@@ -52,7 +52,7 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 
 **P1 — pre-launch polish** (player-visible weirdness or abuse surface, fix soon):
 
-- **Grand Tour AI is now finishing the tour, but the scripted route is still heavily Mars-favored.** The 2026-04-21 waypoint fix replaced the universal 499-turn progress-tiebreak deadlock with real objective completions, but current hard-vs-hard samples are still extremely lopsided: `grandTour 60 -- --ci` came back `0/60` for P0 and `60/60` for P1, all by `Grand Tour complete! Visited all 8 bodies.` The original “AI cannot complete the race” bug is closed; the remaining work is seat-balance and route quality, not timeout rescue. Action: keep the deterministic routing only as the stability baseline, then either (a) derive a more symmetric per-home waypoint set, or (b) replace the full scripted route with a smaller waypoint layer plus better checkpoint-return logic so both seats complete consistently without one side getting a free path. Add a simulation regression that keeps completion high while also flagging gross seat skew in this scenario. **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`, `scripts/simulate-ai.ts`
+- **Grand Tour AI now completes reliably, but seat balance is still badly skewed.** The 2026-04-22 refuel-recovery fix removed the old 499-turn checkpoint-race deadlocks: `grandTour 60 -- --ci` now resolves `60/60` by `Grand Tour complete! Visited all 8 bodies.` Average game length dropped to about `42` turns. The remaining problem is that the current route / checkpoint policy is still extremely Mars-favored: the same 60-game sweep came back `0/60` for P0 and `60/60` for P1. Action: keep the shared-base refuel recovery, then rebalance the per-home route / checkpoint policy so both seats finish consistently without one side getting a free lane. The simulation harness now warns on gross objective-seat skew for Grand Tour; keep that warning green. **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`, `scripts/simulate-ai.ts`
 
 **Fixed since opening** (re-verified 2026-04-19 on production):
 
@@ -489,9 +489,9 @@ Findings from a 2026-04-17 cost-surface review. Baseline controls are documented
 
 Exploratory pass 2026-04-20: the [`events` D1 table](../migrations/0001_create_events.sql) is written by `src/server/reporting.ts` (browser `/telemetry` + `/error` ingest) and `src/server/game-do/telemetry.ts` (server-side turn/fleet/action events), but **no application code reads it back**. There is no admin endpoint, no scheduled aggregation, no dashboard. The data is only queryable via `wrangler d1 execute` SQL one-liners, which means it doesn't currently drive any decisions.
 
-To turn this telemetry into something useful for "analysing issues and improving the game once there are many players", we need at minimum:
-- A small internal `/api/metrics` endpoint (auth-gated) that returns common aggregates: daily-active matches, scenario play mix, AI difficulty distribution, first-turn-completion rate, WS error rate, reconnect success rate, average turn duration per scenario.
-- **Done for this slice:** [OBSERVABILITY.md](./OBSERVABILITY.md) now carries documented SQL recipes for replay/discovery engagement, rating-history audit, matchmaking health, reconnects, and scenario popularity instead of leaving analysis as pure ad-hoc shell history.
+To turn this telemetry into something useful for "analysing issues and improving the game once there are many players", we now have the minimum operator surface in place:
+- **Shipped:** a small internal `/api/metrics` endpoint (auth-gated) returning common aggregates: daily-active matches, scenario play mix, AI difficulty distribution, first-turn-completion rate, WS health, reconnect success rate, average turn duration per scenario, and official-bot uptake.
+- **Shipped:** [OBSERVABILITY.md](./OBSERVABILITY.md) carries documented SQL recipes for replay/discovery engagement, rating-history audit, matchmaking health, reconnects, and scenario popularity instead of leaving analysis as pure ad-hoc shell history.
 - Optional: scheduled export to R2 / BigQuery for longer-horizon analysis when D1 retention trimming kicks in.
 
 **Files:** `src/server/reporting.ts`, new `src/server/metrics-route.ts`, `docs/OBSERVABILITY.md`

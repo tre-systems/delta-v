@@ -73,6 +73,7 @@ type ObjectiveWarningPolicy = {
   objectiveReasonMatchers: RegExp[];
   minObjectiveShare?: number;
   maxEliminationShare?: number;
+  decidedP0RateBounds?: [number, number];
 };
 
 const OBJECTIVE_WARNING_POLICIES: Record<string, ObjectiveWarningPolicy> = {
@@ -104,6 +105,7 @@ const OBJECTIVE_WARNING_POLICIES: Record<string, ObjectiveWarningPolicy> = {
       /Checkpoint race timeout — progress tiebreak/,
     ],
     minObjectiveShare: 0.1,
+    decidedP0RateBounds: [0.35, 0.65],
   },
 };
 
@@ -613,6 +615,24 @@ const main = async () => {
             `${(eliminationShare * 100).toFixed(1)}% above ` +
             `${(objectivePolicy.maxEliminationShare * 100).toFixed(0)}%`,
         );
+      }
+
+      if (objectivePolicy.decidedP0RateBounds != null) {
+        const decidedGames = metrics.player0Wins + metrics.player1Wins;
+
+        if (decidedGames >= 5) {
+          const p0Rate = metrics.player0Wins / decidedGames;
+          const [lo, hi] = objectivePolicy.decidedP0RateBounds;
+
+          if (p0Rate < lo || p0Rate > hi) {
+            objectiveWarnings++;
+            console.warn(
+              `⚠️  ${metrics.scenario}: objective-seat balance P0 decided rate ` +
+                `${(p0Rate * 100).toFixed(1)}% outside ` +
+                `[${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}%]`,
+            );
+          }
+        }
       }
     }
 

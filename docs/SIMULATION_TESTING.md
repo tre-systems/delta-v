@@ -27,9 +27,9 @@ npm run simulate -- duel 30 --randomize-start
 npm run simulate:duel-sweep                  # duel pacing/seat-balance across many seeds
 ```
 
-- `--ci` fails on engine crashes; balance warnings print but are non-fatal.
+- `--ci` fails on engine crashes; balance and objective warnings print but are non-fatal.
 - `--randomize-start` forces per-game seat randomization. Duel, interplanetaryWar, and fleetAction auto-randomize seat anyway so seat-order bias doesn't dominate short batches.
-- CI balance warnings use per-scenario decided-game win-rate bands. Cooperative / race scenarios (Grand Tour) are excluded from balance checks.
+- CI balance warnings use per-scenario decided-game win-rate bands. Cooperative / race scenarios (like Grand Tour) skip the normal balance gate, but objective policies can still emit non-fatal seat-skew warnings when a race resolves correctly yet remains grossly one-sided.
 
 **CI + pre-push iteration count.** Both run `simulate all 60 -- --ci` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) and [`.husky/pre-push`](../.husky/pre-push)). `npm run verify` uses 40 to stay responsive for manual invocation. Change all three together if the count changes.
 
