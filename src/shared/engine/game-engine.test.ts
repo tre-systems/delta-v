@@ -3480,6 +3480,101 @@ describe('Grand Tour', () => {
     checkImmediateVictory(tourState, map);
     expect(tourState.outcome).toBeNull();
   });
+  it('auto-lands on the return leg when orbiting home with all checkpoints visited', () => {
+    // Regression test for the "returned to Luna but the game didn't
+    // end" playtest report: Grand Tour has `targetBody: ''`, so the
+    // normal target-body auto-land path never fires. Without the
+    // return-leg branch in resolve-movement, the ship would just
+    // circle home forever waiting for a manual LAND button click.
+    tourState.players[0].visitedBodies = [
+      'Luna',
+      ...must(tourState.scenarioRules.checkpointBodies),
+    ];
+
+    // Place P0 in a speed-1 Luna orbit. Luna is a weak-gravity body
+    // whose gravity ring sits on the hex neighbors of Luna's center;
+    // pick a hex with Luna gravity and a velocity that keeps the ship
+    // on the ring so detectOrbit() returns 'Luna'.
+    const lunaGravityEntry = [...map.hexes.entries()].find(
+      ([, hex]) => hex.gravity?.bodyName === 'Luna',
+    );
+    expect(lunaGravityEntry).toBeDefined();
+    const [lunaGravityKey, lunaGravityHex] = must(lunaGravityEntry);
+    const [q, r] = lunaGravityKey.split(',').map(Number);
+    const gravityDir = must(lunaGravityHex.gravity).direction;
+    const HEX_NEIGHBOURS = [
+      { dq: 1, dr: 0 },
+      { dq: 1, dr: -1 },
+      { dq: 0, dr: -1 },
+      { dq: -1, dr: 0 },
+      { dq: -1, dr: 1 },
+      { dq: 0, dr: 1 },
+    ];
+    // Fly tangentially so the gravity deflection keeps us on Luna's
+    // ring rather than slinging us out of the gravity well.
+    const tangentDir = (gravityDir + 1) % 6;
+
+    const ship = must(tourState.ships.find((s) => s.owner === 0));
+    ship.position = { q, r };
+    ship.velocity = HEX_NEIGHBOURS[tangentDir];
+    ship.fuel = 20;
+    ship.lifecycle = 'active';
+
+    const result = processAstrogation(
+      tourState,
+      0,
+      [{ shipId: ship.id, burn: null, overload: null }],
+      map,
+      Math.random,
+    );
+    if ('error' in result) throw new Error(result.error.message);
+
+    const movement = 'movements' in result ? result.movements[0] : undefined;
+    expect(movement?.outcome).toBe('landing');
+    expect(result.state.outcome?.winner).toBe(0);
+    expect(result.state.outcome?.reason).toContain('Grand Tour complete');
+  });
+  it('does not auto-land when checkpoints are still outstanding', () => {
+    // Negative case for the return-leg branch: orbiting home before
+    // visiting every checkpoint must not short-circuit the race. The
+    // player might legitimately be swinging past Luna mid-tour.
+    tourState.players[0].visitedBodies = ['Luna'];
+
+    const lunaGravityEntry = [...map.hexes.entries()].find(
+      ([, hex]) => hex.gravity?.bodyName === 'Luna',
+    );
+    const [lunaGravityKey, lunaGravityHex] = must(lunaGravityEntry);
+    const [q, r] = lunaGravityKey.split(',').map(Number);
+    const gravityDir = must(lunaGravityHex.gravity).direction;
+    const HEX_NEIGHBOURS = [
+      { dq: 1, dr: 0 },
+      { dq: 1, dr: -1 },
+      { dq: 0, dr: -1 },
+      { dq: -1, dr: 0 },
+      { dq: -1, dr: 1 },
+      { dq: 0, dr: 1 },
+    ];
+    const tangentDir = (gravityDir + 1) % 6;
+
+    const ship = must(tourState.ships.find((s) => s.owner === 0));
+    ship.position = { q, r };
+    ship.velocity = HEX_NEIGHBOURS[tangentDir];
+    ship.fuel = 20;
+    ship.lifecycle = 'active';
+
+    const result = processAstrogation(
+      tourState,
+      0,
+      [{ shipId: ship.id, burn: null, overload: null }],
+      map,
+      Math.random,
+    );
+    if ('error' in result) throw new Error(result.error.message);
+
+    const movement = 'movements' in result ? result.movements[0] : undefined;
+    expect(movement?.outcome).not.toBe('landing');
+    expect(result.state.outcome).toBeNull();
+  });
   it('skips combat phase when combatDisabled', () => {
     const ship0 = must(tourState.ships.find((s) => s.owner === 0));
     const ship1 = must(tourState.ships.find((s) => s.owner === 1));
