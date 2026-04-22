@@ -31,6 +31,7 @@ interface QueueEntry {
   leaderboardAgentVerified?: boolean;
   queuedAt: number;
   lastSeenAt: number;
+  officialBotDeclinedAt?: number;
   status: QueueStatus;
   matched?: Extract<QuickMatchResponse, { status: 'matched' }>;
 }
@@ -60,7 +61,8 @@ const reportMatchmakerEvent = (
   event:
     | 'matchmaker_paired'
     | 'matchmaker_pairing_split'
-    | 'matchmaker_official_bot_filled',
+    | 'matchmaker_official_bot_filled'
+    | 'matchmaker_official_bot_declined',
   props: Record<string, unknown>,
 ): void => {
   // matchmaker_paired is a normal signal; split is a warning-class event.
@@ -150,6 +152,7 @@ const normalizeQuickMatchRequest = (
   scenario: string;
   rendezvousCode: string | null;
   acceptOfficialBotMatch: boolean;
+  declineOfficialBotMatch: boolean;
   player: PublicPlayerProfile;
 } | null => {
   if (
@@ -191,6 +194,9 @@ const normalizeQuickMatchRequest = (
     rendezvousCode: rendezvousCode ?? null,
     acceptOfficialBotMatch:
       (raw as { acceptOfficialBotMatch?: unknown }).acceptOfficialBotMatch ===
+      true,
+    declineOfficialBotMatch:
+      (raw as { declineOfficialBotMatch?: unknown }).declineOfficialBotMatch ===
       true,
     player: {
       playerKey,
@@ -609,6 +615,32 @@ export class MatchmakerDO extends DurableObject<Env> {
         leaderboardAgentVerified,
         lastSeenAt: now,
       };
+
+      if (
+        existing.status === 'queued' &&
+        parsed.declineOfficialBotMatch &&
+        !parsed.acceptOfficialBotMatch &&
+        isOfficialQuickMatchBotEnabled(this.env) &&
+        now - existing.queuedAt >= OFFICIAL_QUICK_MATCH_BOT_WAIT_MS &&
+        existing.officialBotDeclinedAt == null
+      ) {
+        const refreshedExisting = entries[existingIndex] ?? existing;
+        entries[existingIndex] = {
+          ...refreshedExisting,
+          officialBotDeclinedAt: now,
+        };
+        reportMatchmakerEvent(
+          this.ctx,
+          this.env,
+          'matchmaker_official_bot_declined',
+          {
+            ticket: existing.ticket,
+            scenario: existing.scenario,
+            playerKey: existing.player.playerKey,
+            waitedMs: now - existing.queuedAt,
+          },
+        );
+      }
 
       if (
         existing.status === 'queued' &&
