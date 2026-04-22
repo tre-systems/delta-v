@@ -1,5 +1,5 @@
 import { SHIP_STATS } from '../../shared/constants';
-import type { Ship } from '../../shared/types/domain';
+import type { PlayerId, Ship } from '../../shared/types/domain';
 
 export interface ShipDetailRowView {
   label: string;
@@ -16,6 +16,15 @@ export interface ShipListEntryView {
   hasBurn: boolean;
   fuelText: string;
   detailRows: ShipDetailRowView[];
+  // Whose fleet this ship belongs to, for the spectator/replay side-by-side
+  // view. Null when the viewer is the owner — the full fleet is already
+  // implicitly the viewer's, so no extra label is needed.
+  ownerClass: 'fleet-one' | 'fleet-two' | null;
+  ownerLabel: string | null;
+  // True when this ship belongs to the player whose turn is currently
+  // being replayed, so the list can emphasize which fleet is acting right
+  // now. Ignored in first-person gameplay.
+  isActivePlayerShip: boolean;
 }
 
 const getDisplayNames = (ships: Ship[]) => {
@@ -135,25 +144,51 @@ const getShipDetailRows = (
   ].filter((row): row is ShipDetailRowView => row !== null);
 };
 
+export interface ShipListSideContext {
+  viewerId: PlayerId | -1;
+  activePlayer: PlayerId;
+}
+
 export const buildShipListView = (
   ships: Ship[],
   selectedId: string | null,
   burns: Map<string, number | null>,
   compact = false,
+  sideContext: ShipListSideContext | null = null,
 ): ShipListEntryView[] => {
   const displayNames = getDisplayNames(ships);
+  // Side-context decorations (owner badge + active-player highlight) are
+  // only meaningful in spectator / replay views. In first-person play
+  // the ship list is already filtered to the viewer's own fleet, so
+  // labeling every row "P1" would be noise.
+  const showOwner =
+    sideContext !== null && (sideContext.viewerId as number) < 0;
 
-  return ships.map((ship, index) => ({
-    shipId: ship.id,
-    displayName: displayNames[index],
-    isSelected: ship.id === selectedId,
-    isDestroyed: ship.lifecycle === 'destroyed',
-    statusText: getStatusText(ship),
-    hasBurn: burns.has(ship.id) && burns.get(ship.id) !== null,
-    fuelText:
-      ship.lifecycle === 'destroyed'
-        ? ''
-        : `${ship.fuel}/${SHIP_STATS[ship.type]?.fuel ?? '?'}`,
-    detailRows: getShipDetailRows(ship, ship.id === selectedId, compact),
-  }));
+  return ships.map((ship, index) => {
+    const ownerClass: 'fleet-one' | 'fleet-two' | null = showOwner
+      ? ship.owner === 0
+        ? 'fleet-one'
+        : 'fleet-two'
+      : null;
+    const ownerLabel = showOwner ? `P${ship.owner + 1}` : null;
+    const isActivePlayerShip =
+      sideContext !== null && ship.owner === sideContext.activePlayer;
+
+    return {
+      shipId: ship.id,
+      displayName: displayNames[index],
+      isSelected: ship.id === selectedId,
+      isDestroyed: ship.lifecycle === 'destroyed',
+      statusText: getStatusText(ship),
+      hasBurn: burns.has(ship.id) && burns.get(ship.id) !== null,
+      fuelText:
+        ship.lifecycle === 'destroyed'
+          ? ''
+          : `${ship.fuel}/${SHIP_STATS[ship.type]?.fuel ?? '?'}`,
+      detailRows: getShipDetailRows(ship, ship.id === selectedId, compact),
+      ownerClass,
+      ownerLabel,
+      isActivePlayerShip,
+    };
+  });
 };

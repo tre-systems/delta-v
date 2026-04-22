@@ -221,6 +221,10 @@ describe('renderer course helpers', () => {
 });
 
 describe('buildAstrogationVectorReadout', () => {
+  const labelTexts = (
+    readout: { labels: Array<{ text: string }> } | null,
+  ): string[] => readout?.labels.map((l) => l.text) ?? [];
+
   it('returns null off astrogation phase', () => {
     const state = createState([createShip({ velocity: { dq: 1, dr: 0 } })]);
     state.phase = 'combat';
@@ -244,7 +248,7 @@ describe('buildAstrogationVectorReadout', () => {
     expect(readout).toBeNull();
   });
 
-  it('shows current speed and omits burn/next labels when no burn is queued', () => {
+  it('only emits v when the ship has speed and no burn is queued', () => {
     const state = createState([createShip({ velocity: { dq: 2, dr: 0 } })]);
     const readout = buildAstrogationVectorReadout(
       state,
@@ -252,16 +256,25 @@ describe('buildAstrogationVectorReadout', () => {
       createPlanning({ selectedShipId: 'ship-0' }),
       28,
     );
-    expect(readout).not.toBeNull();
-    expect(readout?.currentSpeedLabel.text).toBe('v=2');
-    expect(readout?.burnDeltaLabel).toBeNull();
-    // When no burn: the next-label mirrors the current one (same text
-    // and position) so the readout stays stable rather than disappearing
-    // between selection and burn input.
-    expect(readout?.nextSpeedLabel.text).toBe('v=2');
+    expect(readout?.currentVelocityArrow).not.toBeNull();
+    expect(readout?.burnArrow).toBeNull();
+    expect(readout?.resultVelocityArrow).toBeNull();
+    expect(labelTexts(readout)).toEqual(['v=2']);
   });
 
-  it('shows Δv and the post-burn speed when a burn is queued', () => {
+  it('shows v=0 when the ship is at rest and no burn is queued', () => {
+    const state = createState([createShip({ velocity: { dq: 0, dr: 0 } })]);
+    const readout = buildAstrogationVectorReadout(
+      state,
+      0,
+      createPlanning({ selectedShipId: 'ship-0' }),
+      28,
+    );
+    expect(readout?.currentVelocityArrow).toBeNull();
+    expect(labelTexts(readout)).toEqual(['v=0']);
+  });
+
+  it('emits the full v + \u0394v = v\u2032 triangle when a burn is queued', () => {
     // Ship at rest (v=0). Burn in direction 0 (dq=+1, dr=0) → v'=1.
     const state = createState([createShip({ velocity: { dq: 0, dr: 0 } })]);
     const readout = buildAstrogationVectorReadout(
@@ -273,13 +286,34 @@ describe('buildAstrogationVectorReadout', () => {
       }),
       28,
     );
-    expect(readout?.currentSpeedLabel.text).toBe('v=0');
-    expect(readout?.nextSpeedLabel.text).toBe("v'=1");
-    expect(readout?.burnDeltaLabel?.text).toBe('Δv');
+    // v=0 at rest has no arrow (zero length), but the other two arrows
+    // still draw so the composition reads as "add this burn".
+    expect(readout?.currentVelocityArrow).toBeNull();
+    expect(readout?.burnArrow).not.toBeNull();
+    expect(readout?.resultVelocityArrow).not.toBeNull();
+    expect(labelTexts(readout)).toEqual(['v=0', 'Δv', "v'=1"]);
   });
 
-  it('suppresses the burn label when the ship is disabled or out of fuel', () => {
-    const disabledReadout = buildAstrogationVectorReadout(
+  it('emits all three arrows when the ship is already moving and a burn is queued', () => {
+    // v=(1,0), burn direction 0 again → v'=(2,0).
+    const state = createState([createShip({ velocity: { dq: 1, dr: 0 } })]);
+    const readout = buildAstrogationVectorReadout(
+      state,
+      0,
+      createPlanning({
+        selectedShipId: 'ship-0',
+        burns: new Map([['ship-0', 0]]),
+      }),
+      28,
+    );
+    expect(readout?.currentVelocityArrow).not.toBeNull();
+    expect(readout?.burnArrow).not.toBeNull();
+    expect(readout?.resultVelocityArrow).not.toBeNull();
+    expect(labelTexts(readout)).toEqual(['v=1', 'Δv', "v'=2"]);
+  });
+
+  it('suppresses the burn vector when the ship is disabled or out of fuel', () => {
+    const disabled = buildAstrogationVectorReadout(
       createState([
         createShip({
           velocity: { dq: 1, dr: 0 },
@@ -293,9 +327,11 @@ describe('buildAstrogationVectorReadout', () => {
       }),
       28,
     );
-    expect(disabledReadout?.burnDeltaLabel).toBeNull();
+    expect(disabled?.burnArrow).toBeNull();
+    expect(disabled?.resultVelocityArrow).toBeNull();
+    expect(labelTexts(disabled)).toEqual(['v=1']);
 
-    const dryReadout = buildAstrogationVectorReadout(
+    const dry = buildAstrogationVectorReadout(
       createState([createShip({ velocity: { dq: 1, dr: 0 }, fuel: 0 })]),
       0,
       createPlanning({
@@ -304,6 +340,8 @@ describe('buildAstrogationVectorReadout', () => {
       }),
       28,
     );
-    expect(dryReadout?.burnDeltaLabel).toBeNull();
+    expect(dry?.burnArrow).toBeNull();
+    expect(dry?.resultVelocityArrow).toBeNull();
+    expect(labelTexts(dry)).toEqual(['v=1']);
   });
 });

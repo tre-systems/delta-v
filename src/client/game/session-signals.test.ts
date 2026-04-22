@@ -122,6 +122,7 @@ describe('session-signals', () => {
       [],
       null,
       expect.any(Map),
+      null,
     );
     expect(deps.logistics.renderLogisticsPanel).toHaveBeenLastCalledWith(null);
     expect(deps.renderer.setGameState).toHaveBeenLastCalledWith(null);
@@ -342,7 +343,12 @@ describe('session-signals', () => {
     });
 
     expect(updateFleetStatus).toHaveBeenLastCalledWith('');
-    expect(updateShipList).toHaveBeenLastCalledWith([], null, expect.any(Map));
+    expect(updateShipList).toHaveBeenLastCalledWith(
+      [],
+      null,
+      expect.any(Map),
+      null,
+    );
 
     session.playerId = 0;
     session.gameState = createGameOrThrow(
@@ -353,10 +359,14 @@ describe('session-signals', () => {
     );
 
     expect(updateFleetStatus).toHaveBeenLastCalledWith('', '');
+    // First-person gameplay passes `null` sideContext so the ship list
+    // skips the owner pill / active-player highlight; those decorations
+    // only fire for spectator or replay viewers.
     expect(updateShipList).toHaveBeenLastCalledWith(
       expect.arrayContaining([expect.objectContaining({ owner: 0 })]),
       expect.any(String),
       session.planningState.burns,
+      null,
     );
 
     dispose();

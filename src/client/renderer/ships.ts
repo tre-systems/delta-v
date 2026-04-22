@@ -176,7 +176,7 @@ const shipScreenPlacement = ({
       );
       pos = interpolatePath(movement.path, progress, hexSize);
       velocity = movement.newVelocity;
-      maybeDrawThrustDuringMove(ctx, movement, pos, progress, hexSize);
+      maybeDrawThrustDuringMove(ctx, ship, movement, pos, progress, hexSize);
     } else {
       pos = hexToPixel(ship.position, hexSize);
     }
@@ -194,8 +194,15 @@ const shipScreenPlacement = ({
   return { pos, velocity, labelYOffset };
 };
 
+// Flame should always emit from the rear of the ship icon, regardless
+// of the direction of travel — gravity-assist arcs and sideways drift
+// made the old "flip the travel vector" heuristic look wrong because
+// the ship icon is oriented by its heading, not its velocity. Anchor
+// the exhaust to the rear of the ship body so the visual always reads
+// as "thrust out the back."
 const maybeDrawThrustDuringMove = (
   ctx: CanvasRenderingContext2D,
+  ship: GameState['ships'][number],
   movement: AnimationState['movements'][number],
   pos: PixelCoord,
   progress: number,
@@ -203,11 +210,24 @@ const maybeDrawThrustDuringMove = (
 ): void => {
   if (movement.fuelSpent <= 0 || progress >= 0.8) return;
 
-  const fromPx = hexToPixel(movement.from, hexSize);
-  const toPx = hexToPixel(movement.to, hexSize);
-  const angle = Math.atan2(toPx.y - fromPx.y, toPx.x - fromPx.x);
+  // Use the same heading the ship icon is rendered with so the flame
+  // is guaranteed to line up with the back of the hull.
+  const heading = getShipHeading(
+    ship.position,
+    movement.newVelocity,
+    hexSize,
+    ship.lastBurnDirection,
+  );
+  // Rear-of-hull offset. The arrow sprite's back edge sits at roughly
+  // -0.6 * size along the local +x axis (see drawShipIcon). Use the
+  // midpoint of that range so the flame emerges just past the rear
+  // edge without leaving a visible gap for stubby corvette sprites.
+  const rearOffsetPx = 7;
+  const rearDirectionAngle = heading + Math.PI;
+  const originX = pos.x + Math.cos(rearDirectionAngle) * rearOffsetPx;
+  const originY = pos.y + Math.sin(rearDirectionAngle) * rearOffsetPx;
 
-  drawThrustTrail(ctx, pos.x, pos.y, angle + Math.PI, progress);
+  drawThrustTrail(ctx, originX, originY, rearDirectionAngle, progress);
 };
 
 const drawSelectionRingIfNeeded = (

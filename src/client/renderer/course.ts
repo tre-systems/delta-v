@@ -440,34 +440,100 @@ const buildDriftSegments = (
   return segments;
 };
 
-// Readout labels that expose the burn planning as vector math —
-// `v + Δv = v'` — so a pilot can read the next-turn speed off the map
-// instead of counting hexes in their head. Rendered only for the
-// currently-selected own ship during the astrogation phase; the two
-// speed labels always show, the burn-delta label only when a burn is
-// queued on a non-disabled ship with fuel.
+// Readout that exposes the burn planning as vector math — `v + Δv = v'`
+// — so a pilot can read the next-turn speed and composition off the
+// map instead of counting hexes in their head. Rendered only for the
+// currently-selected own ship during the astrogation phase. Contains
+// up to three vectors (current velocity, burn delta, resulting
+// velocity) and matching pill labels. Each vector stops short of its
+// target hex so the arrowhead stays clear of surrounding burn /
+// overload markers; the readout also draws above those markers, so
+// even if inset geometry overlaps the arrowhead wins the z-order.
+export interface VectorReadoutArrowView {
+  from: PixelCoord;
+  to: PixelCoord;
+  headLeft: PixelCoord;
+  headRight: PixelCoord;
+  color: string;
+  lineWidth: number;
+  lineDash: number[];
+}
+
+export interface VectorReadoutLabelView {
+  position: PixelCoord;
+  text: string;
+  color: string;
+}
+
 export interface AstrogationVectorReadoutView {
-  currentSpeedLabel: {
-    position: PixelCoord;
-    text: string;
-    color: string;
-  };
-  nextSpeedLabel: {
-    position: PixelCoord;
-    text: string;
-    color: string;
-  };
-  burnDeltaLabel: {
-    position: PixelCoord;
-    text: string;
-    color: string;
-  } | null;
+  currentVelocityArrow: VectorReadoutArrowView | null;
+  burnArrow: VectorReadoutArrowView | null;
+  resultVelocityArrow: VectorReadoutArrowView | null;
+  labels: VectorReadoutLabelView[];
 }
 
 const midPoint = (a: PixelCoord, b: PixelCoord): PixelCoord => ({
   x: (a.x + b.x) / 2,
   y: (a.y + b.y) / 2,
 });
+
+const buildVectorArrow = (
+  from: PixelCoord,
+  to: PixelCoord,
+  color: string,
+  lineWidth: number,
+  lineDash: number[],
+  insetPx: number,
+  headLength: number,
+): VectorReadoutArrowView | null => {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 1) return null;
+  const angle = Math.atan2(dy, dx);
+  const tipDist = Math.max(0, dist - insetPx);
+  const tip = {
+    x: from.x + Math.cos(angle) * tipDist,
+    y: from.y + Math.sin(angle) * tipDist,
+  };
+  return {
+    from,
+    to: tip,
+    headLeft: {
+      x: tip.x - headLength * Math.cos(angle - 0.5),
+      y: tip.y - headLength * Math.sin(angle - 0.5),
+    },
+    headRight: {
+      x: tip.x - headLength * Math.cos(angle + 0.5),
+      y: tip.y - headLength * Math.sin(angle + 0.5),
+    },
+    color,
+    lineWidth,
+    lineDash,
+  };
+};
+
+// Shift a label off the arrow line along the arrow's perpendicular so
+// the pill does not sit on top of the stroke. `side` = +1 pushes the
+// label to the right of the arrow direction, -1 to the left.
+const offsetAlongPerpendicular = (
+  from: PixelCoord,
+  to: PixelCoord,
+  distance: number,
+  side: 1 | -1,
+): PixelCoord => {
+  const mid = midPoint(from, to);
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1) return mid;
+  const nx = -dy / len;
+  const ny = dx / len;
+  return {
+    x: mid.x + nx * distance * side,
+    y: mid.y + ny * distance * side,
+  };
+};
 
 export const buildAstrogationVectorReadout = (
   state: GameState,
@@ -505,56 +571,124 @@ export const buildAstrogationVectorReadout = (
 
   const currentSpeed = hexVecLength(ship.velocity);
   const nextSpeed = hexVecLength(newVelocity);
-  // Offset labels from the midpoint of the arrow so they don't sit on
-  // top of the course polyline that already goes through those points.
-  const labelOffsetY = -hexSize * 0.18;
 
-  const currentMid = midPoint(origin, driftPoint);
-  const currentSpeedLabel = {
-    position:
-      currentSpeed === 0
-        ? { x: origin.x + hexSize * 0.65, y: origin.y + labelOffsetY }
-        : { x: currentMid.x, y: currentMid.y + labelOffsetY },
-    text: `v=${Math.round(currentSpeed)}`,
-    color: 'rgba(180, 210, 235, 0.78)',
-  };
+  // Color roles:
+  // - Current velocity (v) — muted cyan, dashed, so it reads as a
+  //   "where you'd end up without burning" baseline.
+  // - Burn (Δv) — amber, solid, standard "user-controlled input" hue.
+  // - Resulting velocity (v') — bright cyan, solid, the emphasis line
+  //   so pilots track the net outcome at a glance.
+  const V_COLOR = 'rgba(132, 176, 210, 0.62)';
+  const DV_COLOR = 'rgba(255, 183, 77, 0.92)';
+  const V_PRIME_COLOR = 'rgba(122, 215, 255, 0.98)';
 
-  const nextMid = midPoint(origin, nextPoint);
-  // When no burn is queued the next-turn speed is identical to the
-  // current one; skip the redundant second label by offsetting it onto
-  // the same position but only emit a separate label when the burn
-  // changed the magnitude.
-  const nextSpeedLabel =
-    hasUsableBurn && nextSpeed !== currentSpeed
-      ? {
-          position: { x: nextMid.x, y: nextMid.y - labelOffsetY * 2 },
-          text: `v'=${Math.round(nextSpeed)}`,
-          color: 'rgba(122, 215, 255, 0.92)',
-        }
-      : hasUsableBurn
-        ? {
-            position: { x: nextMid.x, y: nextMid.y - labelOffsetY * 2 },
-            text: `v'=${Math.round(nextSpeed)}`,
-            color: 'rgba(122, 215, 255, 0.92)',
-          }
-        : {
-            position: currentSpeedLabel.position,
-            text: currentSpeedLabel.text,
-            color: currentSpeedLabel.color,
-          };
+  // Inset on arrow tips keeps arrowheads out of the hex-center markers
+  // (ghost ship, burn direction rings). Shorter for v' so its terminus
+  // matches the result hex visually while still staying clear of the
+  // ghost ship icon.
+  const VECTOR_INSET = hexSize * 0.45;
+  const HEAD_LEN = 9;
 
-  const burnDeltaLabel = hasUsableBurn
-    ? {
-        position: midPoint(driftPoint, nextPoint),
-        text: 'Δv',
-        color: 'rgba(255, 183, 77, 0.88)',
-      }
+  const currentVelocityArrow =
+    currentSpeed > 0
+      ? buildVectorArrow(
+          origin,
+          driftPoint,
+          V_COLOR,
+          1.5,
+          [4, 4],
+          VECTOR_INSET,
+          HEAD_LEN - 2,
+        )
+      : null;
+
+  const burnArrow = hasUsableBurn
+    ? buildVectorArrow(
+        driftPoint,
+        nextPoint,
+        DV_COLOR,
+        2.5,
+        [],
+        VECTOR_INSET,
+        HEAD_LEN,
+      )
     : null;
 
+  // Only draw v' when it differs from v — otherwise it overlaps exactly
+  // and just doubles the stroke. When there's no burn queued, the
+  // current-velocity arrow already represents the next-turn trajectory,
+  // so a separate v' would be redundant.
+  const showResultArrow =
+    hasUsableBurn && (nextHex.q !== driftHex.q || nextHex.r !== driftHex.r);
+  const resultVelocityArrow = showResultArrow
+    ? buildVectorArrow(
+        origin,
+        nextPoint,
+        V_PRIME_COLOR,
+        2.5,
+        [],
+        VECTOR_INSET,
+        HEAD_LEN,
+      )
+    : null;
+
+  const labels: VectorReadoutLabelView[] = [];
+
+  // Offset distances from label to arrow line — large enough to clear
+  // stroke + head geometry.
+  const LABEL_OFFSET = hexSize * 0.4;
+
+  if (currentSpeed > 0) {
+    labels.push({
+      position: offsetAlongPerpendicular(origin, driftPoint, LABEL_OFFSET, -1),
+      text: `v=${Math.round(currentSpeed)}`,
+      color: V_COLOR,
+    });
+  } else {
+    // At rest: single label near the ship to anchor the readout.
+    labels.push({
+      position: { x: origin.x, y: origin.y - hexSize * 0.9 },
+      text: 'v=0',
+      color: V_COLOR,
+    });
+  }
+
+  if (hasUsableBurn) {
+    labels.push({
+      position: offsetAlongPerpendicular(
+        driftPoint,
+        nextPoint,
+        LABEL_OFFSET * 0.85,
+        1,
+      ),
+      text: 'Δv',
+      color: DV_COLOR,
+    });
+
+    if (showResultArrow) {
+      labels.push({
+        position: offsetAlongPerpendicular(origin, nextPoint, LABEL_OFFSET, 1),
+        text: `v'=${Math.round(nextSpeed)}`,
+        color: V_PRIME_COLOR,
+      });
+    } else {
+      // Burn exists but v' = v in magnitude/position — e.g. burning to
+      // stop a drift and staying put. Still emit a terminal label so
+      // the readout shows the final speed without drawing an overlapping
+      // arrow.
+      labels.push({
+        position: { x: nextPoint.x, y: nextPoint.y + hexSize * 0.75 },
+        text: `v'=${Math.round(nextSpeed)}`,
+        color: V_PRIME_COLOR,
+      });
+    }
+  }
+
   return {
-    currentSpeedLabel,
-    nextSpeedLabel,
-    burnDeltaLabel,
+    currentVelocityArrow,
+    burnArrow,
+    resultVelocityArrow,
+    labels,
   };
 };
 

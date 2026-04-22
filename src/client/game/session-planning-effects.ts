@@ -1,6 +1,7 @@
 import { hexKey } from '../../shared/hex';
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { type Dispose, effect } from '../reactive';
+import type { ShipListSideContext } from '../ui/ship-list';
 import { deriveHudViewModel } from './hud-view-model';
 import { deriveInteractionMode } from './interaction-fsm';
 import { getSelectedShip } from './selection';
@@ -21,6 +22,7 @@ export type SessionFleetPanelUI = {
     ships: GameState['ships'],
     selectedId: string | null,
     burns: Map<string, number | null>,
+    sideContext?: ShipListSideContext | null,
   ) => void;
 };
 
@@ -127,14 +129,27 @@ export const attachSessionFleetPanelEffect = (
 
     if (!gameState) {
       ui.updateFleetStatus('');
-      ui.updateShipList([], null, new Map<string, number | null>());
+      ui.updateShipList([], null, new Map<string, number | null>(), null);
       return;
     }
 
     const hud = deriveHudViewModel(gameState, playerId, session.planningState);
 
+    // Side context is only useful to the spectator/replay view where
+    // both fleets appear together; first-person play renders only the
+    // viewer's own ships so owner labels would be redundant.
+    const sideContext: ShipListSideContext | null =
+      (playerId as number) < 0
+        ? { viewerId: playerId, activePlayer: gameState.activePlayer }
+        : null;
+
     ui.updateFleetStatus(hud.fleetStatus, hud.fleetStatusAriaLabel);
-    ui.updateShipList(hud.myShips, hud.selectedId, session.planningState.burns);
+    ui.updateShipList(
+      hud.myShips,
+      hud.selectedId,
+      session.planningState.burns,
+      sideContext,
+    );
   });
 
 export type SessionPlanningEffectsUI = SessionCombatButtonsUI &
