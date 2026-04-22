@@ -20,6 +20,7 @@
 // scale; revisit with a per-player hash-set if it becomes hot.
 
 import type { GameId } from '../../shared/ids';
+import { hasOfficialQuickMatchBot } from '../../shared/player';
 import { type Rating, updateRating } from '../../shared/rating/glicko2';
 import type { GameState } from '../../shared/types/domain';
 import { reportLifecycleEvent } from '../game-do/telemetry';
@@ -116,6 +117,7 @@ export interface AppliedRatingSummary {
   rdBeforeB: number;
   rdAfterB: number;
   newOpponent: boolean;
+  officialBotMatch: boolean;
 }
 
 export type WriteMatchRatingResult =
@@ -159,6 +161,7 @@ export const writeMatchRatingIfEligible = async (
     pair.outcomeA,
   );
   const newOpponent = await isNewOpponent(db, pair.aKey, pair.bKey, gameId);
+  const officialBotMatch = hasOfficialQuickMatchBot(roomConfig.players);
 
   // Four statements, all batched so either the whole rating update
   // lands or none does. INSERT OR IGNORE on match_rating keeps the
@@ -239,6 +242,7 @@ export const writeMatchRatingIfEligible = async (
       rdBeforeB: pair.bPlayer.rd,
       rdAfterB: newA.b.rd,
       newOpponent,
+      officialBotMatch,
     },
   };
 };
