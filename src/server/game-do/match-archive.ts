@@ -1,6 +1,8 @@
 import type { EventEnvelope } from '../../shared/engine/engine-events';
 import type { GameId } from '../../shared/ids';
+import { hasOfficialQuickMatchBot } from '../../shared/player';
 import type { GameState, PlayerId } from '../../shared/types/domain';
+import type { RoomConfig } from '../protocol';
 import {
   type Checkpoint,
   deleteCheckpoint,
@@ -10,6 +12,7 @@ import {
   getMatchSeed,
 } from './archive';
 import { isMatchCoached } from './coach';
+import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 
 // Persistent archive of a completed match.
 export interface MatchArchive {
@@ -24,6 +27,7 @@ export interface MatchArchive {
   eventStream: EventEnvelope[];
   checkpoint: Checkpoint | null;
   matchSeed: number | null;
+  officialBotMatch: boolean;
 }
 
 const r2Key = (gameId: GameId): string => `matches/${gameId}.json`;
@@ -44,14 +48,24 @@ export const archiveCompletedMatch = async (
   const { gameId } = state;
 
   try {
-    const [eventStream, checkpoint, matchCreatedAt, matchSeed, matchCoached] =
-      await Promise.all([
-        getEventStream(storage, gameId),
-        getCheckpoint(storage, gameId),
-        getMatchCreatedAt(storage, gameId),
-        getMatchSeed(storage, gameId),
-        isMatchCoached(storage),
-      ]);
+    const [
+      eventStream,
+      checkpoint,
+      matchCreatedAt,
+      matchSeed,
+      matchCoached,
+      roomConfig,
+    ] = await Promise.all([
+      getEventStream(storage, gameId),
+      getCheckpoint(storage, gameId),
+      getMatchCreatedAt(storage, gameId),
+      getMatchSeed(storage, gameId),
+      isMatchCoached(storage),
+      storage.get<RoomConfig>(GAME_DO_STORAGE_KEYS.roomConfig),
+    ]);
+    const officialBotMatch = hasOfficialQuickMatchBot(
+      roomConfig?.players ?? [],
+    );
 
     const archive: MatchArchive = {
       gameId,
@@ -65,6 +79,7 @@ export const archiveCompletedMatch = async (
       eventStream,
       checkpoint,
       matchSeed,
+      officialBotMatch,
     };
 
     await r2.put(r2Key(gameId), JSON.stringify(archive), {
@@ -80,8 +95,8 @@ export const archiveCompletedMatch = async (
         .prepare(
           'INSERT OR IGNORE INTO match_archive ' +
             '(game_id, room_code, scenario, winner, ' +
-            'win_reason, turns, created_at, completed_at, match_coached) ' +
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'win_reason, turns, created_at, completed_at, match_coached, official_bot_match) ' +
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .bind(
           gameId,
@@ -93,6 +108,7 @@ export const archiveCompletedMatch = async (
           archive.createdAt,
           archive.completedAt,
           matchCoached ? 1 : 0,
+          officialBotMatch ? 1 : 0,
         )
         .run();
     }
