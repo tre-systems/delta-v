@@ -6,6 +6,7 @@ import {
   hexEqual,
   hexKey,
   hexToPixel,
+  hexVecLength,
   type PixelCoord,
 } from '../../shared/hex';
 import { computeCourse, predictDestination } from '../../shared/movement';
@@ -437,6 +438,124 @@ const buildDriftSegments = (
   }
 
   return segments;
+};
+
+// Readout labels that expose the burn planning as vector math —
+// `v + Δv = v'` — so a pilot can read the next-turn speed off the map
+// instead of counting hexes in their head. Rendered only for the
+// currently-selected own ship during the astrogation phase; the two
+// speed labels always show, the burn-delta label only when a burn is
+// queued on a non-disabled ship with fuel.
+export interface AstrogationVectorReadoutView {
+  currentSpeedLabel: {
+    position: PixelCoord;
+    text: string;
+    color: string;
+  };
+  nextSpeedLabel: {
+    position: PixelCoord;
+    text: string;
+    color: string;
+  };
+  burnDeltaLabel: {
+    position: PixelCoord;
+    text: string;
+    color: string;
+  } | null;
+}
+
+const midPoint = (a: PixelCoord, b: PixelCoord): PixelCoord => ({
+  x: (a.x + b.x) / 2,
+  y: (a.y + b.y) / 2,
+});
+
+export const buildAstrogationVectorReadout = (
+  state: GameState,
+  playerId: PlayerId,
+  planning: CoursePreviewPlanningState,
+  hexSize: number,
+): AstrogationVectorReadoutView | null => {
+  if (state.phase !== 'astrogation' || state.activePlayer !== playerId) {
+    return null;
+  }
+  const shipId = planning.selectedShipId;
+  if (!shipId) return null;
+  const ship = state.ships.find((s) => s.id === shipId);
+  if (!ship || ship.owner !== playerId) return null;
+  if (ship.lifecycle !== 'active') return null;
+
+  const burn = planning.burns.get(shipId) ?? null;
+  const isDisabled = ship.damage.disabledTurns > 0;
+  const hasUsableBurn = burn !== null && !isDisabled && ship.fuel > 0;
+
+  const driftHex = predictDestination(ship);
+  const newVelocity = hasUsableBurn
+    ? {
+        dq: ship.velocity.dq + HEX_DIRECTIONS[burn as number].dq,
+        dr: ship.velocity.dr + HEX_DIRECTIONS[burn as number].dr,
+      }
+    : ship.velocity;
+  const nextHex = hasUsableBurn
+    ? hexAdd(driftHex, HEX_DIRECTIONS[burn as number])
+    : driftHex;
+
+  const origin = hexToPixel(ship.position, hexSize);
+  const driftPoint = hexToPixel(driftHex, hexSize);
+  const nextPoint = hexToPixel(nextHex, hexSize);
+
+  const currentSpeed = hexVecLength(ship.velocity);
+  const nextSpeed = hexVecLength(newVelocity);
+  // Offset labels from the midpoint of the arrow so they don't sit on
+  // top of the course polyline that already goes through those points.
+  const labelOffsetY = -hexSize * 0.18;
+
+  const currentMid = midPoint(origin, driftPoint);
+  const currentSpeedLabel = {
+    position:
+      currentSpeed === 0
+        ? { x: origin.x + hexSize * 0.65, y: origin.y + labelOffsetY }
+        : { x: currentMid.x, y: currentMid.y + labelOffsetY },
+    text: `v=${Math.round(currentSpeed)}`,
+    color: 'rgba(180, 210, 235, 0.78)',
+  };
+
+  const nextMid = midPoint(origin, nextPoint);
+  // When no burn is queued the next-turn speed is identical to the
+  // current one; skip the redundant second label by offsetting it onto
+  // the same position but only emit a separate label when the burn
+  // changed the magnitude.
+  const nextSpeedLabel =
+    hasUsableBurn && nextSpeed !== currentSpeed
+      ? {
+          position: { x: nextMid.x, y: nextMid.y - labelOffsetY * 2 },
+          text: `v'=${Math.round(nextSpeed)}`,
+          color: 'rgba(122, 215, 255, 0.92)',
+        }
+      : hasUsableBurn
+        ? {
+            position: { x: nextMid.x, y: nextMid.y - labelOffsetY * 2 },
+            text: `v'=${Math.round(nextSpeed)}`,
+            color: 'rgba(122, 215, 255, 0.92)',
+          }
+        : {
+            position: currentSpeedLabel.position,
+            text: currentSpeedLabel.text,
+            color: currentSpeedLabel.color,
+          };
+
+  const burnDeltaLabel = hasUsableBurn
+    ? {
+        position: midPoint(driftPoint, nextPoint),
+        text: 'Δv',
+        color: 'rgba(255, 183, 77, 0.88)',
+      }
+    : null;
+
+  return {
+    currentSpeedLabel,
+    nextSpeedLabel,
+    burnDeltaLabel,
+  };
 };
 
 export const buildAstrogationCoursePreviewViews = (
