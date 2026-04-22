@@ -127,7 +127,17 @@ flowchart LR
 - `disconnect_grace_expired` — `{ code, player }` (grace ran out; engine will forfeit)
 - `turn_timeout_fired` — `{ code, gameId, turn, phase, activePlayer }`
 - `matchmaker_paired` — `{ code, scenario, leftKey, rightKey, waitMsLeft, waitMsRight }`
+- `matchmaker_paired` — `{ code, scenario, leftKey, rightKey, waitMsLeft, waitMsRight, officialBotMatch }`
+- `matchmaker_official_bot_filled` — `{ code, scenario, waitedMs, playerKey }` (explicit quick-match fallback acceptance)
 - `rating_applied` / `rating_skipped` / `rating_failed` — per-match Glicko-2 outcomes (see `src/server/game-do/telemetry.ts` for props)
+
+Official-bot segmentation is now carried through the authoritative server path:
+
+- `game_started` / `game_ended` include `officialBotMatch`
+- `rating_applied` summaries include `officialBotMatch`
+- `match_archive` rows and `GET /api/matches` rows include `officialBotMatch`
+
+That means queue relief, rating impact, and replay/history uptake can all be segmented without inferring from player keys.
 
 **Side-channel failures (investigate on spike):**
 
@@ -249,6 +259,26 @@ FROM match_archive
 WHERE completed_at > (strftime('%s','now') - 7 * 86400) * 1000
 GROUP BY scenario
 ORDER BY matches DESC;
+
+-- Official Bot uptake and outcome summary (last 7 days)
+SELECT
+  official_bot_match,
+  COUNT(*) AS matches,
+  AVG(turns) AS avg_turns
+FROM match_archive
+WHERE completed_at > (strftime('%s','now') - 7 * 86400) * 1000
+GROUP BY official_bot_match
+ORDER BY official_bot_match DESC;
+
+-- Matchmaker fallback accept volume (last 7 days)
+SELECT
+  strftime('%Y-%m-%d', ts / 1000, 'unixepoch') AS day,
+  COUNT(*) AS fills
+FROM events
+WHERE event = 'matchmaker_official_bot_filled'
+  AND ts > (strftime('%s','now') - 7 * 86400) * 1000
+GROUP BY day
+ORDER BY day DESC;
 
 -- Active unique clients (last 24h, by anon_id)
 SELECT COUNT(DISTINCT anon_id) AS unique_clients
