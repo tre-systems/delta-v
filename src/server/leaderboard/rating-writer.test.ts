@@ -226,8 +226,36 @@ describe('writeMatchRatingIfEligible', () => {
     expect(result.applied?.aKey).toBe('human_aaa12345');
     expect(result.applied?.winnerKey).toBe('human_aaa12345');
     expect(result.applied?.newOpponent).toBe(true);
+    expect(result.applied?.officialBotMatch).toBe(false);
     expect(result.applied?.ratingBeforeA).toBe(1500);
     expect(result.applied?.ratingAfterA).toBeGreaterThan(1500);
+  });
+
+  it('marks official-bot matches in the applied summary', async () => {
+    const { db } = buildMockDb({
+      human_aaa12345: seedPlayer('human_aaa12345', 'A', false),
+      agent_official_quickmatch_normal: seedPlayer(
+        'agent_official_quickmatch_normal',
+        'Official Bot',
+        true,
+      ),
+    });
+
+    const result = await writeMatchRatingIfEligible({
+      db,
+      roomConfig: makeRoom(
+        ['human_aaa12345', 'agent_official_quickmatch_normal'],
+        true,
+      ),
+      gameId,
+      outcomeWinner: 0,
+      now,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.wrote).toBe(true);
+    expect(result.applied?.officialBotMatch).toBe(true);
   });
 
   it('does not bump distinct_opponents on a rematch', async () => {

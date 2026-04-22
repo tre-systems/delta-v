@@ -15,6 +15,11 @@ export const buildOfficialQuickMatchBotProfile = (): PublicPlayerProfile => ({
   username: OFFICIAL_QUICK_MATCH_BOT_USERNAME,
 });
 
+export const hasOfficialQuickMatchBot = (
+  players: readonly Pick<PublicPlayerProfile, 'playerKey'>[],
+): boolean =>
+  players.some((player) => isOfficialQuickMatchBotPlayerKey(player.playerKey));
+
 const PLAYER_KEY_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 const USERNAME_PATTERN = /^[A-Za-z0-9 _-]{2,20}$/;
 

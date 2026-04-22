@@ -9,6 +9,7 @@ import {
 import {
   buildDefaultUsername,
   buildOfficialQuickMatchBotProfile,
+  hasOfficialQuickMatchBot,
   isOfficialQuickMatchBotPlayerKey,
   normalizePlayerKey,
   normalizeUsername,
@@ -42,6 +43,8 @@ interface Env {
   DB?: D1Database;
   /** When `'1'`, lone quick-match tickets can pair with a dev-only bot after a wait (see `DEV_QUICK_MATCH_BOT_FILL_WAIT_MS`). */
   DEV_MODE?: string;
+  /** Set to `'0'` to disable the production Official Bot quick-match fallback. */
+  OFFICIAL_QUICK_MATCH_BOT_ENABLED?: string;
 }
 
 const participantKindForKey = (playerKey: string): 'human' | 'agent' =>
@@ -53,7 +56,10 @@ const participantKindForKey = (playerKey: string): 'human' | 'agent' =>
 const reportMatchmakerEvent = (
   ctx: DurableObjectState,
   env: Env,
-  event: 'matchmaker_paired' | 'matchmaker_pairing_split',
+  event:
+    | 'matchmaker_paired'
+    | 'matchmaker_pairing_split'
+    | 'matchmaker_official_bot_filled',
   props: Record<string, unknown>,
 ): void => {
   // matchmaker_paired is a normal signal; split is a warning-class event.
@@ -77,6 +83,9 @@ const reportMatchmakerEvent = (
       .catch((e: unknown) => console.error(`[D1 ${event} insert failed]`, e)),
   );
 };
+
+const isOfficialQuickMatchBotEnabled = (env: Env): boolean =>
+  env.OFFICIAL_QUICK_MATCH_BOT_ENABLED !== '0';
 
 const MATCHMAKER_STORAGE_KEY = 'quickMatchQueue';
 const HEARTBEAT_TTL_MS = 15_000;
@@ -486,6 +495,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       seat1Key: seatOnePlayer.playerKey,
       waitMsLeft: now - left.queuedAt,
       waitMsRight: now - right.queuedAt,
+      officialBotMatch: hasOfficialQuickMatchBot([left.player, right.player]),
     });
 
     this.ctx.waitUntil(
@@ -583,6 +593,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       if (
         existing.status === 'queued' &&
         parsed.acceptOfficialBotMatch &&
+        isOfficialQuickMatchBotEnabled(this.env) &&
         now - existing.queuedAt >= OFFICIAL_QUICK_MATCH_BOT_WAIT_MS
       ) {
         const matchedEntries = await this.fillQueuedEntryWithBot(
@@ -599,6 +610,17 @@ export class MatchmakerDO extends DurableObject<Env> {
         }
 
         entries = matchedEntries;
+        reportMatchmakerEvent(
+          this.ctx,
+          this.env,
+          'matchmaker_official_bot_filled',
+          {
+            ticket: existing.ticket,
+            scenario: existing.scenario,
+            playerKey: existing.player.playerKey,
+            waitedMs: now - existing.queuedAt,
+          },
+        );
       }
 
       await this.writeQueue(entries);

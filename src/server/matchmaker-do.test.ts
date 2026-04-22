@@ -49,6 +49,7 @@ const createCtx = () => ({
 
 const createMatchmaker = (options?: {
   devMode?: string;
+  officialBotEnabled?: string;
   liveRegistryFetch?: (request: Request) => Promise<Response>;
 }) => {
   const initFetch = vi.fn<(request: Request) => Promise<Response>>(
@@ -77,10 +78,14 @@ const createMatchmaker = (options?: {
         get: vi.fn(() => liveRegistryStub),
       },
       ...(options?.devMode !== undefined ? { DEV_MODE: options.devMode } : {}),
+      ...(options?.officialBotEnabled !== undefined
+        ? { OFFICIAL_QUICK_MATCH_BOT_ENABLED: options.officialBotEnabled }
+        : {}),
     } as unknown as {
       GAME: DurableObjectNamespace;
       LIVE_REGISTRY: DurableObjectNamespace;
       DEV_MODE?: string;
+      OFFICIAL_QUICK_MATCH_BOT_ENABLED?: string;
     },
   );
 
@@ -574,6 +579,62 @@ describe('MatchmakerDO', () => {
         }),
       ]),
     });
+  });
+
+  it('does not fill a queued ticket with the official bot when the server kill switch disables it', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000);
+    const { matchmaker, initFetch } = createMatchmaker({
+      officialBotEnabled: '0',
+    });
+
+    const queued = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    const queuedPayload = (await queued.json()) as { ticket: string };
+
+    now.mockReturnValue(11_000);
+    await matchmaker.fetch(
+      new Request(
+        `https://matchmaker.internal/ticket/${queuedPayload.ticket}`,
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    now.mockReturnValue(1_000 + OFFICIAL_QUICK_MATCH_BOT_WAIT_MS + 500);
+    const response = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          acceptOfficialBotMatch: true,
+          player: {
+            playerKey: 'playerkey1',
+            username: 'Pilot One',
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: 'queued',
+      ticket: queuedPayload.ticket,
+      scenario: 'duel',
+    });
+    expect(initFetch).not.toHaveBeenCalled();
   });
 
   it('allows the stable official bot to pair even when the live registry reports that key as active elsewhere', async () => {
