@@ -21,6 +21,7 @@ import { handleLiveMatchesList } from './live-matches-list';
 import { LiveRegistryDO } from './live-registry-do';
 import { handleMatchesList } from './matches-list';
 import { MatchmakerDO } from './matchmaker-do';
+import { handleMetricsRoute } from './metrics-route';
 import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
 import {
   applyResponseHeaders,
@@ -628,6 +629,12 @@ export default {
           }
         }
         return handlePlayerRank(request, env);
+      }
+
+      if (url.pathname === '/api/metrics' && request.method === 'GET') {
+        return handleMetricsRoute(request, env, {
+          loopbackAllowed: isLoopbackRequest(request),
+        });
       }
 
       if (url.pathname === '/mcp') {
