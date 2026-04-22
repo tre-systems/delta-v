@@ -109,9 +109,7 @@ export const aiCombat = (
       ordnance.type === 'nuke',
   );
   const shouldPreserveLandingLine =
-    singleShipObjectiveDuel &&
-    myLandingTurns === 1 &&
-    (enemyLandingTurns == null || enemyLandingTurns > 1);
+    singleShipObjectiveDuel && myLandingTurns === 1 && enemyLandingTurns !== 0;
 
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
     return [];
