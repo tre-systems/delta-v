@@ -113,12 +113,6 @@ During exploratory testing 2026-04-19 via Claude-in-Chrome MCP, a Play-vs-AI (Du
 
 **Files:** potentially `src/client/ui/button-bindings.ts`, `src/client/game/ordnance.ts`, `src/client/game/command-router.ts`
 
-### Contrast audit (quantified)
-
-Run WCAG contrast / readability measurements each release using [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md) § **Contrast & readability** and [A11Y.md](./A11Y.md); tune CSS from findings.
-
-**Files:** `static/styles/*.css`, `docs/MANUAL_TEST_PLAN.md`, `docs/A11Y.md`
-
 ### Enforce notification channel precedence in code
 
 Remaining audit: session UI effects / reactive wiring, telemetry-driven copy, and any logistics paths that still mirror the game log as a toast. Turn timer, local astrogation/ordnance validation, local emplacement success, structured `actionRejected` hints, “no enemies” camera hint, and local-only replay now use HUD/sound or the game log instead of stacking toasts. Connection, reconnect, and session errors stay on the toast channel per policy.
