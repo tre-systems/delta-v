@@ -160,7 +160,7 @@ export const renderBodies = (
     const p = view.center;
     const r = view.radius;
     for (const ripple of view.ripples) {
-      ctx.strokeStyle = body.color;
+      ctx.strokeStyle = view.rippleColor;
       ctx.globalAlpha = ripple.alpha;
       ctx.lineWidth = 1;
       ctx.beginPath();

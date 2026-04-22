@@ -21,6 +21,10 @@ export interface BodyView {
   center: PixelCoord;
   radius: number;
   ripples: BodyRippleView[];
+  // Neutral cool-grey tone so red-hued bodies (Mars, Sol) do not read
+  // as a base-defense threat ring. The ripples are purely decorative;
+  // combat and checkpoint signals have their own explicit overlays.
+  rippleColor: string;
   glowStops: [string, string, string];
   coreColor: string;
   edgeColor: string;
@@ -111,6 +115,7 @@ export const buildBodyView = (
     center,
     radius,
     ripples,
+    rippleColor: 'rgba(180, 196, 220, 1)',
     glowStops: [`${body.color}30`, `${body.color}10`, 'transparent'],
     coreColor: lightenColor(body.color, 30),
     edgeColor: body.color,

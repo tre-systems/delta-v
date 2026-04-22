@@ -270,6 +270,11 @@ interface ShipMovementBase extends PathSegment {
   newVelocity: HexVec;
   fuelSpent: number;
   gravityEffects: GravityEffect[];
+  // True when the ship had a queued burn/overload that was silently
+  // suppressed because the ship was disabled at resolution time. Lets
+  // the client surface a "burn cancelled" log line instead of leaving
+  // the player wondering why the ship drifted instead of burning.
+  burnCancelledByDisable?: boolean;
 }
 
 export type ShipMovement = ShipMovementBase &
