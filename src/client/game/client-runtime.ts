@@ -16,6 +16,7 @@ import { TOAST } from '../messages/toasts';
 import type { Renderer } from '../renderer/renderer';
 import type { UIEvent } from '../ui/events';
 import type { UIManager } from '../ui/ui';
+import { startVersionCheck } from '../version-check';
 import type { KeyboardAction } from './keyboard';
 import { deriveKeyboardAction } from './keyboard';
 import { getOrdnanceActionableShipIds } from './ordnance';
@@ -360,6 +361,60 @@ export const setupServiceWorkerReload = () => {
   ) {
     bindServiceWorkerControllerReload(navigator.serviceWorker, window.location);
   }
+};
+
+// Show the fixed "new version available" banner and wire its buttons.
+// The banner element lives in index.html so the markup is present even
+// before JS boots; this just un-hides it and owns the button handlers.
+// Returns a dispose callback that hides the banner and removes listeners
+// — used by tests; in production the banner lives for the rest of the
+// session until the user clicks Reload or Dismiss.
+const attachNewVersionBanner = (): (() => void) => {
+  const banner = document.getElementById('newVersionBanner');
+  if (!banner) return () => {};
+  const reloadBtn = document.getElementById('newVersionReloadBtn');
+  const dismissBtn = document.getElementById('newVersionDismissBtn');
+  banner.removeAttribute('hidden');
+
+  const reload = (): void => {
+    window.location.reload();
+  };
+  const dismiss = (): void => {
+    banner.setAttribute('hidden', '');
+  };
+
+  reloadBtn?.addEventListener('click', reload);
+  dismissBtn?.addEventListener('click', dismiss);
+  return () => {
+    reloadBtn?.removeEventListener('click', reload);
+    dismissBtn?.removeEventListener('click', dismiss);
+    banner.setAttribute('hidden', '');
+  };
+};
+
+export const setupVersionCheck = (): (() => void) | null => {
+  // Same gate as service-worker registration: local dev reloads on its
+  // own via esbuild/wrangler, and the build hash never changes there,
+  // so there is nothing useful for this poller to signal.
+  if (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+  ) {
+    return null;
+  }
+
+  let detachBanner: (() => void) | null = null;
+  const disposePoll = startVersionCheck({
+    onNewVersion: () => {
+      if (detachBanner) return;
+      detachBanner = attachNewVersionBanner();
+    },
+  });
+
+  return () => {
+    disposePoll();
+    detachBanner?.();
+  };
 };
 
 // Subset of MainInteractionController that setupClientRuntime needs.
