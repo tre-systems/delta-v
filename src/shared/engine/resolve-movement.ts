@@ -91,6 +91,9 @@ export const resolveMovementPhase = (
     const order = queuedOrders.get(ship.id);
     const burn = isDisabled ? null : (order?.burn ?? null);
     const overload = isDisabled ? null : (order?.overload ?? null);
+    const burnCancelledByDisable =
+      isDisabled &&
+      ((order?.burn ?? null) !== null || (order?.overload ?? null) !== null);
 
     const from = { ...ship.position };
 
@@ -115,6 +118,7 @@ export const resolveMovementPhase = (
       newVelocity: course.newVelocity,
       fuelSpent: course.fuelSpent,
       gravityEffects: course.gravityEffects,
+      ...(burnCancelledByDisable ? { burnCancelledByDisable: true } : {}),
     };
 
     if (course.outcome === 'crash') {
