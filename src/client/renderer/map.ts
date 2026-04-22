@@ -70,6 +70,19 @@ export type LandingObjectiveView =
       labelY: number;
     };
 
+export interface CheckpointMarkerView {
+  bodyName: string;
+  center: PixelCoord;
+  radius: number;
+  visited: boolean;
+  strokeStyle: string;
+  lineWidth: number;
+  lineDash: number[];
+  pipCenter: PixelCoord;
+  pipRadius: number;
+  pipFill: string;
+}
+
 export const lightenColor = (hex: string, amount: number): string => {
   const num = parseInt(hex.slice(1), 16);
   const r = Math.min(255, (num >> 16) + amount);
@@ -240,6 +253,64 @@ const buildEscapeObjectiveView = (
       },
     ],
   };
+};
+
+// Race scenarios (e.g. Grand Tour) track flyby checkpoints in
+// `scenarioRules.checkpointBodies` and per-player `visitedBodies`.
+// Neither was previously rendered, so players had no way to tell which
+// bodies counted or how many they'd ticked off. This builder returns a
+// subtle ring + pip per checkpoint so visited vs pending reads at a
+// glance against the existing body decoration. Home body uses a green
+// tone when all checkpoints are done to cue the final-leg return leg.
+export const buildCheckpointMarkerViews = (
+  state: GameState,
+  playerId: PlayerId | -1,
+  map: SolarSystemMap,
+  hexSize: number,
+): CheckpointMarkerView[] => {
+  const checkpoints = state.scenarioRules.checkpointBodies;
+  if (!checkpoints || checkpoints.length === 0) return [];
+
+  const player =
+    playerId >= 0 ? (state.players[playerId as PlayerId] ?? null) : null;
+  const visited = new Set(player?.visitedBodies ?? []);
+  const homeBody = player?.homeBody ?? null;
+  const allVisited = visited.size >= checkpoints.length;
+
+  const views: CheckpointMarkerView[] = [];
+  for (const name of checkpoints) {
+    const body = map.bodies.find((candidate) => candidate.name === name);
+    if (!body) continue;
+
+    const center = hexToPixel(body.center, hexSize);
+    const bodyRadius = body.renderRadius * hexSize;
+    const ringRadius = bodyRadius + 12;
+    const wasVisited = visited.has(name);
+    const isHomeReturn = allVisited && homeBody === name;
+
+    views.push({
+      bodyName: name,
+      center,
+      radius: ringRadius,
+      visited: wasVisited,
+      strokeStyle: wasVisited
+        ? 'rgba(122, 215, 255, 0.55)'
+        : 'rgba(226, 232, 244, 0.28)',
+      lineWidth: wasVisited ? 1.5 : 1,
+      lineDash: wasVisited ? [] : [3, 5],
+      pipCenter: {
+        x: center.x + bodyRadius + 14,
+        y: center.y - bodyRadius - 8,
+      },
+      pipRadius: 3.5,
+      pipFill: isHomeReturn
+        ? 'rgba(100, 255, 140, 0.95)'
+        : wasVisited
+          ? 'rgba(122, 215, 255, 0.9)'
+          : 'rgba(180, 196, 220, 0.35)',
+    });
+  }
+  return views;
 };
 
 export const buildLandingObjectiveView = (

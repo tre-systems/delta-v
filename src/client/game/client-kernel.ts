@@ -168,6 +168,7 @@ export const createGameClient = () => {
     resetCombatState,
     getGameState: () => ctx.gameStateSignal.peek(),
     getPlayerId: () => ctx.playerId as PlayerId,
+    getMap: () => map,
     onGameOverShown: () => replayController.onGameOverShown(),
     renderer,
     ui,
