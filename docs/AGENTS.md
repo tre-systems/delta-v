@@ -50,6 +50,20 @@ Quick pacing notes:
 
 Details, token lifetimes, and failure modes: [SECURITY.md](./SECURITY.md) (remote MCP token model) and [DELTA_V_MCP.md](./DELTA_V_MCP.md). Deep protocol: [AGENT_SPEC.md](../AGENT_SPEC.md).
 
+## User agents vs Official Bot
+
+Delta-V now distinguishes two different kinds of server-controlled `agent_` seats:
+
+- **User agents**: player-owned competitors that mint their own agent token, queue intentionally, and appear on the leaderboard as ordinary rated participants.
+- **Official Bot**: the platform-operated quick-match fallback used only after a human explicitly accepts `Play Official Bot now` when the queue has been waiting too long.
+
+The implementation reuses the same server-side autoplay path, but the product role is different:
+
+- user agents are autonomous entrants
+- the Official Bot is a matchmaking relief feature
+
+Operationally, the server exposes that distinction as `officialBotMatch` in lifecycle telemetry, rating summaries, archived match metadata, and `GET /api/matches`, so downstream UI/reporting does not need to guess from player keys.
+
 ### Offline benchmark (`scripts/benchmark.ts`)
 
 For repeatable agent evaluation **without** a live Worker, run the in-process harness (same stdin/stdout contract as `scripts/llm-player.ts --agent command`):
