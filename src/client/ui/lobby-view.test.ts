@@ -6,22 +6,35 @@ import { signal } from '../reactive';
 import { createLobbyView } from './lobby-view';
 
 const installFixture = () => {
+  // Mirror the home-screen top-to-bottom order in static/index.html so
+  // DOM-order assertions in tests match what the browser renders.
   document.body.innerHTML = `
-    <button id="quickMatchBtn">Quick Match</button>
-    <button id="createBtn">Create Game</button>
-    <button id="singlePlayerBtn">Single Player</button>
-    <input id="playerNameInput" />
-    <button id="forgetCallsignBtn">Forget my callsign</button>
+    <div id="menuOfflineBanner" hidden></div>
+    <div class="menu-surface menu-surface-primary">
+      <input id="playerNameInput" />
+      <button id="forgetCallsignBtn">Forget my callsign</button>
+      <div id="callsignStatus"></div>
+      <button id="quickMatchBtn">Quick Match</button>
+      <button id="singlePlayerBtn">Single Player</button>
+      <div class="difficulty-group">
+        <div id="difficultySelect" role="radiogroup">
+          <button class="btn-difficulty" data-difficulty="easy">Easy</button>
+          <button class="btn-difficulty active" data-difficulty="normal">Normal</button>
+          <button class="btn-difficulty" data-difficulty="hard">Hard</button>
+        </div>
+      </div>
+    </div>
+    <div class="menu-discover">
+      <a id="leaderboardLink" class="menu-online-only" href="/leaderboard">Leaderboard</a>
+      <a id="matchesLink" class="menu-online-only" href="/matches">Recent matches</a>
+    </div>
+    <div class="menu-surface menu-surface-friends">
+      <button id="createBtn">Create Game</button>
+      <input id="codeInput" />
+      <button id="joinBtn">Join</button>
+    </div>
     <button id="backBtn">Back</button>
     <div id="scenarioList"></div>
-    <button class="btn-difficulty" data-difficulty="easy">Easy</button>
-    <button class="btn-difficulty active" data-difficulty="normal">Normal</button>
-    <button class="btn-difficulty" data-difficulty="hard">Hard</button>
-    <button id="joinBtn">Join</button>
-    <input id="codeInput" />
-    <div id="menuOfflineBanner" hidden></div>
-    <a id="leaderboardLink" class="menu-online-only" href="/leaderboard">Leaderboard</a>
-    <a id="matchesLink" class="menu-online-only" href="/matches">Recent matches</a>
     <a id="agentsLink" class="menu-online-only" href="/agents">Build a Bot</a>
     <button id="copyBtn">Copy Link</button>
     <button id="copySpectateBtn">Copy Spectate Link</button>
@@ -33,7 +46,6 @@ const installFixture = () => {
     <button id="menuHowToPlayBtn">How to Play</button>
     <div id="helpOverlay"></div>
     <button id="helpCloseBtn">Close</button>
-    <div id="callsignStatus"></div>
   `;
 };
 
