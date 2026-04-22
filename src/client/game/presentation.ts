@@ -7,6 +7,7 @@ import type {
   OrdnanceMovement,
   PlayerId,
   ShipMovement,
+  SolarSystemMap,
 } from '../../shared/types/domain';
 import {
   playCombat,
@@ -26,6 +27,7 @@ export interface PresentationDeps {
   resetCombatState: () => void;
   getGameState: () => GameState | null;
   getPlayerId: () => PlayerId;
+  getMap: () => SolarSystemMap | null;
   renderer: {
     showMovementEvents: (events: MovementEvent[]) => void;
     animateMovements: (
@@ -69,13 +71,11 @@ const logLandings = (deps: PresentationDeps, movements: ShipMovement[]) => {
   const gameState = deps.getGameState();
 
   if (!gameState) return;
-  for (const entry of deriveLandingLogEntries(gameState, movements)) {
+  const entries = deriveLandingLogEntries(gameState, movements, deps.getMap());
+  for (const entry of entries) {
     deps.ui.log.logLanding(entry.shipName, entry.bodyName);
     deps.renderer.showLandingEffect(entry.destination);
-
-    if (entry.resupplyText) {
-      deps.ui.log.logText(entry.resupplyText);
-    }
+    deps.ui.log.logText(entry.reasonText, entry.reasonClass);
   }
 };
 

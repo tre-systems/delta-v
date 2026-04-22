@@ -18,6 +18,7 @@ import {
   buildAsteroidDebrisView,
   buildBaseMarkerView,
   buildBodyView,
+  buildCheckpointMarkerViews,
   buildLandingObjectiveView,
   buildMapBorderView,
 } from './map';
@@ -290,6 +291,32 @@ export const renderAsteroids = (
       );
       ctx.fill();
     }
+  }
+};
+
+export const renderCheckpoints = (
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+  hexSize: number,
+): void => {
+  const views = buildCheckpointMarkerViews(state, playerId, map, hexSize);
+  if (views.length === 0) return;
+
+  for (const view of views) {
+    ctx.strokeStyle = view.strokeStyle;
+    ctx.lineWidth = view.lineWidth;
+    ctx.setLineDash(view.lineDash);
+    ctx.beginPath();
+    ctx.arc(view.center.x, view.center.y, view.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = view.pipFill;
+    ctx.beginPath();
+    ctx.arc(view.pipCenter.x, view.pipCenter.y, view.pipRadius, 0, Math.PI * 2);
+    ctx.fill();
   }
 };
 
