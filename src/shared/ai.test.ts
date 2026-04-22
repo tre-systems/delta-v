@@ -1670,6 +1670,52 @@ describe('aiAstrogation — checkpoint race', () => {
       expect(course.landedAt).toBe('Venus');
     }
   });
+  it('grandTour: lands on a shared base before the final home leg when fuel is unsafe', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-HOME-REFUEL'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const venusBase = must(findBaseHex(map, 'Venus'));
+
+    state.players[1].visitedBodies = [
+      'Mars',
+      'Jupiter',
+      'Callisto',
+      'Io',
+      'Terra',
+      'Mercury',
+      'Sol',
+      'Venus',
+    ];
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: venusBase.q, r: venusBase.r + 1 };
+    aiShip.velocity = { dq: 0, dr: -1 };
+    aiShip.pendingGravityEffects = [
+      {
+        hex: { q: venusBase.q, r: venusBase.r + 1 },
+        direction: 3,
+        bodyName: 'Venus',
+        strength: 'full',
+        ignored: false,
+      },
+    ];
+    aiShip.fuel = 2;
+
+    const [order] = aiAstrogation(state, 1, map, 'hard');
+    const course = computeCourse(aiShip, order.burn ?? null, map, {
+      land: order.land,
+      overload: order.overload ?? null,
+      destroyedBases: state.destroyedBases,
+    });
+
+    expect(course.outcome).toBe('landing');
+    if (course.outcome === 'landing') {
+      expect(course.landedAt).toBe('Venus');
+    }
+  });
   it('grandTour: does not stall while active and stationary near the next checkpoint', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,
