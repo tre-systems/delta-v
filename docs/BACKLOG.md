@@ -257,7 +257,7 @@ Action: add a production-safe official-bot matchmaking path behind explicit clie
 
 If the platform creates the opponent, that should be visible. User-created agents can keep reading as ordinary competitors; platform fill bots should be marked as such in the matchup UI, match history, replay chrome, and leaderboard row presentation. This does not require separate rating math or a separate ladder in the first pass, just honest disclosure.
 
-Action: add an `Official Bot` badge or equivalent display affordance anywhere the opponent identity is shown for these matches, and make sure archived matches preserve that provenance.
+Action: add an `Official Bot` badge or equivalent display affordance anywhere the opponent identity is shown for these matches, and make sure archived matches preserve that provenance. Keep this stream off `matchmaker-do.ts`: use the reserved stable official-bot identity / metadata contract once it exists, rather than reworking queue logic here.
 
 **Tests:**
 - `src/client/leaderboard/*.test.ts` — official bot rows render a distinct badge without regressing existing generic agent badges.
@@ -276,6 +276,21 @@ Action: emit explicit events for fallback offered / accepted / declined / comple
 - `scripts/simulate-ai.ts` or matchmaking telemetry queries — official-bot matches can be distinguished cleanly from human-vs-human and user-agent matches in reporting.
 
 **Files:** `src/server/game-do/telemetry.ts`, `src/server/matchmaker-do.ts`, `docs/OBSERVABILITY.md`, `docs/AGENTS.md`
+
+#### Parallel workstreams
+
+The two streams should cover the important open work across this backlog, not only the official-bot feature:
+
+- **Stream 1 — Client experience + product surfaces**
+  Owns the player-facing backlog: Play-vs-AI Turn 1 ordnance repro, contrast audit, notification-channel cleanup, remaining digital-input parity, the Grand Tour UI/feedback items, the quick-match fallback offer UI, official-bot presentation in leaderboard/match/replay surfaces, home-menu layout/difficulty simplification, and the client-side spectator/replay engagement telemetry gaps. This stream owns `src/client/home/*`, `src/client/ui/*`, `src/client/renderer/*`, `src/client/game/main-session-shell.ts`, `src/client/game/replay-controller.ts`, `src/client/game/command-router.ts`, `src/client/game/ordnance.ts`, `src/client/game/landings.ts`, `src/client/game-client-browser.ts`, `src/client/leaderboard/*.ts`, `src/client/telemetry.ts`, `static/index.html`, `static/matches.html`, `static/leaderboard.html`, and `static/styles/*.css`.
+- **Stream 2 — AI, matchmaking, and server systems**
+  Owns the systems backlog: AI objective-discipline tuning, Grand Tour AI route/seat-balance follow-up, the remaining AI ordnance / seat-balance / timeout / difficulty-tier items, the production official-bot matchmaking path, rating/telemetry guardrails, the official-bot metadata contract emitted by the server, and the server-side observability work (`/api/metrics`-style aggregates). This stream owns `src/shared/ai/*`, `src/shared/engine/*`, `src/shared/matchmaking.ts`, `src/shared/movement.ts`, `src/shared/player.ts`, `src/shared/types/*`, `src/server/matchmaker-do.ts`, `src/server/game-do/*`, `src/server/reporting.ts`, new `src/server/metrics-route.ts`, `scripts/simulate-ai.ts`, `docs/OBSERVABILITY.md`, and `docs/AGENTS.md`.
+
+Notes:
+- Stream 2 should reserve the stable official-bot contract first: `agent_official_quickmatch_*`, display name, archive metadata shape, and any boolean/tag field. Stream 1 should only consume that contract.
+- Stream 1 should stay off `src/shared/ai/*`, `src/server/matchmaker-do.ts`, and the authoritative GameDO files.
+- Stream 2 should stay off the renderer / lobby / leaderboard / replay / static-style files listed above.
+- Lower-priority hygiene items such as the transitive `hono` advisory and optional publication-path deduplication can stay outside these streams unless one stream finishes early.
 
 ### Home-menu layout and difficulty-selector simplification (2026-04-22)
 
