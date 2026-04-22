@@ -13,6 +13,11 @@ export interface QuickMatchRequest {
    * human-first wait threshold has elapsed.
    */
   acceptOfficialBotMatch?: boolean;
+  /**
+   * When true, the client is explicitly declining the currently-available
+   * Official Bot offer and choosing to keep waiting for a human.
+   */
+  declineOfficialBotMatch?: boolean;
   player: PublicPlayerProfile;
 }
 
