@@ -438,7 +438,7 @@ Testing uses Vitest with co-located test files, property-based testing via fast-
 
 **Property-based test generators.** Custom fast-check arbitraries generate valid game inputs within bounded ranges (`arbCoord()` for hex coordinates, `arbSmallVelocity()` for velocity vectors, and so on). Tests verify invariants that must hold across all inputs: fuel never goes negative, hex distance is symmetric, movement preserves conservation laws.
 
-**Coverage thresholds.** `src/shared/` has enforced coverage thresholds (statements, branches, functions, lines) via vitest config. The pre-push hook and CI both run `test:coverage` to prevent backsliding.
+**Coverage thresholds.** The engine, server, MCP adapter, and client each have enforced coverage thresholds (statements, branches, functions, lines) via Vitest config. The pre-push hook and CI both run `test:coverage`, which now executes separate client and server/shared coverage passes to avoid Vitest temp-file races.
 
 ### Library Stance
 

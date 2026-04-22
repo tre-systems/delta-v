@@ -23,7 +23,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 **Steps**
 
 1. Run `npm run verify` end-to-end. **Pass:** exits 0. **Fail:** file a BACKLOG item with the failing step and error.
-2. Run `npm run test:coverage` three times in a row. **Pass:** no `ENOENT` or stale-merge failures. **Fail:** check Vitest/coverage provider versions for known issues; consider `coverage.clean` or stable `reportsDirectory`.
+2. Run `npm run test:coverage` three times in a row. **Pass:** both sequential coverage passes exit 0 every time, with reports under `coverage/client` and `coverage/server-shared`, and no `ENOENT` temp-file failures. **Fail:** inspect the split coverage configs and any unexpected writes into a shared `coverage/.tmp` path.
 3. Run pre-push with a dev server already bound to port 8787. **Pass:** e2e uses the dynamically selected `E2E_PORT`, no conflict. **Fail:** check the free-port logic in [`.husky/pre-push`](../.husky/pre-push).
 4. Check that [CONTRIBUTING.md](./CONTRIBUTING.md) documents: what pre-commit runs, what pre-push runs, what to do when either fails, and the `npm run verify` command. **Pass:** all four are covered. **Fail:** update the doc.
 
