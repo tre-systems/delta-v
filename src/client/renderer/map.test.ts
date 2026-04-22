@@ -182,6 +182,15 @@ describe('renderer map helpers', () => {
     ).toBeNull();
   });
 
+  it('ripple color is a neutral cool-grey, independent of body color', () => {
+    // Body ripples are decorative; they must not derive from the body's
+    // own color, or red-hued bodies (Mars, Sol) read as threat rings.
+    const mars = createMap().bodies[0];
+    const view = buildBodyView(mars, 28, 0);
+    expect(view.rippleColor).toBe('rgba(180, 196, 220, 1)');
+    expect(view.rippleColor).not.toContain(mars.color);
+  });
+
   it('returns no checkpoint markers when scenario has no checkpointBodies', () => {
     const state = createState();
     const map = createMap();

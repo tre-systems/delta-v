@@ -1,3 +1,4 @@
+import { SHIP_STATS } from '../../shared/constants';
 import type { MovementResult } from '../../shared/engine/game-engine';
 import type { HexCoord } from '../../shared/hex';
 import type {
@@ -79,6 +80,32 @@ const logLandings = (deps: PresentationDeps, movements: ShipMovement[]) => {
   }
 };
 
+// Surface the silent "queued a burn while disabled" case as an explicit
+// log line so the tester does not wonder why the ship drifted instead of
+// firing. The engine already nulls burn + overload at resolution time;
+// this helper only *reports* that suppression.
+const logDisabledBurnCancellations = (
+  deps: PresentationDeps,
+  state: GameState,
+  movements: ShipMovement[],
+) => {
+  for (const movement of movements) {
+    if (!movement.burnCancelledByDisable) continue;
+    const ship = state.ships.find((s) => s.id === movement.shipId);
+    if (!ship) continue;
+    const name = SHIP_STATS[ship.type]?.name ?? ship.type;
+    const remaining = ship.damage.disabledTurns;
+    const suffix =
+      remaining > 0
+        ? ` (${remaining} turn${remaining === 1 ? '' : 's'} remaining)`
+        : '';
+    deps.ui.log.logText(
+      `  ${name} disabled — burn cancelled${suffix}`,
+      'log-damage',
+    );
+  }
+};
+
 export const presentMovementResult = (
   deps: PresentationDeps,
   state: GameState,
@@ -104,6 +131,7 @@ export const presentMovementResult = (
     }
   }
 
+  logDisabledBurnCancellations(deps, state, movements);
   logLandings(deps, movements);
   deps.renderer.animateMovements(movements, ordnanceMovements, onComplete);
 };
