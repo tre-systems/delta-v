@@ -97,26 +97,15 @@
         </div>
         <button id="quickMatchBtn" data-testid="quickMatchBtn" class="btn btn-primary">Quick Match</button>
         <div class="menu-surface-note">Find the next available commander in the duel queue.</div>
-        <button id="createBtn" data-testid="createBtn" class="btn btn-secondary">Create Private Match</button>
         <div id="aiSection" class="ai-section">
           <button id="singlePlayerBtn" data-testid="singlePlayerBtn" class="btn btn-secondary btn-ai">Play vs AI</button>
           <div class="difficulty-group">
             <div class="difficulty-label" id="difficultyLabel">Difficulty</div>
             <div id="difficultySelect" class="difficulty-select" role="radiogroup" aria-labelledby="difficultyLabel">
-              <button type="button" class="btn btn-difficulty" data-difficulty="easy" role="radio" aria-checked="false">
-                <span class="difficulty-tier">Easy</span>
-                <span class="difficulty-tier-note">Learns the ropes</span>
-              </button>
-              <button type="button" class="btn btn-difficulty active" data-difficulty="normal" role="radio" aria-checked="true">
-                <span class="difficulty-tier">Normal</span>
-                <span class="difficulty-tier-note">Balanced duel</span>
-              </button>
-              <button type="button" class="btn btn-difficulty" data-difficulty="hard" role="radio" aria-checked="false">
-                <span class="difficulty-tier">Hard</span>
-                <span class="difficulty-tier-note">Punishes mistakes</span>
-              </button>
+              <button type="button" class="btn btn-difficulty" data-difficulty="easy" role="radio" aria-checked="false">Easy</button>
+              <button type="button" class="btn btn-difficulty active" data-difficulty="normal" role="radio" aria-checked="true">Normal</button>
+              <button type="button" class="btn btn-difficulty" data-difficulty="hard" role="radio" aria-checked="false">Hard</button>
             </div>
-            <p id="difficultyHint" class="difficulty-hint" aria-live="polite"></p>
           </div>
         </div>
       </div>
@@ -132,13 +121,15 @@
           <span class="menu-discover-sub">Watch replays from the last games</span>
         </a>
       </div>
-      <details class="menu-surface menu-surface-join menu-disclosure">
-        <summary>Have a game code? Join a private match</summary>
+      <div class="menu-surface menu-surface-friends">
+        <div class="menu-friends-heading">Play with a friend</div>
+        <button id="createBtn" data-testid="createBtn" class="btn btn-secondary">Create Private Match</button>
+        <div class="menu-friends-divider"><span>or join with a code</span></div>
         <div class="join-row">
           <input id="codeInput" data-testid="codeInput" class="code-input" maxlength="5" placeholder="GAME CODE" autocapitalize="characters" spellcheck="false" aria-label="Game code">
           <button id="joinBtn" data-testid="joinBtn" class="btn btn-secondary" title="Enter a game code to join" disabled>Join</button>
         </div>
-      </details>
+      </div>
       <div class="menu-footer">
         <button id="menuHowToPlayBtn" class="menu-footer-link">How to Play</button>
         <a href="/agents" class="menu-footer-link menu-online-only">Build a Bot</a>

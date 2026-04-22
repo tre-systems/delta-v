@@ -201,14 +201,6 @@ body::before {
   margin-bottom: 0.5rem;
 }
 
-.menu-disclosure {
-  margin-top: 0.35rem;
-  margin-bottom: 0;
-  font-size: 0.72rem;
-  line-height: 1.55;
-  color: var(--muted);
-}
-
 :where(
   button,
   a,
