@@ -2,11 +2,14 @@ import { DurableObject } from 'cloudflare:workers';
 import type { PlayerToken, RoomCode } from '../shared/ids';
 import { isValidScenario } from '../shared/map-data';
 import {
+  OFFICIAL_QUICK_MATCH_BOT_WAIT_MS,
   QUICK_MATCH_SCENARIO,
   type QuickMatchResponse,
 } from '../shared/matchmaking';
 import {
   buildDefaultUsername,
+  buildOfficialQuickMatchBotProfile,
+  isOfficialQuickMatchBotPlayerKey,
   normalizePlayerKey,
   normalizeUsername,
   type PublicPlayerProfile,
@@ -117,6 +120,7 @@ const normalizeQuickMatchRequest = (
 ): {
   scenario: string;
   rendezvousCode: string | null;
+  acceptOfficialBotMatch: boolean;
   player: PublicPlayerProfile;
 } | null => {
   if (
@@ -156,6 +160,9 @@ const normalizeQuickMatchRequest = (
   return {
     scenario,
     rendezvousCode: rendezvousCode ?? null,
+    acceptOfficialBotMatch:
+      (raw as { acceptOfficialBotMatch?: unknown }).acceptOfficialBotMatch ===
+      true,
     player: {
       playerKey,
       username:
@@ -341,8 +348,9 @@ export class MatchmakerDO extends DurableObject<Env> {
           playerKey: player.playerKey,
           username,
           isAgent:
-            leaderboardAgentVerified &&
-            participantKindForKey(player.playerKey) === 'agent',
+            participantKindForKey(player.playerKey) === 'agent' &&
+            (leaderboardAgentVerified ||
+              isOfficialQuickMatchBotPlayerKey(player.playerKey)),
           now: Date.now(),
         });
         if (outcome.ok) {
@@ -367,6 +375,10 @@ export class MatchmakerDO extends DurableObject<Env> {
   private async findActiveMatchForPlayer(
     playerKey: string,
   ): Promise<{ code: string; scenario: string } | null> {
+    if (isOfficialQuickMatchBotPlayerKey(playerKey)) {
+      return null;
+    }
+
     const reg = this.env.LIVE_REGISTRY;
     if (!reg) {
       return null;
@@ -492,6 +504,36 @@ export class MatchmakerDO extends DurableObject<Env> {
     return entries;
   }
 
+  private async fillQueuedEntryWithBot(
+    entries: QueueEntry[],
+    humanIndex: number,
+    botProfile: PublicPlayerProfile,
+    now: number,
+  ): Promise<QueueEntry[] | null> {
+    const human = entries[humanIndex];
+
+    if (
+      !human ||
+      human.status !== 'queued' ||
+      entries.length >= MAX_ACTIVE_QUEUE_ENTRIES
+    ) {
+      return null;
+    }
+
+    const working = [...entries];
+    working.push({
+      ticket: `bot_${human.ticket}`,
+      scenario: human.scenario,
+      rendezvousCode: human.rendezvousCode,
+      player: botProfile,
+      queuedAt: now,
+      lastSeenAt: now,
+      status: 'queued',
+    });
+
+    return this.matchEntries(working, humanIndex, working.length - 1);
+  }
+
   private async handleEnqueue(request: Request): Promise<Response> {
     let payload: unknown;
 
@@ -537,12 +579,34 @@ export class MatchmakerDO extends DurableObject<Env> {
         leaderboardAgentVerified,
         lastSeenAt: now,
       };
+
+      if (
+        existing.status === 'queued' &&
+        parsed.acceptOfficialBotMatch &&
+        now - existing.queuedAt >= OFFICIAL_QUICK_MATCH_BOT_WAIT_MS
+      ) {
+        const matchedEntries = await this.fillQueuedEntryWithBot(
+          entries,
+          existingIndex,
+          buildOfficialQuickMatchBotProfile(),
+          now,
+        );
+
+        if (!matchedEntries) {
+          return new Response('Failed to allocate quick match', {
+            status: 503,
+          });
+        }
+
+        entries = matchedEntries;
+      }
+
       await this.writeQueue(entries);
       return Response.json(
-        existing.matched ?? {
+        entries[existingIndex]?.matched ?? {
           status: 'queued',
-          ticket: existing.ticket,
-          scenario: existing.scenario,
+          ticket: entries[existingIndex]?.ticket ?? existing.ticket,
+          scenario: entries[existingIndex]?.scenario ?? existing.scenario,
         },
       );
     }
