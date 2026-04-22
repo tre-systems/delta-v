@@ -8,25 +8,7 @@ Shipped work lives in `git log`, not here. Recurring review procedures live in [
 
 ## AI objective discipline (2026-04-21)
 
-Fresh hard-vs-hard simulation samples suggest the heuristic AI is still treating several objective scenarios as attrition fights instead of races or escorts. On 2026-04-21, `biplanetary` ended `120/120` by `Fleet eliminated!`; `blockade` ended `78/80` by elimination and `2/80` by mutual destruction; `evacuation` ended `78/80` by elimination and only `2/80` by `Landed on Terra with colonists!`; `convoy` ended `66/80` by elimination, `10/80` by `Landed on Venus with colonists!`, and `4/80` by timeout. The balance harness currently considers those runs "healthy", but from a gameplay perspective they show that the AI under-values the actual win criteria.
-
-### Reweight target-body races around imminent completion, not just distance (P1)
-
-`src/shared/ai/scoring.ts` currently rewards target-body progress mostly through distance reduction, velocity alignment, and a large terminal landing bonus. That means "already on a clean landing line next turn" and "still technically getting closer but drifting into a fight" can score too similarly until the final landing turn.
-
-Action: extend objective navigation scoring so orbit setup, next-turn landing windows, braking discipline, and preserving a favored race line score much more strongly. Penalize leaving a line that remains ahead on projected landing time even if the detour improves local combat geometry.
-
-### Narrow the Bi-Planetary home-screening override to true emergency states (P1)
-
-`src/shared/ai/common.ts` applies `getHomeDefenseThreat()` plus `scoreObjectiveHomeDefenseCourse()` to single-ship target-body duels. In practice that can pull a Bi-Planetary ship off its own landing race and back toward home whenever the opponent is merely projected closer to the home world than the AI is to its target.
-
-Action: replace the coarse "screen home if opponent is ahead by a couple of hexes" rule with a race-aware check that only defends when the opponent is genuinely about to win first and the intercept line improves that outcome more than continuing the AI's own scoring run.
-
-### Make combat and ordnance choices prove they help the scenario objective (P1)
-
-`src/shared/ai/scoring.ts`, `src/shared/ai/combat.ts`, and `src/shared/ai/ordnance.ts` still value many engagements on local odds, range, and disabled-target bonuses, even in scenarios where the right answer is to keep flying or cover the carrier. The current "objective contested" check is too soft: it keeps combat incentives alive in race scenarios long after the better strategic move is to continue the win line.
-
-Action: add scenario-aware combat and ordnance gates so target-body racers, blockade runners, and passenger carriers only trade position or fire when the engagement materially delays the enemy objective or protects an otherwise losing objective line.
+Fresh hard-vs-hard simulation samples showed the heuristic AI treating several objective scenarios as attrition fights instead of races or escorts. Since then, the targeted target-race work has brought `biplanetary` back above the objective-resolution warning floor, so the remaining live AI objective issues are now concentrated in the passenger scenarios plus `grandTour` seat balance rather than the original single-ship landing duel.
 
 ### Retune passenger-carrier doctrine so arrival outranks hull quality (P1)
 
@@ -36,9 +18,9 @@ Action: revisit `scorePassengerCarrier()`, transfer thresholds, and escort postu
 
 ### Add objective-discipline regression tests and simulation thresholds (P2)
 
-The current AI tests cover safety, escape-edge behavior, and one Bi-Planetary home-screening case, but they do not assert that target-body and passenger scenarios actually behave like target-body and passenger scenarios. `scripts/simulate-ai.ts` records win reasons, yet CI only checks crash-free execution and broad seat-balance thresholds.
+The AI suite now has better target-race coverage, but the passenger scenarios still need scenario-specific "protect the scoring runner" fixtures and broader seeded validation. `scripts/simulate-ai.ts` now emits objective-resolution warnings, yet we still mostly rely on ad-hoc seeded sweeps to decide whether convoy / evacuation behavior is good enough.
 
-Action: add focused regression fixtures for "take the landing line", "do not abandon the carrier's scoring route without immediate danger", and "narrow the existing Bi-Planetary defense test to real emergency cases". Extend the simulation harness with per-scenario objective-completion expectations or at least warnings when objective scenarios resolve almost entirely by elimination.
+Action: add focused passenger-objective regressions for "do not abandon the carrier's scoring route without immediate danger" and keep extending the simulation harness / docs so future regressions show up as explicit objective warnings rather than only in manual sweep review.
 
 ## Launch-readiness snapshot (2026-04-19)
 
@@ -62,7 +44,6 @@ Pinned by an exploratory pass on production (see [EXPLORATORY_TESTING.md](./EXPL
 - `/join/{code}` returns `{ok, scenario, seatStatus}` — matches the "room metadata" doc contract.
 - `delta_v_reconnect` shipped in local MCP; hosted session/event parity work also shipped for `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session`.
 - DO close handler no longer causing visible exceptions in tail during normal close (re-verify on next post-deploy pass).
-- Evacuation scenario balance fixed: 100-game sweep now 63/37 (was 3/97).
 - Matchmaker seat-shuffle shipped: `Math.random() < 0.5` in `matchEntries` at [src/server/matchmaker-do.ts](../src/server/matchmaker-do.ts).
 - `/favicon.ico`, `/favicon.svg`, `/apple-touch-icon.png` now return 200 (no more favicon 404 noise, iOS home-screen icon works).
 - `Forget my callsign` control exists on the lobby and regenerates to an anonymous `Pilot XXXX` identity (confirmed 2026-04-19).
@@ -221,7 +202,7 @@ Action: poll `/version.json` from the client every ~10 min, compare its `assetsH
 
 ### Quick-match official bot fill (2026-04-22)
 
-If quick match cannot find a human promptly, the product should offer a **real rated match** against a platform-operated opponent instead of silently dropping the player into local skirmish AI. The codebase already has the important primitives — dev-only synthetic quick-match fill in `src/server/matchmaker-do.ts`, server-side `agent_` autoplay in `src/server/game-do/bot.ts`, and rated `agent_` leaderboard plumbing — so the backlog here is about turning that into an honest production feature with low operating cost.
+If quick match cannot find a human promptly, the product should offer a **real rated match** against a platform-operated opponent instead of silently dropping the player into local skirmish AI. The server-side contract, telemetry, archive metadata, and metrics support are now in place; the remaining work is the explicit player-facing offer flow and provenance in the UI.
 
 #### Add an explicit human-first fallback offer in quick match UX (P1)
 
@@ -235,18 +216,6 @@ Action: define the wait threshold, add the queued-state UX copy, and keep the ac
 
 **Files:** `src/client/home/*`, `src/server/matchmaker-do.ts`, `src/shared/matchmaking.ts`
 
-#### Promote the dev-only quick-match bot into a production official-bot seat (P1)
-
-The MVP should reuse the existing server `agent_` autoplayer path, not a hosted LLM. That keeps cost and latency low and preserves the "real match" pipeline: room creation, archive, rating write, replay, and leaderboard updates. The platform bot should have a stable identity such as `agent_official_quickmatch_normal`, not a disposable per-ticket dev key.
-
-Action: add a production-safe official-bot matchmaking path behind explicit client acceptance, wire it to a stable `agent_` profile, and keep the default brain server-side heuristic AI for now. LLM-backed play should stay out of the first release unless the heuristic path proves clearly inadequate.
-
-**Tests:**
-- `src/server/matchmaker-do.test.ts` / `src/server/matchmaker-do.more.test.ts` — accepted fallback creates a match with the stable official bot profile and correct participant kinds.
-- `src/server/game-do/game-do.test.ts` — official bot seats auto-act through the normal server bot path and complete a rated match without special-case room handling.
-
-**Files:** `src/server/matchmaker-do.ts`, `src/server/game-do/bot.ts`, `src/server/game-do/game-do.ts`, `src/shared/player.ts`
-
 #### Make official bot provenance obvious in the product surface (P1)
 
 If the platform creates the opponent, that should be visible. User-created agents can keep reading as ordinary competitors; platform fill bots should be marked as such in the matchup UI, match history, replay chrome, and leaderboard row presentation. This does not require separate rating math or a separate ladder in the first pass, just honest disclosure.
@@ -258,33 +227,6 @@ Action: add an `Official Bot` badge or equivalent display affordance anywhere th
 - `src/client/game/replay-controller.test.ts` / match-history UI tests — replay and match history preserve and render the official-bot label from archived metadata.
 
 **Files:** `src/client/leaderboard/*.ts`, `src/client/game/main-session-shell.ts`, `src/client/game/replay-controller.ts`, `src/server/game-do/archive.ts`, `src/shared/types/*`
-
-#### Add rating and telemetry guardrails before broad rollout (P2)
-
-The product can keep these matches rated, but only if we can see whether the official bot is distorting the ladder or being farmed. The first pass needs uptake, win-rate, and queue-relief telemetry, plus a straightforward operator kill switch if the bot path misbehaves.
-
-Action: emit explicit events for fallback offered / accepted / declined / completed, segment official-bot matches in rating and matchmaking analysis, and add a config flag to disable the feature quickly. Only revisit ladder segmentation if the telemetry shows a real integrity problem.
-
-**Tests:**
-- `src/server/game-do/telemetry.test.ts` / nearest event tests — official-bot match lifecycle emits the expected structured events.
-- `scripts/simulate-ai.ts` or matchmaking telemetry queries — official-bot matches can be distinguished cleanly from human-vs-human and user-agent matches in reporting.
-
-**Files:** `src/server/game-do/telemetry.ts`, `src/server/matchmaker-do.ts`, `docs/OBSERVABILITY.md`, `docs/AGENTS.md`
-
-#### Parallel workstreams
-
-The two streams should cover the important open work across this backlog, not only the official-bot feature:
-
-- **Stream 1 — Client experience + product surfaces**
-  Owns the player-facing backlog: Play-vs-AI Turn 1 ordnance repro, contrast audit, notification-channel cleanup, remaining digital-input parity, the Grand Tour UI/feedback items, the quick-match fallback offer UI, official-bot presentation in leaderboard/match/replay surfaces, home-menu layout/difficulty simplification, and the client-side spectator/replay engagement telemetry gaps. This stream owns `src/client/home/*`, `src/client/ui/*`, `src/client/renderer/*`, `src/client/game/main-session-shell.ts`, `src/client/game/replay-controller.ts`, `src/client/game/command-router.ts`, `src/client/game/ordnance.ts`, `src/client/game/landings.ts`, `src/client/game-client-browser.ts`, `src/client/leaderboard/*.ts`, `src/client/telemetry.ts`, `static/index.html`, `static/matches.html`, `static/leaderboard.html`, and `static/styles/*.css`.
-- **Stream 2 — AI, matchmaking, and server systems**
-  Owns the systems backlog: AI objective-discipline tuning, Grand Tour AI route/seat-balance follow-up, the remaining AI ordnance / seat-balance / timeout / difficulty-tier items, the production official-bot matchmaking path, rating/telemetry guardrails, the official-bot metadata contract emitted by the server, and the server-side observability work (`/api/metrics`-style aggregates). This stream owns `src/shared/ai/*`, `src/shared/engine/*`, `src/shared/matchmaking.ts`, `src/shared/movement.ts`, `src/shared/player.ts`, `src/shared/types/*`, `src/server/matchmaker-do.ts`, `src/server/game-do/*`, `src/server/reporting.ts`, new `src/server/metrics-route.ts`, `scripts/simulate-ai.ts`, `docs/OBSERVABILITY.md`, and `docs/AGENTS.md`.
-
-Notes:
-- Stream 2 should reserve the stable official-bot contract first: `agent_official_quickmatch_*`, display name, archive metadata shape, and any boolean/tag field. Stream 1 should only consume that contract.
-- Stream 1 should stay off `src/shared/ai/*`, `src/server/matchmaker-do.ts`, and the authoritative GameDO files.
-- Stream 2 should stay off the renderer / lobby / leaderboard / replay / static-style files listed above.
-- Lower-priority hygiene items such as the transitive `hono` advisory and optional publication-path deduplication can stay outside these streams unless one stream finishes early.
 
 ### Home-menu layout and difficulty-selector simplification (2026-04-22)
 
@@ -394,18 +336,15 @@ Follow-up seeded sweep 2026-04-20 (`8` base seeds × `30` games = `240` total) s
 
 ### Seat-balance drift after 2026-04-21 AI changes
 
-Re-ran the balance sweep after Stream 1's landing-approach / target-race / blockade-objective AI commits (`dcd8626`, `6b08de7`, `cf9b8ee`, `b6b84ec`, `9d9a04c`, `9861219`, `a22baa7`, `8f0a9d1`) shipped to main. Two 30-game hard-vs-hard runs per scenario produced a few scenarios that now drift outside the harness's seat-balance warning band:
+Fresh reruns on 2026-04-22 trimmed this list. `biplanetary` now clears the objective-resolution warning again, and `convoy` is back inside the current CI seat-balance band on a 100-game hard-vs-hard sweep (`64/28/8`, `48.5` average turns, `33` objective wins). `fleetAction` is still watch-only rather than urgent (`52/38/10`, `54.5` average turns).
 
-| Scenario | P0% | P1% | Draws | Avg turns | Warning |
-|---|---:|---:|---:|---:|---|
-| evacuation | 26.7–33.3 | 66.7–73.3 | 0 | 2.8 | P0 decided rate outside `[35-65%]` |
-| convoy | 73.1–75.0 | 20 | 0–2 | ~42 | P0 decided rate outside `[30-70%]` |
-| fleetAction | 37.9–60.0 | 33–42 | 1–2 | ~30–49 | first run showed P0 outside `[45-80%]` |
-| biplanetary | 50 / 50 | — | 0 | 8.5 | but 96.7% `Fleet eliminated!` / 3.3% objective |
+The one clearly live non-Grand-Tour failure from this batch is now **evacuation**:
 
-Evacuation specifically: the earlier "**Fixed since opening — Evacuation scenario balance fixed: 100-game sweep now 63/37**" launch-readiness entry no longer holds on 30-game runs; the P0 decided rate swung back to ~33% (P1 dominance). At 2.8 avg turns it's decided very quickly — likely one of the new scoring weights is overshooting. Convoy P0 is now 73-75% (decisive but lopsided). FleetAction has wider seed variance than before.
+| Scenario | P0% | P1% | Draws | Avg turns | Objective share |
+|---|---:|---:|---:|---:|---:|
+| evacuation | 28 | 72 | 0 | 2.5 | 25% (`Landed on Terra with colonists!`) |
 
-Needs a 100-game hard-vs-hard sweep to confirm signal vs 30-game noise, then targeted tuning. None of these is a launch-blocker on its own, but stacked with the Grand Tour deadlock they point to collateral damage from the latest AI sweep that wasn't caught by the CI gate (which is deliberately wide at 45-85% P0 for `grandTour` / `duel` only).
+That reconfirms that the old "Evacuation scenario balance fixed" note was stale. The scenario is still resolving too quickly and too often by elimination (`75/100`) instead of successful passenger delivery (`25/100`), so the remaining passenger-objective work should focus there first.
 
 **Files:** `src/shared/ai/scoring.ts`, `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`, `src/shared/scenario-definitions.ts`, `scripts/simulate-ai.ts`.
 
