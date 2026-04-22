@@ -12,6 +12,7 @@ import type {
 } from '../../shared/types/domain';
 import {
   buildAstrogationCoursePreviewViews,
+  buildAstrogationVectorReadout,
   type CoursePreviewPlanningState,
 } from './course';
 
@@ -216,5 +217,93 @@ describe('renderer course helpers', () => {
     expect(previews[0].lineColor).toBe('#ff4444');
     expect(previews[0].ghostShip).toBeNull();
     expect(previews[0].crashMarker).not.toBeNull();
+  });
+});
+
+describe('buildAstrogationVectorReadout', () => {
+  it('returns null off astrogation phase', () => {
+    const state = createState([createShip({ velocity: { dq: 1, dr: 0 } })]);
+    state.phase = 'combat';
+    const readout = buildAstrogationVectorReadout(
+      state,
+      0,
+      createPlanning({ selectedShipId: 'ship-0' }),
+      28,
+    );
+    expect(readout).toBeNull();
+  });
+
+  it('returns null when no ship is selected', () => {
+    const state = createState([createShip({ velocity: { dq: 1, dr: 0 } })]);
+    const readout = buildAstrogationVectorReadout(
+      state,
+      0,
+      createPlanning(),
+      28,
+    );
+    expect(readout).toBeNull();
+  });
+
+  it('shows current speed and omits burn/next labels when no burn is queued', () => {
+    const state = createState([createShip({ velocity: { dq: 2, dr: 0 } })]);
+    const readout = buildAstrogationVectorReadout(
+      state,
+      0,
+      createPlanning({ selectedShipId: 'ship-0' }),
+      28,
+    );
+    expect(readout).not.toBeNull();
+    expect(readout?.currentSpeedLabel.text).toBe('v=2');
+    expect(readout?.burnDeltaLabel).toBeNull();
+    // When no burn: the next-label mirrors the current one (same text
+    // and position) so the readout stays stable rather than disappearing
+    // between selection and burn input.
+    expect(readout?.nextSpeedLabel.text).toBe('v=2');
+  });
+
+  it('shows Δv and the post-burn speed when a burn is queued', () => {
+    // Ship at rest (v=0). Burn in direction 0 (dq=+1, dr=0) → v'=1.
+    const state = createState([createShip({ velocity: { dq: 0, dr: 0 } })]);
+    const readout = buildAstrogationVectorReadout(
+      state,
+      0,
+      createPlanning({
+        selectedShipId: 'ship-0',
+        burns: new Map([['ship-0', 0]]),
+      }),
+      28,
+    );
+    expect(readout?.currentSpeedLabel.text).toBe('v=0');
+    expect(readout?.nextSpeedLabel.text).toBe("v'=1");
+    expect(readout?.burnDeltaLabel?.text).toBe('Δv');
+  });
+
+  it('suppresses the burn label when the ship is disabled or out of fuel', () => {
+    const disabledReadout = buildAstrogationVectorReadout(
+      createState([
+        createShip({
+          velocity: { dq: 1, dr: 0 },
+          damage: { disabledTurns: 2 },
+        }),
+      ]),
+      0,
+      createPlanning({
+        selectedShipId: 'ship-0',
+        burns: new Map([['ship-0', 0]]),
+      }),
+      28,
+    );
+    expect(disabledReadout?.burnDeltaLabel).toBeNull();
+
+    const dryReadout = buildAstrogationVectorReadout(
+      createState([createShip({ velocity: { dq: 1, dr: 0 }, fuel: 0 })]),
+      0,
+      createPlanning({
+        selectedShipId: 'ship-0',
+        burns: new Map([['ship-0', 0]]),
+      }),
+      28,
+    );
+    expect(dryReadout?.burnDeltaLabel).toBeNull();
   });
 });
