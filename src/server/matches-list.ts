@@ -32,6 +32,7 @@ export interface MatchListingRow {
   createdAt: number;
   completedAt: number;
   coached: boolean;
+  officialBotMatch: boolean;
   winnerUsername: string | null;
   loserUsername: string | null;
 }
@@ -232,7 +233,7 @@ const parseFilters = (
 };
 
 // D1 row shape — reflects the CREATE TABLE in 0002_match_archive.sql
-// plus the match_coached column added in 0003_match_archive_listing.sql.
+// plus later archive flags such as match_coached and official_bot_match.
 interface MatchArchiveRow {
   game_id: string;
   room_code: string;
@@ -243,6 +244,7 @@ interface MatchArchiveRow {
   created_at: number;
   completed_at: number;
   match_coached: number | null;
+  official_bot_match: number | null;
 }
 
 const toListingRow = (row: MatchArchiveRow): MatchListingRow => ({
@@ -255,6 +257,7 @@ const toListingRow = (row: MatchArchiveRow): MatchListingRow => ({
   createdAt: row.created_at,
   completedAt: row.completed_at,
   coached: Boolean(row.match_coached),
+  officialBotMatch: Boolean(row.official_bot_match),
   winnerUsername: null,
   loserUsername: null,
 });
@@ -291,7 +294,7 @@ export const handleMatchesList = async (
 
   const SELECT_COLUMNS =
     'ma.game_id, ma.room_code, ma.scenario, ma.winner, ma.win_reason, ' +
-    'ma.turns, ma.created_at, ma.completed_at, ma.match_coached';
+    'ma.turns, ma.created_at, ma.completed_at, ma.match_coached, ma.official_bot_match';
   const JOINS = 'FROM match_archive ma';
 
   const whereClauses: string[] = [];
