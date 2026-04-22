@@ -250,12 +250,43 @@
   text-align: center;
 }
 
-.menu-surface-join {
+.menu-surface-friends {
   --menu-surface-bg: linear-gradient(
     180deg,
     rgba(14, 24, 42, 0.92),
     rgba(9, 16, 29, 0.88)
   );
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#menu .menu-friends-heading {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(199, 212, 234, 0.72);
+  text-align: center;
+}
+
+#menu .menu-friends-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: rgba(190, 202, 223, 0.55);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+#menu .menu-friends-divider::before,
+#menu .menu-friends-divider::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 #menu .btn {
@@ -352,23 +383,6 @@
   --btn-bg-hover: rgba(255, 255, 255, 0.05);
 }
 
-#menu .difficulty-tier {
-  display: block;
-}
-
-#menu .difficulty-tier-note {
-  display: block;
-  font-size: 0.54rem;
-  letter-spacing: 0.06em;
-  text-transform: none;
-  color: rgba(199, 212, 234, 0.72);
-  white-space: nowrap;
-}
-
-#menu .btn-difficulty.active .difficulty-tier-note {
-  color: rgba(235, 244, 255, 0.88);
-}
-
 #menu .btn-difficulty.active {
   --btn-color: #f7fbff;
   --btn-border: rgba(122, 215, 255, 0.56);
@@ -383,15 +397,6 @@
   --btn-shadow-hover:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 12px 24px rgba(21, 66, 128, 0.2);
-}
-
-#menu .difficulty-hint {
-  min-height: 2.5em;
-  margin: 0;
-  font-size: 0.74rem;
-  line-height: 1.45;
-  color: rgba(206, 220, 242, 0.82);
-  text-align: center;
 }
 
 #menu .divider {
@@ -432,37 +437,6 @@
 #menu .kofi-link img {
   border-radius: var(--radius-pill);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
-}
-
-#menu .menu-disclosure {
-  margin-top: 0.15rem;
-  padding: 0.55rem 0.95rem;
-  border-radius: 16px;
-  border: 1px solid rgba(142, 176, 235, 0.1);
-  background:
-    linear-gradient(180deg, rgba(12, 20, 36, 0.82), rgba(8, 14, 27, 0.94));
-  color: rgba(190, 202, 223, 0.7);
-}
-
-#menu .menu-disclosure summary {
-  cursor: pointer;
-  text-align: center;
-  list-style: none;
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
-  color: rgba(190, 202, 223, 0.5);
-}
-
-#menu .menu-disclosure summary::-webkit-details-marker {
-  display: none;
-}
-
-#menu .menu-disclosure[open] {
-  padding: 0.85rem 0.95rem;
-}
-
-#menu .menu-disclosure[open] summary {
-  margin-bottom: 0.5rem;
 }
 
 .btn {
@@ -1068,32 +1042,6 @@
   margin-top: 0;
   padding-top: 0.15rem;
   text-align: center;
-}
-
-/* The "Join a private match" disclosure sits as a quiet row by default;
- * opened it expands to show the join form without pushing the more
- * prominent CTAs above it.
- */
-.menu-disclosure > summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 0.5rem 0.8rem;
-  font-family: var(--font-ui);
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  color: rgba(159, 181, 196, 0.85);
-  text-align: center;
-}
-
-.menu-disclosure > summary:hover,
-.menu-disclosure > summary:focus-visible {
-  color: rgba(122, 215, 255, 0.95);
-  outline: none;
-}
-
-.menu-disclosure[open] > summary {
-  margin-bottom: 0.6rem;
-  color: rgba(230, 238, 248, 0.95);
 }
 
 @media (max-width: 520px) {
