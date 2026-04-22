@@ -4,6 +4,7 @@ import { isValidScenario } from '../shared/map-data';
 import {
   OFFICIAL_QUICK_MATCH_BOT_WAIT_MS,
   QUICK_MATCH_SCENARIO,
+  type QuickMatchQueuedResponse,
   type QuickMatchResponse,
 } from '../shared/matchmaking';
 import {
@@ -86,6 +87,25 @@ const reportMatchmakerEvent = (
 
 const isOfficialQuickMatchBotEnabled = (env: Env): boolean =>
   env.OFFICIAL_QUICK_MATCH_BOT_ENABLED !== '0';
+
+const buildQueuedResponse = (
+  entry: Pick<QueueEntry, 'ticket' | 'scenario' | 'queuedAt'>,
+  now: number,
+  env: Env,
+): QuickMatchQueuedResponse => {
+  const waitedMs = now - entry.queuedAt;
+  const offerEnabled = isOfficialQuickMatchBotEnabled(env);
+  return {
+    status: 'queued',
+    ticket: entry.ticket,
+    scenario: entry.scenario,
+    officialBotOfferAvailable:
+      offerEnabled && waitedMs >= OFFICIAL_QUICK_MATCH_BOT_WAIT_MS,
+    officialBotWaitMsRemaining: offerEnabled
+      ? Math.max(OFFICIAL_QUICK_MATCH_BOT_WAIT_MS - waitedMs, 0)
+      : null,
+  };
+};
 
 const MATCHMAKER_STORAGE_KEY = 'quickMatchQueue';
 const HEARTBEAT_TTL_MS = 15_000;
@@ -625,11 +645,16 @@ export class MatchmakerDO extends DurableObject<Env> {
 
       await this.writeQueue(entries);
       return Response.json(
-        entries[existingIndex]?.matched ?? {
-          status: 'queued',
-          ticket: entries[existingIndex]?.ticket ?? existing.ticket,
-          scenario: entries[existingIndex]?.scenario ?? existing.scenario,
-        },
+        entries[existingIndex]?.matched ??
+          buildQueuedResponse(
+            {
+              ticket: entries[existingIndex]?.ticket ?? existing.ticket,
+              scenario: entries[existingIndex]?.scenario ?? existing.scenario,
+              queuedAt: entries[existingIndex]?.queuedAt ?? existing.queuedAt,
+            },
+            now,
+            this.env,
+          ),
       );
     }
 
@@ -689,11 +714,7 @@ export class MatchmakerDO extends DurableObject<Env> {
     }
 
     return Response.json(
-      current.matched ?? {
-        status: 'queued',
-        ticket: current.ticket,
-        scenario: current.scenario,
-      },
+      current.matched ?? buildQueuedResponse(current, now, this.env),
     );
   }
 
@@ -777,11 +798,16 @@ export class MatchmakerDO extends DurableObject<Env> {
     await this.writeQueue(entries);
 
     return Response.json(
-      entries[index]?.matched ?? {
-        status: 'queued',
-        ticket,
-        scenario: entries[index]?.scenario ?? QUICK_MATCH_SCENARIO,
-      },
+      entries[index]?.matched ??
+        buildQueuedResponse(
+          {
+            ticket,
+            scenario: entries[index]?.scenario ?? QUICK_MATCH_SCENARIO,
+            queuedAt: entries[index]?.queuedAt ?? current.queuedAt,
+          },
+          now,
+          this.env,
+        ),
     );
   }
 
