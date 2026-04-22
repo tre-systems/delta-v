@@ -81,9 +81,9 @@ npm run typecheck:all
 # Local D1 for wrangler dev during e2e (idempotent if already applied).
 npx wrangler d1 migrations apply delta-v-telemetry --local
 
-# Fresh coverage dir avoids occasional ENOENT on coverage/.tmp (stale merge state).
+# Fresh coverage dir avoids stale report overlap between the split
+# client and server/shared coverage passes.
 rm -rf coverage
-mkdir -p coverage/.tmp
 npm run test:coverage
 
 # Free port + no reuse: avoids clashing with dev servers or a stuck process on a fixed port.

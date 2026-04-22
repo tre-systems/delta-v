@@ -190,12 +190,12 @@ expect(seq).toMatchInlineSnapshot('[0.123, 0.456, …]');
 
 ## Coverage Thresholds
 
-**Pattern.** V8 coverage thresholds enforced on `src/shared/**/*.ts`. Pre-commit and CI both run `test:coverage` — thresholds are a ratchet, not a target.
+**Pattern.** V8 coverage thresholds are enforced across the engine, server, MCP adapter, and client. Pre-push and CI both run `test:coverage` — thresholds are a ratchet, not a target.
 
 **Minimal example.**
 
 ```ts
-// vitest.config.ts (excerpt):
+// vitest config excerpts:
 coverage: {
   provider: 'v8',
   thresholds: {
@@ -210,12 +210,13 @@ coverage: {
 }
 ```
 
-**Where it lives.** [`vitest.config.ts`](../vitest.config.ts). Reports in `coverage/` (gitignored).
+**Where it lives.** [`vitest.config.ts`](../vitest.config.ts), [`vitest.coverage.client.config.ts`](../vitest.coverage.client.config.ts), and [`vitest.coverage.server.config.ts`](../vitest.coverage.server.config.ts). Reports in `coverage/client/` and `coverage/server-shared/` (gitignored).
 
 **Why this shape.**
 
 - **Prevents backsliding.** A refactor that adds untested code fails CI.
-- **`src/shared/` only.** The engine is the replay contract — its coverage matters most. Server and client coverage is useful but not yet enforced.
+- **Per-surface floors.** The engine still carries the strictest floors, but server/game-do, MCP adapter, and client coverage are also ratcheted so refactors cannot silently hollow them out.
+- **Sequential coverage passes avoid Vitest temp-file races.** Client and server/shared suites no longer share one `coverage/.tmp/` directory.
 - **Branch threshold intentionally lower.** Defensive branches in complex game rules are hard to exercise; forcing 85 % branch coverage would encourage exercises that don't add real confidence.
 
 ---

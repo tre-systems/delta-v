@@ -42,7 +42,11 @@ CI still runs the full verification list (without local D1 setup) — see [`.git
 
 ### Coverage
 
-`test:coverage` uses `--no-file-parallelism` so Vitest's v8 merger does not race on `coverage/.tmp/*.json`. If coverage fails unexpectedly, remove `coverage/` and retry.
+`test:coverage` runs two sequential Vitest coverage passes:
+- client tests write reports under `coverage/client`
+- server/shared/MCP tests write reports under `coverage/server-shared`
+
+Each pass still uses `--no-file-parallelism`, but the real fix is that the two suites no longer share one `coverage/.tmp/` directory. If coverage fails unexpectedly, remove `coverage/` and retry.
 
 Both `npm test` and `npm run test:coverage` set `NODE_OPTIONS=--localstorage-file=/tmp/deltav-vitest-localstorage` to silence Node 25+ experimental web-storage warnings.
 
