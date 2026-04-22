@@ -5,7 +5,9 @@ import type {
 } from '../../shared/types/domain';
 import type { PlanningState } from '../game/planning';
 import {
+  type AstrogationVectorReadoutView,
   buildAstrogationCoursePreviewViews,
+  buildAstrogationVectorReadout,
   type CourseArrowView,
   type CourseCrashMarkerView,
   type CoursePreviewView,
@@ -201,6 +203,37 @@ export type DrawAstrogationCoursePreviewLayerInput = {
   zoom: number;
 };
 
+const drawAstrogationVectorReadout = (
+  ctx: CanvasRenderingContext2D,
+  readout: AstrogationVectorReadoutView,
+  zoom: number,
+): void => {
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = scaledFont('600 11px monospace', zoom);
+
+  const labels = [
+    readout.currentSpeedLabel,
+    readout.nextSpeedLabel,
+    readout.burnDeltaLabel,
+  ];
+  for (const label of labels) {
+    if (!label) continue;
+    // Pill background so the label stays legible against the course
+    // polyline and gravity rings.
+    const metrics = ctx.measureText(label.text);
+    const padX = 4;
+    const padY = 2;
+    const h = 12;
+    const w = metrics.width + padX * 2;
+    ctx.fillStyle = 'rgba(6, 14, 28, 0.78)';
+    ctx.fillRect(label.position.x - w / 2, label.position.y - h + padY, w, h);
+    ctx.fillStyle = label.color;
+    ctx.fillText(label.text, label.position.x, label.position.y);
+  }
+  ctx.restore();
+};
+
 export const drawAstrogationCoursePreviewLayer = (
   input: DrawAstrogationCoursePreviewLayerInput,
 ): void => {
@@ -222,5 +255,14 @@ export const drawAstrogationCoursePreviewLayer = (
     hexSize,
   )) {
     drawSingleCoursePreview(ctx, preview, drawShipIcon, playerId, zoom);
+  }
+  const readout = buildAstrogationVectorReadout(
+    state,
+    playerId,
+    planningState,
+    hexSize,
+  );
+  if (readout) {
+    drawAstrogationVectorReadout(ctx, readout, zoom);
   }
 };
