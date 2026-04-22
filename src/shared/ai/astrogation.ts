@@ -188,15 +188,15 @@ const scoreObjectiveRaceLine = (
     currentLandingTurns <= 2 &&
     nextLandingTurns === null
   ) {
-    score -= cfg.navTargetLandingBonus * 0.18;
+    score -= cfg.navTargetLandingBonus * 0.3;
   }
 
   if (
     currentLandingTurns === 1 &&
-    nextLandingTurns !== null &&
-    nextLandingTurns > 1
+    nextLandingTurns !== 0 &&
+    nextLandingTurns !== 1
   ) {
-    score -= cfg.navTargetLandingBonus * 0.28;
+    score -= cfg.navTargetLandingBonus * 0.4;
   }
 
   if (currentLandingTurns === 2 && nextLandingTurns === 1) {
@@ -208,7 +208,7 @@ const scoreObjectiveRaceLine = (
     nextLandingTurns !== null &&
     nextLandingTurns > 2
   ) {
-    score -= cfg.navImminentLandingBonus * 0.4;
+    score -= cfg.navImminentLandingBonus * 0.8;
   }
 
   if (
