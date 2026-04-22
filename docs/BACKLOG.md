@@ -137,6 +137,177 @@ Remaining audit: session UI effects / reactive wiring, telemetry-driven copy, an
 
 **Files:** `src/client/game-client-browser.ts`, `src/client/game/client-runtime.ts`, `src/client/game/input-events.ts`, `src/client/game/input.ts`, `src/client/game/combat.ts`, `src/client/ui/hud.ts`, `static/index.html`
 
+### Grand Tour exploratory findings (2026-04-22)
+
+Fresh human playtest of the Grand Tour scenario surfaced a cluster of race-mode UX gaps. Each is a distinct item but they were reported together, so they share a dated subsection. For each, add the listed tests *before* changing behavior so the intended state is pinned.
+
+#### Make race checkpoints legible (P1)
+
+The eight Grand Tour checkpoints (`src/shared/engine/victory.ts:30-62`: `Sol, Mercury, Venus, Terra, Mars, Jupiter, Io, Callisto`) are only tracked in `state.players[i].visitedBodies`. They are *not* rendered on the map and there is no HUD "N/8 visited" tally, so players cannot tell which bodies count or how close they are to finishing. A flyby through the gravity or body hex ticks them off — landing is not required except for the final return home — which is also not surfaced.
+
+Scenario map-layout side: `Ceres`, `Ganymede`, and `Clandestine` are on the map but are *not* checkpoints; their presence looks load-bearing but isn't, which compounds the confusion.
+
+Action: render a subtle ring (or pip cluster near the body label) on each checkpoint body, with a visited/unvisited style. Add a Grand Tour HUD line showing `N/8 · Return to {homeBody}`. Make sure checkpoint flyby updates both.
+
+**Tests:**
+- `src/client/renderer/map.test.ts` — add `buildCheckpointMarkerView` coverage: visited vs unvisited styling, correct body set for `grandTour` rules.
+- `src/client/game/hud-view-model.test.ts` — add Grand Tour HUD line with checkpoint count + home body.
+- `src/shared/engine/victory.test.ts` — sanity fixture asserting the exact checkpoint list for `grandTour` so future scenario edits don't silently drift.
+
+**Files:** `src/client/renderer/scene.ts`, `src/client/renderer/map.ts`, `src/client/game/hud-view-model.ts`, `src/client/ui/hud.ts`, `src/shared/scenario-definitions.ts`
+
+#### Decorative body ripples read as threat zones in race mode (P2)
+
+`src/client/renderer/map.ts:89-95` emits three pulsing ripples at each body using the body's own color. Mars (`#cc4422`) and Sol (`#ffcc00`) ripples read as red/orange rings around those bodies, which the tester interpreted as base-defense range — in a scenario (`combatDisabled: true`) where bases never fire. The ripples are purely decorative, so the ambiguity is the whole issue.
+
+Action: either (a) desaturate / shrink ripples so they no longer read as combat circles, or (b) use a shared neutral hue so body-color-derived rings don't accidentally signal threat on red-hued bodies. If checkpoint rings land first (previous item), re-evaluate whether ripples are still needed at all.
+
+**Tests:**
+- `src/client/renderer/map.test.ts` — pin the chosen ripple color/alpha so future UI tweaks don't regress it back to body-color.
+
+**Files:** `src/client/renderer/map.ts`, `src/client/renderer/scene.ts`
+
+#### Landing-at-base feedback is too quiet about why resupply did or didn't happen (P1)
+
+`applyResupply` at `src/shared/engine/post-movement.ts:259-292` only refuels when the player controls the base (`playerControlsBase` check line 272). In Grand Tour `sharedBases: ['Terra', 'Venus', 'Mars', 'Callisto']` (see `src/shared/scenario-definitions.ts:409`) — so landing at Mercury / Luna / Io / Ganymede / Ceres / Clandestine gives *no* resupply even though they all have a base hex. Landing on a bare body (non-destructive, no base) is legal at velocity 0 (`src/shared/movement.ts:225-233`) but of course also gives no resupply. The landing log line in `src/client/game/landings.ts:38-41` shows the resupply text only for owned bases and stays silent otherwise, which reads like "nothing happened".
+
+Action: keep current resupply rules, but surface the *reason* on every landing — `... landed on Io (neutral base — no resupply)` or `... landed on Ceres (no base — no resupply)` — so the player can tell "wrong kind of stop" from "engine bug". Separately decide whether Grand Tour should broaden resupply across all bases (product call); if yes, extend `sharedBases` rather than hacking the resupply predicate.
+
+**Tests:**
+- `src/client/game/landings.test.ts` — add cases: friendly base (resupply), shared base in scenario (resupply), neutral base (no resupply, reason surfaced), body without base (no resupply, reason surfaced).
+- `src/shared/engine/post-movement.test.ts` (create if absent) — `applyResupply` is a no-op for neutral/unowned bases; no phantom `shipResupplied` event.
+
+**Files:** `src/client/game/landings.ts`, `src/shared/engine/post-movement.ts`, `src/shared/scenario-definitions.ts`
+
+#### Landing speed rule asymmetry is undocumented to players (P2)
+
+Planetary bases require velocity 1 and 1 fuel spent this turn (`src/shared/movement.ts:102-133` / `canLandAtPlanetaryBase`). Asteroid bases (including Clandestine) and bare non-gravity bodies require velocity 0 (`src/shared/movement.ts:225-233`). Both rules are correctly enforced, but the tester reported "landing at high speed" — likely the perfectly-legal velocity-1 planetary landing — and separately was unable to land on the Clandestine asteroid base (which requires velocity 0 and cannot be reached at velocity 1). The rule is not surfaced in the HUD or help overlay beyond a one-line tutorial note.
+
+Action: add a one-line rule summary in the help overlay's Gravity & Landing section distinguishing "orbit landing (planetary, v=1)" from "stationary landing (asteroid or bare body, v=0)". Optional: surface a hint on the status line when the selected ship's projected velocity would fail the landing test for the hovered target.
+
+**Tests:**
+- `src/shared/movement.test.ts` — landing attempts at Clandestine at v=0 succeed, at v=1 fail (explicit case); planetary base at v=0 with 0 fuel fails.
+
+**Files:** `src/shared/movement.ts`, `static/index.html` (help overlay), `src/client/ui/hud.ts`
+
+#### Asteroid-hazard "disabled for N turns" has no end-of-turn feedback when burns are silently cancelled (P2)
+
+`src/shared/engine/resolve-movement.ts:90-93` and `src/shared/engine/astrogation.ts:63-65` both silently null out `burn` and `overload` when `disabledTurns > 0`. The HUD status line does say "Ship disabled — will drift this turn" (`src/client/ui/hud.ts:76-78`) for the *selected* ship, but there is no game-log line when a queued burn on an unselected ship is dropped at resolution. The tester's complaint — "it says I'm disabled for a few turns but it doesn't actually do anything" — is almost certainly this gap: the burn they queued drifted through, the ship kept moving, and there was no "burn cancelled: Ship X disabled" callout.
+
+Action: either (a) emit a per-ship `burnCancelledByDisable` engine event that becomes a game-log line, or (b) refuse to queue burns for disabled ships at the client command-router layer and log the refusal. (a) is more honest if the ship is disabled *during* combat of the same turn; (b) is simpler if we only need to cover the "start of next turn" case.
+
+**Tests:**
+- `src/shared/engine/resolve-movement.test.ts` (or wherever movement resolution is covered) — disabled ship + queued burn resolves with `newVelocity === ship.velocity` *and* emits the disable-cancel event.
+- `src/client/game/command-router.test.ts` — burn attempt on a disabled ship is refused with a structured `actionRejected` reason (if we go with option b).
+
+**Files:** `src/shared/engine/resolve-movement.ts`, `src/shared/engine/astrogation.ts`, `src/shared/engine/engine-events.ts`, `src/client/game/command-router.ts`
+
+#### Lean astrogation UI into vector math so burns read as `v + Δv = v'` (P2)
+
+Current astrogation planning is direction-first: the player picks one of six hex directions (`src/client/game/astrogation-orders.ts:12-42`, `src/client/game/input.ts`) and the course preview overlay (`src/client/renderer/course.ts`, `src/client/renderer/vectors.ts`) renders the resulting trajectory. What isn't shown: the current velocity vector and the chosen burn as distinct, composable vectors whose sum is the projected velocity for next turn. The tester's suggestion — "lean into the vector math a bit more" — lines up with making this composition visible.
+
+Action: during the astrogation phase for the selected ship, draw three colored arrows from the ship hex: current velocity (`v`), chosen burn (`Δv`, one hex), and resulting velocity (`v'`). Label with speeds. Dim the predicted-destination ghost dot that already exists so the vector triangle reads clearly against it. This is additive to the existing course preview — do not remove the dashed trajectory line.
+
+**Tests:**
+- `src/client/renderer/vectors.test.ts` — extend `buildVelocityVectorViews` (or a new `buildAstrogationVectorTriangleView`) with cases: zero burn (only current + current), diagonal burn (three distinct arrows), same-direction burn (two colinear arrows labeled clearly).
+
+**Files:** `src/client/renderer/vectors.ts`, `src/client/renderer/overlay.ts`, `src/client/game/hud-view-model.ts`
+
+#### PWA has no in-session update prompt when a new build ships (P2)
+
+`static/sw.js` uses network-first for HTML navigation and `self.clients.claim()` on activate, and `src/client/game-client-browser.ts:94-117` reloads on `controllerchange`. The flow works on the *next* navigation, but during a long session (a full Grand Tour can run 100+ turns) the user stays on the old bundle until they reload manually — which matches the tester's "seem to got stuck in an old version" report. `/version.json` is already served (`src/server/index.ts:228-262`) but the client never polls it.
+
+Action: poll `/version.json` from the client every ~10 min, compare its `assetsHash` to the hash embedded in the current bundle, and surface a single dismissible "New version available — reload" toast when they diverge. Do not auto-reload mid-game.
+
+**Tests:**
+- `src/client/sw.test.ts` — version-poll hook detects hash change, emits exactly one prompt, does not re-prompt on the same hash.
+- `src/client/game-client-browser.test.ts` — `controllerchange` reload path still works when the poll-prompt is not used.
+
+**Files:** `src/client/game-client-browser.ts`, new `src/client/version-check.ts` (or similar), `static/index.html`
+
+### Quick-match official bot fill (2026-04-22)
+
+If quick match cannot find a human promptly, the product should offer a **real rated match** against a platform-operated opponent instead of silently dropping the player into local skirmish AI. The codebase already has the important primitives — dev-only synthetic quick-match fill in `src/server/matchmaker-do.ts`, server-side `agent_` autoplay in `src/server/game-do/bot.ts`, and rated `agent_` leaderboard plumbing — so the backlog here is about turning that into an honest production feature with low operating cost.
+
+#### Add an explicit human-first fallback offer in quick match UX (P1)
+
+Do not auto-substitute a bot immediately. Quick match should wait for a real opponent first, then surface a simple choice like `Play Official Bot now` vs `Keep waiting` after a short threshold. The fallback needs to feel like matchmaking relief, not like the system quietly changing modes under the player.
+
+Action: define the wait threshold, add the queued-state UX copy, and keep the accept path explicit. Make sure the flow works on mobile and reconnect/refresh does not lose the pending offer state.
+
+**Tests:**
+- `src/client/home/quick-match.test.ts` (or nearest queue UI test file) — queued player sees no bot offer before threshold, then sees exactly one explicit fallback choice.
+- `src/server/matchmaker-do.test.ts` — bot fill is not allocated before the threshold and never without an affirmative client signal in production mode.
+
+**Files:** `src/client/home/*`, `src/server/matchmaker-do.ts`, `src/shared/matchmaking.ts`
+
+#### Promote the dev-only quick-match bot into a production official-bot seat (P1)
+
+The MVP should reuse the existing server `agent_` autoplayer path, not a hosted LLM. That keeps cost and latency low and preserves the "real match" pipeline: room creation, archive, rating write, replay, and leaderboard updates. The platform bot should have a stable identity such as `agent_official_quickmatch_normal`, not a disposable per-ticket dev key.
+
+Action: add a production-safe official-bot matchmaking path behind explicit client acceptance, wire it to a stable `agent_` profile, and keep the default brain server-side heuristic AI for now. LLM-backed play should stay out of the first release unless the heuristic path proves clearly inadequate.
+
+**Tests:**
+- `src/server/matchmaker-do.test.ts` / `src/server/matchmaker-do.more.test.ts` — accepted fallback creates a match with the stable official bot profile and correct participant kinds.
+- `src/server/game-do/game-do.test.ts` — official bot seats auto-act through the normal server bot path and complete a rated match without special-case room handling.
+
+**Files:** `src/server/matchmaker-do.ts`, `src/server/game-do/bot.ts`, `src/server/game-do/game-do.ts`, `src/shared/player.ts`
+
+#### Make official bot provenance obvious in the product surface (P1)
+
+If the platform creates the opponent, that should be visible. User-created agents can keep reading as ordinary competitors; platform fill bots should be marked as such in the matchup UI, match history, replay chrome, and leaderboard row presentation. This does not require separate rating math or a separate ladder in the first pass, just honest disclosure.
+
+Action: add an `Official Bot` badge or equivalent display affordance anywhere the opponent identity is shown for these matches, and make sure archived matches preserve that provenance.
+
+**Tests:**
+- `src/client/leaderboard/*.test.ts` — official bot rows render a distinct badge without regressing existing generic agent badges.
+- `src/client/game/replay-controller.test.ts` / match-history UI tests — replay and match history preserve and render the official-bot label from archived metadata.
+
+**Files:** `src/client/leaderboard/*.ts`, `src/client/game/main-session-shell.ts`, `src/client/game/replay-controller.ts`, `src/server/game-do/archive.ts`, `src/shared/types/*`
+
+#### Add rating and telemetry guardrails before broad rollout (P2)
+
+The product can keep these matches rated, but only if we can see whether the official bot is distorting the ladder or being farmed. The first pass needs uptake, win-rate, and queue-relief telemetry, plus a straightforward operator kill switch if the bot path misbehaves.
+
+Action: emit explicit events for fallback offered / accepted / declined / completed, segment official-bot matches in rating and matchmaking analysis, and add a config flag to disable the feature quickly. Only revisit ladder segmentation if the telemetry shows a real integrity problem.
+
+**Tests:**
+- `src/server/game-do/telemetry.test.ts` / nearest event tests — official-bot match lifecycle emits the expected structured events.
+- `scripts/simulate-ai.ts` or matchmaking telemetry queries — official-bot matches can be distinguished cleanly from human-vs-human and user-agent matches in reporting.
+
+**Files:** `src/server/game-do/telemetry.ts`, `src/server/matchmaker-do.ts`, `docs/OBSERVABILITY.md`, `docs/AGENTS.md`
+
+### Home-menu layout and difficulty-selector simplification (2026-04-22)
+
+Two playtest-driven tweaks to the lobby home shell. The current markup order in `static/index.html:89-141` is `menu-surface-primary` (callsign, Quick Match, Create Private Match, Play vs AI, Difficulty) → `menu-discover` (Leaderboard, Recent matches) → `menu-surface-join` (Have a game code? disclosure) → footer. That packs too much into the primary surface and buries social/discovery below the fold.
+
+#### Move Create Private Match next to the Join disclosure, underneath leaderboard + recent matches (P1)
+
+Goal: after landing on the home screen a new user sees the primary play paths (Quick Match, Play vs AI) and the social proof (Leaderboard, Recent matches) *before* being asked to host. Create Private Match belongs next to `Have a game code?` because they're the paired halves of the same "play with someone I know" path.
+
+Action: in `static/index.html`, move `<button id="createBtn">` out of `.menu-surface-primary` (line 100) and place it directly above the `<details class="menu-surface menu-surface-join">` block (line 135). Promote the pair into a single "Play with a friend" surface — one tile for `Create Private Match`, one for `Have a game code? Join`. Room creation and join should read as siblings with matching affordance weight; today Create is a bare `btn-secondary` and Join is buried in a `<details>` disclosure. Keep the DOM order change separate from the UX polish in the PR so the layout shift can be reviewed independently. Verify `createBtn` / `joinBtn` bindings in `src/client/ui/lobby-view.ts` still resolve after the move (they're looked up by id, not DOM position, so the wiring should carry over untouched).
+
+Confirm behavior when offline: `menu-online-only` hides leaderboard / recent matches on offline, so the new order must still collapse cleanly without leaving an awkward gap before the Create/Join surface.
+
+**Tests:**
+- `src/client/ui/lobby-view.test.ts` — assert DOM order (`quickMatchBtn` before `leaderboard tile`, `leaderboard tile` before `createBtn`, `createBtn` before `codeInput`) so a future CSS or JS edit can't silently revert the layout.
+- Same file — offline path hides the two discover tiles and leaves Create + Join still reachable without layout collapse (snapshot or explicit visibility assertions).
+
+**Files:** `static/index.html`, `src/client/ui/lobby-view.ts`, `static/styles/components.css` (for the paired surface treatment)
+
+#### Strip the difficulty-tier notes from the home-menu selector (P2)
+
+The three tier-notes under the difficulty buttons (`static/index.html:108,112,116` — "Learns the ropes" / "Balanced duel" / "Punishes mistakes") and the dynamic hint copy emitted from `src/client/ui/lobby-view.ts:602-610` ("Forgiving openings...", "Balanced pressure...", "Longer-range threats...") add visual weight without information a new player can act on. The tester's feedback is that "Easy / Normal / Hard" already carries the right mental model and the extra copy dilutes the choice.
+
+Action: delete the three `<span class="difficulty-tier-note">` elements and the associated `#difficultyHint` paragraph from the home menu. Keep just `Easy | Normal | Hard` with the existing radio-group semantics. Remove the `lines` Record and `difficultyHintEl.text(...)` call in `lobby-view.ts` so no dead copy remains; trim `.difficulty-tier-note` / `.difficulty-hint` CSS if nothing else uses it.
+
+Context cross-ref: the older backlog entry `AI difficulty tiers still under-differentiate` (§ AI behavior & rules conformance) claims the menu copy explains tier behavior "so the remaining issue is no longer hidden product semantics." That slice was shipped; this task intentionally walks it back based on real-player feedback. Update that older entry's `Done for this slice` wording when this ships so future readers don't see contradictory guidance — the new position is "tier names are sufficient".
+
+**Tests:**
+- `src/client/ui/lobby-view.test.ts` — assert exactly three difficulty buttons render with labels `Easy`, `Normal`, `Hard` and *no* tier-note or hint text node below them. A negative assertion (no `.difficulty-tier-note`, no `.difficulty-hint` element) is worth pinning so the copy cannot quietly return via a later refactor.
+
+**Files:** `static/index.html`, `src/client/ui/lobby-view.ts`, `static/styles/components.css`, cross-ref update in `docs/BACKLOG.md` (AI difficulty tiers entry)
+
 ---
 
 ## AI behavior & rules conformance
