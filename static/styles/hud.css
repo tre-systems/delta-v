@@ -135,6 +135,61 @@
   background: rgba(10, 24, 44, 0.88);
 }
 
+/* Spectator / replay: colored left-edge band per fleet so both sides
+ * read as distinct in the shared ship list. */
+.ship-entry.fleet-one {
+  border-left: 3px solid rgba(79, 195, 247, 0.72);
+  padding-left: calc(0.5rem - 3px + 0.15rem);
+}
+
+.ship-entry.fleet-two {
+  border-left: 3px solid rgba(255, 152, 0, 0.72);
+  padding-left: calc(0.5rem - 3px + 0.15rem);
+}
+
+/* Ship belonging to the fleet whose turn is currently being replayed —
+ * slight background lift + brighter owner band so the viewer can tell
+ * which side is acting at any given moment. */
+.ship-entry.active-player {
+  background: rgba(15, 30, 54, 0.85);
+}
+
+.ship-entry.active-player.fleet-one {
+  border-left-color: rgba(122, 215, 255, 0.95);
+  box-shadow: inset 2px 0 0 rgba(122, 215, 255, 0.22);
+}
+
+.ship-entry.active-player.fleet-two {
+  border-left-color: rgba(255, 183, 77, 0.95);
+  box-shadow: inset 2px 0 0 rgba(255, 183, 77, 0.22);
+}
+
+.ship-owner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  padding: 0.05rem 0.25rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(225, 235, 250, 0.88);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.ship-entry.fleet-one .ship-owner {
+  color: rgba(180, 230, 255, 0.95);
+  border-color: rgba(79, 195, 247, 0.4);
+}
+
+.ship-entry.fleet-two .ship-owner {
+  color: rgba(255, 214, 154, 0.95);
+  border-color: rgba(255, 152, 0, 0.4);
+}
+
 .ship-entry.destroyed {
   opacity: 0.38;
   cursor: default;

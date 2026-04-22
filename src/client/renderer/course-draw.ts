@@ -203,31 +203,76 @@ export type DrawAstrogationCoursePreviewLayerInput = {
   zoom: number;
 };
 
+const drawReadoutArrow = (
+  ctx: CanvasRenderingContext2D,
+  arrow: AstrogationVectorReadoutView['currentVelocityArrow'],
+): void => {
+  if (!arrow) return;
+  ctx.save();
+  ctx.strokeStyle = arrow.color;
+  ctx.fillStyle = arrow.color;
+  ctx.lineWidth = arrow.lineWidth;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.setLineDash(arrow.lineDash);
+  ctx.beginPath();
+  ctx.moveTo(arrow.from.x, arrow.from.y);
+  ctx.lineTo(arrow.to.x, arrow.to.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Filled triangular arrowhead reads more clearly than a two-stroke V
+  // against the busy course preview behind it.
+  ctx.beginPath();
+  ctx.moveTo(arrow.to.x, arrow.to.y);
+  ctx.lineTo(arrow.headLeft.x, arrow.headLeft.y);
+  ctx.lineTo(arrow.headRight.x, arrow.headRight.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+};
+
 const drawAstrogationVectorReadout = (
   ctx: CanvasRenderingContext2D,
   readout: AstrogationVectorReadoutView,
   zoom: number,
 ): void => {
   ctx.save();
-  ctx.textAlign = 'center';
-  ctx.font = scaledFont('600 11px monospace', zoom);
+  // Draw v first (baseline), then Δv, then v' on top so the emphasized
+  // result vector wins the z-order without relying on side-effects.
+  drawReadoutArrow(ctx, readout.currentVelocityArrow);
+  drawReadoutArrow(ctx, readout.burnArrow);
+  drawReadoutArrow(ctx, readout.resultVelocityArrow);
 
-  const labels = [
-    readout.currentSpeedLabel,
-    readout.nextSpeedLabel,
-    readout.burnDeltaLabel,
-  ];
-  for (const label of labels) {
-    if (!label) continue;
-    // Pill background so the label stays legible against the course
-    // polyline and gravity rings.
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = scaledFont('700 12px monospace', zoom);
+
+  for (const label of readout.labels) {
     const metrics = ctx.measureText(label.text);
-    const padX = 4;
-    const padY = 2;
-    const h = 12;
+    const padX = 5;
+    const h = 16;
     const w = metrics.width + padX * 2;
-    ctx.fillStyle = 'rgba(6, 14, 28, 0.78)';
-    ctx.fillRect(label.position.x - w / 2, label.position.y - h + padY, w, h);
+    const x = label.position.x - w / 2;
+    const y = label.position.y - h / 2;
+    // Rounded pill with a 1px matching-color border so the readout
+    // stays legible against the course polyline and gravity rings.
+    ctx.fillStyle = 'rgba(6, 14, 28, 0.82)';
+    ctx.strokeStyle = label.color;
+    ctx.lineWidth = 1;
+    const r = 6;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
     ctx.fillStyle = label.color;
     ctx.fillText(label.text, label.position.x, label.position.y);
   }

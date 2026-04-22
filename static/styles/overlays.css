@@ -570,17 +570,10 @@
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-/* Lift the floating right-rail icons above the replay bar so they
- * don't collide with it, and hide the in-HUD exit button — the replay
- * bar has its own EXIT. Horizontal positioning left of the log is
- * already covered by the base .help-btn / .sound-btn rule. */
-body.replay-bar-active .help-btn {
-  bottom: calc(4.25rem + var(--safe-bottom));
-}
-
-body.replay-bar-active .sound-btn {
-  bottom: calc(4.25rem + 2.5rem + var(--safe-bottom));
-}
+/* Replay mode: keep the sound/help icons pinned to the far bottom
+ * right corner where they live during gameplay — the replay bar gets
+ * shifted up instead (see .replay-bar rule) so it no longer collides
+ * with them or the game log. */
 
 body.game-over-shell-active .hud-exit-btn {
   display: none !important;
@@ -1051,18 +1044,27 @@ h2.game-over-neutral {
 
 .replay-bar {
   position: fixed;
-  bottom: calc(1rem + var(--safe-bottom));
-  left: 50%;
-  transform: translateX(-50%);
+  /* Float above the sound/help icons (≈3.5rem tall at the bottom-right)
+   * so those stay pinned to the corner and the game log panel stays
+   * legible behind the bar. */
+  bottom: calc(4.5rem + var(--safe-bottom));
+  /* Sit horizontally in the map area, not the log column. The game log
+   * occupies ~230px on the right — leave room so the bar's EXIT button
+   * never sits on top of a log entry. */
+  left: 0.75rem;
+  right: calc(230px + var(--hud-edge-right) + 0.75rem);
   z-index: 20;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.65rem;
+  margin: 0 auto;
   padding: 0.45rem 0.55rem 0.45rem 0.45rem;
   border-radius: 22px;
   /* Never exceed viewport — the EXIT button was getting clipped on
    * narrow screens when the bar overflowed its centered anchor. */
-  max-width: calc(100vw - 1rem);
+  max-width: calc(100vw - 1.5rem);
+  width: fit-content;
   flex-wrap: nowrap;
   overflow: hidden;
 }
@@ -1076,6 +1078,11 @@ h2.game-over-neutral {
     display: none;
   }
   .replay-bar {
+    /* On narrow screens the log collapses, so give the bar the full
+     * horizontal span minus padding instead of reserving the desktop
+     * log column. */
+    left: 0.5rem;
+    right: 0.5rem;
     gap: 0.4rem;
     padding: 0.4rem 0.45rem;
     border-radius: 18px;

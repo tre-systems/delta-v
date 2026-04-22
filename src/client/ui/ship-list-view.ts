@@ -8,7 +8,7 @@ import {
   signal,
   withScope,
 } from '../reactive';
-import { buildShipListView } from './ship-list';
+import { buildShipListView, type ShipListSideContext } from './ship-list';
 
 export interface ShipListViewDeps {
   onSelectShip: (shipId: string) => void;
@@ -19,6 +19,7 @@ export interface ShipListView {
     ships: Ship[],
     selectedId: string | null,
     burns: Map<string, number | null>,
+    sideContext?: ShipListSideContext | null,
   ) => void;
   setMobile: (isMobile: boolean) => void;
   dispose: () => void;
@@ -31,6 +32,7 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
     ships: Ship[];
     selectedId: string | null;
     burns: Map<string, number | null>;
+    sideContext: ShipListSideContext | null;
   } | null>(null);
   const mobileCompactSignal = signal(false);
 
@@ -38,8 +40,9 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
     ships: Ship[],
     selectedId: string | null,
     burns: Map<string, number | null>,
+    sideContext: ShipListSideContext | null = null,
   ): void => {
-    inputSignal.value = { ships, selectedId, burns };
+    inputSignal.value = { ships, selectedId, burns, sideContext };
   };
 
   const dispose = (): void => {
@@ -69,6 +72,7 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
           input.selectedId,
           input.burns,
           compact,
+          input.sideContext,
         ),
       };
     });
@@ -118,6 +122,14 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
           entry.classList.add('active');
         }
 
+        if (entryView.ownerClass) {
+          entry.classList.add(entryView.ownerClass);
+        }
+
+        if (entryView.isActivePlayerShip) {
+          entry.classList.add('active-player');
+        }
+
         if (entryView.isDestroyed) {
           entry.classList.add('destroyed');
           entry.setAttribute('aria-disabled', 'true');
@@ -136,9 +148,16 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
           ? `<span class="ship-status">${entryView.statusText}${entryView.hasBurn ? '<span class="burn-dot"></span>' : ''}</span>`
           : '';
 
+        // Owner pill sits next to the ship name in replay/spectator
+        // views so both fleets read as distinct at a glance.
+        const ownerHtml = entryView.ownerLabel
+          ? `<span class="ship-owner" aria-label="Fleet ${entryView.ownerLabel}">${entryView.ownerLabel}</span>`
+          : '';
+
         setTrustedHTML(
           entry,
           `
+          ${ownerHtml}
           <span class="ship-name">${entryView.displayName}</span>
           ${statusHtml}
           <span class="ship-fuel">${entryView.fuelText}</span>
