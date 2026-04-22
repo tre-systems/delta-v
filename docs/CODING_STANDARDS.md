@@ -94,7 +94,7 @@ The 1000-line threshold applies less strictly to imperative boundary orchestrato
 - Keep Playwright focused on browser-only contracts (boot, multi-page join/reconnect/chat, storage/session recovery). Gameplay rules and scenario combinatorics go to Vitest and simulation.
 - Use data-driven tests (`it.each`) for tables, mappings, and input-output pairs.
 - Use property-based tests (`fast-check`) for invariants on core engine functions — co-locate as `*.property.test.ts`.
-- Coverage thresholds on `src/shared/` are enforced; the pre-push hook and CI both run `test:coverage`.
+- Coverage thresholds on engine, server, MCP adapter, and client code are enforced; the pre-push hook and CI both run `test:coverage`.
 - **Replay / projection:** changes to `event-projector`, `archive` persistence, or engine state shape must keep parity tests (`verifyGameDoProjectionParity`, game-do / event-projector tests) green and extend them when adding new persisted event types.
 
 Pattern detail (fixtures, mock storage, seeded RNG in tests, coverage thresholds): [patterns/testing.md](../patterns/testing.md). Intro to property-based testing: fast-check's [Why Property-Based Testing?](https://fast-check.dev/docs/introduction/why-property-based/).

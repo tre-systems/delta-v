@@ -165,7 +165,7 @@ Both editions compile every doc in this index into a single consolidated PDF wit
 | `npm run typecheck` | Typecheck `src/` |
 | `npm run typecheck:all` | Typecheck app + tooling (`scripts/`, `e2e/`, configs) |
 | `npm test` | Run all unit tests via Vitest |
-| `npm run test:coverage` | Run tests with coverage (enforced thresholds on `src/shared/`) |
+| `npm run test:coverage` | Run client and server/shared coverage passes sequentially (enforced thresholds on engine, server, MCP adapter, and client) |
 | `npm run test:e2e` | Playwright browser smoke against a local Wrangler server |
 | `npm run test:e2e:a11y` | Playwright + axe accessibility baseline |
 | `npm run test:e2e:headed` | Same smoke suite with a visible browser |
