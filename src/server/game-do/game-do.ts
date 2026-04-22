@@ -7,6 +7,7 @@ import {
   isValidScenario,
   SCENARIOS,
 } from '../../shared/map-data';
+import { hasOfficialQuickMatchBot } from '../../shared/player';
 import { deriveActionRng, mulberry32 } from '../../shared/prng';
 import type { GameState, PlayerId, Result } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
@@ -790,6 +791,7 @@ export class GameDO extends DurableObject<Env> {
     // the /matches "Live now" section updates on the next poll.
     if (state.phase === 'gameOver') {
       const code = await this.getGameCode();
+      const roomConfig = await this.getRoomConfig();
       this.deregisterLiveMatch(code);
       reportLifecycleEvent(
         { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
@@ -800,6 +802,7 @@ export class GameDO extends DurableObject<Env> {
           turn: state.turnNumber,
           winner: state.outcome?.winner ?? null,
           reason: state.outcome?.reason ?? null,
+          officialBotMatch: hasOfficialQuickMatchBot(roomConfig?.players ?? []),
         },
       );
     }
@@ -1076,12 +1079,15 @@ export class GameDO extends DurableObject<Env> {
     const playerKeys = (roomConfig?.players ?? [])
       .flatMap((player) => (player ? [player.playerKey] : []))
       .filter((playerKey) => typeof playerKey === 'string');
+    const officialBotMatch = hasOfficialQuickMatchBot(
+      roomConfig?.players ?? [],
+    );
     this.registerLiveMatch(code, scenario, playerKeys);
     const gameId = await this.getLatestGameId();
     reportLifecycleEvent(
       { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
       'game_started',
-      { gameId, code, scenario },
+      { gameId, code, scenario, officialBotMatch },
     );
   }
 
