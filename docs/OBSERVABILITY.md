@@ -95,6 +95,7 @@ From `migrations/0001_create_events.sql`:
   - `turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
   - `first_turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
   - `scenario_browsed` with no additional props
+  - `scenario_selected` with `{ scenario, from: 'ai' | 'private', difficulty? }` (fires when the player commits to a scenario from the menu, before the round-trip — captures intent even when the user bails out of the waiting room)
   - `tutorial_started` with no additional props
   - `tutorial_completed` with no additional props
   - `tutorial_skipped` with no additional props

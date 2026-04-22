@@ -430,5 +430,18 @@ describe('main-interactions', () => {
     expect(deps.replayController.stepReplay).toHaveBeenCalledWith('end');
     expect(transport.sendChat).toHaveBeenCalledWith('hello');
     expect(deps.trackEvent).toHaveBeenCalledWith('scenario_browsed');
+    // scenario_selected must fire *before* the scenario-specific action
+    // so a bailout in the waiting room or a bad create still leaves the
+    // intent event recorded. Both menu paths (private match, Play vs AI)
+    // emit it with a `from` discriminator so analytics can distinguish.
+    expect(deps.trackEvent).toHaveBeenCalledWith('scenario_selected', {
+      scenario: 'duel',
+      from: 'private',
+    });
+    expect(deps.trackEvent).toHaveBeenCalledWith('scenario_selected', {
+      scenario: 'escape',
+      from: 'ai',
+      difficulty: 'hard',
+    });
   });
 });

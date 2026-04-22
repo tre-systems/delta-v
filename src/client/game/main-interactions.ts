@@ -255,9 +255,22 @@ export const createMainInteractionController = (
         return;
       }
       case 'createGame':
+        // Emit before the round-trip so we capture the scenario even if
+        // the /create request fails or the user bails out of the waiting
+        // room; `ai_game_started` / `match_created` already cover the
+        // commit side of the funnel, this just records intent.
+        deps.trackEvent('scenario_selected', {
+          scenario: plan.scenario,
+          from: 'private',
+        });
         deps.sessionApi.createGame(plan.scenario);
         return;
       case 'startSinglePlayer':
+        deps.trackEvent('scenario_selected', {
+          scenario: plan.scenario,
+          from: 'ai',
+          difficulty: plan.difficulty,
+        });
         deps.setAIDifficulty(plan.difficulty);
         startLocalGameFromMain(deps.mainNetworkDeps, plan.scenario);
         return;
