@@ -24,6 +24,10 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
+import {
+  OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY,
+  OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+} from '../../shared/player';
 import type { ReplayTimeline } from '../../shared/replay';
 import {
   appendEnvelopedEvents,
@@ -127,6 +131,36 @@ const createCtx = (): MockDurableObjectState => {
       return sockets.filter((ws) => (tags.get(ws) ?? []).includes(tag));
     },
   };
+};
+
+const createEventsDb = () => {
+  const events: Array<{ event: string; props: Record<string, unknown> }> = [];
+  const db = {
+    prepare(_sql: string) {
+      return {
+        bind(
+          _ts: number,
+          _anonId: unknown,
+          event: string,
+          props: string,
+          _ipHash: string,
+          _ua: unknown,
+        ) {
+          return {
+            run: async () => {
+              events.push({
+                event,
+                props: JSON.parse(props) as Record<string, unknown>,
+              });
+              return { success: true };
+            },
+          };
+        },
+      };
+    },
+  } as unknown as D1Database;
+
+  return { db, events };
 };
 
 const createSocket = () => ({
@@ -1276,6 +1310,97 @@ describe('GameDO', () => {
       must(gameState).gameId,
     );
     expect(stream.length).toBeGreaterThan(1);
+  });
+
+  it('tags game_started telemetry for official bot matches', async () => {
+    const ctx = createCtx();
+    const { db, events } = createEventsDb();
+    const game = createGameDO(ctx, { DB: db });
+
+    const initResponse = await game.fetch(
+      new Request('https://room.internal/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: 'BOTGM',
+          scenario: 'duel',
+          playerToken: 'A'.repeat(32),
+          guestPlayerToken: 'B'.repeat(32),
+          players: [
+            { playerKey: 'humanplayer1', username: 'Pilot One', kind: 'human' },
+            {
+              playerKey: OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY,
+              username: OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+              kind: 'agent',
+            },
+          ],
+        }),
+      }),
+    );
+    expect(initResponse.status).toBe(201);
+
+    await (game as unknown as { initGame: () => Promise<void> }).initGame();
+
+    const started = events.find((entry) => entry.event === 'game_started');
+    expect(started?.props.officialBotMatch).toBe(true);
+    expect(started?.props.scenario).toBe('duel');
+  });
+
+  it('tags game_ended telemetry for official bot matches', async () => {
+    const ctx = createCtx();
+    const { db, events } = createEventsDb();
+    const game = createGameDO(ctx, { DB: db });
+
+    const initResponse = await game.fetch(
+      new Request('https://room.internal/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: 'BOTGE',
+          scenario: 'duel',
+          playerToken: 'A'.repeat(32),
+          guestPlayerToken: 'B'.repeat(32),
+          players: [
+            { playerKey: 'humanplayer1', username: 'Pilot One', kind: 'human' },
+            {
+              playerKey: OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY,
+              username: OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+              kind: 'agent',
+            },
+          ],
+        }),
+      }),
+    );
+    expect(initResponse.status).toBe(201);
+
+    await (game as unknown as { initGame: () => Promise<void> }).initGame();
+    const state = must(
+      await getProjectedCurrentStateRaw(
+        ctx.storage as unknown as DurableObjectStorage,
+        asGameId('BOTGE-m1'),
+      ),
+    );
+    const gameOverState: GameState = {
+      ...state,
+      phase: 'gameOver',
+      outcome: { winner: 0, reason: 'Test outcome' },
+    };
+
+    await (
+      game as unknown as {
+        publishStateChange: (
+          state: GameState,
+          primaryMessage?: unknown,
+          options?: { restartTurnTimer?: boolean; events?: unknown[] },
+        ) => Promise<void>;
+      }
+    ).publishStateChange(gameOverState, toStateUpdateMessage(gameOverState), {
+      restartTurnTimer: false,
+    });
+
+    const ended = events.find((entry) => entry.event === 'game_ended');
+    expect(ended?.props.officialBotMatch).toBe(true);
+    expect(ended?.props.reason).toBe('Test outcome');
   });
 
   it('returns filtered replay timelines for authenticated players', async () => {
