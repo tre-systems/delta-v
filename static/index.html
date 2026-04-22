@@ -73,6 +73,11 @@
   <canvas id="gameCanvas" role="application" tabindex="-1" aria-label="Interactive tactical map: hex grid, ships, gravity, and movement. Open the Help button for keyboard and touch controls."></canvas>
   <div id="hudBoardSummary" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="jsRequiredMsg" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0c1220;color:#7ad7ff;font-family:monospace;font-size:1rem;padding:2rem;text-align:center;">JavaScript is required to play Delta-V.</div>
+  <div id="newVersionBanner" class="new-version-banner" role="status" aria-live="polite" hidden>
+    <span class="new-version-banner-text">New version available</span>
+    <button type="button" id="newVersionReloadBtn" class="new-version-banner-btn" data-testid="newVersionReloadBtn">Reload</button>
+    <button type="button" id="newVersionDismissBtn" class="new-version-banner-dismiss" aria-label="Dismiss update notice">&times;</button>
+  </div>
 
   <!-- Menu screen -->
   <div id="menu" data-testid="menu" class="screen screen-page">

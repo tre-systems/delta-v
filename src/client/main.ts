@@ -1,6 +1,9 @@
 import { showErrorScreen } from './error-screen';
 import { createGameClient, type GameClient } from './game/client-kernel';
-import { setupServiceWorkerReload } from './game/client-runtime';
+import {
+  setupServiceWorkerReload,
+  setupVersionCheck,
+} from './game/client-runtime';
 import { installHudScaleShortcuts } from './hud-scale';
 import {
   configureTelemetryRuntime,
@@ -33,6 +36,7 @@ try {
   installGlobalErrorHandlers();
   installViewportSizing();
   setupServiceWorkerReload();
+  setupVersionCheck();
   const game = createGameClient();
   (window as Window & { game?: GameClient }).game = game;
   document.getElementById('jsRequiredMsg')?.remove();
