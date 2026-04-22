@@ -6,6 +6,7 @@ import {
   hexDistance,
   parseHexKey,
 } from '../hex';
+import { findBaseHexes } from '../map-data';
 import { computeCourse } from '../movement';
 import { deriveCapabilities } from '../scenario-capabilities';
 import type {
@@ -55,6 +56,27 @@ export const findNearestBase = (
   );
 
   return nearest ? parseHexKey(nearest) : null;
+};
+
+export const findNearestRefuelBase = (
+  shipPos: {
+    q: number;
+    r: number;
+  },
+  playerBases: HexKey[],
+  sharedBaseBodies: readonly string[],
+  map: SolarSystemMap,
+): {
+  q: number;
+  r: number;
+} | null => {
+  const candidateBases = [
+    ...playerBases.map((baseKey) => parseHexKey(baseKey)),
+    ...sharedBaseBodies.flatMap((bodyName) => findBaseHexes(map, bodyName)),
+  ];
+  const nearest = minBy(candidateBases, (base) => hexDistance(shipPos, base));
+
+  return nearest ?? null;
 };
 
 export const estimateFuelForTravelDistance = (

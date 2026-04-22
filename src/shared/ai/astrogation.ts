@@ -27,7 +27,7 @@ import {
   estimateFuelForTravelDistance,
   estimateRemainingCheckpointTourCost,
   estimateTurnsToTargetLanding,
-  findNearestBase,
+  findNearestRefuelBase,
   getHomeDefenseThreat,
   getInterceptContinuationPreference,
   pickNextCheckpoint,
@@ -256,7 +256,12 @@ const pickFuelAwareCheckpointTarget = (
     hexDistance(ship.position, nextCenter),
     speed,
   );
-  const continuationBase = findNearestBase(nextCenter, player.bases, map);
+  const continuationBase = findNearestRefuelBase(
+    nextCenter,
+    player.bases,
+    sharedBases,
+    map,
+  );
   const continuationFuel =
     continuationBase == null
       ? Number.POSITIVE_INFINITY
@@ -897,9 +902,10 @@ export const aiAstrogation = (
           targetHasRefuelBase || shipTargetHex == null
             ? 0
             : (() => {
-                const continuationBase = findNearestBase(
+                const continuationBase = findNearestRefuelBase(
                   shipTargetHex,
                   player.bases,
+                  caps.sharedBases,
                   map,
                 );
 
@@ -913,14 +919,21 @@ export const aiAstrogation = (
               })();
 
         if (ship.fuel < fuelForTrip + continuationFuel) {
-          const basePos = findNearestBase(ship.position, player.bases, map);
+          const basePos = findNearestRefuelBase(
+            ship.position,
+            player.bases,
+            caps.sharedBases,
+            map,
+          );
 
           if (basePos) {
             const baseDist = hexDistance(ship.position, basePos);
+            const baseBody =
+              map.hexes.get(hexKey(basePos))?.base?.bodyName ?? '';
 
             if (baseDist < distToTarget && baseDist <= ship.fuel + speed + 2) {
               shipTargetHex = basePos;
-              shipTargetBody = '';
+              shipTargetBody = baseBody;
               seekingFuel = true;
             }
           }
@@ -957,6 +970,8 @@ export const aiAstrogation = (
     const stats = SHIP_STATS[ship.type];
     const canBurnFuel = ship.fuel > 0;
     const currentOrbitBody = detectOrbit(ship, map);
+    const currentBaseBody = map.hexes.get(hexKey(ship.position))?.base
+      ?.bodyName;
     const interceptingEnemy =
       (enemyEscaping ||
         enemyHasPassengerObjective ||
@@ -1128,6 +1143,28 @@ export const aiAstrogation = (
         course.outcome !== 'landing'
       ) {
         score -= cfg.fuelSeekLandingBonus;
+      }
+
+      if (
+        seekingFuel &&
+        currentBaseBody &&
+        (currentBaseBody === player.homeBody ||
+          caps.sharedBases.includes(currentBaseBody))
+      ) {
+        const distFromCurrentBase = hexDistance(
+          course.destination,
+          ship.position,
+        );
+
+        score -= distFromCurrentBase * 180;
+        score -= hexVecLength(course.newVelocity) * 60;
+
+        if (
+          course.outcome === 'landing' &&
+          course.landedAt === currentBaseBody
+        ) {
+          score += cfg.fuelSeekLandingBonus;
+        }
       }
 
       let comparisonCourse = course;
