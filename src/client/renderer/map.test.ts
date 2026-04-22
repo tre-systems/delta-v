@@ -11,6 +11,7 @@ import {
   buildAsteroidDebrisView,
   buildBaseMarkerView,
   buildBodyView,
+  buildCheckpointMarkerViews,
   buildLandingObjectiveView,
   buildMapBorderView,
   lightenColor,
@@ -179,5 +180,58 @@ describe('renderer map helpers', () => {
         28,
       ),
     ).toBeNull();
+  });
+
+  it('returns no checkpoint markers when scenario has no checkpointBodies', () => {
+    const state = createState();
+    const map = createMap();
+    expect(buildCheckpointMarkerViews(state, 0, map, 28)).toEqual([]);
+  });
+
+  it('marks visited vs unvisited checkpoints with distinct styling', () => {
+    const state = createState();
+    state.scenarioRules = { checkpointBodies: ['Mars', 'Venus'] };
+    state.players[0] = createPlayer({
+      homeBody: 'Venus',
+      visitedBodies: ['Mars'],
+    });
+    const map = createMap();
+
+    const views = buildCheckpointMarkerViews(state, 0, map, 28);
+    expect(views.map((v) => v.bodyName)).toEqual(['Mars', 'Venus']);
+
+    const mars = views[0];
+    const venus = views[1];
+    expect(mars.visited).toBe(true);
+    expect(venus.visited).toBe(false);
+    expect(mars.strokeStyle).not.toEqual(venus.strokeStyle);
+    expect(venus.lineDash).toEqual([3, 5]);
+    expect(mars.lineDash).toEqual([]);
+  });
+
+  it('highlights home body in green once every checkpoint is visited', () => {
+    const state = createState();
+    state.scenarioRules = { checkpointBodies: ['Mars', 'Venus'] };
+    state.players[0] = createPlayer({
+      homeBody: 'Venus',
+      visitedBodies: ['Mars', 'Venus'],
+    });
+    const map = createMap();
+
+    const views = buildCheckpointMarkerViews(state, 0, map, 28);
+    const venus = views.find((v) => v.bodyName === 'Venus');
+    expect(venus?.pipFill).toMatch(/rgba\(100, 255, 140/);
+  });
+
+  it('skips checkpoint bodies that are not on the map', () => {
+    const state = createState();
+    state.scenarioRules = {
+      checkpointBodies: ['Mars', 'Jupiter'],
+    };
+    state.players[0] = createPlayer({ visitedBodies: [] });
+    const map = createMap();
+
+    const views = buildCheckpointMarkerViews(state, 0, map, 28);
+    expect(views.map((v) => v.bodyName)).toEqual(['Mars']);
   });
 });

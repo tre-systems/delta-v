@@ -44,6 +44,7 @@ import {
   renderAsteroids,
   renderBaseMarkers,
   renderBodies,
+  renderCheckpoints,
   renderDetectionRanges,
   renderGravityIndicators,
   renderHexGrid,
@@ -278,6 +279,7 @@ export const createRenderer = (
       }
       renderBaseMarkers(layerCtx, map, gameState, playerId, HEX_SIZE);
       if (gameState) {
+        renderCheckpoints(layerCtx, gameState, playerId, map, HEX_SIZE);
         renderLandingTarget(
           layerCtx,
           map,
