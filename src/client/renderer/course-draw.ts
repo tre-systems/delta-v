@@ -234,7 +234,6 @@ const drawReadoutArrow = (
 const drawAstrogationVectorReadout = (
   ctx: CanvasRenderingContext2D,
   readout: AstrogationVectorReadoutView,
-  zoom: number,
 ): void => {
   ctx.save();
   // Draw v first (baseline), then Δv, then v' on top so the emphasized
@@ -242,40 +241,6 @@ const drawAstrogationVectorReadout = (
   drawReadoutArrow(ctx, readout.currentVelocityArrow);
   drawReadoutArrow(ctx, readout.burnArrow);
   drawReadoutArrow(ctx, readout.resultVelocityArrow);
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = scaledFont('700 12px monospace', zoom);
-
-  for (const label of readout.labels) {
-    const metrics = ctx.measureText(label.text);
-    const padX = 5;
-    const h = 16;
-    const w = metrics.width + padX * 2;
-    const x = label.position.x - w / 2;
-    const y = label.position.y - h / 2;
-    // Rounded pill with a 1px matching-color border so the readout
-    // stays legible against the course polyline and gravity rings.
-    ctx.fillStyle = 'rgba(6, 14, 28, 0.82)';
-    ctx.strokeStyle = label.color;
-    ctx.lineWidth = 1;
-    const r = 6;
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = label.color;
-    ctx.fillText(label.text, label.position.x, label.position.y);
-  }
   ctx.restore();
 };
 
@@ -308,6 +273,6 @@ export const drawAstrogationCoursePreviewLayer = (
     hexSize,
   );
   if (readout) {
-    drawAstrogationVectorReadout(ctx, readout, zoom);
+    drawAstrogationVectorReadout(ctx, readout);
   }
 };
