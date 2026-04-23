@@ -80,6 +80,8 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     showCopyActions: false,
     cancelActionLabel: null,
     quickMatchQueuedAtMs: null,
+    officialBotPromptText: null,
+    officialBotButtonLabel: null,
   });
   const copyButtonTextSignal = signal('Copy Link');
   const copySpectateTextSignal = signal('Copy Observer Link (view-only)');
@@ -111,6 +113,15 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const waitingTitleEl = byId('waitingTitle');
   const gameCodeEl = byId('gameCode');
   const waitingStatusEl = byId('waitingStatus');
+  const officialBotOfferEl = document.getElementById(
+    'officialBotOffer',
+  ) as HTMLElement | null;
+  const officialBotOfferTextEl = document.getElementById(
+    'officialBotOfferText',
+  ) as HTMLElement | null;
+  const officialBotAcceptBtn = document.getElementById(
+    'officialBotAcceptBtn',
+  ) as HTMLButtonElement | null;
   const waitingScenarioEl = byId('waitingScenario');
   const waitingShareHintEl = document.getElementById(
     'waitingShareHint',
@@ -255,6 +266,8 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     showCopyActions: false,
     cancelActionLabel: null,
     quickMatchQueuedAtMs: null,
+    officialBotPromptText: null,
+    officialBotButtonLabel: null,
   });
 
   const setWaitingState = (state: WaitingScreenState | null): void => {
@@ -670,12 +683,45 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       } else {
         hide(cancelWaitingBtn);
       }
+
+      if (officialBotOfferEl) {
+        if (copy.officialBotPromptText) {
+          if (officialBotOfferTextEl) {
+            text(officialBotOfferTextEl, copy.officialBotPromptText);
+          }
+          officialBotOfferEl.removeAttribute('hidden');
+          officialBotOfferEl.style.display = '';
+          if (officialBotAcceptBtn) {
+            if (copy.officialBotButtonLabel) {
+              text(officialBotAcceptBtn, copy.officialBotButtonLabel);
+              officialBotAcceptBtn.removeAttribute('hidden');
+              officialBotAcceptBtn.style.display = '';
+            } else {
+              officialBotAcceptBtn.setAttribute('hidden', '');
+              officialBotAcceptBtn.style.display = 'none';
+            }
+          }
+        } else {
+          officialBotOfferEl.setAttribute('hidden', '');
+          officialBotOfferEl.style.display = 'none';
+          if (officialBotAcceptBtn) {
+            officialBotAcceptBtn.setAttribute('hidden', '');
+            officialBotAcceptBtn.style.display = 'none';
+          }
+        }
+      }
     });
 
     listen(cancelWaitingBtn, 'click', () => {
       deps.emit({ type: 'cancelQuickMatch' });
       deps.showMenu();
     });
+
+    if (officialBotAcceptBtn) {
+      listen(officialBotAcceptBtn, 'click', () => {
+        deps.emit({ type: 'acceptOfficialBotMatch' });
+      });
+    }
 
     text(copyBtn, copyButtonTextSignal);
     if (spectatorModeEnabled) {

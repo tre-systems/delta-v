@@ -166,6 +166,10 @@
       <button id="copyBtn" class="btn btn-secondary">Copy Link</button>
       <button id="copySpectateBtn" class="btn btn-secondary">Copy Observer Link (view-only)</button>
       <p id="waitingStatus" class="status-text waiting-status-pulse">Waiting for opponent...</p>
+      <div id="officialBotOffer" class="official-bot-offer" role="status" aria-live="polite" hidden>
+        <p id="officialBotOfferText" class="official-bot-offer-text"></p>
+        <button id="officialBotAcceptBtn" data-testid="officialBotAcceptBtn" class="btn btn-primary official-bot-offer-btn" hidden>Play Official Bot now</button>
+      </div>
       <button id="cancelWaitingBtn" data-testid="cancelWaitingBtn" class="btn btn-secondary" hidden>Cancel search</button>
     </div>
   </div>

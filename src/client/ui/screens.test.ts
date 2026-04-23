@@ -53,6 +53,8 @@ describe('ui-screens', () => {
       showCopyActions: true,
       cancelActionLabel: 'Cancel',
       quickMatchQueuedAtMs: null,
+      officialBotPromptText: null,
+      officialBotButtonLabel: null,
     });
 
     expect(
@@ -70,6 +72,8 @@ describe('ui-screens', () => {
       showCopyActions: false,
       cancelActionLabel: 'Cancel search',
       quickMatchQueuedAtMs: 1_700_000_000_000,
+      officialBotPromptText: null,
+      officialBotButtonLabel: null,
     });
 
     expect(
@@ -87,7 +91,43 @@ describe('ui-screens', () => {
       showCopyActions: true,
       cancelActionLabel: 'Cancel',
       quickMatchQueuedAtMs: null,
+      officialBotPromptText: null,
+      officialBotButtonLabel: null,
     });
+  });
+
+  it('surfaces Official Bot countdown and accept prompt on the waiting-screen copy', () => {
+    const countdown = buildWaitingScreenCopy({
+      kind: 'quickMatch',
+      statusText: 'Searching for an opponent...',
+      queuedAtMs: 1_700_000_000_000,
+      officialBotOfferAvailable: false,
+      officialBotWaitMsRemaining: 12_400,
+    });
+    expect(countdown.officialBotPromptText).toBe(
+      'Official Bot offer available in 13s',
+    );
+    expect(countdown.officialBotButtonLabel).toBeNull();
+
+    const live = buildWaitingScreenCopy({
+      kind: 'quickMatch',
+      statusText: 'Searching for an opponent...',
+      queuedAtMs: 1_700_000_000_000,
+      officialBotOfferAvailable: true,
+      officialBotWaitMsRemaining: 0,
+    });
+    expect(live.officialBotPromptText).toBe(
+      "Still searching? Don't want to wait?",
+    );
+    expect(live.officialBotButtonLabel).toBe('Play Official Bot now');
+
+    const silent = buildWaitingScreenCopy({
+      kind: 'quickMatch',
+      statusText: 'Searching for an opponent...',
+      queuedAtMs: 1_700_000_000_000,
+    });
+    expect(silent.officialBotPromptText).toBeNull();
+    expect(silent.officialBotButtonLabel).toBeNull();
   });
 
   it('builds game-over, reconnect, and rematch-pending overlay copy', () => {

@@ -38,6 +38,14 @@ export interface WaitingScreenCopy {
   cancelActionLabel: string | null;
   /** Wall-clock ms when quick-match search began; drives elapsed UI. */
   quickMatchQueuedAtMs: number | null;
+  /**
+   * Official-bot quick-match fallback prompt. `null` hides the prompt
+   * entirely. `officialBotButtonLabel` is non-null only once the offer
+   * is live — before that, the text is a countdown ("Official Bot
+   * offer available in 12s").
+   */
+  officialBotPromptText: string | null;
+  officialBotButtonLabel: string | null;
 }
 
 export type WaitingScreenState =
@@ -51,6 +59,13 @@ export type WaitingScreenState =
       statusText: string;
       /** Present while polling for a match (not during "connecting" handoff). */
       queuedAtMs?: number;
+      /**
+       * Most recent server signals about the Official Bot fallback. Both
+       * default to null when the server hasn't reported them yet (e.g.
+       * during "Connecting..." handoff after a match is found).
+       */
+      officialBotOfferAvailable?: boolean;
+      officialBotWaitMsRemaining?: number | null;
     };
 
 export interface GameOverStatsLike {
@@ -212,6 +227,33 @@ export const mapInteractionModeToUIScreenMode = (
   }
 };
 
+const buildOfficialBotPrompt = (
+  state: Extract<WaitingScreenState, { kind: 'quickMatch' }>,
+): Pick<
+  WaitingScreenCopy,
+  'officialBotPromptText' | 'officialBotButtonLabel'
+> => {
+  const remaining = state.officialBotWaitMsRemaining;
+  // Hide the prompt entirely until the server tells us the feature is
+  // live for this queue (either "available now" or a real countdown).
+  // Treating null/undefined as "hidden" means we stay silent if the
+  // Worker has the official-bot feature disabled.
+  if (state.officialBotOfferAvailable) {
+    return {
+      officialBotPromptText: "Still searching? Don't want to wait?",
+      officialBotButtonLabel: 'Play Official Bot now',
+    };
+  }
+  if (typeof remaining === 'number' && remaining > 0) {
+    const seconds = Math.ceil(remaining / 1000);
+    return {
+      officialBotPromptText: `Official Bot offer available in ${seconds}s`,
+      officialBotButtonLabel: null,
+    };
+  }
+  return { officialBotPromptText: null, officialBotButtonLabel: null };
+};
+
 export const buildWaitingScreenCopy = (
   state: WaitingScreenState,
 ): WaitingScreenCopy => {
@@ -225,6 +267,7 @@ export const buildWaitingScreenCopy = (
       showCopyActions: false,
       cancelActionLabel: 'Cancel search',
       quickMatchQueuedAtMs: state.queuedAtMs ?? null,
+      ...buildOfficialBotPrompt(state),
     };
   }
 
@@ -238,6 +281,8 @@ export const buildWaitingScreenCopy = (
         showCopyActions: true,
         cancelActionLabel: 'Cancel',
         quickMatchQueuedAtMs: null,
+        officialBotPromptText: null,
+        officialBotButtonLabel: null,
       }
     : {
         titleText: 'Game Created',
@@ -248,6 +293,8 @@ export const buildWaitingScreenCopy = (
         showCopyActions: true,
         cancelActionLabel: 'Cancel',
         quickMatchQueuedAtMs: null,
+        officialBotPromptText: null,
+        officialBotButtonLabel: null,
       };
 };
 
