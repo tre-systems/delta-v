@@ -253,6 +253,8 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           kind: 'quickMatch',
           statusText: 'Searching for an opponent...',
           queuedAtMs: quickMatchQueuedAtMs ?? undefined,
+          officialBotOfferAvailable: payload.officialBotOfferAvailable,
+          officialBotWaitMsRemaining: payload.officialBotWaitMsRemaining,
         });
       } catch (err) {
         releaseQuickMatch();
@@ -399,6 +401,8 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         kind: 'quickMatch',
         statusText: 'Searching for an opponent...',
         queuedAtMs: quickMatchQueuedAtMs,
+        officialBotOfferAvailable: payload.officialBotOfferAvailable,
+        officialBotWaitMsRemaining: payload.officialBotWaitMsRemaining,
       });
       deps.track('quick_match_queued', {
         scenario: payload.scenario,
@@ -615,10 +619,62 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     deps.setState('menu');
   };
 
+  // Accept the Official Bot fallback when the server has offered it
+  // (after ~20s in queue). Re-POSTs to /quick-match with
+  // acceptOfficialBotMatch=true; the server recognises the existing
+  // ticket by playerKey+scenario and swaps in the synthetic bot entry.
+  // No-op when there's no active quick-match ticket.
+  const acceptOfficialBotMatch = async (): Promise<void> => {
+    if (quickMatchTicket === null || quickMatchPlayerKey === null) return;
+    const player = deps.playerProfile.getProfile();
+    deps.track('quick_match_official_bot_accepted', {
+      scenario: QUICK_MATCH_SCENARIO,
+    });
+    try {
+      const response = await fetchWithTimeout(fetchImpl, '/quick-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: QUICK_MATCH_SCENARIO,
+          player,
+          acceptOfficialBotMatch: true,
+        }),
+      });
+      if (!response.ok) {
+        deps.showToast(TOAST.session.quickMatchUnavailable, 'error');
+        return;
+      }
+      const payload = (await response.json()) as QuickMatchResponse;
+      if (payload.status === 'matched') {
+        connectQuickMatch(payload);
+        return;
+      }
+      // Server says we are still queued — surface whatever it reported
+      // so the poller keeps the prompt/state coherent on its next tick.
+      if (payload.status === 'queued') {
+        deps.setWaitingScreenState({
+          kind: 'quickMatch',
+          statusText: 'Matching with Official Bot...',
+          queuedAtMs: quickMatchQueuedAtMs ?? undefined,
+          officialBotOfferAvailable: payload.officialBotOfferAvailable,
+          officialBotWaitMsRemaining: payload.officialBotWaitMsRemaining,
+        });
+      }
+    } catch (err) {
+      const failureKind = classifySessionRequestFailure(err);
+      deps.track('quick_match_failed', {
+        scenario: QUICK_MATCH_SCENARIO,
+        reason: failureKind,
+      });
+      deps.showToast(TOAST.session.quickMatchLostConnection, 'error');
+    }
+  };
+
   return {
     createGame,
     startQuickMatch,
     cancelQuickMatch,
+    acceptOfficialBotMatch,
     validateJoin,
     fetchReplay,
     fetchArchivedReplay,

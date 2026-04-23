@@ -84,7 +84,10 @@ type MainInteractionDeps = {
   replayController: MainInteractionReplay;
   sessionApi: Pick<
     SessionApi,
-    'createGame' | 'startQuickMatch' | 'cancelQuickMatch'
+    | 'createGame'
+    | 'startQuickMatch'
+    | 'cancelQuickMatch'
+    | 'acceptOfficialBotMatch'
   >;
   mainNetworkDeps: MainNetworkDeps;
   setAIDifficulty: (difficulty: AIDifficulty) => void;
@@ -252,6 +255,10 @@ export const createMainInteractionController = (
         if (deps.ctx.stateSignal.peek() !== 'menu') {
           deps.exitToMenu();
         }
+        return;
+      }
+      case 'acceptOfficialBotMatch': {
+        void deps.sessionApi.acceptOfficialBotMatch();
         return;
       }
       case 'createGame':
