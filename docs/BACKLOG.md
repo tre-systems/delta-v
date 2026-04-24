@@ -160,59 +160,6 @@ future passes.
 [src/server/game-do/actions.ts](../src/server/game-do/actions.ts),
 [src/shared/types/domain.ts](../src/shared/types/domain.ts) (ErrorCode enum)
 
-### Stop Minimap Jumping When HUD Bottom Buttons Toggle (P2)
-
-On mobile the minimap visibly slides up and down whenever the bottom
-HUD button row appears or disappears (e.g. between "your turn" with
-CONFIRM / UNDO showing and "opponent's turn" with no actionable
-buttons). Root cause is a live-rect feedback loop between the HUD
-bottom container and the minimap's Y coordinate:
-
-- `applyHudLayoutMetrics` in
-  [src/client/ui/layout-metrics.ts](../src/client/ui/layout-metrics.ts)
-  reads `bottomBarEl.getBoundingClientRect()` on every layout-sync tick
-  and writes the measured height into the `--hud-bottom-offset` CSS
-  variable.
-- `getMinimapFrame` in
-  [src/client/game/minimap.ts](../src/client/game/minimap.ts) consumes
-  that value through `hudBottomOffset`, and on mobile sets the
-  minimap's Y to `screenHeight - height - (hudBottomOffset + 8 + 14)`.
-- `.hud-bottom-buttons.is-empty { display: none }` in
-  [static/styles/hud.css](../static/styles/hud.css) collapses the
-  button row when no actions are available, which shrinks the parent
-  `.hud-bottom` column.
-
-Measured at 375 × 812 via EXPLORATORY_TESTING R10 on 2026-04-24: the
-CSS variable swings **90 px → 32 px** (a 58 px minimap jump) as the
-buttons row toggles between populated and empty. The same drift fires
-at any intermediate size too — e.g. CONFIRM alone vs CONFIRM + UNDO +
-SKIP, or a longer tutorial-tip line that wraps to two lines.
-
-Two fix shapes:
-
-1. **Decouple minimap anchor from the live HUD rect.** Pin the
-   minimap's bottom inset to the safe-area plus a fixed gap (say
-   `max(12, safe-bottom + 12)`) rather than reading
-   `--hud-bottom-offset`. The HUD bottom and the minimap are both
-   fixed-positioned siblings — they don't need to stay visually
-   adjacent as the HUD grows.
-2. **Reserve stable height on `.hud-bottom` regardless of content.**
-   Give the container a `min-height` sized to the tallest expected
-   layout so toggling `.is-empty` inside doesn't change the outer
-   rectangle. Simpler but eats vertical map space permanently.
-
-Option 1 is cleaner for the limited mobile screen. Verify with the R10
-overlap script afterwards — the minimap must still clear the bottom
-hud when buttons are showing.
-
-**Files:** [src/client/game/minimap.ts](../src/client/game/minimap.ts)
-(drop `hudBottomOffset` from the mobile path, or clamp it),
-[src/client/ui/layout.ts](../src/client/ui/layout.ts) (optional:
-stop exporting a volatile bottom offset),
-[static/styles/hud.css](../static/styles/hud.css) (alternative:
-`.hud-bottom` min-height), [e2e/](../e2e/) (add a regression asserting
-minimap Y is stable across hud-bottom-buttons toggle)
-
 ### Small Accessibility Polish (P3)
 
 The 2026-04-24 a11y re-audit (axe 8/8, manual sweep at 375 × 812) passed
