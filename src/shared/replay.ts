@@ -23,6 +23,7 @@ export interface ReplayTimeline {
   matchNumber: number;
   scenario: string;
   createdAt: number;
+  officialBotMatch?: boolean;
   entries: ReplayEntry[];
 }
 

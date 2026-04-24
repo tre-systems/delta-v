@@ -248,6 +248,21 @@
       border-radius: var(--radius-sm);
     }
 
+    .official-bot-badge {
+      display: inline-block;
+      margin-left: 0.4rem;
+      padding: 0.15rem 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(122, 215, 255, 0.1);
+      border: 1px solid rgba(122, 215, 255, 0.28);
+      border-radius: var(--radius-sm);
+      vertical-align: middle;
+    }
+
     .game-id {
       font-family: var(--font-mono);
       font-size: 0.75rem;
@@ -527,6 +542,9 @@
     const coachedBadge = match.coached
       ? ' <span class="coached-badge" title="This match used the /coach whisper">Coached</span>'
       : '';
+    const officialBotBadge = match.officialBotMatch
+      ? ' <span class="official-bot-badge" title="This match was played against the platform-operated Official Bot">Official Bot</span>'
+      : '';
 
     const replayUrl = `/?code=${encodeURIComponent(match.roomCode)}&archivedReplay=${encodeURIComponent(match.gameId)}`;
 
@@ -535,7 +553,7 @@
         <td>
           <span class="scenario-name">${escapeHtml(scenarioName)}</span>
         </td>
-        <td>${winnerCell}${coachedBadge}${winReason}</td>
+        <td>${winnerCell}${coachedBadge}${officialBotBadge}${winReason}</td>
         <td class="turns-cell">${match.turns}</td>
         <td class="date-cell hide-mobile" title="${new Date(match.completedAt).toISOString()}">${formatDate(match.completedAt)}</td>
         <td><a class="replay-link" href="${replayUrl}" title="Watch ${escapeHtml(match.gameId)}">Replay →</a></td>

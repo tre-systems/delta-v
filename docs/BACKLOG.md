@@ -136,22 +136,6 @@ get stuck without a mouse.
 `src/client/game/client-runtime.ts`, `src/client/game/input-events.ts`,
 `src/client/game/input.ts`, `src/client/game/combat.ts`, `src/client/ui/hud.ts`
 
-### Make Official Bot Provenance Obvious Everywhere (P1)
-
-The explicit quick-match fallback offer is shipped, as are server-side metadata,
-telemetry, archive, rating, and match-list fields. What is not yet obvious from
-the current client code is a product-surface badge wherever an official platform
-bot appears.
-
-Action: render an `Official Bot` badge or equivalent display affordance in
-matchup UI, match history, replay chrome, and leaderboard presentation whenever
-the archived/match metadata says `officialBotMatch`. Keep user-created agents
-visually distinct from the platform-operated bot.
-
-**Files:** `src/client/leaderboard/*.ts`,
-`src/client/game/main-session-shell.ts`, `src/client/game/replay-controller.ts`,
-`src/server/game-do/archive.ts`, `src/shared/types/*`
-
 ## Cost & Abuse Hardening
 
 ### Clear the Transitive `hono` Advisory in the MCP Adapter Chain (P2)

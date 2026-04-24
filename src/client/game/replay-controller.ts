@@ -108,6 +108,11 @@ export const createReplayController = (
     return `Turn ${entry.turn} · ${player} ${entry.phase.toUpperCase()}`;
   };
 
+  const appendOfficialBotReplayLabel = (
+    text: string,
+    timeline: ReplayTimeline | null,
+  ): string => (timeline?.officialBotMatch ? `${text} · Official Bot` : text);
+
   const buildTurnLabel = (timeline: ReplayTimeline, index: number): string => {
     const entry = timeline.entries[index];
     if (!entry) return '';
@@ -206,7 +211,10 @@ export const createReplayController = (
       active: true,
       loading: false,
       playing: isPlaying(),
-      statusText: buildReplayStatusText(timeline, index),
+      statusText: appendOfficialBotReplayLabel(
+        buildReplayStatusText(timeline, index),
+        timeline,
+      ),
       selectedGameId: replaySelection.selectedGameId,
       canSelectPrevMatch: replaySelection.selectedMatchNumber > 1,
       canSelectNextMatch:

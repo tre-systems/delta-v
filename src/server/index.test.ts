@@ -817,7 +817,7 @@ describe('server index worker', () => {
       completedAt: 5678,
       checkpoint: null,
       matchSeed: null,
-      officialBotMatch: false,
+      officialBotMatch: true,
       eventStream: [
         {
           seq: 1,
@@ -871,10 +871,12 @@ describe('server index worker', () => {
     const body = (await response.json()) as {
       gameId: string;
       scenario: string;
+      officialBotMatch: boolean;
       entries: Array<{ message: { state: { phase: string } } }>;
     };
     expect(body.gameId).toBe('ABCDE-m2');
     expect(body.scenario).toBe('Duel');
+    expect(body.officialBotMatch).toBe(true);
     expect(body.entries).toHaveLength(1);
     expect(body.entries[0]?.message.state.phase).toBe('astrogation');
   });

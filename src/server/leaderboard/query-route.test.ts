@@ -191,6 +191,28 @@ describe('handleLeaderboardQuery', () => {
     expect(body.entries[1].isAgent).toBe(false);
   });
 
+  it('flags the platform Official Bot separately from other agents', async () => {
+    const { db } = mockDb([
+      row({ username: 'Official Bot', is_agent: 1 }),
+      row({ username: 'Zephyr', is_agent: 1 }),
+    ]);
+    const res = await handleLeaderboardQuery(
+      new Request('https://w.test/api/leaderboard'),
+      env(db),
+    );
+    const body = (await res.json()) as LeaderboardResponse;
+    expect(body.entries[0]).toMatchObject({
+      username: 'Official Bot',
+      isAgent: true,
+      isOfficialBot: true,
+    });
+    expect(body.entries[1]).toMatchObject({
+      username: 'Zephyr',
+      isAgent: true,
+      isOfficialBot: false,
+    });
+  });
+
   it('rejects non-GET methods', async () => {
     const { db } = mockDb([]);
     const res = await handleLeaderboardQuery(

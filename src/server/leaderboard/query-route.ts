@@ -5,7 +5,7 @@
 //     cleared the provisional gate (see src/shared/rating/provisional.ts).
 //
 // Response:
-//   { entries: [{ username, isAgent, rating, rd, gamesPlayed,
+//   { entries: [{ username, isAgent, isOfficialBot, rating, rd, gamesPlayed,
 //                 provisional, lastPlayedAt }] }
 //
 // The D1 read is cached at the edge for 60 s — a brand-new match
@@ -13,6 +13,7 @@
 // ladder and keeps read cost effectively zero under load. Rankings
 // change on the minute, not the second.
 
+import { OFFICIAL_QUICK_MATCH_BOT_USERNAME } from '../../shared/player';
 import { isProvisional } from '../../shared/rating/provisional';
 import type { Env } from '../env';
 
@@ -29,6 +30,7 @@ interface PlayerRow {
 export interface LeaderboardEntry {
   username: string;
   isAgent: boolean;
+  isOfficialBot: boolean;
   rating: number;
   rd: number;
   gamesPlayed: number;
@@ -96,6 +98,7 @@ const toEntry = (row: PlayerRow): LeaderboardEntry => {
   return {
     username: row.username,
     isAgent: row.is_agent === 1,
+    isOfficialBot: row.username === OFFICIAL_QUICK_MATCH_BOT_USERNAME,
     rating: Math.round(row.rating),
     rd: Math.round(row.rd),
     gamesPlayed: row.games_played,

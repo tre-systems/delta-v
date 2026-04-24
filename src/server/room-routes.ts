@@ -99,11 +99,17 @@ export const handleReplayFetch = (
       return roomResponse;
     }
 
-    return Response.json(timeline, {
-      headers: {
-        'Cache-Control': 'public, max-age=60, s-maxage=3600',
+    return Response.json(
+      {
+        ...timeline,
+        officialBotMatch: archivedMatch.officialBotMatch,
       },
-    });
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=60, s-maxage=3600',
+        },
+      },
+    );
   })();
 };
 
