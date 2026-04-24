@@ -172,7 +172,7 @@ describe('MatchmakerDO', () => {
     expect(initFetch).not.toHaveBeenCalled();
   });
 
-  it('falls back to the default scenario when the request contains an unknown one', async () => {
+  it('rejects unknown quick-match scenarios with a field-specific error', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_000);
     const { matchmaker } = createMatchmaker();
 
@@ -186,8 +186,12 @@ describe('MatchmakerDO', () => {
         }),
       }),
     );
-    const payload = (await response.json()) as { scenario: string };
-    expect(payload.scenario).toBe('duel');
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: 'unknown_scenario',
+      message: 'scenario must be one of the published scenario keys.',
+    });
   });
 
   it('returns 503 when the active queue is saturated', async () => {

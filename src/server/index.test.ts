@@ -1845,6 +1845,26 @@ describe('GET /join and /replay probe rate limiting', () => {
     expect(initFetch).toHaveBeenCalledTimes(100);
   });
 
+  it('returns JSON for malformed join preflight room codes', async () => {
+    const { env, initFetch } = createEnv(async () => new Response('ok'));
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/join/abcde', {
+        method: 'GET',
+        headers: { 'cf-connecting-ip': '7.7.7.7' },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      code: 'ROOM_NOT_FOUND',
+      message: 'Room not found',
+    });
+    expect(initFetch).not.toHaveBeenCalled();
+  });
+
   it('rate-limits replay probes independently from join probes', async () => {
     const { env, initFetch } = createEnv(async () => new Response('ok'));
 

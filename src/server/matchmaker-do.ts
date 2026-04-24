@@ -36,6 +36,18 @@ interface QueueEntry {
   matched?: Extract<QuickMatchResponse, { status: 'matched' }>;
 }
 
+type NormalizedQuickMatchRequest = Pick<
+  QueueEntry,
+  'scenario' | 'rendezvousCode' | 'player'
+> & {
+  acceptOfficialBotMatch: boolean;
+  declineOfficialBotMatch: boolean;
+};
+
+type QuickMatchPayloadResult =
+  | { ok: true; value: NormalizedQuickMatchRequest }
+  | { ok: false; error: string; message: string };
+
 interface Env {
   GAME: DurableObjectNamespace;
   LIVE_REGISTRY?: DurableObjectNamespace;
@@ -146,15 +158,7 @@ const normalizeRendezvousCode = (raw: unknown): string | null | undefined => {
   return normalized;
 };
 
-const normalizeQuickMatchRequest = (
-  raw: unknown,
-): {
-  scenario: string;
-  rendezvousCode: string | null;
-  acceptOfficialBotMatch: boolean;
-  declineOfficialBotMatch: boolean;
-  player: PublicPlayerProfile;
-} | null => {
+const normalizeQuickMatchRequest = (raw: unknown): QuickMatchPayloadResult => {
   if (
     raw === null ||
     typeof raw !== 'object' ||
@@ -162,7 +166,11 @@ const normalizeQuickMatchRequest = (
     raw.player === null ||
     typeof raw.player !== 'object'
   ) {
-    return null;
+    return {
+      ok: false,
+      error: 'invalid_player',
+      message: 'Quick-match payload must include player.playerKey.',
+    };
   }
 
   const playerRaw = raw.player as {
@@ -174,15 +182,52 @@ const normalizeQuickMatchRequest = (
     (raw as { rendezvousCode?: unknown }).rendezvousCode,
   );
 
-  if (!playerKey || rendezvousCode === null) {
-    return null;
+  if (!playerKey) {
+    return {
+      ok: false,
+      error: 'invalid_player',
+      message:
+        'player.playerKey must be 8-64 characters using letters, numbers, "_" or "-".',
+    };
+  }
+
+  if (rendezvousCode === null) {
+    return {
+      ok: false,
+      error: 'invalid_rendezvous_code',
+      message:
+        'rendezvousCode must be 3-16 characters using letters and numbers.',
+    };
+  }
+
+  const usernameRaw = playerRaw.username;
+  const username =
+    usernameRaw === undefined
+      ? buildDefaultUsername(playerKey)
+      : normalizeUsername(usernameRaw);
+
+  if (!username) {
+    return {
+      ok: false,
+      error: 'username_too_long',
+      message:
+        'player.username must be 2-20 characters using letters, numbers, spaces, "_" or "-".',
+    };
   }
 
   const requestedScenarioRaw = (raw as { scenario?: unknown }).scenario;
-  // Validate against the canonical scenario registry. Unknown keys
-  // (typos, stale clients) fall back to the quick-match default rather
-  // than propagating into game creation, where they would have silently
-  // collapsed to `biplanetary` inside normalizeScenarioKey.
+  if (
+    requestedScenarioRaw !== undefined &&
+    (typeof requestedScenarioRaw !== 'string' ||
+      !isValidScenario(requestedScenarioRaw))
+  ) {
+    return {
+      ok: false,
+      error: 'unknown_scenario',
+      message: 'scenario must be one of the published scenario keys.',
+    };
+  }
+
   const scenario =
     typeof requestedScenarioRaw === 'string' &&
     isValidScenario(requestedScenarioRaw)
@@ -190,19 +235,20 @@ const normalizeQuickMatchRequest = (
       : QUICK_MATCH_SCENARIO;
 
   return {
-    scenario,
-    rendezvousCode: rendezvousCode ?? null,
-    acceptOfficialBotMatch:
-      (raw as { acceptOfficialBotMatch?: unknown }).acceptOfficialBotMatch ===
-      true,
-    declineOfficialBotMatch:
-      (raw as { declineOfficialBotMatch?: unknown }).declineOfficialBotMatch ===
-      true,
-    player: {
-      playerKey,
-      username:
-        normalizeUsername(playerRaw.username) ??
-        buildDefaultUsername(playerKey),
+    ok: true,
+    value: {
+      scenario,
+      rendezvousCode: rendezvousCode ?? null,
+      acceptOfficialBotMatch:
+        (raw as { acceptOfficialBotMatch?: unknown }).acceptOfficialBotMatch ===
+        true,
+      declineOfficialBotMatch:
+        (raw as { declineOfficialBotMatch?: unknown })
+          .declineOfficialBotMatch === true,
+      player: {
+        playerKey,
+        username,
+      },
     },
   };
 };
@@ -210,12 +256,15 @@ const normalizeQuickMatchRequest = (
 const ticketFromEntropy = (): string =>
   generatePlayerToken().replace(/_/g, 'A').replace(/-/g, 'B');
 
-const invalidQuickMatchPayload = (): Response =>
+const invalidQuickMatchPayload = (
+  error = 'invalid_payload',
+  message = 'Invalid quick-match payload.',
+): Response =>
   Response.json(
     {
       ok: false,
-      error: 'invalid_payload',
-      message: 'Invalid quick-match payload.',
+      error,
+      message,
       hint: 'Send { player: { playerKey, username? }, scenario? } as JSON.',
     },
     { status: 400 },
@@ -581,19 +630,20 @@ export class MatchmakerDO extends DurableObject<Env> {
 
     const parsed = normalizeQuickMatchRequest(payload);
 
-    if (!parsed) {
-      return invalidQuickMatchPayload();
+    if (!parsed.ok) {
+      return invalidQuickMatchPayload(parsed.error, parsed.message);
     }
+    const requestPayload = parsed.value;
 
     const leaderboardAgentVerified =
       request.headers.get(QUICK_MATCH_VERIFIED_AGENT_HEADER) === '1';
 
     const existingActiveMatch = await this.findActiveMatchForPlayer(
-      parsed.player.playerKey,
+      requestPayload.player.playerKey,
     );
     if (existingActiveMatch) {
       return playerAlreadyActiveResponse(
-        parsed.player.playerKey,
+        requestPayload.player.playerKey,
         existingActiveMatch,
       );
     }
@@ -602,24 +652,24 @@ export class MatchmakerDO extends DurableObject<Env> {
     let entries = this.pruneQueue(await this.readQueue(), now);
     const existingIndex = entries.findIndex(
       (entry) =>
-        entry.player.playerKey === parsed.player.playerKey &&
-        entry.scenario === parsed.scenario &&
-        entry.rendezvousCode === parsed.rendezvousCode,
+        entry.player.playerKey === requestPayload.player.playerKey &&
+        entry.scenario === requestPayload.scenario &&
+        entry.rendezvousCode === requestPayload.rendezvousCode,
     );
 
     if (existingIndex >= 0) {
       const existing = entries[existingIndex];
       entries[existingIndex] = {
         ...existing,
-        player: parsed.player,
+        player: requestPayload.player,
         leaderboardAgentVerified,
         lastSeenAt: now,
       };
 
       if (
         existing.status === 'queued' &&
-        parsed.declineOfficialBotMatch &&
-        !parsed.acceptOfficialBotMatch &&
+        requestPayload.declineOfficialBotMatch &&
+        !requestPayload.acceptOfficialBotMatch &&
         isOfficialQuickMatchBotEnabled(this.env) &&
         now - existing.queuedAt >= OFFICIAL_QUICK_MATCH_BOT_WAIT_MS &&
         existing.officialBotDeclinedAt == null
@@ -644,7 +694,7 @@ export class MatchmakerDO extends DurableObject<Env> {
 
       if (
         existing.status === 'queued' &&
-        parsed.acceptOfficialBotMatch &&
+        requestPayload.acceptOfficialBotMatch &&
         isOfficialQuickMatchBotEnabled(this.env) &&
         now - existing.queuedAt >= OFFICIAL_QUICK_MATCH_BOT_WAIT_MS
       ) {
@@ -693,9 +743,9 @@ export class MatchmakerDO extends DurableObject<Env> {
     const humanMatchIndex = entries.findIndex(
       (entry) =>
         isActiveQueueEntry(entry, now) &&
-        entry.player.playerKey !== parsed.player.playerKey &&
-        entry.scenario === parsed.scenario &&
-        entry.rendezvousCode === parsed.rendezvousCode,
+        entry.player.playerKey !== requestPayload.player.playerKey &&
+        entry.scenario === requestPayload.scenario &&
+        entry.rendezvousCode === requestPayload.rendezvousCode,
     );
 
     // Reject new enqueues once storage is saturated. The cap counts
@@ -715,9 +765,9 @@ export class MatchmakerDO extends DurableObject<Env> {
     const ticket = ticketFromEntropy();
     entries.push({
       ticket,
-      scenario: parsed.scenario,
-      rendezvousCode: parsed.rendezvousCode,
-      player: parsed.player,
+      scenario: requestPayload.scenario,
+      rendezvousCode: requestPayload.rendezvousCode,
+      player: requestPayload.player,
       leaderboardAgentVerified,
       queuedAt: now,
       lastSeenAt: now,
