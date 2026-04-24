@@ -41,6 +41,23 @@ export interface SimulationMetrics {
   crashes: number; // Internal engine errors during simulation
   crashSeeds: number[];
   reasons: Record<string, number>;
+  scorecard: ScenarioScorecard;
+}
+
+export interface ScenarioScorecard {
+  decidedGames: number;
+  player0DecidedRate: number | null;
+  averageTurns: number | null;
+  objectiveResolutions: number;
+  objectiveShare: number;
+  fleetEliminations: number;
+  fleetEliminationShare: number;
+  timeouts: number;
+  timeoutShare: number;
+  passengerDeliveries: number;
+  passengerDeliveryShare: number;
+  grandTourCompletions: number;
+  grandTourCompletionShare: number;
 }
 
 export interface SimulationOptions {
@@ -227,6 +244,55 @@ const countReasonsMatching = (
     0,
   );
 
+const countTimeoutReasons = (reasons: Record<string, number>): number =>
+  Object.entries(reasons).reduce((total, [reason, count]) => {
+    const lower = reason.toLowerCase();
+    return lower.includes('timeout') ? total + count : total;
+  }, 0);
+
+export const buildScenarioScorecard = (
+  metrics: Omit<SimulationMetrics, 'scorecard'>,
+): ScenarioScorecard => {
+  const objectivePolicy = OBJECTIVE_WARNING_POLICIES[metrics.scenario];
+  const objectiveResolutions = objectivePolicy
+    ? countReasonsMatching(
+        metrics.reasons,
+        objectivePolicy.objectiveReasonMatchers,
+      )
+    : 0;
+  const fleetEliminations = metrics.reasons['Fleet eliminated!'] ?? 0;
+  const passengerDeliveries = countReasonsMatching(metrics.reasons, [
+    /with colonists!/,
+  ]);
+  const grandTourCompletions = countReasonsMatching(metrics.reasons, [
+    /Grand Tour complete!/,
+  ]);
+  const timeouts = Math.max(
+    metrics.draws,
+    countTimeoutReasons(metrics.reasons),
+  );
+  const decidedGames = metrics.player0Wins + metrics.player1Wins;
+  const totalGames = Math.max(1, metrics.totalGames);
+
+  return {
+    decidedGames,
+    player0DecidedRate:
+      decidedGames > 0 ? metrics.player0Wins / decidedGames : null,
+    averageTurns:
+      metrics.totalGames > 0 ? metrics.totalTurns / metrics.totalGames : null,
+    objectiveResolutions,
+    objectiveShare: objectiveResolutions / totalGames,
+    fleetEliminations,
+    fleetEliminationShare: fleetEliminations / totalGames,
+    timeouts,
+    timeoutShare: timeouts / totalGames,
+    passengerDeliveries,
+    passengerDeliveryShare: passengerDeliveries / totalGames,
+    grandTourCompletions,
+    grandTourCompletionShare: grandTourCompletions / totalGames,
+  };
+};
+
 export const evaluateSimulationPolicies = (
   metricsList: readonly SimulationMetrics[],
 ): SimulationPolicyEvaluation => {
@@ -240,9 +306,9 @@ export const evaluateSimulationPolicies = (
 
     const threshold = BALANCE_THRESHOLDS[metrics.scenario];
     if (threshold) {
-      const decidedGames = metrics.player0Wins + metrics.player1Wins;
+      const decidedGames = metrics.scorecard.decidedGames;
       if (decidedGames >= 5) {
-        const p0Rate = metrics.player0Wins / decidedGames;
+        const p0Rate = metrics.scorecard.player0DecidedRate ?? 0;
         const [lo, hi] = threshold;
         if (p0Rate < lo || p0Rate > hi) {
           warnings.push({
@@ -262,13 +328,8 @@ export const evaluateSimulationPolicies = (
       continue;
     }
 
-    const objectiveCompletions = countReasonsMatching(
-      metrics.reasons,
-      objectivePolicy.objectiveReasonMatchers,
-    );
-    const eliminationResolutions = metrics.reasons['Fleet eliminated!'] ?? 0;
-    const objectiveShare = objectiveCompletions / metrics.totalGames;
-    const eliminationShare = eliminationResolutions / metrics.totalGames;
+    const objectiveShare = metrics.scorecard.objectiveShare;
+    const eliminationShare = metrics.scorecard.fleetEliminationShare;
 
     if (
       objectivePolicy.minObjectiveShare != null &&
@@ -297,10 +358,10 @@ export const evaluateSimulationPolicies = (
     }
 
     if (objectivePolicy.decidedP0RateBounds != null) {
-      const decidedGames = metrics.player0Wins + metrics.player1Wins;
+      const decidedGames = metrics.scorecard.decidedGames;
 
       if (decidedGames >= 5) {
-        const p0Rate = metrics.player0Wins / decidedGames;
+        const p0Rate = metrics.scorecard.player0DecidedRate ?? 0;
         const [lo, hi] = objectivePolicy.decidedP0RateBounds;
 
         if (p0Rate < lo || p0Rate > hi) {
@@ -511,6 +572,17 @@ export const runSimulation = async (
     crashes: 0,
     crashSeeds: [],
     reasons: {},
+    scorecard: buildScenarioScorecard({
+      scenario: scenarioName,
+      totalGames: 0,
+      player0Wins: 0,
+      player1Wins: 0,
+      draws: 0,
+      totalTurns: 0,
+      crashes: 0,
+      crashSeeds: [],
+      reasons: {},
+    }),
   };
 
   const startTime = Date.now();
@@ -551,6 +623,8 @@ export const runSimulation = async (
     }
   }
 
+  metrics.scorecard = buildScenarioScorecard(metrics);
+
   const duration = Date.now() - startTime;
 
   if (!quiet) {
@@ -576,6 +650,31 @@ export const runSimulation = async (
     console.log(`\nWin Reasons:`);
     for (const [reason, count] of Object.entries(metrics.reasons)) {
       console.log(`  - ${reason}: ${count}`);
+    }
+    console.log(`\nScenario Scorecard:`);
+    console.log(
+      `  - Objective Share: ${(metrics.scorecard.objectiveShare * 100).toFixed(1)}%`,
+    );
+    console.log(
+      `  - Fleet Elimination Share: ${(metrics.scorecard.fleetEliminationShare * 100).toFixed(1)}%`,
+    );
+    console.log(
+      `  - Timeout Share: ${(metrics.scorecard.timeoutShare * 100).toFixed(1)}%`,
+    );
+    if (metrics.scorecard.player0DecidedRate != null) {
+      console.log(
+        `  - P0 Decided Rate: ${(metrics.scorecard.player0DecidedRate * 100).toFixed(1)}%`,
+      );
+    }
+    if (metrics.scorecard.passengerDeliveries > 0) {
+      console.log(
+        `  - Passenger Delivery Share: ${(metrics.scorecard.passengerDeliveryShare * 100).toFixed(1)}%`,
+      );
+    }
+    if (metrics.scorecard.grandTourCompletions > 0) {
+      console.log(
+        `  - Grand Tour Completion Share: ${(metrics.scorecard.grandTourCompletionShare * 100).toFixed(1)}%`,
+      );
     }
   }
 
