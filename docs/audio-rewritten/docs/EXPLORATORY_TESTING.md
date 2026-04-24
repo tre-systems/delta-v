@@ -14,7 +14,9 @@ A pass typically takes sixty to a hundred and twenty minutes of agent or human t
 
 Each vantage is a separate way to look at the running system. Use several per pass — single-vantage sessions miss too much.
 
-The Browser MCP vantage, through Claude in Chrome or the Playwright preview, drives the single-page application as a real user would. It lets you inspect the DOM, the console, and the network. Connect the browser extension and open the production site.
+The Browser MCP vantage, through Claude in Chrome, drives the deployed single-page application as a real user would. It lets you inspect the DOM, the console, and the network. Connect the browser extension and open the production site. Note that Chrome MCP has mobile-viewport limitations, covered in detail under the mobile layout recipe.
+
+The Playwright preview vantage drives the local development server in a headless Chromium that honors viewport resize down to three hundred twenty pixels and respects preference-based media emulation. It is the only reliable way for an agent to exercise the responsive breakpoints at seven hundred sixty, six hundred forty, and four hundred twenty pixels. You start it with the preview-start tool, then use the preview resize, snapshot, screenshot, inspect, evaluate, and click tools. This vantage is essential for the mobile layout recipe.
 
 The Local Agent MCP vantage uses standard input and output. It drives a seat programmatically and lets you inspect the raw observation, candidates, and tactical hints. You start it with the local MCP run script, as described in the MCP reference.
 
@@ -24,7 +26,7 @@ The Play skill is a higher-level autonomous play loop that sits on top of the ag
 
 The curl vantage hits public endpoints directly. Use it to probe the HTTP application programming interface surface, validation behaviour, and error shapes. The set of documented endpoints is in the well-known agent manifest.
 
-The D1 query vantage uses Wrangler's database-execute command in remote mode. It lets you inspect or mutate the four main tables: events, match archive, player, and match rating. It authenticates through Wrangler's interactive login. For headless runs, set a Cloudflare application programming interface token with database edit scope.
+The database query vantage uses Wrangler's database-execute command in remote mode. It lets you inspect or mutate the four main tables: events, match archive, player, and match rating. It authenticates through Wrangler's interactive login. For headless runs, set a Cloudflare application programming interface token with database edit scope.
 
 The Worker tail vantage streams live Cloudflare Worker and Durable Object logs in JSON format, including Cloudflare metadata. It also authenticates through Wrangler login. Important: the tail output captures real client IP addresses, geolocation data, and TLS fingerprints, so never paste the raw output anywhere shared.
 
@@ -52,7 +54,7 @@ Cost and abuse surface. Are rate limits enforced where the documentation says th
 
 Cross-vantage consistency. Does the browser heads-up display show the same turn, phase, and active player as the Model Context Protocol observation, the database row, and the tail log line at the same instant?
 
-Mobile and accessibility. Does the single-page application reflow at a three-hundred-and-seventy-five-pixel viewport? Does prefers-reduced-motion or prefers-contrast actually take effect? Can keyboard-only users complete a turn?
+Mobile and accessibility. At each declared breakpoint — seven hundred sixty, six hundred forty, and four hundred twenty pixel widths, plus the five hundred sixty pixel short-height rule — does every floating element stay fully visible and out of every other element's bounding box? That includes the heads-up display bar, the bottom-buttons row, the ship list, the game log, the minimap, the help and sound buttons, the phase alert, the tutorial tip, toasts, and the game-over panel. Can every interactive element be reached by an element-from-point lookup without a decoration stealing the click? Do safe-area inset offsets work on notched devices and in landscape? Do preferences for reduced motion or increased contrast actually take effect? Can keyboard-only users complete a turn?
 
 Recovery surface. Reload mid-game — does state restore correctly? Two tabs on the same player — what wins? A stale share-code query parameter — graceful?
 
@@ -112,13 +114,37 @@ In one window, run the Worker tail in JSON format filtered to Durable Object ent
 
 Mid-match in a browser tab: hard refresh — does the single-page application restore the same turn, phase, and selected ship? Open the same match universal resource locator in a second tab — what wins? Does the server enforce one socket per player token? Toggle airplane mode for thirty seconds, then reconnect — does the WebSocket auto-recover, or does the user have to reload? For the Model Context Protocol: kill the standard-input-output server, restart it, try get-state with the old session identifier.
 
-### R10. Mobile and accessibility triangulation
+### R10. Mobile layout sweep — overlap, obscuration, and safe-area
 
-Resize the browser to three-hundred-and-seventy-five by eight-hundred-and-twelve pixels — an iPhone 13 viewport — and re-run the scenario sweep on at least one scenario. In DevTools Rendering, emulate prefers-contrast more and prefers-reduced-motion. Tab-only navigate through the lobby and one full astrogation phase. Cross-reference with the accessibility document and any open contrast-audit items in the backlog.
+Mobile bugs dominate the commit history in this repository and they keep coming back. Every user-interface change is a chance to re-introduce heads-up-display overlap, bottom-bar obscuration, or a button pushed behind a notch. Ship mobile as deliberately as you ship engine rules.
+
+Setup is Playwright preview only. Chrome MCP cannot shrink its window below the host display's minimum — roughly twelve hundred sixty pixels on a fourteen-inch laptop — so the media query for widths up to seven hundred sixty pixels never evaluates true and the responsive breakpoints never fire. Synthetic media-query change events do not route to the change-event handlers either. So: use the Playwright preview MCP or human DevTools device emulation, and never file a mobile finding from Chrome MCP alone.
+
+The core loop is: start preview, evaluate any navigation or state priming, resize the viewport to the target width and height, take a structural snapshot, and take a screenshot for visual proof.
+
+Viewport matrix. At minimum, step through every CSS breakpoint boundary and one real device on each side — missing the boundary misses bugs that live only in the single-pixel band between rules.
+
+The recommended cells include: three hundred twenty by five hundred sixty-eight for the smallest realistic portrait such as the original iPhone SE, which hits the four-twenty, six-forty, and seven-sixty rules. Three hundred sixty by six hundred forty for a common low-end Android, which sits just above four-twenty and hits six-forty and seven-sixty. Three hundred seventy-five by six hundred sixty-seven for an iPhone SE second or third generation or iPhone 8. Three hundred seventy-five by eight hundred twelve for a notched iPhone 13 or 14. Four hundred fourteen by eight hundred ninety-six for iPhone 11 Pro Max. Four hundred nineteen by eight hundred, which is one pixel below the four-twenty rule, to verify the tiny-phone rules. Four hundred twenty-one by eight hundred, which is one pixel above the four-twenty rule, to verify the six-forty rules without tiny overrides. Six hundred thirty-nine by eight hundred, one pixel below the six-forty rule. Six hundred forty-one by eight hundred, one pixel above it, to verify the band where the minimum-width-six-forty-one and maximum-width-seven-sixty rules overlap. Seven hundred fifty-nine by nine hundred for the last narrow layout. Seven hundred sixty-one by nine hundred where desktop layout just kicks in. Eight hundred twelve by three hundred seventy-five for iPhone landscape, which triggers the maximum-height-five-sixty rules. Six hundred forty by four hundred eighty for the narrow-and-short combination. And ten twenty-four by thirteen sixty-six for an iPad portrait regression check, which should still look desktop-like.
+
+Across every cell, run four checks, and paste each failure into the finding with the exact viewport.
+
+Check one is programmatic overlap detection. Run a small script in the preview evaluate tool that collects the bounding rectangles of every heads-up-display floater and interactive element, skipping hidden elements and elements with opacity zero, then flags any pairwise intersection with area greater than two square pixels that isn't a nested containment. Also flag any rectangle entirely outside the viewport. Any overlap entry with a non-trivial area is a finding; any off-screen entry with a non-cosmetic selector is a finding.
+
+Check two is click reachability. For every primary button and heads-up-display control, confirm the visible pixel at its geometric centre routes clicks back to the element itself. A decorative overlay with higher z-index, or a moved safe area, can steal taps and produce a bug that the snapshot won't show. The script iterates each button, takes the centre coordinate of its bounding box, calls element-from-point, and flags any case where the hit target isn't the button or a descendant of it. An empty result means fine. Any entry means a control the user cannot tap.
+
+Check three is safe area on notched and landscape devices. Playwright's Chromium does not produce real safe-area insets, but you can force them by setting CSS custom properties for top, bottom, left, and right insets directly on the root element. Then re-run checks one and two. Any new overlap or off-screen element at three seventy-five by eight hundred twelve is a finding: it will reproduce on a real iPhone even though you saw no bug at zero inset.
+
+Check four is the virtual-keyboard and URL-bar collapse. iOS Safari and Android Chrome shrink the viewport when the address bar hides and again when a text input is focused. Simulate it by resizing the preview to the portrait height minus about one hundred to one hundred twenty pixels — for instance three seventy-five by seven hundred for iPhone 13 with the keyboard up. The lobby callsign input, chat input, and join-code input must remain visible and must not be covered by the heads-up-display bottom bar or phase alert.
+
+Scenario and flow coverage. Per viewport, walk at minimum: the home menu through scenario select and difficulty — which checks menu padding and logo clipping. The lobby create-private flow to code reveal — where game-code letter spacing wraps on three-twenty if broken. Play versus AI for one full astrogation turn, which exercises the heads-up-display bar, bottom buttons, ship list, game log, minimap, and phase alert. Opening the help overlay mid-game to check stacking, backdrop, and close-button reachability. The game-over screen, where the four-twenty rules go edge-to-edge — verify no floating-panel border at three-twenty. The replay viewer, checking control-bar visibility during animated playback — archived replay was a recent regression. And the match history, leaderboard, and agents pages, each of which has its own media rules.
+
+Other sensory checks. In the same preview tab, emulate the preference for more contrast and for reduced motion by setting a class on the root element, or by using the DevTools rendering panel in a headed browser. Then tab only through the lobby plus one astrogation phase. Cross-reference with the accessibility document.
+
+Recent regression hotspots worth extra scrutiny: the floating exit, chat, and replay-exit overlap, which has been fixed and re-regressed repeatedly. The heads-up-display bottom bar versus utility buttons on narrow and short viewports. The ship list overlapping the minimap at the six-forty-one to seven-sixty band. The game-over edge-to-edge treatment at four-twenty and below. Safe-area insets for notched devices in landscape. And the installed progressive-web-app shell, where there is no URL bar — verify the inset math separately from the in-browser view.
 
 ### R11. Fresh-start: wipe persisted data between runs
 
-For a clean baseline — for example before measuring whether a regression introduces ghost rows, or after a destructive test — confirm no live matches first, then truncate the D1 tables and the R2 archive bucket. Production-only. Confirm scope with the operator first; everything below is destructive and irreversible.
+For a clean baseline — for example before measuring whether a regression introduces ghost rows, or after a destructive test — confirm no live matches first, then truncate the database tables and the R2 archive bucket. Production-only. Confirm scope with the operator first; everything below is destructive and irreversible.
 
 First, check that the live-matches endpoint returns an empty array. Then execute a single SQL block that deletes every row from match-rating, match-archive, player, and events.
 
@@ -132,7 +158,7 @@ Walk every universal resource locator referenced from the main readme, the docs 
 
 ### R13. Worker-tail exception triage
 
-This was the single highest-yield probe in the April pass. Run the Worker tail in JSON format for the duration of a paired-match session, then post-filter for any chunk with a non-empty exceptions array. A short Python snippet splits the concatenated JSON stream by newlines between close-braces and open-braces, parses each chunk, and for each chunk prints every exception's name, message, and stack.
+This was the single highest-yield probe in the April nineteenth pass. Run the Worker tail in JSON format for the duration of a paired-match session, then post-filter for any chunk with a non-empty exceptions array. A short Python snippet splits the concatenated JSON stream by newlines between close-braces and open-braces, parses each chunk, and for each chunk prints every exception's name, message, and stack.
 
 Even outcomes that look successful from the client side — game completed, archive landed — can mask thrown exceptions in Durable Object close handlers, alarm handlers, or async logging paths. The April pass surfaced a type error — "The Durable Object's code has been updated, this version can no longer access storage" — only because of this filter. Continuous delivery means every exploratory pass should include this recipe: a deploy may have just landed.
 
@@ -144,14 +170,6 @@ Open the single-page application in a fresh browser profile, complete one matchm
 
 For each persisted blob, ask: who owns it? When does it get pruned? What happens if the device is shared? Does it contain anything user-typed — callsign, real-name pattern? Is any authentication credential stored in plaintext local-storage? The April pass surfaced unbounded growth of the match-tokens cache and a player-profile entry storing the raw callsign indefinitely.
 
-### R16. Simulation-harness balance sweep
-
-The simulation AI-versus-AI engine harness, as described in the simulation testing document, is the cheapest way to surface scenario-balance regressions without playing a hundred games by hand. Three representative runs: all scenarios at thirty games each under continuous-integration gates; a specific scenario at a hundred games for tighter signal; the same specific scenario with randomised starting seats to check seat-balance independence.
-
-Read the per-scenario block: player-zero win percentage, player-one win percentage, draws or timeouts, and average turns. Useful triage rules. A player-zero or player-one win-rate outside the forty-to-sixty-percent band at a hundred games is a balance issue — the continuous-integration gate fires at forty-five to eighty-five percent for player zero, deliberately wide, but tighter thresholds catch real drift earlier. A timeout rate above five percent means the AI is stalemating — either the scenario lacks pressure or the turn cap is too short. An average-turn count below five means the scenario is being decided too quickly to be interesting; first-player edge dominates. Any engine-crash count above zero is a fail-closed result to file under architecture correctness.
-
-The April sweep surfaced evacuation at ninety-six to three and duel at sixty to forty from this single command. Run before any AI heuristic change, and before any release.
-
 ### R15. Post-game pipeline cross-check
 
 After each completed paired match, verify the data landed in all four persistence stores within about thirty seconds. First, capture the game identifier — from the live-match response or the close-loop send-action result. Then run four database and object-storage checks: match metadata in the match-archive table, Glicko-2 rating delta in the match-rating table, updated rows in the player table for anyone who played in the last two minutes, and the full event-stream archive in R2 at the matches prefix.
@@ -159,6 +177,32 @@ After each completed paired match, verify the data landed in all four persistenc
 Plus the public surfaces: the match-list endpoint for recent matches, and the leaderboard endpoint including provisional players.
 
 Any of these returning empty for a game that completed in the user interface is a finding — most likely a thrown exception from the Worker-tail triage recipe interrupted the archive cascade. The April pass found the match-archive row appeared eventually — after about ninety seconds, once the alarm path reconciled. Eventual archival is acceptable but worth measuring; missing archival is a bug.
+
+### R16. Simulation-harness balance and scorecard sweep
+
+The simulation AI-versus-AI engine harness is the cheapest way to surface scenario-balance regressions and AI regressions without playing a hundred games by hand. Representative runs include: all nine scenarios at thirty games each under the continuous-integration gate; a specific scenario at one hundred games for tighter signal; the same specific scenario with randomised starting seats to check seat-balance independence; a duel sweep across many base seeds for pacing and seat balance; and a Grand Tour run with failure capture for later regression fixtures.
+
+Each result now ships a scorecard in both text and JSON form. Read the scorecard before squinting at raw win rate. Useful triage rules follow.
+
+A decided-game player-zero win rate outside forty to sixty percent at one hundred or more games is a balance issue. The continuous-integration bounds vary per scenario. Bi-planetary is deliberately wide — forty-five to eighty-five percent. Fleet Action is forty-five to eighty percent. Duel, Convoy, and Interplanetary War are thirty to seventy percent. Lunar Evacuation is thirty-five to sixty-five percent. Blockade Runner is twenty-five to sixty-five percent. Tighter local thresholds catch drift earlier than the continuous-integration gate does.
+
+An invalid-action share greater than zero means the built-in AI submitted an engine-rejected order. The strict continuous-integration flag fails on this. On a soft run, capture the failure with the failure-capture flag and promote it to a focused fixtures regression.
+
+A fuel-stalls-per-game count above zero point one means fueled ships are coasting instead of burning or landing. Capture a fixture.
+
+A timeout share above five percent means the AI is stalemating — either the scenario lacks pressure or the turn cap is too short.
+
+An objective share that is low relative to the fleet-elimination share, on a scenario with a non-elimination objective like Convoy, Lunar Evacuation, or Grand Tour, means scoring is biasing toward attrition rather than the intended objective.
+
+Passenger delivery share trending down on Convoy or Lunar Evacuation means the passenger pipeline is regressing.
+
+Grand Tour completion share trending down means the refuel or route planning logic is regressing.
+
+An average-turn count below five means the scenario is decided too quickly; first-player edge dominates.
+
+Any engine-crash count above zero is a fail-closed result to file under architecture correctness.
+
+For AI pull requests, compare scorecards on paired seed sets before and after, rather than single runs. When a sweep exposes a bad state, capture it with the failure-capture flag to land a bounded game-state JSON in the AI fixtures folder, and add a decision-class regression test. Run the sweep before any AI heuristic change and before any release.
 
 ## Workflow: probe, finding, backlog
 
@@ -188,10 +232,28 @@ Adding interesting-but-not-actionable entries to the backlog. They drown out rea
 
 Forgetting that exploratory identities still persist in the database. Use the reserved non-public prefixes — QA, Bot, or Probe — for test callsigns. The leaderboard now filters them, but they remain queryable in operator tables and logs.
 
+Filing bugs from programmatic clicks on hidden elements. A scripted click fires the handler regardless of whether the element is displayed, hidden, or zero-sized. Buttons a real user can never reach can still execute their handler from a test harness. Before filing a finding triggered by a DOM click, confirm the element is actually visible in the state you're probing. A hidden button with the wrong behaviour may still be a latent bug worth fixing, but classify it as such rather than as a user-visible regression.
+
+Filing mobile-layout findings from Chrome MCP. The operating-system window cannot shrink below the display's minimum, so the mobile media queries never fire and the responsive breakpoints stay inert. Switch to the Playwright preview MCP or hand off to DevTools device emulation before filing.
+
+Only testing at one so-called mobile viewport, typically three-seventy-five by eight-twelve. Delta-V has breakpoints at seven-sixty, six-forty, and four-twenty pixel widths, plus a five-sixty short-height rule, and a narrow-and-short combination. Three-seventy-five by eight-twelve exercises only a subset. The R10 matrix includes one-pixel boundary viewports specifically because overlap bugs hide in the single-pixel band between media rules. Skipping the boundary means shipping the band.
+
+Treating one hundred viewport-height units as screen height. iOS Safari and Android Chrome include the collapsible URL bar in that measurement, so elements sized with it overflow on initial load and re-lay-out when the bar hides. If you see a one-time heads-up-display jump on first scroll, expect one hundred viewport-height units somewhere. Prefer the dynamic viewport-height unit or computed offsets anchored to safe-area insets. This is cheap to catch during the mobile sweep by scrolling once after load and re-running the overlap script.
+
 ## Pass log
 
 Append a one-line entry per pass recording the date, whether the operator was an agent or human, the scope of the pass, and the count of new backlog entries filed.
 
-On the eighteenth of April 2026, an agent pass on Model Context Protocol and browser pairing, public application programming interface surface, scenario sweep, and documentation consistency filed nine new backlog entries.
+On April eighteenth 2026, an agent pass on Model Context Protocol and browser pairing, public application programming interface surface, scenario sweep, and documentation consistency filed nine new backlog entries.
 
-On the nineteenth of April 2026, a series of agent passes produced further entries. A rate-limit verification, payload validation, and health-check audit pass filed five. A listing-endpoint silent-caps, leaderboard validation, join-metadata, auth-failure log silence, and validation shape consistency pass filed five. An end-to-end paired-match-to-leaderboard verification pass filed four, surfacing the Durable Object deploy-eviction crash, a misleading surrender error, a matchmaker double-pair, and leaderboard test pollution. A follow-up pass tracing the Durable Object eviction and auditing the progressive web app, tutorial, and local-storage filed three more, including favicon gaps and on-device personally identifiable information. A spectator and join-flow security pass filed four — unauthenticated seat-hijack, missing spectator mode, local-game reload loss, and partial filter validation. A combat and ordnance rules-conformance pass combined with a simulation balance sweep filed four — the evacuation imbalance, the duel and biplanetary first-player edge, and the grand-tour and fleet-action timeout rates. An AI-difficulty stratification and matchmaker-seat-assignment pass filed three. A post-fix sweep confirming evacuation rebalance and the seat-shuffle ship, plus a security-header and cross-origin audit, filed two. A match-history replay-link probe filed one. A final lobby-flows pass filed one.
+On April nineteenth 2026, a series of agent passes produced further entries. A rate-limit verification, payload validation, and health-check audit pass filed five. A listing-endpoint silent-caps, leaderboard validation, join-metadata, auth-failure log silence, and validation shape consistency pass filed five. An end-to-end paired-match-to-leaderboard verification pass filed four, surfacing the Durable Object deploy-eviction crash, a misleading surrender error, a matchmaker double-pair, and leaderboard test pollution. A follow-up pass tracing the Durable Object eviction and auditing the progressive web app, tutorial, and local-storage filed three more, including favicon gaps and on-device personally identifiable information. A spectator and join-flow security pass filed four — unauthenticated seat-hijack, missing spectator mode, local-game reload loss, and partial filter validation. A combat and ordnance rules-conformance pass combined with a simulation balance sweep filed four — the evacuation imbalance, the duel and biplanetary first-player edge, and the grand-tour and fleet-action timeout rates. An AI-difficulty stratification and matchmaker-seat-assignment pass filed three. A post-fix sweep confirming evacuation rebalance and the seat-shuffle ship, plus a security-header and cross-origin audit, filed two. A match-history replay-link probe filed one. A final lobby-flows pass filed one.
+
+On April twenty-first 2026, a post-stream-two regression sweep covered Play-versus-AI flow, archived-replay playback, the client-state audit, a six-scenario sweep, hard-refresh reconnect, and the API surface and validation — filed zero new entries but surfaced the Chrome-MCP resize-emulation gap that is now documented in the mobile recipe, plus a replay-exit routing quirk that shipped the same day. A deep pass post-Stream-1 AI deploy covered external documentation links, a simulation balance sweep of all scenarios surfacing Grand Tour sixty-to-sixty timeouts and seat drift on evacuation, convoy, and fleet action, deeper validation probing for oversize, Unicode, and malformed JSON, source-versus-manifest description drift on four scenarios, hosted-MCP edge cases, and a live UI re-check of corner buttons and the replay exit — filed four new entries.
+
+On April twenty-fourth 2026, an agent pass ran the first iteration of the revised mobile-layout recipe — surfacing a ship-entry name overflow at three-twenty — together with a simulation balance run that found bi-planetary at one hundred percent elimination and interplanetary war at one hundred ten fuel-stalls per game, a live API and validation probe where all parameters rejected cleanly, and a fifty-five-of-fifty-five documentation link sweep; the recipe's overlap-detection script was also inline-fixed to ignore zero-opacity elements. Two entries were filed.
+
+Also on April twenty-fourth, a deep mobile sweep covered the menu, lobby, scenario select, in-game astrogation and fleet builder, help overlay, archived replay, and matches page, across three-twenty by five-sixty-eight, three-seventy-five by eight-twelve, and eight-twelve by three-seventy-five viewports. It surfaced and fixed fleet-status heads-up-display wrapping, ship-entry name wrapping, fleet-budget line reflow, replay-ended toast truncation, and landscape minimap clipping — one entry filed.
+
+Also on April twenty-fourth, a multiplayer connectivity probe against local development covered create validation, join preflight, quick-match enqueue and polling, idempotent same-player tickets, paired WebSocket flow, reconnect with the stored player token, spectator mode, and protocol-frame abuse; core flows passed. One multiplayer-connectivity-diagnostics entry was filed covering six client-side error-ergonomics gaps.
+
+Also on April twenty-fourth, further agent passes covered the security and abuse probe, an accessibility re-audit, a Model Context Protocol reliability probe, a dependency review, another rules-conformance check, a performance probe, and a privacy surface sweep. These passes continue to stress the same mobile, rate-limit, and archive pipelines that earlier passes surfaced, feeding targeted fixes rather than new blanket findings.

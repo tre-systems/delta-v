@@ -80,7 +80,7 @@ The shared layer contains the following modules. The hex math module handles axi
 
 The types folder holds shared interfaces for domain objects, protocol messages, and scenario data. The shared protocol module handles runtime client-to-server validation and normalization — trimming chat, bounding payloads — and complements the protocol types. The replay module contains the replay timeline structure and match identity builder. The constants module defines ship stats, ordnance mass, detection ranges, and combat and movement constants. The movement module implements vector movement with gravity, fuel, takeoff and landing, and crash detection. The combat module handles gun combat tables, line-of-sight, range and velocity modifiers, heroism, and counterattack. The map-data module defines solar system bodies, gravity rings, bases, and scenario definitions.
 
-The AI folder contains a rule-based AI with composable scoring, per-phase decision modules, and difficulty configuration. The scenario capabilities module provides a derived capability layer — defaults plus feature predicates for scenario rules. The engine barrel module re-exports the public engine API. The engine events module defines a discriminated union of 32 granular domain event types.
+The AI folder contains a rule-based AI with composable scoring, per-phase decision modules, and difficulty configuration. The scenario capabilities module provides a derived capability layer — defaults plus feature predicates for scenario rules. The engine barrel module re-exports the public engine API. The engine events module defines a discriminated union of thirty-three granular domain event types.
 
 The event projector module performs deterministic projection from a persisted event-envelope stream plus checkpoints to a game state; it is used by both the server and tests. Additional engine phase modules cover game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers. The turn-advance module handles damage recovery, player rotation, reinforcement spawning, and fleet conversion. The post-movement module covers ramming, inspection, capture, resupply, and detection.
 
@@ -96,7 +96,7 @@ The types folder is the single source of truth for all data structures — game 
 
 Dependency injection: engine functions accept a map and a random-number generator as parameters so they can be tested without global state or non-determinism.
 
-Domain event emission: turn-resolution engine entry points emit engine events — 32 granular types including ship moved, ship crashed, combat attack, ordnance launched, phase changed, game over, committed command events, and logistics events — alongside state and animation data. The server reads these engine events directly; there is no server-side event derivation. Movement animation data remains separate for client rendering.
+Domain event emission: turn-resolution engine entry points emit engine events — thirty-three granular types including ship moved, ship crashed, combat attack, ordnance launched, phase changed, game over, committed command events, and logistics events — alongside state and animation data. The server reads these engine events directly; there is no server-side event derivation. Movement animation data remains separate for client rendering.
 
 #### AI Strategy Design
 
@@ -311,11 +311,11 @@ The open work lives in the backlog document. This section captures current archi
 
 ## 6. Client bundle and release hygiene
 
-Bundle baseline, re-measured in April 2026 from the current client bundle: the raw size is approximately 735 kilobytes and the gzip-compressed size is approximately 155 kilobytes. Update these figures after large renderer or dependency changes.
+Bundle baseline, re-measured on the twenty-fourth of April 2026 from the current minified client bundle: the raw size is approximately three hundred ninety-seven kilobytes and the gzip-compressed size is approximately one hundred seventeen kilobytes. Update these figures after large renderer or dependency changes.
 
 Supply chain: run a dependency audit before releases; update dependencies judiciously and run the verify script after bumps.
 
-Database migrations: treat as forward-only unless Cloudflare backup and restore is used. Rolling back means redeploying the previous Worker with a compatible schema — there is no automatic down-migration. The migrations directory currently holds four files: creating the events table, creating the match archive, adding match-archive listing support, and adding the leaderboard schema.
+Database migrations: treat as forward-only unless Cloudflare backup and restore is used. Rolling back means redeploying the previous Worker with a compatible schema — there is no automatic down-migration. The migrations directory currently holds five files: creating the events table, creating the match archive, adding match-archive listing support, adding the leaderboard schema, and adding the official-bot tagging column to the match archive.
 
 Event retention: events rows older than the retention constant — thirty days — are deleted daily by the scheduled Worker cron, which runs at four in the morning and invokes the purge-old-events helper.
 
