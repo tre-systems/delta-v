@@ -241,7 +241,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `ai/`                                      | Rule-based AI: composable scoring, per-phase decision modules, difficulty config                                         | Game-specific                           |
 | `scenario-capabilities.ts`                 | Derived scenario capability layer (`deriveCapabilities`): defaults + feature predicates for `ScenarioRules`              | Game-specific                           |
 | `engine/game-engine.ts`                    | Barrel re-export for the public engine API                                                                              | Game-specific                           |
-| `engine/engine-events.ts`                  | `EngineEvent` discriminated union (32 granular domain event types)                                                      | Game-specific                           |
+| `engine/engine-events.ts`                  | `EngineEvent` discriminated union (33 granular domain event types)                                                      | Game-specific                           |
 | `engine/event-projector.ts`                | Deterministic projection from persisted `EventEnvelope` stream (+ checkpoints) to `GameState`; used by server and tests | Game-specific                           |
 | `engine/*` phase modules                   | Game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers          | Game-specific                           |
 | `engine/turn-advance.ts`                   | Turn advancement: damage recovery, player rotation, reinforcement spawning, fleet conversion                            | Game-specific                           |
@@ -254,7 +254,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, updating `ship.lifecycle`, heroism flags).
 - **`types/`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads), split into `domain.ts`, `protocol.ts`, and `scenario.ts` with a barrel re-export. This ensures the client and server never fall out of sync.
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [Engine Mutation Model and RNG Injection](#engine-mutation-model-and-rng-injection).
-- **Domain event emission**: Turn-resolution engine entry points emit `EngineEvent[]` (32 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
+- **Domain event emission**: Turn-resolution engine entry points emit `EngineEvent[]` (33 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
 
 #### AI Strategy Design (`shared/ai/*` + `shared/ai.ts`)
 
@@ -619,11 +619,11 @@ See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current arch
 
 | Artifact         | Raw (approx.) | Gzip (approx.) |
 | ---------------- | ------------- | -------------- |
-| `dist/client.js` | ~735 KB       | ~155 KB        |
+| `dist/client.js` | ~840 KB       | ~175 KB        |
 
 **Supply chain:** run `npm audit` before releases; use `npm run update-deps` judiciously and run `verify` after bumps.
 
-**D1 migrations:** treat as **forward-only** unless Cloudflare backup/restore is used; rollback is **redeploy previous Worker + compatible schema**, not automatic down-migration. Current migrations live in [`migrations/`](../migrations/): `0001_create_events.sql`, `0002_match_archive.sql`, `0003_match_archive_listing.sql`, `0004_leaderboard.sql`.
+**D1 migrations:** treat as **forward-only** unless Cloudflare backup/restore is used; rollback is **redeploy previous Worker + compatible schema**, not automatic down-migration. Current migrations live in [`migrations/`](../migrations/): `0001_create_events.sql`, `0002_match_archive.sql`, `0003_match_archive_listing.sql`, `0004_leaderboard.sql`, `0005_match_archive_official_bot.sql`.
 
 **Event retention:** `events` rows older than `EVENTS_RETENTION_MS` (**30 days**) are deleted by the daily `scheduled` cron (`wrangler.toml` `crons = ["0 4 * * *"]` → `purgeOldEvents` in [`src/server/reporting.ts`](../src/server/reporting.ts)).
 
