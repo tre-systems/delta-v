@@ -56,7 +56,7 @@ With that established, the rationale: the wire format is an API, and representat
 
 ## Mock Durable Object Storage
 
-Tests that touch the Durable Object plumbing use an in-memory map that implements enough of the Durable Object storage interface to exercise the code under test.
+Tests that touch the Durable Object plumbing use an in-memory map that implements enough of the Durable Object storage interface to exercise the code under test. The map is cast through unknown to the Durable Object storage type at the boundary.
 
 The mock provides get, put, and delete operations backed by an in-memory map. Get resolves with the stored value. Put handles both single-key and multi-key record forms. Delete returns whether the key was present. List and transaction are omitted unless a specific test needs them.
 
@@ -80,13 +80,17 @@ Turning to the rationale: making RNG an explicit required parameter on turn-reso
 
 ## Coverage Thresholds
 
-V8 coverage thresholds are enforced on all TypeScript files under the shared module. Both the pre-commit hook and continuous integration run the coverage target. Thresholds are treated as a ratchet, not a target.
+V8 coverage thresholds are enforced across the engine, server, Model Context Protocol adapter, and client code. Both the pre-push hook and continuous integration run the coverage target. Thresholds are treated as a ratchet, not a target.
 
-The Vitest configuration specifies thresholds for the shared module: eighty-four percent of statements, seventy-five percent of branches, eighty-eight percent of functions, and eighty-five percent of lines. Reports are generated in text, HTML, and JSON summary formats, and the coverage output folder is gitignored.
+As an example, the Vitest configuration specifies thresholds for the shared engine: eighty-four percent of statements, seventy-five percent of branches, eighty-eight percent of functions, and eighty-five percent of lines. Reports are generated in text, HTML, and JSON summary formats. The configuration lives in the main Vitest config file and in dedicated coverage configs for the client and for the server and shared code. Report output lives under a coverage directory with per-surface subfolders and is gitignored.
 
-The configuration lives in the Vitest config file at the root of the project.
+The rationale: thresholds prevent backsliding — a refactor that adds untested code fails continuous integration. Per-surface floors mean the engine still carries the strictest numbers, but server and game-do code, the Model Context Protocol adapter, and the client are also ratcheted so refactors cannot silently hollow them out. Running coverage passes sequentially avoids Vitest temporary-file races, so the client and server-shared suites no longer share a single coverage scratch directory. And the branch threshold is intentionally lower than the line threshold, because defensive branches in complex game rules are hard to exercise and forcing a higher branch figure would encourage tests that do not add real confidence.
 
-The rationale: thresholds prevent backsliding — a refactor that adds untested code fails CI. Coverage is enforced only on the shared module because the engine is the replay contract, making its coverage the most critical. Server and client coverage is useful but not yet enforced. The branch threshold is intentionally lower than the line threshold because defensive branches in complex game rules are hard to exercise, and forcing a higher branch figure would encourage tests that do not add real confidence.
+---
+
+## Replay and Projection Parity
+
+Changes to the event projector, the archive persistence layer, or the engine's state shape must keep the projection parity tests green. The parity verifier compares the Durable Object's live state with the state derived by replaying the persisted event log, and the parity tests must be extended whenever a new persisted event type is added.
 
 ---
 
