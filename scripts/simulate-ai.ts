@@ -20,6 +20,8 @@ import {
   skipLogistics,
   skipOrdnance,
 } from '../src/shared/engine/game-engine';
+import { getOrderableShipsForPlayer } from '../src/shared/engine/util';
+import { hexVecLength } from '../src/shared/hex';
 import { asGameId } from '../src/shared/ids';
 import type { ScenarioKey } from '../src/shared/map-data';
 import {
@@ -29,7 +31,12 @@ import {
   SCENARIOS,
 } from '../src/shared/map-data';
 import { mulberry32 } from '../src/shared/prng';
-import type { GameState, PlayerId } from '../src/shared/types';
+import type {
+  AstrogationOrder,
+  GameState,
+  Phase,
+  PlayerId,
+} from '../src/shared/types';
 
 export interface SimulationMetrics {
   scenario: string;
@@ -40,8 +47,17 @@ export interface SimulationMetrics {
   totalTurns: number;
   crashes: number; // Internal engine errors during simulation
   crashSeeds: number[];
+  aiInvalidActions: number;
+  invalidActionSeeds: number[];
+  failureCounters: SimulationFailureCounters;
   reasons: Record<string, number>;
   scorecard: ScenarioScorecard;
+}
+
+export interface SimulationFailureCounters {
+  invalidActions: number;
+  invalidActionPhases: Record<string, number>;
+  fuelStalls: number;
 }
 
 export interface ScenarioScorecard {
@@ -58,6 +74,10 @@ export interface ScenarioScorecard {
   passengerDeliveryShare: number;
   grandTourCompletions: number;
   grandTourCompletionShare: number;
+  invalidActions: number;
+  invalidActionShare: number;
+  fuelStalls: number;
+  fuelStallsPerGame: number;
 }
 
 export interface SimulationOptions {
@@ -159,6 +179,60 @@ const parseDifficulty = (value: string): AIDifficulty => {
 
 const deriveGameSeed = (baseSeed: number, gameIndex: number): number =>
   (baseSeed + Math.imul(gameIndex + 1, 0x9e3779b9)) | 0;
+
+class AIActionError extends Error {
+  constructor(
+    readonly phase: Phase,
+    readonly playerId: PlayerId,
+    readonly failureCounters: SimulationFailureCounters,
+    message: string,
+  ) {
+    super(`AI ${phase} action rejected for P${playerId}: ${message}`);
+    this.name = 'AIActionError';
+  }
+}
+
+const emptyFailureCounters = (): SimulationFailureCounters => ({
+  invalidActions: 0,
+  invalidActionPhases: {},
+  fuelStalls: 0,
+});
+
+const mergeFailureCounters = (
+  target: SimulationFailureCounters,
+  source: SimulationFailureCounters,
+): void => {
+  target.invalidActions += source.invalidActions;
+  target.fuelStalls += source.fuelStalls;
+
+  for (const [phase, count] of Object.entries(source.invalidActionPhases)) {
+    target.invalidActionPhases[phase] =
+      (target.invalidActionPhases[phase] ?? 0) + count;
+  }
+};
+
+const countFuelStalls = (
+  state: GameState,
+  playerId: PlayerId,
+  orders: readonly AstrogationOrder[],
+): number => {
+  const ordersByShip = new Map(orders.map((order) => [order.shipId, order]));
+
+  return getOrderableShipsForPlayer(state, playerId).filter((ship) => {
+    if (ship.lifecycle !== 'active') return false;
+    if (ship.damage.disabledTurns > 0) return false;
+    if (ship.fuel <= 0) return false;
+    if (hexVecLength(ship.velocity) !== 0) return false;
+
+    const order = ordersByShip.get(ship.id);
+    return (
+      order != null &&
+      order.burn === null &&
+      (order.overload ?? null) === null &&
+      order.land !== true
+    );
+  }).length;
+};
 
 const resolveCheckpointRaceTimeout = (
   state: GameState,
@@ -290,6 +364,10 @@ export const buildScenarioScorecard = (
     passengerDeliveryShare: passengerDeliveries / totalGames,
     grandTourCompletions,
     grandTourCompletionShare: grandTourCompletions / totalGames,
+    invalidActions: metrics.failureCounters.invalidActions,
+    invalidActionShare: metrics.failureCounters.invalidActions / totalGames,
+    fuelStalls: metrics.failureCounters.fuelStalls,
+    fuelStallsPerGame: metrics.failureCounters.fuelStalls / totalGames,
   };
 };
 
@@ -300,7 +378,7 @@ export const evaluateSimulationPolicies = (
   let failed = false;
 
   for (const metrics of metricsList) {
-    if (metrics.crashes > 0) {
+    if (metrics.crashes > 0 || metrics.aiInvalidActions > 0) {
       failed = true;
     }
 
@@ -395,6 +473,7 @@ const runSingleGame = async (
     gameSeed: number;
   },
 ) => {
+  const failureCounters = emptyFailureCounters();
   const scenario = SCENARIOS[scenarioName];
 
   const map = buildSolarSystemMap();
@@ -449,6 +528,11 @@ const runSingleGame = async (
     try {
       if (state.phase === 'astrogation') {
         const orders = aiAstrogation(state, activePlayer, map, difficulty, rng);
+        failureCounters.fuelStalls += countFuelStalls(
+          state,
+          activePlayer,
+          orders,
+        );
         const result = processAstrogation(
           state,
           activePlayer,
@@ -456,8 +540,14 @@ const runSingleGame = async (
           map,
           rng,
         );
-        if ('error' in result)
-          throw new Error(`Astrogation Error: ${result.error}`);
+        if ('error' in result) {
+          throw new AIActionError(
+            state.phase,
+            activePlayer,
+            failureCounters,
+            result.error.message,
+          );
+        }
         state = result.state;
       } else if (state.phase === 'ordnance') {
         const launches = aiOrdnance(state, activePlayer, map, difficulty, rng);
@@ -471,13 +561,23 @@ const runSingleGame = async (
             rng,
           );
           if ('error' in result) {
-            throw new Error(`Ordnance Error: ${result.error}`);
+            throw new AIActionError(
+              state.phase,
+              activePlayer,
+              failureCounters,
+              result.error.message,
+            );
           }
           state = result.state;
         } else {
           const result = skipOrdnance(state, activePlayer, map, rng);
           if ('error' in result) {
-            throw new Error(`Ordnance Error: ${result.error}`);
+            throw new AIActionError(
+              state.phase,
+              activePlayer,
+              failureCounters,
+              result.error.message,
+            );
           }
           state = result.state;
         }
@@ -487,14 +587,26 @@ const runSingleGame = async (
           transfers.length > 0
             ? processLogistics(state, activePlayer, transfers, map)
             : skipLogistics(state, activePlayer, map);
-        if ('error' in result)
-          throw new Error(`Logistics Error: ${result.error}`);
+        if ('error' in result) {
+          throw new AIActionError(
+            state.phase,
+            activePlayer,
+            failureCounters,
+            result.error.message,
+          );
+        }
         state = result.state;
       } else if (state.phase === 'combat') {
         // Evaluate pre-combat (asteroid hazards)
         const preResult = beginCombatPhase(state, activePlayer, map, rng);
-        if ('error' in preResult)
-          throw new Error(`Begin Combat Error: ${preResult.error}`);
+        if ('error' in preResult) {
+          throw new AIActionError(
+            state.phase,
+            activePlayer,
+            failureCounters,
+            preResult.error.message,
+          );
+        }
         state = preResult.state;
 
         if (state.phase === 'combat') {
@@ -508,22 +620,36 @@ const runSingleGame = async (
               map,
               rng,
             );
-            if ('error' in result)
-              throw new Error(`Combat Error: ${result.error}`);
+            if ('error' in result) {
+              throw new AIActionError(
+                state.phase,
+                activePlayer,
+                failureCounters,
+                result.error.message,
+              );
+            }
             state = result.state;
           } else {
             const result = skipCombat(state, activePlayer, map, rng);
-            if ('error' in result)
-              throw new Error(`Combat Error: ${result.error}`);
+            if ('error' in result) {
+              throw new AIActionError(
+                state.phase,
+                activePlayer,
+                failureCounters,
+                result.error.message,
+              );
+            }
             state = result.state;
           }
         }
       }
     } catch (err: unknown) {
-      console.error(
-        `Simulation crashed on turn ${state.turnNumber}, phase ${state.phase}. Error:`,
-        err,
-      );
+      if (!(err instanceof AIActionError)) {
+        console.error(
+          `Simulation crashed on turn ${state.turnNumber}, phase ${state.phase}. Error:`,
+          err,
+        );
+      }
       throw err;
     }
 
@@ -536,6 +662,7 @@ const runSingleGame = async (
       winner: timeoutResolution.winner,
       turns: state.turnNumber,
       reason: timeoutResolution.reason,
+      failureCounters,
     };
   }
 
@@ -543,6 +670,7 @@ const runSingleGame = async (
     winner: state.outcome?.winner ?? null,
     turns: state.turnNumber,
     reason: state.outcome?.reason ?? null,
+    failureCounters,
   };
 };
 
@@ -571,6 +699,9 @@ export const runSimulation = async (
     totalTurns: 0,
     crashes: 0,
     crashSeeds: [],
+    aiInvalidActions: 0,
+    invalidActionSeeds: [],
+    failureCounters: emptyFailureCounters(),
     reasons: {},
     scorecard: buildScenarioScorecard({
       scenario: scenarioName,
@@ -581,6 +712,9 @@ export const runSimulation = async (
       totalTurns: 0,
       crashes: 0,
       crashSeeds: [],
+      aiInvalidActions: 0,
+      invalidActionSeeds: [],
+      failureCounters: emptyFailureCounters(),
       reasons: {},
     }),
   };
@@ -603,6 +737,7 @@ export const runSimulation = async (
       );
       metrics.totalGames++;
       metrics.totalTurns += result.turns;
+      mergeFailureCounters(metrics.failureCounters, result.failureCounters);
 
       if (result.winner === 0) metrics.player0Wins++;
       else if (result.winner === 1) metrics.player1Wins++;
@@ -615,10 +750,21 @@ export const runSimulation = async (
       if (!quiet && (i + 1) % Math.max(1, Math.floor(iterations / 10)) === 0) {
         process.stdout.write('.');
       }
-    } catch (_err) {
-      metrics.crashes++;
-      if (metrics.crashSeeds.length < 5) {
-        metrics.crashSeeds.push(gameSeed >>> 0);
+    } catch (err) {
+      if (err instanceof AIActionError) {
+        metrics.aiInvalidActions++;
+        mergeFailureCounters(metrics.failureCounters, err.failureCounters);
+        metrics.failureCounters.invalidActions++;
+        metrics.failureCounters.invalidActionPhases[err.phase] =
+          (metrics.failureCounters.invalidActionPhases[err.phase] ?? 0) + 1;
+        if (metrics.invalidActionSeeds.length < 5) {
+          metrics.invalidActionSeeds.push(gameSeed >>> 0);
+        }
+      } else {
+        metrics.crashes++;
+        if (metrics.crashSeeds.length < 5) {
+          metrics.crashSeeds.push(gameSeed >>> 0);
+        }
       }
     }
   }
@@ -645,6 +791,12 @@ export const runSimulation = async (
     console.log(`Engine Crashes: ${metrics.crashes}`);
     if (metrics.crashSeeds.length > 0) {
       console.log(`Crash Seeds: ${metrics.crashSeeds.join(', ')}`);
+    }
+    console.log(`AI Invalid Actions: ${metrics.aiInvalidActions}`);
+    if (metrics.invalidActionSeeds.length > 0) {
+      console.log(
+        `Invalid Action Seeds: ${metrics.invalidActionSeeds.join(', ')}`,
+      );
     }
 
     console.log(`\nWin Reasons:`);
@@ -674,6 +826,16 @@ export const runSimulation = async (
     if (metrics.scorecard.grandTourCompletions > 0) {
       console.log(
         `  - Grand Tour Completion Share: ${(metrics.scorecard.grandTourCompletionShare * 100).toFixed(1)}%`,
+      );
+    }
+    if (metrics.scorecard.invalidActions > 0) {
+      console.log(
+        `  - Invalid AI Actions: ${metrics.scorecard.invalidActions}`,
+      );
+    }
+    if (metrics.scorecard.fuelStalls > 0) {
+      console.log(
+        `  - Fuel Stalls/Game: ${metrics.scorecard.fuelStallsPerGame.toFixed(2)}`,
       );
     }
   }
@@ -760,6 +922,11 @@ const main = async () => {
       if (metrics.crashes > 0) {
         console.error(
           `❌ CI FAILURE: ${metrics.scenario} — Engine crashed ${metrics.crashes} times.`,
+        );
+      }
+      if (metrics.aiInvalidActions > 0) {
+        console.error(
+          `❌ CI FAILURE: ${metrics.scenario} — AI submitted ${metrics.aiInvalidActions} invalid actions.`,
         );
       }
     }

@@ -17,6 +17,13 @@ const metrics = (
     totalTurns: 100,
     crashes: 0,
     crashSeeds: [],
+    aiInvalidActions: 0,
+    invalidActionSeeds: [],
+    failureCounters: {
+      invalidActions: 0,
+      invalidActionPhases: {},
+      fuelStalls: 0,
+    },
     reasons: { 'Landed on Terra with colonists!': 20 },
   };
   const merged = { ...base, ...overrides };
@@ -38,6 +45,13 @@ describe('evaluateSimulationPolicies', () => {
       totalTurns: 200,
       crashes: 0,
       crashSeeds: [],
+      aiInvalidActions: 0,
+      invalidActionSeeds: [],
+      failureCounters: {
+        invalidActions: 1,
+        invalidActionPhases: { astrogation: 1 },
+        fuelStalls: 5,
+      },
       reasons: {
         'Landed on Venus with colonists!': 6,
         'Fleet eliminated!': 10,
@@ -57,6 +71,26 @@ describe('evaluateSimulationPolicies', () => {
     expect(scorecard.timeoutShare).toBe(0.1);
     expect(scorecard.passengerDeliveries).toBe(6);
     expect(scorecard.passengerDeliveryShare).toBe(0.3);
+    expect(scorecard.invalidActions).toBe(1);
+    expect(scorecard.invalidActionShare).toBe(0.05);
+    expect(scorecard.fuelStalls).toBe(5);
+    expect(scorecard.fuelStallsPerGame).toBe(0.25);
+  });
+
+  it('fails CI policy evaluation when AI actions are rejected', () => {
+    const evaluation = evaluateSimulationPolicies([
+      metrics({
+        scenario: 'duel',
+        aiInvalidActions: 1,
+        failureCounters: {
+          invalidActions: 1,
+          invalidActionPhases: { combat: 1 },
+          fuelStalls: 0,
+        },
+      }),
+    ]);
+
+    expect(evaluation.failed).toBe(true);
   });
 
   it('warns when passenger scenarios fall below objective-resolution floors', () => {

@@ -34,12 +34,11 @@ the carrier instead of chasing attrition". Avoid exact burn assertions unless
 the rules require them.
 
 Action:
-- Extend `scripts/simulate-ai.ts` with per-scenario scorecards and richer
-  objective/failure counters.
+- Extend `scripts/simulate-ai.ts` with additional objective/failure counters as
+  new recurring failure modes appear. The baseline scorecard, invalid-action,
+  and fuel-stall counters are already shipped.
 - Add a small fixture path for warning states, then grow focused AI tests from
   those states.
-- Update `docs/SIMULATION_TESTING.md` with the scorecard metrics and required
-  seed discipline for AI PRs.
 
 **Files:** `scripts/simulate-ai.ts`, `scripts/duel-seed-sweep.ts`,
 `src/shared/simulate-ai-policy.test.ts`, `src/shared/ai.test.ts`,

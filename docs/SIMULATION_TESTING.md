@@ -27,7 +27,7 @@ npm run simulate -- duel 30 --randomize-start
 npm run simulate:duel-sweep                  # duel pacing/seat-balance across many seeds
 ```
 
-- `--ci` fails on engine crashes; balance and objective warnings print but are non-fatal.
+- `--ci` fails on engine crashes or rejected built-in AI actions; balance and objective warnings print but are non-fatal.
 - `--randomize-start` forces per-game seat randomization. Duel, interplanetaryWar, and fleetAction auto-randomize seat anyway so seat-order bias doesn't dominate short batches.
 - CI balance warnings use per-scenario decided-game win-rate bands. Cooperative / race scenarios (like Grand Tour) skip the normal balance gate, but objective policies can still emit non-fatal seat-skew warnings when a race resolves correctly yet remains grossly one-sided.
 
@@ -44,6 +44,10 @@ scorecard as the first stop for AI tuning reviews:
   evacuation-style scenarios.
 - `grandTourCompletionShare` — clean Grand Tour completions rather than
   attrition or timeout progress wins.
+- `invalidActionShare` — built-in AI action rejections per game; any non-zero
+  value fails `--ci`.
+- `fuelStallsPerGame` — active, fueled, stationary ships that coast instead of
+  burning or landing.
 - `averageTurns` — pacing signal; compare on paired seeds before/after a
   change.
 
