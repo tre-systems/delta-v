@@ -1574,6 +1574,28 @@ h2.game-over-neutral {
   filter: none;
 }
 
+@media (max-width: 640px) {
+  .toast {
+    align-items: flex-start;
+    max-width: calc(100vw - 1rem);
+    white-space: normal;
+  }
+
+  .toast-body {
+    display: -webkit-box;
+    overflow: hidden;
+    text-align: left;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+
+  .toast-dismiss {
+    align-self: flex-start;
+  }
+}
+
 @media (prefers-contrast: more) {
   .overlay-panel {
     backdrop-filter: none;

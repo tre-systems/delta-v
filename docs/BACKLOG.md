@@ -132,6 +132,34 @@ changes:
 The remaining gameplay UX items group into three product surfaces: mobile layout
 polish, notification-channel discipline, and digital-input parity.
 
+### Mobile Landscape Minimap Polish (P2)
+
+Mobile is a recurring regression surface. The 2026-04-24 R10 sweep across
+320 × 568 (iPhone SE 1), 375 × 812 (iPhone 13), and 812 × 375 (landscape)
+surfaced a cluster of HUD, ship-list, fleet-builder, replay-toast, and
+minimap issues. The portrait HUD wrapping, ship-name wrapping, 320-px
+ship-list compaction, fleet-budget copy, and two-line mobile toast fixes have
+shipped; keep the remaining landscape minimap case grouped here.
+
+Concrete remaining symptom observed on the local dev server:
+
+- **Minimap clipped in 812 × 375 landscape.** Short-height rules
+  (`@media (max-height: 560px)`) exist but the minimap still extends below
+  the viewport bottom in the replay/gameover HUD; verify that the compound
+  `(max-height: 560px) and (landscape)` case is handled, and consider
+  shrinking the minimap footprint under the short-height rule rather than
+  just repositioning it.
+
+Verify the remaining fix with the R10 overlap-detection script at 812 × 375
+landscape; watch both live and replay/gameover modes because the HUD renders
+different strings.
+
+**Files:** [static/styles/responsive.css](../static/styles/responsive.css),
+[static/styles/hud.css](../static/styles/hud.css),
+[src/client/ui/ship-list-view.ts](../src/client/ui/ship-list-view.ts),
+[src/client/ui/hud-chrome-view.ts](../src/client/ui/hud-chrome-view.ts),
+[src/client/ui/fleet-building-view.ts](../src/client/ui/fleet-building-view.ts)
+
 ### Enforce Notification Channel Precedence in Code (P2)
 
 Several high-salience flows now use HUD/sound/game-log feedback instead of
