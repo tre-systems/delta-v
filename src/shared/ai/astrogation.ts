@@ -38,6 +38,7 @@ import {
 import { resolveAIConfig } from './config';
 import {
   aiLogistics,
+  assignPassengerShipRoles,
   getPassengerTransferFormationOrders,
   getPrimaryPassengerCarrier,
   getThreateningEnemies,
@@ -342,7 +343,8 @@ const getPassengerEmergencyEscortOrders = (
     return new Map();
   }
 
-  const primaryCarrier = getPrimaryPassengerCarrier(state, playerId);
+  const passengerShipRoles = assignPassengerShipRoles(state, playerId, map);
+  const primaryCarrier = getPrimaryPassengerCarrier(state, playerId, map);
 
   if (primaryCarrier == null) {
     return new Map();
@@ -361,14 +363,17 @@ const getPassengerEmergencyEscortOrders = (
   }
 
   const escort = maxBy(
-    state.ships.filter(
-      (ship) =>
+    state.ships.filter((ship) => {
+      const role = passengerShipRoles.get(ship.id);
+
+      return (
         ship.owner === playerId &&
         ship.id !== primaryCarrier.id &&
         ship.lifecycle !== 'destroyed' &&
         canAttack(ship) &&
-        (ship.passengersAboard ?? 0) === 0,
-    ),
+        (role === 'escort' || role === 'screen')
+      );
+    }),
     (ship) =>
       getCombatStrength([ship]) * 10 -
       hexDistance(ship.position, primaryCarrier.position),
@@ -759,8 +764,11 @@ export const aiAstrogation = (
         null)
       : null;
   const primaryPassengerCarrier = passengerEscortMission
-    ? getPrimaryPassengerCarrier(state, playerId)
+    ? getPrimaryPassengerCarrier(state, playerId, map)
     : null;
+  const passengerShipRoles = passengerEscortMission
+    ? assignPassengerShipRoles(state, playerId, map)
+    : new Map();
   const primaryPassengerThreatDist =
     passengerEscortMission && primaryPassengerCarrier != null
       ? Math.min(
@@ -1192,13 +1200,16 @@ export const aiAstrogation = (
       let comparisonCourse = course;
 
       if (passengerEscortMission) {
+        const passengerRole = passengerShipRoles.get(ship.id);
         score += scorePassengerCarrierEvasion(ship, course, enemyShips);
-        score += scorePassengerEscortCourse(
-          ship,
-          course,
-          primaryPassengerCarrier,
-          enemyShips,
-        );
+        if (passengerRole === 'escort' || passengerRole === 'screen') {
+          score += scorePassengerEscortCourse(
+            ship,
+            course,
+            primaryPassengerCarrier,
+            enemyShips,
+          );
+        }
       }
 
       if (seekingFuel && course.outcome === 'landing') {
