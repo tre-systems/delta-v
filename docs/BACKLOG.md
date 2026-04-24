@@ -180,64 +180,6 @@ hand for future passes.
 [src/server/game-do/actions.ts](../src/server/game-do/actions.ts),
 [src/shared/types/domain.ts](../src/shared/types/domain.ts) (ErrorCode enum)
 
-### Hosted MCP Input-Schema Tightening (P2)
-
-The 2026-04-24 hosted-MCP reliability probe against the local dev worker
-confirmed the core shape: tools/list resolves with no Authorization (200
-with MCP_RATE_LIMITER gating), malformed args return structured MCP
-`-32602` errors with Zod validation details, chat / waitForTurn timeouts /
-unknown scenarios all reject cleanly, and the six-agent concurrency test
-paced at 13 s/token cleared without the CREATE_RATE_LIMITER tripping. The
-gaps are narrower — schema drift between the MCP adapter and the
-downstream HTTP endpoints, plus a few argument-validation orderings that
-confuse agent error-handling loops:
-
-- **`playerKey` length vs derived `username` length.** `/api/agent-token`
-  accepts `playerKey` of 8–64 chars
-  ([src/server/auth/issue-route.ts](../src/server/auth/issue-route.ts));
-  `/quick-match` caps the derived `username` at 20 chars and rejects with
-  `username_too_long`. A token minted with `agent_claude_code_tester_001`
-  (28 chars) fails every quick-match call until the agent learns to also
-  pass an explicit `username` ≤ 20. Either truncate when deriving, raise
-  the quick-match cap, or surface the mismatch at token-issue time.
-- **`rendezvousCode` char-class mismatch.** The MCP Zod schema is
-  `z.string().min(3).max(16)`
-  ([packages/mcp-adapter/src/handlers.ts:475](../packages/mcp-adapter/src/handlers.ts));
-  the `/quick-match` backend enforces alphanumeric only and rejects
-  `rdv_a` with `invalid_rendezvous_code`. Tighten the Zod schema to
-  `.regex(/^[A-Za-z0-9]{3,16}$/)` so the error appears at the MCP
-  validation layer rather than after the enqueue round trip.
-- **`delta_v_send_action` validates action shape _after_ session
-  lookup.** An action with an unknown `type` or missing required fields
-  (`{ sessionId: "bogus", action: { type: "astrogationOrder" } }`) returns
-  `"Unknown or expired sessionId"` instead of a shape-specific error. For
-  agents that always hit the same session, this means a typo in the
-  action payload surfaces as a session error. Move action-shape Zod
-  validation before the session resolve, or add a discriminated union on
-  `action.type` to the input schema.
-- **`delta_v_quick_match_connect` silently drops unknown fields.** The
-  hosted tool is an alias for `delta_v_quick_match` and accepts no
-  `ticket` argument; the Zod object is not `.strict()`, so
-  `{ ticket: "bogus" }` is dropped and a **new** room is created. An
-  agent retrying a reconnect with a stale ticket silently spins fresh
-  Durable Objects. Either mark the schema `.strict()` (reject unknown
-  fields with a Zod error) or add an explicit "this tool does not accept
-  `ticket`; use local `delta_v_pair_quick_match_tickets`" message when
-  the field is present.
-- **`/api/agent-token` rate-limit response is bare-text, not JSON.** When
-  the CREATE_RATE_LIMITER fires at 5/60 s, the body is `Too many
-  requests` (plaintext) instead of a JSON envelope — agents trying to
-  `JSON.parse` the body throw a `SyntaxError` mid-mint. Other rate-limit
-  paths emit a proper JSON body; align `tooManyRequests()` in
-  [src/server/index.ts](../src/server/index.ts) to do the same.
-
-**Files:**
-[packages/mcp-adapter/src/handlers.ts](../packages/mcp-adapter/src/handlers.ts),
-[packages/mcp-adapter/src/quick-match.ts](../packages/mcp-adapter/src/quick-match.ts),
-[src/server/auth/issue-route.ts](../src/server/auth/issue-route.ts),
-[src/server/quick-match-internal.ts](../src/server/quick-match-internal.ts),
-[src/server/index.ts](../src/server/index.ts) (`tooManyRequests`)
-
 ### Small Accessibility Polish (P3)
 
 The 2026-04-24 a11y re-audit (axe 8/8, manual sweep at 375 × 812) passed
