@@ -8,7 +8,7 @@ await build({
   outfile: 'dist/client.js',
   format: 'esm',
   sourcemap: true,
-  minify: process.env.NODE_ENV === 'production',
+  minify: true,
   target: 'es2022',
 });
 
