@@ -10,24 +10,27 @@ import { createOverlayView } from './overlay-view';
 
 const installFixture = () => {
   document.body.innerHTML = `
-    <div id="gameOver" hidden></div>
-    <div id="gameOverKicker" hidden></div>
-    <div id="gameOverText"></div>
-    <div id="gameOverReason"></div>
-    <div id="gameOverStats"></div>
-    <div id="replayStatus" hidden></div>
-    <div id="replayControls" hidden></div>
-    <button id="replayMatchPrevBtn"></button>
-    <span id="replayMatchLabel"></span>
-    <button id="replayMatchNextBtn"></button>
-    <button id="replayToggleBtn"></button>
-    <div id="replayNav" hidden></div>
-    <button id="replayStartBtn"></button>
-    <button id="replayPrevBtn"></button>
-    <button id="replayNextBtn"></button>
-    <button id="replayEndBtn"></button>
-    <button id="rematchBtn" disabled>Rematch</button>
-    <button id="exitBtn">Exit</button>
+    <div id="gameOver" hidden>
+      <div id="gameOverKicker" hidden></div>
+      <div id="gameOverText"></div>
+      <div id="gameOverReason"></div>
+      <div id="gameOverStats"></div>
+      <div id="replayStatus" hidden></div>
+      <div id="replayControls" hidden>
+        <button id="replayMatchPrevBtn"></button>
+        <span id="replayMatchLabel"></span>
+        <button id="replayMatchNextBtn"></button>
+        <button id="replayToggleBtn"></button>
+        <div id="replayNav" hidden>
+          <button id="replayStartBtn"></button>
+          <button id="replayPrevBtn"></button>
+          <button id="replayNextBtn"></button>
+          <button id="replayEndBtn"></button>
+        </div>
+      </div>
+      <button id="rematchBtn" disabled>Rematch</button>
+      <button id="exitBtn">Exit</button>
+    </div>
     <div id="replayBar" hidden></div>
     <span id="replayBarStatus"></span>
     <button id="replayBarStartBtn"></button>
@@ -43,11 +46,12 @@ const installFixture = () => {
       <div id="replayBarProgressFill"></div>
     </div>
     <button id="exitGameBtn"></button>
-    <div id="reconnectOverlay" hidden></div>
-    <div id="reconnectText"></div>
-    <div id="reconnectAttempt"></div>
-    <p id="reconnectReassure" class="reconnect-reassure" hidden></p>
-    <button id="reconnectCancelBtn"></button>
+    <div id="reconnectOverlay" hidden>
+      <div id="reconnectText"></div>
+      <div id="reconnectAttempt"></div>
+      <p id="reconnectReassure" class="reconnect-reassure" hidden></p>
+      <button id="reconnectCancelBtn"></button>
+    </div>
     <div id="opponentDisconnectOverlay" hidden></div>
     <div id="opponentDisconnectText"></div>
     <div id="toastContainer"></div>
@@ -165,6 +169,57 @@ describe('OverlayView', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
 
     expect(clicks).toHaveBeenCalledTimes(1);
+  });
+
+  it('traps Tab focus within the game-over modal', () => {
+    const state = createOverlayStateStore();
+    createOverlayView(state);
+    state.showGameOver(true, 'Fleet eliminated!');
+
+    const rematchBtn = document.getElementById(
+      'rematchBtn',
+    ) as HTMLButtonElement;
+    const exitBtn = document.getElementById('exitBtn') as HTMLButtonElement;
+
+    exitBtn.focus();
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
+    );
+    expect(document.activeElement).toBe(rematchBtn);
+
+    rematchBtn.focus();
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+      }),
+    );
+    expect(document.activeElement).toBe(exitBtn);
+  });
+
+  it('traps Tab focus within the reconnect overlay', () => {
+    const state = createOverlayStateStore();
+    createOverlayView(state);
+    state.showReconnecting(1, 3, vi.fn());
+
+    const outsideButton = document.getElementById(
+      'exitGameBtn',
+    ) as HTMLButtonElement;
+    const cancelBtn = document.getElementById(
+      'reconnectCancelBtn',
+    ) as HTMLButtonElement;
+
+    outsideButton.focus();
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
+    );
+    expect(document.activeElement).toBe(cancelBtn);
+
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
+    );
+    expect(document.activeElement).toBe(cancelBtn);
   });
 
   it('ignores Escape when the game-over modal is hidden', () => {
