@@ -1029,6 +1029,143 @@ describe('handleMcpHttpRequest', () => {
     );
   });
 
+  it('rejects invalid rendezvousCode at MCP validation time', async () => {
+    const { env, calls } = buildEnv(() => new Response('{}'));
+    const { token } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_rendezvous',
+    });
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 31,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_quick_match',
+            arguments: {
+              rendezvousCode: 'rdv_a',
+              waitForOpponent: false,
+            },
+          },
+        },
+        token,
+      ),
+      env,
+    );
+
+    const body = (await res.json()) as {
+      result: { isError: boolean; content?: Array<{ text?: string }> };
+    };
+    expect(body.result.isError).toBe(true);
+    expect(body.result.content?.[0]?.text).toContain('rendezvousCode');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('rejects unknown quick-match fields instead of dropping them', async () => {
+    const { env, calls } = buildEnv(() => new Response('{}'));
+    const { token } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_unknown_field',
+    });
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 32,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_quick_match_connect',
+            arguments: {
+              ticket: 'stale-ticket',
+            },
+          },
+        },
+        token,
+      ),
+      env,
+    );
+
+    const body = (await res.json()) as {
+      result: { isError: boolean; content?: Array<{ text?: string }> };
+    };
+    expect(body.result.isError).toBe(true);
+    expect(body.result.content?.[0]?.text).toContain('ticket');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('truncates inferred quick-match usernames to the backend cap', async () => {
+    const { env, calls } = buildEnv((req) => {
+      if (req.url.endsWith('/enqueue')) {
+        return Response.json({
+          status: 'queued',
+          ticket: 'TICKET',
+          scenario: 'duel',
+        });
+      }
+      return Response.json({});
+    });
+    const { token } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_claude_code_tester_001',
+    });
+
+    await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 33,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_quick_match',
+            arguments: { waitForOpponent: false },
+          },
+        },
+        token,
+      ),
+      env,
+    );
+
+    const body = (await calls[0].json()) as {
+      player?: { username?: unknown };
+    };
+    expect(body.player?.username).toBe('agent_claude_code_te');
+  });
+
+  it('validates send_action shape before resolving the session', async () => {
+    const { env, calls } = buildEnv(() => new Response('{}'));
+    const { token: agentToken } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_invalid_action',
+    });
+
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 34,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_send_action',
+            arguments: {
+              sessionId: 'not-a-real-session',
+              action: { type: 'astrogation' },
+            },
+          },
+        },
+        agentToken,
+      ),
+      env,
+    );
+
+    const body = (await res.json()) as {
+      result: { isError: boolean; content?: Array<{ text?: string }> };
+    };
+    expect(body.result.isError).toBe(true);
+    expect(body.result.content?.[0]?.text).toContain('Invalid action payload');
+    expect(calls).toHaveLength(0);
+  });
+
   it('forwards delta_v_send_action body to the GAME DO', async () => {
     const { env, calls } = buildEnv(() =>
       Response.json({
