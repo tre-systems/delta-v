@@ -15,6 +15,7 @@ import {
   scoreOrdnanceInterceptTarget,
 } from '../ai/ordnance';
 import { SHIP_STATS } from '../constants';
+import { getOrderableShipsForPlayer } from '../engine/util';
 import { buildSolarSystemMap } from '../map-data';
 import type {
   AstrogationOrder,
@@ -53,13 +54,11 @@ export const buildIdleAstrogationOrders = (
   state: GameState,
   playerId: PlayerId,
 ): AstrogationOrder[] =>
-  state.ships
-    .filter((ship) => ship.owner === playerId && ship.lifecycle !== 'destroyed')
-    .map((ship) => ({
-      shipId: ship.id,
-      burn: null,
-      overload: null,
-    }));
+  getOrderableShipsForPlayer(state, playerId).map((ship) => ({
+    shipId: ship.id,
+    burn: null,
+    overload: null,
+  }));
 
 const hasOwnedPendingAsteroidHazards = (
   state: GameState,
@@ -161,11 +160,8 @@ const buildDirectionalAstrogationVariants = (
     return [];
   }
 
-  const orderableShips = state.ships.filter(
-    (ship) =>
-      ship.owner === playerId &&
-      ship.lifecycle === 'active' &&
-      ship.damage.disabledTurns === 0,
+  const orderableShips = getOrderableShipsForPlayer(state, playerId).filter(
+    (ship) => ship.lifecycle === 'active' && ship.damage.disabledTurns === 0,
   );
   if (orderableShips.length !== 1) {
     return [];
