@@ -129,7 +129,94 @@ changes:
 
 ## Gameplay UX & Matchmaking
 
-The remaining gameplay UX item is digital-input parity.
+The remaining gameplay UX items group into digital-input parity and
+multiplayer-connectivity diagnostics.
+
+### Multiplayer Connectivity Diagnostics (P2)
+
+The 2026-04-24 multiplayer deep probe exercised `POST /create`,
+`GET /join/{CODE}`, `POST /quick-match`, the paired WebSocket flow, spectator
+attach, mid-match disconnect/reconnect, and rate limits. Core flows work —
+seat assignment, reconnect by stored `playerToken`, rate-limit close (1008
+with reason), matchmaker pairing, idempotent same-player tickets. The gaps
+are in **error ergonomics on the client/agent side**, not in the engine.
+Bundle them so one pass cleans up the diagnostic surface end-to-end.
+
+Concrete issues observed on the local dev server:
+
+- **WebSocket handshake rejections collapse to close code 1006 with no
+  reason.** The server returns well-shaped 400/403/404/409/410 JSON bodies
+  from `resolveJoinAttempt` during the HTTP upgrade, but the browser and
+  `undici` WebSocket APIs discard the handshake response body entirely —
+  the client only sees a `CloseEvent` with code `1006` and empty reason.
+  "Game full", "invalid token", "game already completed", and raw network
+  failures are indistinguishable. Client UX relies on `/join/{CODE}`
+  preflight as a workaround. Fix: accept the WebSocket first, send a typed
+  `rejected` S2C frame carrying `ErrorCode.ROOM_FULL` /
+  `GAME_COMPLETED` / `INVALID_TOKEN`, then close with an application close
+  code in `4000–4999` and a human-readable reason (the rate-limit path at
+  `src/server/game-do/socket.ts:34` already demonstrates the shape with
+  `close(1008, 'Rate limit exceeded')`).
+- **`INVALID_INPUT` is the only error code for all protocol-frame
+  violations.** A client that sends a chat over the 200-char limit, a
+  well-typed action in the wrong phase, an unknown action `type`, raw
+  non-JSON, or an object missing a required `type` all receive
+  `{ type: 'error', code: 'INVALID_INPUT' }`. Agents can't route error
+  recovery (retry vs fix vs drop) without more granular codes like
+  `CHAT_TOO_LONG`, `WRONG_PHASE`, `UNKNOWN_ACTION_TYPE`, `MALFORMED_JSON`.
+  The [AGENTS.md](./AGENTS.md) contract already hints at per-reason codes;
+  make the implementation match.
+- **`POST /quick-match` validation errors never say which field failed.**
+  Missing scenario, wrong `player` shape, unknown scenario key, and
+  oversized username all return the same
+  `{ok: false, error: 'invalid_payload', message: 'Invalid quick-match
+  payload.', hint: 'Send { player: { playerKey, username? }, scenario? } as
+  JSON.'}`. The hint even contradicts behaviour (`scenario?` suggests
+  optional, but missing scenario is rejected). Fix: name the failing field
+  (`error: 'invalid_player'`, `'unknown_scenario'`, `'username_too_long'`)
+  and keep the hint accurate.
+- **Silent seat claim when a spectator uses the wrong URL param.** The
+  canonical spectator param is `?viewer=spectator` (see
+  [session-links.ts](../src/client/game/session-links.ts), agent docs,
+  matches page). A client that copies from a stale doc or uses the more
+  intuitive `?spectator=1` / `?spectator=true` falls through to the
+  tokenless player-join branch and is silently assigned seat 1 — blocking
+  the legitimate second player and holding the seat with a server-issued
+  token. Fix: either treat any truthy `spectator=*` param as the spectator
+  path, or explicitly reject with `?viewer=spectator expected` when we see
+  a spectator-shaped param under a different name. Low likelihood but
+  high cost when it happens.
+- **`/join/{CODE}` preflight returns inconsistent error shapes.** A
+  missing-but-valid-shaped code (`/join/BOGUS`) returns
+  `{code: 'ROOM_NOT_FOUND', message}` with 404; a lowercase / too-short /
+  too-long code (`/join/abcde`, `/join/ABCD`, `/join/ABCDEF`) returns an
+  empty 404 body because the outer route regex misses. Normalise to always
+  return the JSON error shape — agents parsing `/join/{CODE}` programmatically
+  currently have to branch on `response.ok === false && body === ''`.
+- **Verify behaviour of a second WebSocket with the same `playerToken`.**
+  Server code at [game-do.ts:178-184](../src/server/game-do/game-do.ts) calls
+  `old.close(1000, 'Replaced by new connection')` when a same-seat socket
+  replaces an existing one. In the 2026-04-24 local dev probe, a second
+  node-side `undici` socket connected without the old socket seeing any
+  close event over 10 s (HOST1 remained `readyState: OPEN` but received no
+  further broadcasts). This may be a `wrangler dev` hibernation-API quirk,
+  an `undici` quirk, or a real prod regression — triangulate against
+  deployed production before acting. If reproducible in prod, it leaks
+  zombie sockets per tab-switch until the client hits a rate-limit close.
+
+Found via EXPLORATORY_TESTING.md R5 / R8 / R9 applied to the multiplayer
+surface with a purpose-built WebSocket harness (see the 2026-04-24
+`/tmp/mp-probe*.mjs` traces referenced in the pass log). A reusable
+`scripts/mp-connectivity.mjs` harness would keep these probes close to
+hand for future passes.
+
+**Files:** [src/server/game-do/fetch.ts](../src/server/game-do/fetch.ts),
+[src/server/game-do/http-handlers.ts](../src/server/game-do/http-handlers.ts),
+[src/server/protocol.ts](../src/server/protocol.ts),
+[src/server/game-do/actions.ts](../src/server/game-do/actions.ts),
+[src/server/quick-match-internal.ts](../src/server/quick-match-internal.ts),
+[src/server/matchmaker-do.ts](../src/server/matchmaker-do.ts),
+[src/shared/types/domain.ts](../src/shared/types/domain.ts) (ErrorCode enum)
 
 ### Finish Digital-Input Parity for Pointer-First Tactical Picks (P2)
 
