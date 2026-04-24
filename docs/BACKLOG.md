@@ -188,18 +188,6 @@ Action: during the astrogation phase for the selected ship, draw three colored a
 
 **Files:** `src/client/renderer/vectors.ts`, `src/client/renderer/overlay.ts`, `src/client/game/hud-view-model.ts`
 
-#### PWA has no in-session update prompt when a new build ships (P2)
-
-`static/sw.js` uses network-first for HTML navigation and `self.clients.claim()` on activate, and `src/client/game-client-browser.ts:94-117` reloads on `controllerchange`. The flow works on the *next* navigation, but during a long session (a full Grand Tour can run 100+ turns) the user stays on the old bundle until they reload manually — which matches the tester's "seem to got stuck in an old version" report. `/version.json` is already served (`src/server/index.ts:228-262`) but the client never polls it.
-
-Action: poll `/version.json` from the client every ~10 min, compare its `assetsHash` to the hash embedded in the current bundle, and surface a single dismissible "New version available — reload" toast when they diverge. Do not auto-reload mid-game.
-
-**Tests:**
-- `src/client/sw.test.ts` — version-poll hook detects hash change, emits exactly one prompt, does not re-prompt on the same hash.
-- `src/client/game-client-browser.test.ts` — `controllerchange` reload path still works when the poll-prompt is not used.
-
-**Files:** `src/client/game-client-browser.ts`, new `src/client/version-check.ts` (or similar), `static/index.html`
-
 ### Quick-match official bot fill (2026-04-22)
 
 If quick match cannot find a human promptly, the product should offer a **real rated match** against a platform-operated opponent instead of silently dropping the player into local skirmish AI. The server-side contract, telemetry, archive metadata, and metrics support are now in place; the remaining work is the explicit player-facing offer flow and provenance in the UI.

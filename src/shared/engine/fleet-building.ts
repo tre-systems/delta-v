@@ -46,6 +46,14 @@ export const processFleetReady = (
   }
 
   const player = state.players[playerId];
+
+  if (player.ready) {
+    return engineFailure(
+      ErrorCode.STATE_CONFLICT,
+      'Player is already ready for fleet building',
+    );
+  }
+
   const credits = player.credits ?? 0;
   const availableFleetPurchases = state.scenarioRules.availableFleetPurchases
     ? new Set(state.scenarioRules.availableFleetPurchases)

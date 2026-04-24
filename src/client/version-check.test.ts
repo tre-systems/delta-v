@@ -101,6 +101,28 @@ describe('startVersionCheck', () => {
     expect(onNewVersion).toHaveBeenCalledTimes(1);
   });
 
+  it('compares the first server poll against the current running bundle hash', async () => {
+    const onNewVersion = vi.fn();
+    const fetchLike = vi
+      .fn()
+      .mockResolvedValue(buildResponse({ assetsHash: 'server-new' }));
+
+    startVersionCheck({
+      currentHash: 'bundle-old',
+      onNewVersion,
+      fetchLike,
+      setIntervalLike: vi.fn(() => 1),
+      clearIntervalLike: vi.fn(),
+    });
+
+    await flushPromises();
+
+    expect(onNewVersion).toHaveBeenCalledWith({
+      currentHash: 'bundle-old',
+      nextHash: 'server-new',
+    });
+  });
+
   it('stays silent on transient network or parse failures', async () => {
     const onNewVersion = vi.fn();
     const onPoll = vi.fn();

@@ -392,6 +392,22 @@ const attachNewVersionBanner = (): (() => void) => {
   };
 };
 
+const getCurrentBundleHash = (): string | null => {
+  const scripts = Array.from(document.querySelectorAll('script[src]'));
+  for (const script of scripts) {
+    const src = script.getAttribute('src');
+    if (!src || !src.includes('client.js')) continue;
+    try {
+      const url = new URL(src, window.location.href);
+      const hash = url.searchParams.get('v')?.trim();
+      if (hash) return hash;
+    } catch {
+      // Ignore malformed script src values and fall through to the next.
+    }
+  }
+  return null;
+};
+
 export const setupVersionCheck = (): (() => void) | null => {
   // Same gate as service-worker registration: local dev reloads on its
   // own via esbuild/wrangler, and the build hash never changes there,
@@ -405,6 +421,7 @@ export const setupVersionCheck = (): (() => void) | null => {
 
   let detachBanner: (() => void) | null = null;
   const disposePoll = startVersionCheck({
+    currentHash: getCurrentBundleHash(),
     onNewVersion: () => {
       if (detachBanner) return;
       detachBanner = attachNewVersionBanner();

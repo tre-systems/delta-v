@@ -748,6 +748,7 @@ export class GameDO extends DurableObject<Env> {
     primaryMessage?: StatefulServerMessage,
     options?: PublishStateChangeOptions,
   ) {
+    const previousState = await this.getCurrentGameState();
     const notice = options?.lastTurnAutoPlayed;
     if (notice) {
       this.lastTurnAutoPlayNoticeBySeat[notice.seat] = {
@@ -755,10 +756,6 @@ export class GameDO extends DurableObject<Env> {
         reason: notice.reason,
       };
     }
-    // Each accepted action advances the state; agent idempotency keys are
-    // scoped per action, so clear the cache here rather than tracking phase
-    // transitions. Re-submits after this point target a newer state anyway.
-    this.idempotencyCache.clear();
     const { lastTurnAutoPlayed: _drop, ...publicationOpts } = options ?? {};
     await runPublicationPipeline(
       {
@@ -781,6 +778,7 @@ export class GameDO extends DurableObject<Env> {
       gameId: state.gameId,
       state: structuredClone(state),
     };
+    this.idempotencyCache.clearIfScopeChanged(previousState, state);
     // Wake every HTTP /mcp/wait or /mcp/action long-poller — mirror of the
     // WebSocket broadcast. Either seat may be waiting (simultaneous phases,
     // observation polling, gameOver close-out), so wake unconditionally.

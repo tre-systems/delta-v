@@ -85,6 +85,42 @@ describe('fleet building (MegaCredit economy)', () => {
       expect(r2.state.ships).toHaveLength(2);
     }
   });
+
+  it('rejects duplicate ready from an already-ready player without charging or spawning again', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.interplanetaryWar,
+      map,
+      asGameId('WAR-DUP'),
+      findBaseHex,
+    );
+    const first = processFleetReady(
+      state,
+      0,
+      [{ kind: 'ship', shipType: 'corvette' }],
+      map,
+    );
+    if ('error' in first) throw new Error(first.error.message);
+
+    const duplicate = processFleetReady(
+      first.state,
+      0,
+      [{ kind: 'ship', shipType: 'corvette' }],
+      map,
+    );
+
+    expect('error' in duplicate).toBe(true);
+    if ('error' in duplicate) {
+      expect(duplicate.error.code).toBe('STATE_CONFLICT');
+      expect(duplicate.error.message).toBe(
+        'Player is already ready for fleet building',
+      );
+    }
+    expect(first.state.ships.filter((ship) => ship.owner === 0)).toHaveLength(
+      1,
+    );
+    expect(first.state.players[0].credits).toBe(810);
+  });
+
   it('rejects purchases exceeding credits', () => {
     const state = createGameOrThrow(
       SCENARIOS.interplanetaryWar,

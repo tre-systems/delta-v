@@ -6,11 +6,12 @@
 // by giving the player a dismissible "new version — reload" prompt in
 // the middle of gameplay when the server has shipped new bundle hashes.
 //
-// Baseline strategy: the first successful fetch establishes the hash
-// the client currently believes it is running. Every subsequent poll
-// compares to that baseline and fires `onNewVersion` exactly once when
-// the hash diverges. Failed polls (network error, non-JSON, missing
-// hash) are silent — the goal is a helpful nudge, not noise.
+// Baseline strategy: production passes the hash of the bundle that is
+// currently running. Every poll compares /version.json to that baseline
+// and fires `onNewVersion` exactly once when the hash diverges. Failed
+// polls (network error, non-JSON, missing hash) are silent — the goal is
+// a helpful nudge, not noise. If no current hash is supplied, the first
+// successful fetch is retained as a compatibility fallback.
 
 export interface VersionPayload {
   packageVersion?: string;
@@ -32,6 +33,7 @@ export interface StartVersionCheckOptions {
   onNewVersion: (info: { currentHash: string; nextHash: string }) => void;
   // Called on every successful fetch, mostly for tests.
   onPoll?: (hash: string) => void;
+  currentHash?: string | null;
   pollIntervalMs?: number;
   // Injected for tests so we can drive the poll loop without timers.
   fetchLike?: VersionCheckFetch;
@@ -68,6 +70,7 @@ export const startVersionCheck = (
   const {
     onNewVersion,
     onPoll,
+    currentHash,
     pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
     fetchLike = fetch as unknown as VersionCheckFetch,
     setIntervalLike = setInterval as unknown as (
@@ -78,7 +81,11 @@ export const startVersionCheck = (
     url = '/version.json',
   } = options;
 
-  let baseline: string | null = null;
+  const initialHash =
+    typeof currentHash === 'string' && currentHash.trim().length > 0
+      ? currentHash.trim()
+      : null;
+  let baseline: string | null = initialHash;
   let disposed = false;
   let notified = false;
 

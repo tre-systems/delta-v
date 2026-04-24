@@ -153,6 +153,23 @@ describe('IdempotencyKeyCache', () => {
     expect(cache.has(0, 'k1')).toBe(false);
   });
 
+  it('keeps keys for same turn and phase, then clears them when the phase advances', () => {
+    const cache = new IdempotencyKeyCache();
+    cache.remember(0, 'k1');
+    const sameScopeWithDifferentActivePlayer: GameState = {
+      ...state,
+      activePlayer: state.activePlayer === 0 ? 1 : 0,
+    };
+    cache.clearIfScopeChanged(state, sameScopeWithDifferentActivePlayer);
+    expect(cache.has(0, 'k1')).toBe(true);
+
+    cache.clearIfScopeChanged(state, {
+      ...state,
+      phase: 'ordnance',
+    });
+    expect(cache.has(0, 'k1')).toBe(false);
+  });
+
   it('caps the ring at 32 keys per player', () => {
     const cache = new IdempotencyKeyCache();
     for (let i = 0; i < 40; i++) cache.remember(0, `k${i}`);
