@@ -180,7 +180,6 @@ export const createGameClient = () => {
     getPlayerId: () => ctx.playerId as PlayerId,
     getTransport: () => ctx.transport,
     planningState: ctx.planningState,
-    showToast,
     logText,
   };
 
@@ -191,7 +190,6 @@ export const createGameClient = () => {
     getTransport: () => ctx.transport,
     getMap: () => map,
     planningState: ctx.planningState,
-    showToast,
     logText,
   };
 
@@ -202,7 +200,6 @@ export const createGameClient = () => {
     getMap: () => map,
     getTransport: () => ctx.transport,
     planningState: ctx.planningState,
-    showToast,
     logText,
   };
 

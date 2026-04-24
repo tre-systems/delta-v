@@ -28,7 +28,6 @@ export interface CombatActionDeps {
   getTransport: () => GameTransport | null;
   getMap: () => SolarSystemMap;
   planningState: PlanningSelectionStore & CombatPlanningStore;
-  showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   logText: (text: string) => void;
 }
 

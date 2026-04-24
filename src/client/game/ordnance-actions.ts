@@ -20,7 +20,6 @@ export interface OrdnanceActionDeps {
   getMap: () => SolarSystemMap;
   getTransport: () => GameTransport | null;
   planningState: PlanningSelectionStore & OrdnancePlanningStore;
-  showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   logText: (text: string) => void;
 }
 
