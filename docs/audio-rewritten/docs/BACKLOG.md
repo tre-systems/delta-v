@@ -1,113 +1,103 @@
 # Delta-V Backlog
 
-A prioritised list of outstanding tasks that deserve a named home between pull requests — design gaps, tuning work, hardening items, and doc-versus-reality drift. Each entry is either actionable in the next few weeks or explicitly gated on a trigger.
+Outstanding tasks that deserve a named home between pull requests. Shipped work lives in the git log rather than here. Recurring review procedures live in the review plan document. Architecture rationale lives in the architecture document. Exploratory-pass technique lives in the exploratory testing document.
 
-Sections are grouped by theme and ordered by priority within each group. Gameplay-feel items translate most directly into a better player experience; architecture-solidity items unblock confident iteration on them. Shipped work lives in the repository's commit log rather than here; recurring review procedures live in the review plan document; architecture rationale lives in the architecture document; exploratory-pass technique lives in the exploratory testing document.
+Sections are grouped by theme and ordered roughly by player impact. Entries whose history was nothing more than "done for this slice" were removed in the late-April 2026 cleanup.
 
-## Recently shipped
+## Artificial intelligence evaluation and heuristic planning
 
-As of mid-April 2026, a large batch of quality, accessibility, and agent-infrastructure work has landed on the main branch. The hosted Model Context Protocol now lives in its own workspace package, the server-side bot for agent seats defaults to the normal difficulty level used everywhere else, and the scenario tiles, focus rings, and phase banner have all been polished. A notification policy module now orders toasts, phase alerts, and the heads-up display status line by precedence and dedupes repeat toasts. Prefer-more-contrast and forced-colors passes landed across the menu shell, heads-up display, overlays, and game-over screen. The help overlay accessibility bugs around aria-hidden and the fleet-status label are fixed, and the waiting-screen game code gets read by assistive tech when it updates.
+The current artificial intelligence backlog has repeatedly converged on the same failure mode: a single bad simulation or playtest produces another local weight tweak. That is fragile. The active artificial intelligence work is grouped into three tracks: an evaluation loop covering scenario scorecards, failure captures, and fixture regressions; reusable planning primitives covering bounded movement planning and ship-role assignment; and a scenario-symptom queue of player-facing balance and artificial-intelligence failures that should be validated through the first two tracks rather than through one-off weight changes.
 
-Security hardening: the hosted Model Context Protocol endpoint now enforces a sixteen-kilobyte JSON body cap and a per-agent-token rate limit, the agent-token secret fails closed in production instead of falling back to a placeholder, match-token redemption requires a bearer header, and quick-match enqueues with an agent-prefixed player key require a verified agent bearer so the "is agent" leaderboard flag cannot be spoofed by prefix alone. The public leaderboard itself — Glicko-2, no login, humans and agents on one ladder — is live, with claim endpoints, a provisional-hiding rule, and idempotent per-match rating writes.
+### Build scenario scorecards and a failure-state corpus
 
----
+Win rate alone is too blunt for asymmetric objective scenarios. Each scenario needs a small scorecard that captures the product behavior we actually care about: objective completion share, fleet-elimination share, average turns, timeouts, invalid candidate count, fuel-stall count, passenger delivery share, and seat balance where relevant. Simulation warnings should compare paired seed sets against those scorecards so a pull request can say whether it improved the scenario rather than only whether one seed got lucky.
 
-## Gameplay UX and matchmaking integrity
+Bad simulation states should also become fixtures. When the harness sees a fuel stall, invalid order, passenger transfer mistake, or objective drift, save the game state and add a decision-class regression such as "land to refuel", "keep the viable passenger carrier", "do not coast while stalled", or "screen the carrier instead of chasing attrition". Avoid exact burn assertions unless the rules require them.
 
-A handful of open UX items remain after the April 2026 batch.
+The action is to extend the simulation script with additional objective and failure counters as new recurring failure modes appear, and to grow the fixture path into a broader corpus of decision-class regressions as the harness captures new recurring failures.
 
-Form controls still need a finer-grained split between mouse-focus and keyboard-focus styling. A quantified contrast audit — executed each release and then tuning the stylesheets from the measured results — is still outstanding. Stronger high-contrast mode coverage is partial: the help overlay's reused menu-content selectors on screens beyond the main menu still need a spot-check, and any game-over chrome outside the hero title may still read as flat in the strictest forced-colors themes.
+### Add a bounded engine planner for movement objectives
 
-The tutorial still needs a deeper task-first flow with spotlight-driven steps and a repeatable "what do I do now" affordance; the help overlay could optionally highlight the section in view on scroll, or collapse long groups into expandable blocks. Notification precedence is partly enforced in code via helpers, but call-site audits for duplicate copy between the heads-up display status line, the game log, and toasts are still open.
+Grand Tour, evacuation, convoy, and blockade all depend on movement planning under fuel, velocity, gravity, and landing constraints. The current scorer uses many scalar distance and fuel bonuses where a small bounded planner would provide a better signal without replacing the whole artificial intelligence.
 
-Core map interactions remain pointer-first: keyboard-first targeting and selection flows still need design and implementation so that gamepad support can reuse the same command path. Burn-arrow tap targets resolve per hex cell rather than only the painted circle, which usually gives at least forty-eight pixels at default zoom but can shrink on very small viewports — worth revisiting only if playtesting reports missed taps.
+The action is to grow the reusable short-horizon planner over the course-computation helper so it can score "can reach safe refuel, objective, or landing line within a few turns" and return a cost-to-go. Feed that cost into checkpoint and refuel ranking more directly, then into passenger-arrival decisions, where it can replace several ad hoc fuel and landing bonuses.
 
----
+### Separate ship roles before tactical scoring
 
-## Artificial intelligence behavior and rules conformance
+Generic combat, objective, fuel, and landing scores still fight each other in escort scenarios. A cheap role pass would make the scoring simpler and more stable: assign each ship a turn-local role such as carrier, escort, interceptor, refuel, race, or screen, then let the role choose a smaller set of priorities. Expand the lightweight role-assignment step for artificial-intelligence phases that need coordination, and reuse the same idea for Grand Tour race and refuel decisions if it proves useful.
 
-Findings from a deep-research pass against the 2018 Triplanetary rulebook, combined with observations of the artificial intelligence's ordnance behavior.
+### Scenario symptoms to validate with the new loop
 
-The ordnance artificial intelligence currently gates launches on distance buckets but never verifies that the launch vector will actually intersect a target hex within the five-turn ordnance lifetime, accounting for gravity. A short forward simulation that scores candidate launch burns by intersection probability is needed before a launch commits.
+These are still real player-facing artificial-intelligence issues, but they should be handled through the scorecard, fixture, and planner workflow rather than through one-off weight changes. Convoy and evacuation still resolve too often by elimination, so passenger-carrier doctrine should rank arrival odds and runner survival above generic combat value. The late-April 2026 thirty-game sweep showed convoy objective share at twenty percent with a seventy-six percent player-zero decided rate, and evacuation objective share at fifty percent with average turns of only 3.2 — too short to reach Terra meaningfully. In Biplanetary, that same sweep resolved one hundred percent of thirty hard-versus-hard games by fleet elimination, with the landing objective effectively unreachable under current artificial-intelligence doctrine. In Grand Tour, the late-April refuel-navigation pass improved focused sixty-seed samples from zero-for-sixty player-zero wins to eighteen-for-sixty, but the sample still warns at thirty percent and has too many fleet-elimination resolutions. Evacuation is still too short and too attrition-heavy; the target metric is objective share, not seat balance. Fleet Action and Interplanetary War showed fuel-stall rates per game of seventy-two-point-one and one-hundred-ten-point-three at hard-versus-hard — an order of magnitude worse than convoy at nineteen-point-three or duel at two-point-eight. Fleet-scale scenarios have fueled ships coasting instead of burning, which is a good target for the bounded engine planner once it extends past Grand Tour refuel recovery. Fleet Action's recent large samples are close to acceptable, but timeout rate and player-zero blowout risk should still be watched; the late-April sweep showed a timeout share of thirteen-point-three percent at thirty games. The easy, normal, and hard tiers now differ more than before; only widen the hard-versus-normal gap again if real playtesting says the tiers feel too similar. Impossible-shot and nuke-or-torpedo regressions are covered, so remaining hard-tier thresholds should only be tuned when scorecards or sweeps show overfiring.
 
-The recommended-index output can over-suggest consecutive ordnance launches. After a torpedo on turn two, the ordnance-phase recommendation on turn three may point at a nuke without the enemy being in range or being a credible threat. The hard-difficulty nuke gate also misses three factors — the three-hundred-MegaCredit cost of a nuke, the fact that it can be shot down at two-to-one odds with full range and velocity modifiers, and its tendency to detonate on any friendly ship, base, asteroid, mine, or torpedo in the path. An expected-damage estimate netted out against anti-nuke intercept odds, plus exclusion of friendly-lane vectors, should gate hard-difficulty launches.
+## Gameplay user-experience and matchmaking
 
-Four subtle rules should be audited against the rulebook for drift: range is the attacker's closest approach rather than range to final position alone; the velocity penalty applies only when the difference exceeds two hexes; each ship may release only one ordnance item per turn; and only warships may launch torpedoes.
+The remaining gameplay user-experience items group into digital-input parity and WebSocket protocol diagnostics.
 
-The mine-launcher gate should verify that the resulting course actually leaves the mine's own hex, not just that a burn was declared, to avoid self-destruction. Finally, the research pass produced concrete geometries where the hard-difficulty artificial intelligence still launches despite no credible five-turn intercept window — these should be encoded as deterministic test fixtures before any further heuristic tuning.
+### Verify same-token WebSocket replacement
 
----
+The late-April 2026 multiplayer deep probe exercised the create, join, and quick-match routes, the paired WebSocket flow, spectator attach, mid-match disconnect and reconnect, and rate limits. Core flows work: seat assignment, reconnect by stored player token, typed WebSocket rejection frames, rate-limit close with a structured reason, matchmaker pairing, and idempotent same-player tickets. HTTP validation and URL diagnostics have shipped; the remaining gap is replacement behavior for duplicate same-seat sockets.
 
-## Agent and Model Context Protocol ergonomics
+Specifically, when a second WebSocket connects with the same player token, the server code is meant to close the old socket with a "replaced by new connection" message. In the late-April local dev probe, the old socket never saw a close event over a ten-second window while still reporting an open ready state. This may be a Wrangler dev hibernation quirk, an underlying HTTP-library quirk, or a real production regression — it should be triangulated against deployed production before acting. If reproducible in production, it leaks zombie sockets per tab-switch until the client hits a rate-limit close. A reusable connectivity-harness script would keep this probe close to hand for future passes.
 
-The agent contract is strong, with a pre-computed candidates array, labelled observations, two-token authentication, and action-guards forgiveness, but the Model Context Protocol surface has grown in two places and some per-turn affordances still cost extra round-trips.
+### Small accessibility polish
 
-Parallel stdio tool calls currently serialize: two quick-match connect calls sent in a single message do not run in parallel because the blocking long-poll runs to timeout before the second call queues. The fix is to keep long-poll waits off the stdio critical path.
+The late-April accessibility reaudit, including an axe pass and a manual sweep at phone viewport size, passed the baseline. Future accessibility work should stay limited to small, low-risk fixes that preserve the game's feel and visual language. Full keyboard tactical play on the canvas board remains explicitly out of scope per the accessibility scope document, and broader reduced-motion or heads-up display scale changes should wait for a specific player need rather than being pursued as generic compliance work. Candidate small fixes include keeping modal keyboard behavior tidy as new overlays are added, preserving clear focus rings and accessible names on new controls, and adding focused axe and manual checks when touching menu, heads-up display, help, game-over, or reconnect surfaces.
 
-First-touch errors on quick-match connect are rough. Passing a WebSocket URL throws a bare fetch-failed error from the underlying HTTP library; the normalization helper should either map WebSocket schemes to HTTP or reject with a clear message. Quick-match timeouts give no hint about the underlying cause — under development mode especially, a "no opponent queued" hint would be actionable.
+### Finish digital-input parity for pointer-first tactical picks
 
-The send-action tool's wait-for-result mode should treat protocol error events as rejections consistently. Today, sending an unknown action type resolves only after a separate event poll; the two paths should collapse to a single resolved rejection in both cases.
-
-The disabled bot-fill path in the matchmaker Durable Object could be gated behind the development-mode flag so a single client can drive an end-to-end match locally without a second process.
-
-The bot's nine-hundred-millisecond silence threshold is too aggressive for language-model agents with longer reasoning budgets. A longer default or a per-session configurable budget is needed.
-
-The local and hosted Model Context Protocol tool surfaces diverge — the stdio server exposes list-sessions, get-events, and close-session helpers that the hosted server does not. Picking one name for quick-match and porting session buffering to the hosted side is the higher-value direction.
-
-The wait-for-turn tool should return the full observation payload so a turn collapses to one blocking call plus one action call. The local stdio server's silent compaction of the state field should be gated behind an explicit opt-in.
-
-The astrogation contract is inconsistent across surfaces: some describe it as simultaneous or pre-submittable while others gate on active player. A single model should flow through the engine, wait-for-turn, action guards, playbook JSON, and skill documentation.
-
-The scrimmage script currently uses scrim-prefixed player keys, exercising the human quick-match path rather than the verified-agent flow that production agents use. Switching scrimmage defaults to agent identities and token issuance keeps the evaluation harness representative.
-
-Model Context Protocol resources — universal-resource-identifier-style read-only data for rules and replays — are listed as a near-term resource surface but none are served yet. Serving the rules and replay resources would let hosts cache them and skip repeated HTTP fetches.
-
-Action-rejection reasons should become a structured discriminated union rather than free-form strings. The smart-forgiveness path — where a stale phase is forgiven because the action type is still valid — should surface as its own reason.
-
-When the thirty-second decision timeout fires and the server plays the recommended index on the agent's behalf, the agent is never told. A one-shot last-turn-auto-played field on the next observation would let agents notice missed turns and shrink their thinking budget.
-
-A pre-release agent smoke checklist should land in the manual test plan: queue an agent against each difficulty for a small number of games, confirm at least ninety-five percent action acceptance, zero parse errors, under five percent decision-timeout rate, and that the six-agent harness finishes three concurrent matches without Durable Object instability.
-
-The play skill has no mention of the coach-directive field even though observations surface it; add a short section on reading the directive each turn. The skill should also commit to one Model Context Protocol surface rather than referencing both.
-
-Finally, once all active agents have migrated to match tokens, the legacy code-and-player-token tool-arg path can be retired from the hosted adapter.
-
----
+Combat target cycling, attacker cycling, and standard gamepad paths have shipped. The remaining gap is any tactical pick that still requires pointer interaction rather than keyboard or gamepad navigation. The action is to audit astrogation, ordnance, logistics, and ship or hex selection for pointer-only choices and add digital command paths where a player can otherwise get stuck without a mouse.
 
 ## Cost and abuse hardening
 
-The current baseline is documented in the security document: hashed-IP GET throttles on the join and replay paths, a WebSocket upgrade cap, per-socket message rate limits, a chat throttle, caps on the telemetry and error POSTs, authoritative room creation, the Model Context Protocol two-token model, fail-closed behavior on the agent-token secret in production, and the thirty-day retention purge for the events table.
+### Close the connecting-IP spoofing bypass
 
-The items still on the backlog are trigger-gated: a Web Application Firewall or additional rate-limit namespaces if the baseline throttles prove insufficient; Turnstile on the human name-claim endpoint; proof-of-work on bulk agent name claims; and a spectator delay for serious competition.
+The server currently reads the connecting client IP from the Cloudflare connecting-IP header without sanity-checking that the request actually originated through Cloudflare. An attacker hitting the Worker directly, or a misconfigured environment where the header is accepted from untrusted upstreams, can rotate that header on every request and silently bypass every hashed-IP throttle. The fix is to verify the request arrived through the trusted Cloudflare front door, reject spoofed headers, and fall back to a stable per-connection identifier otherwise. This is the highest-priority hardening item on the backlog.
 
----
+### Tighten the hosted Model Context Protocol input schema
+
+The hosted Model Context Protocol endpoint accepts JSON-RPC input at the Cloudflare edge. Several tool handlers still accept loose shapes that overlap with optional fields — for example, shared compatibility aliases between match token and session identifier. A tighter schema at the entry point would reject malformed tool calls before they reach in-Worker logic, reduce the blast radius of any future handler bug, and produce cleaner error telemetry.
+
+### Cap concurrent WebSocket sockets per IP
+
+The existing rate limits protect the new-connection rate but nothing caps steady-state resource use per salted hashed IP. The WebSocket connect limit lets one client open twenty new sockets per minute. Nothing reaps the accumulating set of open sockets, and a client that sends a message every four minutes keeps its Durable Object under the five-minute inactivity timeout cliff forever. A patient attacker can therefore maintain hundreds to low thousands of warm Durable Objects from one IP, each billed for wall-clock and WebSocket duration. The public create route already has a per-IP active-room cap; steady-state WebSocket ownership still needs a cap. Recommended additions are a per-IP concurrent-WebSocket count with a suggested cap near ten, rejecting new handshakes with a "try again later" close code when over the cap, and a shorter inactivity timeout — perhaps sixty seconds — when no opponent has joined, since a solo seat holding a Durable Object open for five minutes with no second player serves no purpose. A monthly billing alert for Workers, Durable Objects, object storage, and the database would also surface any slipped attack before the invoice does.
+
+### Add a hashed-URL cache for client assets
+
+The production client bundle returns a cache-control header that forces revalidation on every page visit even when the content hash has not changed. Cloudflare hits the edge cache, but the browser still makes a revalidation round-trip on every navigation, and on a cold cache eviction the full body redownloads. The fix is to switch to content-hashed URLs emitted by the bundler, paired with an immutable long-lived cache header for the hashed files, while the index HTML stays revalidate-on-every-load so a new deploy lands immediately. Returning visitors then receive zero bytes for the JavaScript and style assets until the build hash changes. The existing static-copy hash in the style bundle step already knows the cache-bust shape and can be extended to rewrite the script and stylesheet tags in each shell HTML file to point at hashed paths.
+
+### Extend Forget-my-callsign scope to include the anonymous identifier
+
+The lobby's Forget-my-callsign button clears the locally stored token bundle and player profile but does not rotate the stable anonymous telemetry identifier. New telemetry events after the reset still attach to the same anonymous identifier that linked every previous callsign and session from the device. A maintainer with database read access could correlate pre-forget and post-forget activity. Two options: document the scope limit explicitly in the privacy document so users and operators know that Forget does not break the telemetry link, or rotate the anonymous identifier when the reset fires so the resolver mints a fresh one on next call. Implementation is the honest option; the doc-only fix is acceptable if we want to keep long-term telemetry continuity more than forgettability.
+
+### Scrub engine-error stack traces before the database persist
+
+The server telemetry path writes a code, phase, turn, message, and stack for every engine error into the thirty-day-retained events table. Stack traces are typically file and function paths only, but thrown error messages can capture value literals — any engine error whose message is constructed from user-reachable input leaks that string into the retained table. Current code does not obviously construct error messages from user-typed strings, but a single upstream template-interpolated error could slip through. The action is to audit the thrown-error surface for template interpolation of client-supplied strings and either replace with structured codes or truncate the message and stack fields at safe bounds — perhaps one kilobyte each — before persist. Low likelihood of active exposure; bundle with the next authentication or validation pass rather than shipping as a standalone task.
+
+### Scheduled dependency audit and automated dependency pull requests
+
+Continuous integration runs the package install but never runs the audit command, and there is no Dependabot or Renovate configuration. The late-April dependency review caught two advisories manually; the next one lands silently unless someone reruns the audit. Two low-cost options: add a weekly scheduled audit workflow that opens an issue on any high-severity advisory, or enable Dependabot with a small open-pull-request limit and grouped patch updates. Scope this once one of the two existing advisories resurfaces or the production runtime picks up a new direct dependency.
+
+## Telemetry and observability
+
+### Remaining discovery and session-quality signals
+
+The internal metrics endpoint, observability query recipes, discovery page views, replay engagement events, and scenario-selected telemetry are shipped. The remaining gaps are narrower: a leaderboard-row-clicked event once leaderboard rows become interactive, and a connection-quality metric over a session — such as round-trip time or out-of-order frame counts — rather than only a single invalid-message event.
 
 ## Architecture and correctness
 
-Several items remain on the architecture backlog. The initial publication path for new games should route through the same publication pipeline as every other state change so the random-number-generator fallbacks can be removed. Reinforcement and fleet-conversion side effects during turn advancement should become fully replayable by emitting explicit turn-advance events or by sharing one mutation implementation between the live engine and the event projector.
+### Refresh and automate the audio-book rewrites
 
-Caching of the current-state projection is partial — the checkpoint cleanup is done, but the live projection still rebuilds current state on every wake or read. An in-memory cache invalidated on every event append would close the gap. Publication and broadcast safety rails could be improved by replacing coarse JSON-string parity failures with structured diffs, converging normalization between production and tests, making lower-level broadcast helpers private, and adding an exhaustive server-to-client builder and broadcast check. Boundary hardening should hide clone-sensitive engine mutators behind non-exported modules, extend import-boundary enforcement, and finish the client-kernel dependency-injection cleanup so WebSocket and fetch are injected rather than reached directly.
+The audio-rewritten folder holds hand-authored, text-to-speech-friendly prose versions of every canonical documentation chapter. The rewriter is not a script; the folder was last bulk-refreshed a few days before the late-April sweep. Every source document updated after that is stale in the audio edition, and rerunning the audio-book build command does not refresh the prose — it only rerenders the same text through headless Chromium with a new build date. Concrete work: regenerate every audio-rewritten chapter whose source markdown is newer, and stop shipping stale audio PDFs by adding a guard on the build command that compares each source's modification time or git blob hash against its rewritten counterpart and refuses to build when any is stale, printing the list of chapters that need a new pass. An optional follow-up is a skeleton command-line tool that drops each source chapter into a prompt for a human or language-model pass, writes the output into the rewritten folder, and records a metadata timestamp. Until the refresh ships, the audio edition front matter and the main readme's compiled-book section should flag that the audio edition may lag the main book by a few days after each documentation sweep.
 
----
+### Measure long-game memory growth
 
-## Type safety and scenario definitions
+The late-April review caught the bundle wins but did not measure client heap growth over a twenty- to thirty-minute match. The event-source stream accumulates in replays and the renderer holds canvas buffers per turn animation; if either leaks, the browser's tab process grows until a major garbage collection or an out-of-memory kill on mobile. A one-hour action is to start a duel against hard artificial intelligence, take heap snapshots at zero, five, fifteen, and thirty minutes, and diff for growing retainers. Escalate only if the diff shows unbounded growth; do not chase it if heap stays flat.
 
-Several stringly-typed registries and identifiers still need to be closed off, with type guards for hex keys, tighter scenario and body registries, and branded ship and ordnance identifiers for lookup-heavy paths.
+### Optional deduplication of the initial publication path
 
-Scenario definitions and map data should be validated at load time and at game-creation time: conflicting rule combinations, unknown bodies, invalid spawn hexes, overlapping bodies, unreachable bases, and bounds that should be derived from body placement rather than from hardcoded constants.
+New-game initialization already publishes through the same publication-pipeline path as post-init actions, and random-number-generator breach fallbacks now use deterministic streams. The remaining work is optional deduplication only: if this area is touched again, consider whether match initialization should call the publication pipeline directly without the state-change indirection.
 
-Standardized error surfaces with a single engine-failure helper everywhere, combined with typed rate-limit and validation handling in the client, would allow user-facing error behavior to branch on error code rather than parsed text.
+## Future features
 
----
-
-## Testing and client consistency
-
-Property tests for ordnance launch duplication, phase gating, and logistics transfer validation have shipped. What remains is positive client-to-server fixtures for the edge combat and combat-single messages, and negative-fixture protocol coverage for malformed payloads.
-
----
-
-## Future features, not currently planned
-
-These items depend on product decisions or external triggers and are not in the active queue.
-
-Public matchmaking with longer room identifiers would be added if the product moves beyond shared short codes. A trusted HTML sanitizer would be needed if chat, player names, or modded scenarios ever render as HTML. Web Application Firewall or additional rate-limit namespaces on join and replay probes would be added if distributed scans wake Durable Objects or cost too much. Cloudflare Turnstile on the human name-claim endpoint would be added if bulk claim POSTs appear in the logs or if the beta opens to a larger audience. Proof-of-work on the first agent name claim is symmetric in spirit: a few seconds of agent CPU on the first claim, painful at bulk. A spectator delay for organized competitive play would be added if real-time spectator leakage becomes a meaningful competitive risk. Populating the help-overlay screenshots is pending a UI freeze so in-game captures will not go stale in the next release cycle. Finally, an OpenClaw skill document published on the skill hub, gated on the agent-token environment variable, would let any OpenClaw agent auto-acquire Delta-V capability once the hosting platform is ready.
+These items depend on product decisions or external triggers. They are not in the active queue. A web application firewall or additional edge rate-limit namespaces for the join, replay, and leaderboard probe paths would be added if distributed scans wake Durable Objects or cost too much; the late-April pass confirmed that these read paths use only the per-isolate fallback map, so a distributed scan cycling edge locations could multiply the nominal quota by the number of isolates hit. Cloudflare Turnstile on the human name-claim endpoint would be added if logs show bulk claim posts or the beta opens to a larger audience. Populating the help-overlay screenshots is pending a user-interface freeze so in-game captures will not go stale in the next release cycle. Finally, an OpenClaw skill document published on the external skill hub, gated on the agent-token environment variable, would let any OpenClaw agent auto-acquire Delta-V capability once the hosting platform is ready.

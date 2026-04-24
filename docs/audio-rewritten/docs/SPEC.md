@@ -194,6 +194,8 @@ Vector movement with deferred gravity, weak-gravity player choice, and overload 
 
 Contact geometry is approximated rather than exact. Mine and torpedo contact is determined by hex occupancy and path intersection rather than the stricter board-game rule requiring literal geometric line intersection with the printed hex area. This is a standard digital approximation; correcting it would require sub-hex geometry that is incompatible with axial coordinate math.
 
+Torpedo lifetime has been aligned with mines and nukes: torpedoes now use the same five-turn self-destruct window rather than persisting indefinitely. This prevents orphan ordnance from drifting forever after a miss, and keeps all three ordnance types on the same lifetime contract.
+
 Logistics are partially implemented. Surrender, fuel and cargo transfer, looting, passenger and colonist transfer, and the Torch fuel-transfer restriction are all implemented. Dummy counters for concealment scenarios and any rescue-scenario tuning beyond the Convoy scenario remain open.
 
 Extended economy is deferred. Shipping lanes — including the Piracy trade cycles and cargo delivery — and asteroid prospecting — including automated mines, robot guards, ore, and crystalline trading shards — are scenario-specific economies from the Piracy and Interplanetary War scenarios. These are deferred until those scenarios are on the roadmap.
