@@ -183,18 +183,10 @@ hand for future passes.
 ### Low-Friction Accessibility Polish (P2)
 
 The 2026-04-24 a11y re-audit (axe 8/8, manual sweep at 375 × 812) passed
-the baseline but surfaced three tweaks that help all users, not just
+the baseline but surfaced two remaining tweaks that help all users, not just
 assistive-tech users. Full keyboard tactical play on the canvas board
 remains explicitly out of scope per [A11Y.md § Scope](./A11Y.md#scope).
 
-- **Add Tab focus traps to `#gameOver` and `#reconnectOverlay`.** Both
-  have `aria-modal="true"` and `role="dialog"` in
-  [static/index.html](../static/index.html) but no Tab-trap implementation,
-  so sighted keyboard users can tab to elements behind the modal. The help
-  overlay already implements the pattern at
-  [hud-chrome-view.ts:540-566](../src/client/ui/hud-chrome-view.ts) — copy
-  it into [overlay-view.ts](../src/client/ui/overlay-view.ts) for
-  game-over and into the reconnect wiring.
 - **Widen `prefers-reduced-motion: reduce` coverage.** Today only 5
   selectors disable animation in
   [base.css:273-285](../static/styles/base.css); the codebase ships 12

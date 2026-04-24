@@ -15,6 +15,65 @@ import {
 import { getPhaseAlertCopy } from './formatters';
 import type { OverlayStateStore } from './overlay-state';
 
+const FOCUSABLE_DIALOG_SELECTOR = [
+  'button:not([disabled])',
+  '[href]',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+const isHiddenByAncestor = (
+  element: HTMLElement,
+  root: HTMLElement,
+): boolean => {
+  let current: HTMLElement | null = element;
+
+  while (current && current !== root) {
+    if (current.hidden || current.getAttribute('aria-hidden') === 'true') {
+      return true;
+    }
+    current = current.parentElement;
+  }
+
+  return false;
+};
+
+const getFocusableDialogElements = (root: HTMLElement): HTMLElement[] =>
+  Array.from(
+    root.querySelectorAll<HTMLElement>(FOCUSABLE_DIALOG_SELECTOR),
+  ).filter((element) => !isHiddenByAncestor(element, root));
+
+const trapTabFocus = (root: HTMLElement, event: KeyboardEvent): void => {
+  if (event.key !== 'Tab') {
+    return;
+  }
+
+  const focusable = getFocusableDialogElements(root);
+  if (focusable.length === 0) {
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement as HTMLElement | null;
+  const activeInsideDialog = active !== null && root.contains(active);
+
+  if (event.shiftKey) {
+    if (!activeInsideDialog || active === first) {
+      event.preventDefault();
+      last.focus();
+    }
+    return;
+  }
+
+  if (!activeInsideDialog || active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+};
+
 /**
  * Short-lived feedback routing (avoid stacking the same message twice):
  *
@@ -371,6 +430,7 @@ export const createOverlayView = (
       if (!document.contains(gameOverEl)) return;
       if (!gameOverShellVisible.value) return;
       const keyEvent = event as KeyboardEvent;
+      trapTabFocus(gameOverEl, keyEvent);
       if (keyEvent.key !== 'Escape') return;
       const exitBtn = document.getElementById(
         'exitBtn',
@@ -616,6 +676,12 @@ export const createOverlayView = (
 
     listen(reconnectCancelBtn, 'click', () => {
       state.cancelReconnect();
+    });
+
+    listen(document, 'keydown', (event) => {
+      if (!document.contains(reconnectOverlayEl)) return;
+      if (!state.reconnectViewSignal.value.visible) return;
+      trapTabFocus(reconnectOverlayEl, event as KeyboardEvent);
     });
   });
 
