@@ -86,10 +86,6 @@ The internal metrics endpoint, observability query recipes, discovery page views
 
 ## Architecture and correctness
 
-### Refresh and automate the audio-book rewrites
-
-The audio-rewritten folder holds hand-authored, text-to-speech-friendly prose versions of every canonical documentation chapter. The rewriter is not a script; the folder was last bulk-refreshed a few days before the late-April sweep. Every source document updated after that is stale in the audio edition, and rerunning the audio-book build command does not refresh the prose — it only rerenders the same text through headless Chromium with a new build date. Concrete work: regenerate every audio-rewritten chapter whose source markdown is newer, and stop shipping stale audio PDFs by adding a guard on the build command that compares each source's modification time or git blob hash against its rewritten counterpart and refuses to build when any is stale, printing the list of chapters that need a new pass. An optional follow-up is a skeleton command-line tool that drops each source chapter into a prompt for a human or language-model pass, writes the output into the rewritten folder, and records a metadata timestamp. Until the refresh ships, the audio edition front matter and the main readme's compiled-book section should flag that the audio edition may lag the main book by a few days after each documentation sweep.
-
 ### Measure long-game memory growth
 
 The late-April review caught the bundle wins but did not measure client heap growth over a twenty- to thirty-minute match. The event-source stream accumulates in replays and the renderer holds canvas buffers per turn animation; if either leaks, the browser's tab process grows until a major garbage collection or an out-of-memory kill on mobile. A one-hour action is to start a duel against hard artificial intelligence, take heap snapshots at zero, five, fifteen, and thirty minutes, and diff for growing retainers. Escalate only if the diff shows unbounded growth; do not chase it if heap stays flat.
