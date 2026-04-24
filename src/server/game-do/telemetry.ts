@@ -6,6 +6,17 @@ import {
   hasProjectionParity,
 } from './archive';
 
+const MAX_ENGINE_ERROR_FIELD_LENGTH = 1024;
+
+export const sanitizeEngineErrorField = (
+  value: unknown,
+): string | undefined => {
+  if (value === undefined || value === null) return undefined;
+  const text = String(value);
+  if (text.length <= MAX_ENGINE_ERROR_FIELD_LENGTH) return text;
+  return `${text.slice(0, MAX_ENGINE_ERROR_FIELD_LENGTH)}...`;
+};
+
 export const reportGameDoEngineError = (
   deps: {
     db: D1Database | undefined;
@@ -18,8 +29,12 @@ export const reportGameDoEngineError = (
 ): void => {
   const { db, waitUntil } = deps;
   if (!db) return;
-  const msg = err instanceof Error ? err.message : String(err);
-  const stack = err instanceof Error ? err.stack : undefined;
+  const msg = sanitizeEngineErrorField(
+    err instanceof Error ? err.message : err,
+  );
+  const stack = sanitizeEngineErrorField(
+    err instanceof Error ? err.stack : undefined,
+  );
   waitUntil(
     db
       .prepare(
