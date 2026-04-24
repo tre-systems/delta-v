@@ -74,10 +74,15 @@ export const REPLAY_PROBE_LIMIT = 250;
 export const WS_CONNECT_WINDOW_MS = 60_000;
 export const WS_CONNECT_LIMIT = 20;
 
+export const ACTIVE_ROOM_WINDOW_MS = 5 * 60_000;
+export const ACTIVE_ROOM_LIMIT = 25;
+
 export const createRateMap = new Map<
   string,
   { count: number; windowStart: number }
 >();
+
+export const activeRoomMap = new Map<string, Map<string, number>>();
 
 export const telemetryReportRateMap = new Map<
   string,
@@ -142,6 +147,58 @@ export const checkWindowedRateLimit = (
 
   entry.count++;
   return entry.count > limit;
+};
+
+const pruneActiveRoomsForIp = (
+  rooms: Map<string, number>,
+  now = Date.now(),
+): void => {
+  for (const [code, expiresAt] of rooms) {
+    if (expiresAt <= now) {
+      rooms.delete(code);
+    }
+  }
+};
+
+export const isActiveRoomLimited = (
+  ipHash: string,
+  now = Date.now(),
+): boolean => {
+  const rooms = activeRoomMap.get(ipHash);
+  if (!rooms) {
+    return false;
+  }
+  pruneActiveRoomsForIp(rooms, now);
+  if (rooms.size === 0) {
+    activeRoomMap.delete(ipHash);
+    return false;
+  }
+  return rooms.size >= ACTIVE_ROOM_LIMIT;
+};
+
+export const registerActiveRoom = (
+  ipHash: string,
+  code: string,
+  now = Date.now(),
+): void => {
+  let rooms = activeRoomMap.get(ipHash);
+  if (!rooms) {
+    rooms = new Map();
+    activeRoomMap.set(ipHash, rooms);
+  } else {
+    pruneActiveRoomsForIp(rooms, now);
+  }
+
+  rooms.set(code, now + ACTIVE_ROOM_WINDOW_MS);
+
+  if (activeRoomMap.size > RATE_LIMIT_MAP_MAX_KEYS) {
+    for (const [currentIpHash, currentRooms] of activeRoomMap) {
+      pruneActiveRoomsForIp(currentRooms, now);
+      if (currentRooms.size === 0) {
+        activeRoomMap.delete(currentIpHash);
+      }
+    }
+  }
 };
 
 export const tooManyRequests = (): Response =>

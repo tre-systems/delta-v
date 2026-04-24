@@ -51,6 +51,7 @@ import {
   handleReport,
   hashIp,
   insertEvent,
+  isActiveRoomLimited,
   isCreateRateLimited,
   isErrorReportRateLimited,
   isTelemetryReportRateLimited,
@@ -62,6 +63,7 @@ import {
   RATE_LIMIT_MAP_MAX_KEYS,
   REPLAY_PROBE_LIMIT,
   REPLAY_PROBE_WINDOW_MS,
+  registerActiveRoom,
   replayProbeRateMap,
   tooManyRequests,
   WS_CONNECT_LIMIT,
@@ -178,13 +180,16 @@ const buildQuickMatchEnqueueHeaders = async (
 };
 
 export {
+  activeRoomMap,
   checkWindowedRateLimit,
   createRateMap,
   errorReportRateMap,
   hashIp,
+  isActiveRoomLimited,
   isCreateRateLimited,
   joinProbeRateMap,
   logSampledOperationalEvent,
+  registerActiveRoom,
   replayProbeRateMap,
   shouldSampleOperationalLog,
   telemetryReportRateMap,
@@ -370,7 +375,33 @@ export default {
           return tooManyRequests();
         }
 
+        if (!isLoopbackRequest(request) && isActiveRoomLimited(ipHash)) {
+          logSampledOperationalEvent('rate-limit', ipHash, {
+            route: '/create',
+            reason: 'active_room_cap',
+            scenario: audit.scenario,
+          });
+          scheduleServerAuditEvent(ctx, env.DB, ipHash, ua, {
+            event: 'server_create_request',
+            route: '/create',
+            outcome: 'rate_limited',
+            scenario: audit.scenario,
+            payloadBytes: audit.payloadBytes,
+            status: 429,
+          });
+          return tooManyRequests();
+        }
+
         const createResponse = await handleCreate(request, env);
+        if (!isLoopbackRequest(request) && createResponse.ok) {
+          const payload = (await createResponse
+            .clone()
+            .json()
+            .catch(() => null)) as { code?: unknown } | null;
+          if (typeof payload?.code === 'string') {
+            registerActiveRoom(ipHash, payload.code);
+          }
+        }
         scheduleServerAuditEvent(ctx, env.DB, ipHash, ua, {
           event: 'server_create_request',
           route: '/create',
