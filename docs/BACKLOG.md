@@ -210,32 +210,6 @@ Action: if this area is touched again, consider whether `match.ts` should call
 These items depend on product decisions or external triggers. They are not in
 the active queue.
 
-### Simultaneous or Pre-Submitted Astrogation
-
-**Trigger:** product wants both players to commit astrogation before reveal, or
-any model other than I-go-you-go `activePlayer` after fleet building.
-
-Requires an explicit engine + protocol change; today astrogation is sequential
-by `activePlayer` across engine, action guards, local MCP, and hosted MCP.
-
-### Public Matchmaking With Longer Room Identifiers
-
-**Trigger:** product moves beyond shared short codes.
-
-Implement longer opaque room IDs or signed invites and update the join/share UX.
-
-**Files:** `src/server/protocol.ts`, lobby and join UI, share-link format
-
-### Trusted HTML Sanitizer for User-Controlled Markup
-
-**Trigger:** chat, player names, or modded scenarios render as HTML.
-
-Add a single sanitizer boundary, for example DOMPurify inside `dom.ts`, and
-route all user-controlled markup through it. The trusted HTML boundary already
-exists for internal strings.
-
-**Files:** `src/client/dom.ts`, client call sites, optional dependency add
-
 ### WAF or Cloudflare Rate Limits for Join / Replay Probes
 
 **Trigger:** distributed scans wake Durable Objects or cost too much.
