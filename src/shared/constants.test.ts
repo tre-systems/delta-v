@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ANTI_NUKE_ODDS,
+  BASE_COMBAT_ODDS,
+  BURN_FUEL_COST,
   DAMAGE_ELIMINATION_THRESHOLD,
+  LANDING_SPEED_REQUIRED,
   ORBITAL_BASE_MASS,
   ORDNANCE_LIFETIME,
   ORDNANCE_MASS,
+  OVERLOAD_TOTAL_FUEL_COST,
   SHIP_STATS,
   type ShipType,
+  VELOCITY_MODIFIER_THRESHOLD,
 } from './constants';
 
 describe('SHIP_STATS', () => {
@@ -84,6 +90,48 @@ describe('SHIP_STATS', () => {
       expect(warships[i].cost).toBeGreaterThan(warships[i - 1].cost);
     }
   });
+
+  it('pins rulebook ship combat, fuel, and cargo values', () => {
+    expect(
+      Object.fromEntries(
+        (
+          Object.entries(SHIP_STATS) as [
+            ShipType,
+            (typeof SHIP_STATS)[ShipType],
+          ][]
+        ).map(([type, stats]) => [
+          type,
+          {
+            cargo: stats.cargo,
+            combat: stats.combat,
+            defensiveOnly: stats.defensiveOnly,
+            fuel: stats.fuel,
+          },
+        ]),
+      ),
+    ).toEqual({
+      transport: { combat: 1, defensiveOnly: true, fuel: 10, cargo: 50 },
+      packet: { combat: 2, defensiveOnly: false, fuel: 10, cargo: 50 },
+      tanker: { combat: 1, defensiveOnly: true, fuel: 50, cargo: 0 },
+      liner: { combat: 2, defensiveOnly: true, fuel: 10, cargo: 0 },
+      corvette: { combat: 2, defensiveOnly: false, fuel: 20, cargo: 5 },
+      corsair: { combat: 4, defensiveOnly: false, fuel: 20, cargo: 10 },
+      frigate: { combat: 8, defensiveOnly: false, fuel: 20, cargo: 40 },
+      dreadnaught: { combat: 15, defensiveOnly: false, fuel: 15, cargo: 50 },
+      torch: {
+        combat: 8,
+        defensiveOnly: false,
+        fuel: Infinity,
+        cargo: 10,
+      },
+      orbitalBase: {
+        combat: 16,
+        defensiveOnly: false,
+        fuel: Infinity,
+        cargo: Infinity,
+      },
+    });
+  });
 });
 
 describe('ORDNANCE_MASS', () => {
@@ -106,15 +154,36 @@ describe('ORDNANCE_MASS', () => {
 });
 
 describe('game constants', () => {
-  it('ORDNANCE_LIFETIME is positive', () => {
-    expect(ORDNANCE_LIFETIME).toBeGreaterThan(0);
+  it('pins ordnance lifetime to the rulebook self-destruct window', () => {
+    expect(ORDNANCE_LIFETIME).toBe(5);
+  });
+
+  it('pins disabled-turn destruction to D6', () => {
+    expect(DAMAGE_ELIMINATION_THRESHOLD).toBe(6);
+  });
+
+  it('pins combat odds and velocity modifiers from the rulebook', () => {
+    expect(VELOCITY_MODIFIER_THRESHOLD).toBe(2);
+    expect(BASE_COMBAT_ODDS).toBe('2:1');
+    expect(ANTI_NUKE_ODDS).toBe('2:1');
+  });
+
+  it('pins movement fuel and landing costs from the rulebook', () => {
+    expect(BURN_FUEL_COST).toBe(1);
+    expect(OVERLOAD_TOTAL_FUEL_COST).toBe(2);
+    expect(LANDING_SPEED_REQUIRED).toBe(1);
+  });
+
+  it('pins equipment cargo masses from the rulebook', () => {
+    expect(ORDNANCE_MASS).toEqual({
+      mine: 10,
+      torpedo: 20,
+      nuke: 20,
+    });
+    expect(ORBITAL_BASE_MASS).toBe(50);
   });
 
   it('ORBITAL_BASE_MASS is positive', () => {
     expect(ORBITAL_BASE_MASS).toBeGreaterThan(0);
-  });
-
-  it('DAMAGE_ELIMINATION_THRESHOLD is positive', () => {
-    expect(DAMAGE_ELIMINATION_THRESHOLD).toBeGreaterThan(0);
   });
 });

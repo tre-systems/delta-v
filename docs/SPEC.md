@@ -366,6 +366,7 @@ See [BACKLOG.md](./BACKLOG.md) for the current open-work list; recurring audits 
 ### Accepted divergences
 
 - **Contact geometry** — mine/torpedo contact is approximated by hex occupancy/path, not the stricter board rule that requires literal geometric line intersection with the printed hex area. Standard digital approximation; fixing requires sub-hex geometry incompatible with axial coordinate math.
+- **Torpedo lifetime** — torpedoes use the same 5-turn self-destruct window as mines and nukes. This prevents orphan ordnance from drifting indefinitely after a miss.
 - **Logistics (partial)** — surrender, fuel/cargo transfer, looting, passenger/colonist transfer, and Torch fuel-transfer restriction are implemented. Dummy counters for concealment scenarios and any rescue-scenario tuning beyond Convoy remain open.
 - **Extended Economy (deferred)** — shipping lanes (Piracy trade cycles, cargo delivery) and asteroid prospecting (automated mines, robot guards, ore/CT shards) are scenario-specific economies from the Piracy and Interplanetary War scenarios. Deferred until those scenarios are on the roadmap.
 
