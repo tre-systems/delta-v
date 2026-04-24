@@ -37,20 +37,32 @@ export const getMinimapFrame = (
   hudBottomOffset = 0,
 ): MinimapFrame => {
   const isMobile = screenWidth < 600;
-  const baseWidth = isMobile ? 90 : 120;
-  const width = baseWidth;
-  const height = Math.round(baseWidth * Math.max(1, Math.min(mapAspect, 2)));
-  const mobileTopInset = Math.max(90, hudTopOffset + 8);
-  const mobileBottomInset = Math.max(
+  const isShortLandscape = screenHeight <= 560 && screenWidth > screenHeight;
+  const isCompact = isMobile || isShortLandscape;
+  const baseWidth = isCompact ? 90 : 120;
+  const aspect = Math.max(1, Math.min(mapAspect, 2));
+  const compactTopInset = Math.max(90, hudTopOffset + 8);
+  const compactBottomInset = Math.max(
     12,
-    hudBottomOffset + 8 + (isMobile ? 14 : 0),
+    hudBottomOffset + 8 + (isCompact ? 14 : 0),
   );
-  const mobileY = screenHeight - height - mobileBottomInset;
+  const compactAvailableHeight = Math.max(
+    60,
+    screenHeight - compactTopInset - compactBottomInset,
+  );
+  const compactHeight = Math.min(
+    Math.round(baseWidth * aspect),
+    compactAvailableHeight,
+  );
+  const compactWidth = Math.round(compactHeight / aspect);
+  const width = isCompact ? compactWidth : baseWidth;
+  const height = isCompact ? compactHeight : Math.round(baseWidth * aspect);
+  const compactY = screenHeight - height - compactBottomInset;
 
   return {
     x: 12,
-    y: isMobile
-      ? Math.max(mobileTopInset, mobileY)
+    y: isCompact
+      ? Math.max(compactTopInset, compactY)
       : screenHeight - height - 12,
     width,
     height,
