@@ -1739,6 +1739,32 @@ describe('/create rate limiting', () => {
     expect(limiter.limit).not.toHaveBeenCalled();
   });
 
+  it('bypasses IP rate limiting in DEV_MODE for local e2e runs', async () => {
+    const limiter = {
+      limit: vi.fn(async () => ({ success: false })),
+    };
+    const { env } = createEnv(undefined, {
+      CREATE_RATE_LIMITER: limiter,
+      DEV_MODE: '1',
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-connecting-ip': '1.2.3.4',
+        },
+        body: JSON.stringify({ scenario: 'escape' }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(limiter.limit).not.toHaveBeenCalled();
+  });
+
   it('does not trust spoofed loopback cf-connecting-ip on public hosts', async () => {
     const limiter = {
       limit: vi.fn(async () => ({ success: false })),

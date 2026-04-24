@@ -217,6 +217,9 @@ const isLoopbackRequest = (request: Request): boolean => {
   return isLoopbackAddress(url.hostname);
 };
 
+const shouldBypassIpRateLimits = (request: Request, env: Env): boolean =>
+  env.DEV_MODE === '1' || isLoopbackRequest(request);
+
 const resolveWorkerSha = (env: Env): string | null => {
   const candidate =
     env.CF_VERSION_METADATA?.id ??
@@ -358,7 +361,7 @@ export default {
         const audit = await inspectCreateRequest(request);
 
         if (
-          !isLoopbackRequest(request) &&
+          !shouldBypassIpRateLimits(request, env) &&
           (await isCreateRateLimited(env, ipHash))
         ) {
           logSampledOperationalEvent('rate-limit', ipHash, {
@@ -377,7 +380,10 @@ export default {
           return tooManyRequests();
         }
 
-        if (!isLoopbackRequest(request) && isActiveRoomLimited(ipHash)) {
+        if (
+          !shouldBypassIpRateLimits(request, env) &&
+          isActiveRoomLimited(ipHash)
+        ) {
           logSampledOperationalEvent('rate-limit', ipHash, {
             route: '/create',
             reason: 'active_room_cap',
@@ -395,7 +401,7 @@ export default {
         }
 
         const createResponse = await handleCreate(request, env);
-        if (!isLoopbackRequest(request) && createResponse.ok) {
+        if (!shouldBypassIpRateLimits(request, env) && createResponse.ok) {
           const payload = (await createResponse
             .clone()
             .json()
@@ -417,7 +423,7 @@ export default {
       }
 
       if (url.pathname === '/quick-match' && request.method === 'POST') {
-        if (!isLoopbackRequest(request)) {
+        if (!shouldBypassIpRateLimits(request, env)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
           const ipHash = await hashIp(ip, env);
 
@@ -578,7 +584,7 @@ export default {
 
       const wsMatch = url.pathname.match(/^\/ws\/([A-Z0-9]{5})$/);
       if (wsMatch) {
-        if (!isLoopbackRequest(request)) {
+        if (!shouldBypassIpRateLimits(request, env)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
           const ipHash = await hashIp(ip, env);
 
@@ -602,7 +608,7 @@ export default {
           request.headers.get('cf-connecting-ip') ?? 'unknown',
           env,
         );
-        if (!isLoopbackRequest(request)) {
+        if (!shouldBypassIpRateLimits(request, env)) {
           if (await isCreateRateLimited(env, ipHash)) {
             logSampledOperationalEvent('auth-failure', ipHash, {
               route: '/api/agent-token',
@@ -629,7 +635,7 @@ export default {
       }
 
       if (url.pathname === '/api/claim-name') {
-        if (!isLoopbackRequest(request)) {
+        if (!shouldBypassIpRateLimits(request, env)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
           const ipHash = await hashIp(ip, env);
           if (await isCreateRateLimited(env, ipHash)) {
@@ -640,7 +646,7 @@ export default {
       }
 
       if (url.pathname === '/api/leaderboard' && request.method === 'GET') {
-        if (!isLoopbackRequest(request)) {
+        if (!shouldBypassIpRateLimits(request, env)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
           const ipHash = await hashIp(ip, env);
           if (
@@ -659,7 +665,7 @@ export default {
       }
 
       if (url.pathname === '/api/leaderboard/me' && request.method === 'GET') {
-        if (!isLoopbackRequest(request)) {
+        if (!shouldBypassIpRateLimits(request, env)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
           const ipHash = await hashIp(ip, env);
           if (
@@ -688,7 +694,7 @@ export default {
       }
 
       if (url.pathname === '/api/matches' && request.method === 'GET') {
-        if (!isLoopbackRequest(request)) {
+        if (!shouldBypassIpRateLimits(request, env)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
           const ipHash = await hashIp(ip, env);
           if (
