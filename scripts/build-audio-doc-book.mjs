@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -21,6 +22,7 @@ import {
 const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, "tmp", "documentation-book");
 const rewrittenDir = path.join(repoRoot, "docs", "audio-rewritten");
+const sourceHashManifestPath = path.join(rewrittenDir, "source-hashes.json");
 const outHtml = path.join(outDir, "delta-v-documentation-book.audio.html");
 const outPdf = path.join(outDir, "delta-v-documentation-book.audio.pdf");
 const publishedPdf = path.join(
@@ -28,19 +30,70 @@ const publishedPdf = path.join(
   "docs",
   "delta-v-documentation-book.audio.pdf",
 );
+const updateSourceHashes = process.argv.includes("--update-source-hashes");
+
+function sha256(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+async function loadSourceHashManifest() {
+  try {
+    const parsed = JSON.parse(await fs.readFile(sourceHashManifestPath, "utf8"));
+    return parsed.sources ?? {};
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return {};
+    }
+    throw error;
+  }
+}
+
+async function writeSourceHashManifest(sources) {
+  const orderedSources = Object.fromEntries(
+    Object.entries(sources).sort(([left], [right]) => left.localeCompare(right)),
+  );
+  const manifest = {
+    schemaVersion: 1,
+    sources: orderedSources,
+  };
+  await fs.writeFile(
+    sourceHashManifestPath,
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf8",
+  );
+}
 
 await fs.mkdir(outDir, { recursive: true });
 
 const chapters = await loadChapters(repoRoot);
+const sourceHashes = await loadSourceHashManifest();
+const nextSourceHashes = {};
 
 const missing = [];
+const stale = [];
 for (const chapter of chapters) {
+  const sourcePath = path.join(repoRoot, chapter.file);
   const rewrittenPath = path.join(rewrittenDir, chapter.file);
+  const sourceMarkdown = await fs.readFile(sourcePath, "utf8");
+  const sourceHash = sha256(sourceMarkdown);
+  nextSourceHashes[chapter.file] = sourceHash;
+
   try {
     const rewritten = await fs.readFile(rewrittenPath, "utf8");
     chapter.markdown = rewritten;
   } catch {
     missing.push(displayPath(chapter.file));
+    continue;
+  }
+
+  if (!updateSourceHashes && sourceHashes[chapter.file] !== sourceHash) {
+    stale.push({
+      file: displayPath(chapter.file),
+      reason:
+        sourceHashes[chapter.file] === undefined
+          ? "no accepted source hash recorded"
+          : "source changed since the rewrite was accepted",
+    });
   }
 }
 
@@ -53,6 +106,21 @@ if (missing.length > 0) {
   }
   process.stderr.write(
     "Generate the rewrites first, then re-run this script.\n",
+  );
+  process.exit(1);
+}
+
+if (updateSourceHashes) {
+  await writeSourceHashManifest(nextSourceHashes);
+} else if (stale.length > 0) {
+  process.stderr.write(
+    `Stale rewritten chapters under ${displayPath(path.relative(repoRoot, rewrittenDir))}:\n`,
+  );
+  for (const { file, reason } of stale) {
+    process.stderr.write(`  - ${file} (${reason})\n`);
+  }
+  process.stderr.write(
+    "Refresh the listed rewrites, then run `npm run docs:book:audio -- --update-source-hashes` to accept the current source hashes.\n",
   );
   process.exit(1);
 }

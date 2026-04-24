@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "sources": {
+    "AGENT_SPEC.md": "1fc66de78c019349c1a62e144d42d2310d253208120195beb8c97f0687501aaf",
+    "docs/A11Y.md": "833c7ffaa1f0e8730a15f47eb7d3618c2fc469cf56f41d3e077f5cb4cb90a282",
+    "docs/AGENTS.md": "60ef1cc415e9576efcb1d8c624283add602bced556e0a5bd7e17b8014fea5f5e",
+    "docs/ARCHITECTURE.md": "7949bca1d044a32350da23b0c0ea0ef720f78649430c3c600bbdbd9d586e20d6",
+    "docs/BACKLOG.md": "a345d84aaea41fa2f440ebb4cee224eab3a5fc119ac3c69d9674fdbeb08e1d31",
+    "docs/CODING_STANDARDS.md": "28ab90e0f51f29c62155376644e6237d8567a7792ae5444974cfa5df2c1c7d86",
+    "docs/CONTRIBUTING.md": "81b8c90eae4dc382f2e67f3cbf741986c00ebd402ce8bb68bb0d4853b3c71df4",
+    "docs/COORDINATED_RELEASE_CHECKLIST.md": "fc9637be07c61ee6908f1436a353bf71d4445b295cdad4367d7bfdfb126067c4",
+    "docs/DELTA_V_MCP.md": "b09b015cb9395ca00e7d19585e51079618551ff1edf9f23556fba18c7c7c5c0a",
+    "docs/EXPLORATORY_TESTING.md": "dd38090aae1caf82d499c07643dc710994cbbf9a2579056ff75f813096f92f3c",
+    "docs/LORE.md": "02af12e4672243f6e24943ac7356dbf3b6d84517f531c2de28d63bc8f4814018",
+    "docs/MANUAL_TEST_PLAN.md": "fcdba7f7e04ce71883a87a2b4b319c5b739e0a934265c57291f1decc7124eda2",
+    "docs/OBSERVABILITY.md": "9d0f8afb2ea14f142f8ec4438d60644fc8b16431b63d842fbd63358a5ac38af0",
+    "docs/PRIVACY_TECHNICAL.md": "8fb99fc629f7acbff06f64a3ca36da8535c356a578e646111cfe9c7d33053f85",
+    "docs/PROTOCOL.md": "bc0526c826959aa5c98115fd6fc7a7a5480d11e50da62b6b0cf3e913b8cec931",
+    "docs/REVIEW_PLAN.md": "99fd9d87545ae594eaf59c20bd3bc6e0f99b80c0c3a97b78e32a1c7f549cccbf",
+    "docs/SECURITY.md": "f272e0f4547042cc5990eb18c6cbb0e36784888c193c7a67c7f147ce0750bda5",
+    "docs/SIMULATION_TESTING.md": "0106d8c69e4bde019023af72ef3ff6742f3fbaf881c3e79be451db5efde32327",
+    "docs/SPEC.md": "2481e4de3636679135b4eb5d6556ec59b96ddaa71ee990aace4e039c1625dc5b",
+    "patterns/client.md": "39d8659e77f6f0d99866d3b6a469be9e8f35dd9796607cf107306108dffb8dde",
+    "patterns/engine-and-architecture.md": "71e651ffd4c82913c96d58d3954a0e585c188ffca41eefef29caef954c5dcef8",
+    "patterns/protocol-and-persistence.md": "fd15446b04f56c3172a400c47b7300b8576e7fdad144c66670bd0d6ab14427ed",
+    "patterns/README.md": "a349a1f0c0083c8859e9292da49a56910f0d4433312f8191f4a34b97f2547884",
+    "patterns/scenarios-and-config.md": "a7a0fa1057bc6ce8783b248df7fcbfc69851823142443e906ec0814b6bff231e",
+    "patterns/testing.md": "95170fd226ddb13f30c6326625396b7d883148ba1f485e6fcf1b195aa2f02132",
+    "patterns/type-system-and-validation.md": "7ba380cab1ecd42cfc1c0f5c7f0bcdfb47f2b3971b1653a15de737079b24fba6",
+    "README.md": "b1c838f1356c2d1ff6191697f0b6c325d0e97f78ed760738c52aeff15c6788a1"
+  }
+}
