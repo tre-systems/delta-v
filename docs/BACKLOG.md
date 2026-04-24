@@ -180,6 +180,56 @@ hand for future passes.
 [src/server/game-do/actions.ts](../src/server/game-do/actions.ts),
 [src/shared/types/domain.ts](../src/shared/types/domain.ts) (ErrorCode enum)
 
+### Low-Friction Accessibility Polish (P2)
+
+The 2026-04-24 a11y re-audit (axe 8/8, manual sweep at 375 × 812) passed
+the baseline but surfaced three tweaks that help all users, not just
+assistive-tech users. Full keyboard tactical play on the canvas board
+remains explicitly out of scope per [A11Y.md § Scope](./A11Y.md#scope).
+
+- **Add Tab focus traps to `#gameOver` and `#reconnectOverlay`.** Both
+  have `aria-modal="true"` and `role="dialog"` in
+  [static/index.html](../static/index.html) but no Tab-trap implementation,
+  so sighted keyboard users can tab to elements behind the modal. The help
+  overlay already implements the pattern at
+  [hud-chrome-view.ts:540-566](../src/client/ui/hud-chrome-view.ts) — copy
+  it into [overlay-view.ts](../src/client/ui/overlay-view.ts) for
+  game-over and into the reconnect wiring.
+- **Widen `prefers-reduced-motion: reduce` coverage.** Today only 5
+  selectors disable animation in
+  [base.css:273-285](../static/styles/base.css); the codebase ships 12
+  `@keyframes` + 32 `animation` / `transition` rules, and the canvas
+  layer has no `matchMedia` gate at all (so ship movement, combat, and
+  replay playback keep animating for users who have asked for less
+  motion). Add the remaining CSS keyframes (`spin`, `timer-pulse`,
+  `chip-pop`, `recoil`, `tipFadeIn`, `toastIn` / `toastOut`,
+  `goTitleIn` / `goDividerIn` / `goFadeUp`, `goBackdropPulse`) to the
+  reduce-motion block, and plumb a single `prefersReducedMotion()`
+  helper into the renderer so movement and combat can cut to their end
+  states instead of tweening. Vestibular-disorder users feel this; so do
+  anyone on a low-powered device.
+- **Add a touch-reachable HUD scale control.** Scale is wired today only
+  to `+` / `_` keys in
+  [src/client/hud-scale.ts](../src/client/hud-scale.ts) — useless on
+  mobile, and keyboard-only users have to discover it through help. Add
+  a small scale stepper next to the sound/help corner buttons (or a
+  single toggle in the help overlay's Controls section) so touch users
+  who need larger HUD text can actually reach it.
+
+Ship these three together — the help-overlay focus-trap code is the
+reference for the first bullet, and the reduced-motion CSS block is one
+commit away from being right.
+
+**Files:** [static/index.html](../static/index.html),
+[static/styles/base.css](../static/styles/base.css),
+[src/client/ui/overlay-view.ts](../src/client/ui/overlay-view.ts),
+[src/client/ui/hud-chrome-view.ts](../src/client/ui/hud-chrome-view.ts)
+(pattern reference),
+[src/client/hud-scale.ts](../src/client/hud-scale.ts),
+[src/client/renderer/](../src/client/renderer/) (add reduced-motion
+gate), [e2e/a11y.spec.ts](../e2e/a11y.spec.ts) (extend with modal
+focus-trap assertions)
+
 ### Finish Digital-Input Parity for Pointer-First Tactical Picks (P2)
 
 Combat target cycling, attacker cycling, and standard gamepad paths have shipped.
