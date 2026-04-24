@@ -269,7 +269,8 @@ larger audience.
 Add Turnstile verification to `POST /api/claim-name` while preserving the
 existing success path.
 
-**Files:** `src/server/auth/claim-name.ts`, `src/server/auth/turnstile.ts`,
+**Files:** `src/server/leaderboard/claim-route.ts`,
+`src/server/auth/agent-token.ts` (for parity), new `src/server/auth/turnstile.ts`,
 `static/index.html`, `src/client/`, `wrangler.toml`
 
 ### Populate Help Overlay Screenshots
@@ -280,8 +281,9 @@ in the next release cycle.
 Replace the six `.help-screenshot` placeholder blocks with optimized screenshots
 and alt text.
 
-**Files:** `static/index.html`, `static/styles/overlays.css`,
-`static/help/`
+**Files:** `static/index.html`, `static/styles/overlays.css` (the six
+`.help-screenshot` placeholder blocks live directly in `static/index.html`;
+no dedicated `static/help/` directory is used yet)
 
 ### OpenClaw `SKILL.md` on ClawHub
 

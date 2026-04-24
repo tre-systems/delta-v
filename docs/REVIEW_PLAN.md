@@ -71,7 +71,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 **Steps**
 
-1. Run `npm run simulate all 100 -- --ci`. **Pass:** exits 0, no engine errors in output. **Fail:** investigate error details, file BACKLOG item.
+1. Run `npm run simulate -- all 60 --ci` (canonical form; CI, `verify:full`, and the pre-push hook all run 60 games × 9 scenarios). **Pass:** exits 0, no engine errors in output. **Fail:** investigate error details, file BACKLOG item.
 2. Read the current rule-owning engine modules (`astrogation.ts`, `combat.ts`, `logistics.ts`, `ordnance.ts`, `resolve-movement.ts`, `post-movement.ts`, `turn-advance.ts`, `victory.ts`; include `fleet-building.ts` / `game-creation.ts` when scenario setup rules changed). Cross-check phase transitions, post-movement resolution, and victory logic against [SPEC.md](./SPEC.md). **Pass:** no contradictions. **Fail:** file BACKLOG item noting spec vs implementation discrepancy.
 3. Run `npm run test:coverage`. Check coverage for executable `src/shared/engine/` modules (ignore type-only / re-export shims such as `engine-events.ts` and `event-projector.ts`). **Pass:** no executable engine module below 80% line coverage. **Fail:** identify untested branches, file BACKLOG item.
 
