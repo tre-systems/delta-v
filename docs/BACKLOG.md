@@ -51,11 +51,11 @@ under fuel, velocity, gravity, and landing constraints. The current scorer uses
 many scalar distance/fuel bonuses where a small bounded planner would provide a
 better signal without replacing the whole AI.
 
-Action: add a reusable short-horizon planner over `computeCourse` that can score
-"can reach safe refuel / objective / landing line within N turns" and return a
-cost-to-go. Start with a beam search or bounded A* over legal burns for two to
-four turns, then feed that cost into the existing heuristic scorer. Use it first
-for checkpoint/refuel and passenger arrival decisions, where it can replace
+Action: continue growing the reusable short-horizon planner over `computeCourse`
+that can score "can reach safe refuel / objective / landing line within N
+turns" and return a cost-to-go. The first helper is now used for Grand Tour
+checkpoint fuel-stall recovery. Next, feed that cost into checkpoint/refuel
+ranking more directly, then passenger arrival decisions, where it can replace
 several ad hoc fuel and landing bonuses.
 
 **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,

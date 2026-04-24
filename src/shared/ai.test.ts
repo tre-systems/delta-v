@@ -48,6 +48,7 @@ import {
   findDirectionToward,
   getHomeDefenseThreat,
   pickNextCheckpoint,
+  planShortHorizonMovementToHex,
 } from './ai/common';
 import { AI_CONFIG } from './ai/config';
 import { scorePassengerEscortCourse } from './ai/logistics';
@@ -1855,6 +1856,27 @@ describe('aiAstrogation — checkpoint race', () => {
   });
   it('grandTour: captured fuel-stall fixture now picks an active order', () => {
     const fixture = loadAIFailureFixture('grand-tour-fuel-stall.json');
+    const stalledShipId = must(fixture.stalledShipIds?.[0]);
+    const stalledShip = must(
+      fixture.state.ships.find((ship) => ship.id === stalledShipId),
+    );
+    const nextCheckpoint = must(
+      pickNextCheckpoint(
+        fixture.state.players[fixture.activePlayer],
+        fixture.state.scenarioRules.checkpointBodies ?? [],
+        map,
+        stalledShip.position,
+      ),
+    );
+    const targetHex = must(
+      map.bodies.find((body) => body.name === nextCheckpoint)?.center,
+    );
+    const plan = planShortHorizonMovementToHex(
+      stalledShip,
+      targetHex,
+      map,
+      fixture.state.destroyedBases,
+    );
     const orders = aiAstrogation(
       fixture.state,
       fixture.activePlayer,
@@ -1866,12 +1888,12 @@ describe('aiAstrogation — checkpoint race', () => {
       fixture.activePlayer,
       orders,
     );
-    const stalledShipId = must(fixture.stalledShipIds?.[0]);
     const order = must(
       orders.find((candidate) => candidate.shipId === stalledShipId),
     );
 
     expect(fixture.kind).toBe('fuelStall');
+    expect(plan?.firstBurn).toBeTypeOf('number');
     expect(stalledShipIds).toEqual([]);
     expect(order.burn !== null || order.land === true).toBe(true);
   });
