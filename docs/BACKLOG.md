@@ -12,15 +12,15 @@ Fresh hard-vs-hard simulation samples showed the heuristic AI treating several o
 
 ### Retune passenger-carrier doctrine so arrival outranks hull quality (P1)
 
-The escort scenarios already have bespoke passenger logic in `src/shared/ai/logistics.ts` and `src/shared/ai/astrogation.ts`, but the fresh samples still end overwhelmingly by elimination. The current carrier/transfer scoring appears too willing to prioritize stronger or safer hulls over simply keeping the passengers on the best arrival line.
+The escort scenarios already have bespoke passenger logic in `src/shared/ai/logistics.ts` and `src/shared/ai/astrogation.ts`, but hard-vs-hard samples still end heavily by elimination. Transfer scoring now rejects moving passengers onto a materially worse destination runner, but the broader evacuation / convoy posture still needs tuning so escorts protect scoring lines without turning the scenario into an attrition fight.
 
-Action: revisit `scorePassengerCarrier()`, transfer thresholds, and escort posture so the AI strongly prefers preserving a viable destination runner. Reassign passengers only when the new carrier materially improves arrival odds, not just combat strength or generic ship value.
+Action: continue retuning passenger astrogation and escort posture so the AI strongly prefers preserving a viable destination runner. Reassign passengers only when the new carrier materially improves arrival odds, not just combat strength or generic ship value.
 
 ### Add objective-discipline regression tests and simulation thresholds (P2)
 
-The AI suite now has better target-race coverage, but the passenger scenarios still need scenario-specific "protect the scoring runner" fixtures and broader seeded validation. `scripts/simulate-ai.ts` now emits objective-resolution warnings, yet we still mostly rely on ad-hoc seeded sweeps to decide whether convoy / evacuation behavior is good enough.
+The AI suite now has better target-race coverage and a focused passenger-carrier transfer regression, but the passenger scenarios still need broader seeded validation. `scripts/simulate-ai.ts` now emits objective-resolution warnings, yet we still mostly rely on ad-hoc seeded sweeps to decide whether convoy / evacuation behavior is good enough.
 
-Action: add focused passenger-objective regressions for "do not abandon the carrier's scoring route without immediate danger" and keep extending the simulation harness / docs so future regressions show up as explicit objective warnings rather than only in manual sweep review.
+Action: keep extending passenger-objective regressions and the simulation harness / docs so future regressions show up as explicit objective warnings rather than only in manual sweep review.
 
 ## Launch-readiness snapshot (2026-04-19)
 

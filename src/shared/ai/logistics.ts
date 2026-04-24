@@ -60,6 +60,44 @@ const freePassengerCapacity = (ship: Ship): number => {
   );
 };
 
+const getPlayerTargetHex = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+): { q: number; r: number } | null => {
+  const player = state.players[playerId];
+
+  return player.targetBody
+    ? (map.bodies.find((body) => body.name === player.targetBody)?.center ??
+        null)
+    : null;
+};
+
+const scorePassengerArrivalOdds = (
+  ship: Ship,
+  playerId: PlayerId,
+  state: GameState,
+  map: SolarSystemMap,
+): number => {
+  const targetHex = getPlayerTargetHex(state, playerId, map);
+
+  if (targetHex == null) {
+    return 0;
+  }
+
+  const distance = hexDistance(ship.position, targetHex);
+  const speed = hexVecLength(ship.velocity);
+  const requiredFuel = estimateFuelForTravelDistance(distance, speed);
+  const fuelMargin = ship.fuel - requiredFuel;
+
+  return (
+    -distance * 22 +
+    Math.min(8, Math.max(0, fuelMargin)) * 10 -
+    Math.max(0, -fuelMargin) * 55 -
+    speed * 2
+  );
+};
+
 const scorePassengerCarrier = (
   ship: Ship,
   playerId: PlayerId,
@@ -70,21 +108,12 @@ const scorePassengerCarrier = (
 
   if (!stats) return -Infinity;
 
-  const player = state.players[playerId];
-  const targetHex = player.targetBody
-    ? (map.bodies.find((body) => body.name === player.targetBody)?.center ??
-      null)
-    : null;
-  const distancePenalty =
-    targetHex == null ? 0 : hexDistance(ship.position, targetHex) * 6;
-
   return (
-    stats.combat * 18 +
-    (stats.canOverload ? 24 : 0) +
+    scorePassengerArrivalOdds(ship, playerId, state, map) +
+    stats.combat * 8 +
+    (stats.canOverload ? 16 : 0) +
     freePassengerCapacity(ship) * 2 +
-    hexVecLength(ship.velocity) * 4 +
     ship.fuel -
-    distancePenalty -
     (ship.damage.disabledTurns > 0 ? 180 : 0) -
     (ship.control !== 'own' ? 220 : 0) -
     (ship.lifecycle !== 'active' ? 40 : 0)
@@ -288,13 +317,35 @@ const selectLogisticsTransfer = (
             state,
             map,
           );
+          const sourceArrival = scorePassengerArrivalOdds(
+            pair.source,
+            playerId,
+            state,
+            map,
+          );
+          const targetArrival = scorePassengerArrivalOdds(
+            pair.target,
+            playerId,
+            state,
+            map,
+          );
           const sourceCanFight = canAttack(pair.source);
           const targetCanFight = canAttack(pair.target);
+          const sourceCompromised =
+            pair.source.damage.disabledTurns > 0 ||
+            pair.source.control !== 'own' ||
+            pair.source.lifecycle !== 'active';
+          const preservesArrival = targetArrival >= sourceArrival - 15;
+          const improvesArrival = targetArrival >= sourceArrival + 20;
 
           if (
-            (!sourceCanFight && targetCanFight) ||
+            (sourceCompromised &&
+              targetValue > sourceValue + 10 &&
+              targetArrival >= sourceArrival - 40) ||
+            (!sourceCanFight && targetCanFight && preservesArrival) ||
             (sourceCanFight === targetCanFight &&
-              targetValue > sourceValue + 10)
+              targetValue > sourceValue + 10 &&
+              improvesArrival)
           ) {
             const passengerScore =
               220 +

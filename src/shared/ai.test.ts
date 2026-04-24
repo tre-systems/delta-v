@@ -1046,6 +1046,33 @@ describe('aiLogistics', () => {
     ]);
   });
 
+  it('keeps passengers on a viable carrier instead of a fuel-starved escort', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.evacuation,
+      map,
+      asGameId('LOG1A'),
+      findBaseHex,
+    );
+    const transport = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'transport'),
+    );
+    const corvette = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'corvette'),
+    );
+    const enemy = must(state.ships.find((ship) => ship.owner === 1));
+
+    state.phase = 'logistics';
+    state.activePlayer = 0;
+    transport.passengersAboard = 20;
+    transport.fuel = 5;
+    corvette.cargoUsed = 0;
+    corvette.fuel = 1;
+    enemy.position = { q: 0, r: 0 };
+    enemy.lastMovementPath = [{ q: 0, r: 0 }];
+
+    expect(aiLogistics(state, 0, map, 'hard')).toEqual([]);
+  });
+
   it('defers partial passenger transfers when immediate combat is likely', () => {
     const state = createGameOrThrow(
       SCENARIOS.evacuation,
