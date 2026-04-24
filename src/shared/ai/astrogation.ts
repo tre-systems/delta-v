@@ -31,6 +31,7 @@ import {
   getHomeDefenseThreat,
   getInterceptContinuationPreference,
   pickNextCheckpoint,
+  planShortHorizonMovementToHex,
   projectShipAfterCourse,
   scoreObjectiveHomeDefenseCourse,
 } from './common';
@@ -1470,26 +1471,15 @@ export const aiAstrogation = (
       !bestLand &&
       shipTargetHex != null
     ) {
-      const currentDist = hexDistance(ship.position, shipTargetHex);
-      let fallbackBurn: number | null = null;
-      let fallbackDist = currentDist;
+      const plan = planShortHorizonMovementToHex(
+        ship,
+        shipTargetHex,
+        map,
+        state.destroyedBases,
+      );
 
-      for (const direction of directions) {
-        const course = computeCourse(ship, direction, map, {
-          destroyedBases: state.destroyedBases,
-        });
-
-        if (course.outcome === 'crash') continue;
-
-        const dist = hexDistance(course.destination, shipTargetHex);
-        if (dist < fallbackDist) {
-          fallbackDist = dist;
-          fallbackBurn = direction;
-        }
-      }
-
-      if (fallbackBurn !== null) {
-        bestBurn = fallbackBurn;
+      if (plan?.firstBurn !== null && plan?.firstBurn !== undefined) {
+        bestBurn = plan.firstBurn;
         bestOverload = null;
         bestWeakGrav = undefined;
       }
