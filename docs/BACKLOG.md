@@ -129,22 +129,7 @@ changes:
 
 ## Gameplay UX & Matchmaking
 
-The remaining gameplay UX items group into two product surfaces:
-notification-channel discipline and digital-input parity.
-
-### Enforce Notification Channel Precedence in Code (P2)
-
-Several high-salience flows now use HUD/sound/game-log feedback instead of
-stacking toasts, while connection, reconnect, and session errors stay on the
-toast channel. The remaining work is an audit, not a known single bug.
-
-Action: audit session UI effects, reactive wiring, telemetry-driven copy, and
-logistics paths that may still mirror game-log content as a toast.
-
-**Files:** `src/client/ui/overlay-view.ts`,
-`src/client/game/session-ui-effects.ts`, `src/client/game/session-signals.ts`,
-`src/client/ui/hud-chrome-view.ts`, `src/client/ui/game-log-view.ts`,
-`src/client/game/command-router.ts`, `src/client/telemetry.ts`
+The remaining gameplay UX item is digital-input parity.
 
 ### Finish Digital-Input Parity for Pointer-First Tactical Picks (P2)
 
