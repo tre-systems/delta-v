@@ -102,7 +102,7 @@ From `migrations/0001_create_events.sql`:
   - `fleet_ready_submitted`, `surrender_submitted` (see `main-interactions.ts`)
   - `ai_game_started` with `{ scenario, difficulty }` (local AI path)
 - From client **`/error`**: `client_error` with `{ error, url, ua, ...context }`; current global handlers add either `{ source, line, col }` or `{ type: 'unhandledrejection' }`.
-- From **`game-do/telemetry.ts`**: `engine_error` with `{ code, phase, turn, message, stack? }`; `projection_parity_mismatch` with `{ gameId, liveTurn, livePhase, projectedTurn, projectedPhase }`; `game_abandoned` with `{ gameId, turn, phase, reason, scenario }` (server-side; `anon_id` null, `ip_hash` `'server'`).
+- From **`game-do/telemetry.ts`**: `engine_error` with `{ code, phase, turn, message, stack? }` where message/stack are capped before D1 persistence; `projection_parity_mismatch` with `{ gameId, liveTurn, livePhase, projectedTurn, projectedPhase }`; `game_abandoned` with `{ gameId, turn, phase, reason, scenario }` (server-side; `anon_id` null, `ip_hash` `'server'`).
 
 ### Server-side lifecycle and side-channel events
 

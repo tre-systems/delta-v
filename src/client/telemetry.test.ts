@@ -5,6 +5,7 @@ import {
   getOrCreateAnonId,
   reportError,
   resetTelemetryRuntimeForTests,
+  rotateAnonId,
   type StorageLike,
   track,
 } from './telemetry';
@@ -15,6 +16,9 @@ const mockStorage = (initial: Record<string, string> = {}): StorageLike => {
     getItem: (key: string) => store[key] ?? null,
     setItem: (key: string, value: string) => {
       store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
     },
   };
 };
@@ -129,5 +133,39 @@ describe('telemetry runtime injection', () => {
       ua: 'test-browser',
       anonId: 'anon-2',
     });
+  });
+
+  it('rotates the anonymous ID for the next telemetry event', async () => {
+    const storage = mockStorage({ deltav_anon_id: 'anon-before' });
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    const uuid = 'anon-after';
+    configureTelemetryRuntime({
+      fetchImpl,
+      getStorage: () => storage,
+      createUuid: () => uuid,
+      getLocationHref: () => 'https://delta-v.test/',
+      getUserAgent: () => 'test-agent',
+      addGlobalListener: () => undefined,
+    });
+
+    track('before_reset');
+    await Promise.resolve();
+
+    rotateAnonId();
+    track('after_reset');
+    await Promise.resolve();
+
+    const bodies = fetchImpl.mock.calls.map(([, init]) =>
+      typeof init?.body === 'string'
+        ? (JSON.parse(init.body) as Record<string, unknown>)
+        : null,
+    );
+
+    expect(bodies[0]).toMatchObject({ anonId: 'anon-before' });
+    expect(bodies[1]).toMatchObject({ anonId: 'anon-after' });
+    expect(storage.getItem('deltav_anon_id')).toBe('anon-after');
   });
 });

@@ -9,6 +9,7 @@ import type { PlayerProfileService } from '../game/player-profile-service';
 import type { SessionTokenService } from '../game/session-token-service';
 import type { ReadonlySignal } from '../reactive';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
+import { rotateAnonId } from '../telemetry';
 import { MOBILE_BREAKPOINT_PX } from '../ui-breakpoints';
 import { bindStaticButtonEvents } from './button-events';
 import { composeDisposers } from './dispose-group';
@@ -128,6 +129,7 @@ export const createUIManager = (deps: UIManagerDeps) => {
     getPlayerKey: () => deps.playerProfile.getProfile().playerKey,
     resetPlayerIdentity: () => {
       deps.sessionTokens.clearAllStoredPlayerTokens();
+      rotateAnonId();
       return deps.playerProfile.resetProfile();
     },
     onlineSignal: deps.onlineSignal,

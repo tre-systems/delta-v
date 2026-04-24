@@ -9,7 +9,7 @@ Telemetry/error collection, server-side diagnostics, and match-archive storage. 
 ## Client data flow
 
 - **`anonId`** — random UUID in `localStorage` under key `deltav_anon_id`, attached to client reporting payloads ([`src/client/telemetry.ts`](../src/client/telemetry.ts)).
-- **Player profile** — the lobby stores `{ playerKey, username, updatedAt }` in `localStorage['delta-v:player-profile']` so a returning browser keeps the same callsign and matchmaking identity. The lobby now exposes a **Forget my callsign** control that removes this local profile and clears cached room tokens on the current device. The control does **not** rotate the `deltav_anon_id` telemetry UUID, so post-reset telemetry still links to pre-reset rows via `anon_id`. Tracked in [BACKLOG.md](./BACKLOG.md).
+- **Player profile** — the lobby stores `{ playerKey, username, updatedAt }` in `localStorage['delta-v:player-profile']` so a returning browser keeps the same callsign and matchmaking identity. The lobby exposes a **Forget my callsign** control that removes this local profile, clears cached room tokens on the current device, and rotates the `deltav_anon_id` telemetry UUID for future client reporting.
 - **Session tokens** — room-scoped `playerToken`s are cached in `localStorage['delta-v:tokens']` for reconnect/join convenience. The cache is pruned to the most recent 8 entries and drops anything older than 24 hours.
 - **`reportError()`** — sends `error`, caller-supplied `context`, `url`, and `ua`.
 - **`track(event, props)`** — sends arbitrary event names / props.
@@ -20,7 +20,7 @@ Telemetry/error collection, server-side diagnostics, and match-archive storage. 
 - `POST /telemetry` and `POST /error` accept JSON up to **4 KB** ([`src/server/index.ts`](../src/server/index.ts)).
 - The client IP is transformed into `ip_hash` (`SHA-256(secretSalt + ':' + ip)`, truncated to 16 hex chars) before any D1 write; the raw IP is not written. `IP_HASH_SALT` can provide a dedicated production salt; when unset, the existing `AGENT_TOKEN_SECRET` is used as the salt so hashes remain resistant to forward lookup. Rotating the active salt makes future rows unlinkable from historic rows through the application hash.
 - Events are stored in D1 `events` with columns `ts`, `anon_id`, `event`, `props`, `ip_hash`, `ua` — see [`migrations/0001_create_events.sql`](../migrations/0001_create_events.sql).
-- Durable Object diagnostic events (`engine_error`, `projection_parity_mismatch`, `game_abandoned`, lifecycle events) insert with `ip_hash = 'server'`; diagnostic payloads may include stack traces. Stack-trace scrubbing is a P3 follow-up in [BACKLOG.md](./BACKLOG.md) — low likelihood of user-typed-string exposure today but worth bounding when we next touch the error-reporting path.
+- Durable Object diagnostic events (`engine_error`, `projection_parity_mismatch`, `game_abandoned`, lifecycle events) insert with `ip_hash = 'server'`. `engine_error` diagnostic message and stack fields are truncated before persistence so unexpectedly large thrown values cannot become multi-kilobyte retained payloads.
 
 ## Match and gameplay data
 
