@@ -141,7 +141,7 @@ export const getFleetCartView = (
 
   return {
     remainingCredits,
-    remainingLabel: `${remainingCredits} MC (MegaCredits) remaining`,
+    remainingLabel: `${remainingCredits} MC left`,
     items: cart.map((purchase) => ({
       purchase,
       label: getFleetPurchaseLabel(purchase),
