@@ -57,6 +57,7 @@ import {
   RULES_RESOURCE_MIME_TYPE,
   readRulesResourceText,
 } from '../../../src/shared/agent';
+import { validateClientMessage } from '../../../src/shared/protocol';
 import { queueRemoteMatch } from './quick-match';
 
 // Maximum JSON-RPC payload the hosted MCP endpoint will parse. The tool
@@ -75,6 +76,7 @@ const mcpRateLimitMap = new Map<
 >();
 
 const SERVER_INTERNAL = 'https://game.internal';
+const RENDEZVOUS_CODE_PATTERN = /^[A-Za-z0-9]{3,16}$/;
 
 type JsonRecord = Record<string, unknown>;
 type ObservationBody = JsonRecord;
@@ -470,25 +472,26 @@ export const buildMcpServer = (
     );
   }
 
-  const quickMatchInputSchema = {
-    scenario: z.string().optional(),
-    rendezvousCode: z.string().min(3).max(16).optional(),
-    username: z.string().min(2).max(20).optional(),
-    playerKey: z.string().min(8).max(64).optional(),
-    waitForOpponent: z.boolean().optional(),
-    pollMs: z.number().int().min(200).max(5_000).optional(),
-    timeoutMs: z.number().int().min(5_000).max(120_000).optional(),
-  };
+  const quickMatchInputSchema = z
+    .object({
+      scenario: z.string().optional(),
+      rendezvousCode: z
+        .string()
+        .regex(
+          RENDEZVOUS_CODE_PATTERN,
+          'rendezvousCode must be 3-16 characters using letters and numbers.',
+        )
+        .optional(),
+      username: z.string().min(2).max(20).optional(),
+      playerKey: z.string().min(8).max(64).optional(),
+      waitForOpponent: z.boolean().optional(),
+      pollMs: z.number().int().min(200).max(5_000).optional(),
+      timeoutMs: z.number().int().min(5_000).max(120_000).optional(),
+    })
+    .strict();
+  type QuickMatchToolArgs = z.infer<typeof quickMatchInputSchema>;
 
-  const quickMatchHandler = async (args: {
-    scenario?: string;
-    rendezvousCode?: string;
-    username?: string;
-    playerKey?: string;
-    waitForOpponent?: boolean;
-    pollMs?: number;
-    timeoutMs?: number;
-  }) => {
+  const quickMatchHandler = async (args: QuickMatchToolArgs) => {
     if (agentIdentity === null) {
       fail(
         'delta_v_quick_match requires Authorization: Bearer <agentToken>. Mint one via POST /api/agent-token first.',
@@ -501,7 +504,8 @@ export const buildMcpServer = (
       authenticatedAgent.payload.playerKey ??
       `agent_remote_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
     const username =
-      args.username ?? authenticatedAgent.payload.playerKey ?? 'agent';
+      args.username ??
+      (authenticatedAgent.payload.playerKey ?? 'agent').slice(0, 20);
     const verifiedLeaderboardAgent = Boolean(
       playerKey.startsWith('agent_') &&
         authenticatedAgent.payload.playerKey === playerKey,
@@ -753,6 +757,10 @@ export const buildMcpServer = (
       },
     },
     async (args) => {
+      const parsedAction = validateClientMessage(args.action);
+      if (!parsedAction.ok) {
+        fail(`Invalid action payload: ${parsedAction.error}`);
+      }
       const target = await resolveMatchTarget(args, env, agentIdentity);
       const response = await callDurableObject(env, target.code, {
         url: `${SERVER_INTERNAL}/mcp/action?playerToken=${encodeURIComponent(target.playerToken)}`,

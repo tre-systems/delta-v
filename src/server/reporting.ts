@@ -202,13 +202,20 @@ export const registerActiveRoom = (
 };
 
 export const tooManyRequests = (): Response =>
-  new Response('Too many requests', {
-    status: 429,
-    headers: {
-      ...corsHeaders,
-      'Retry-After': '60',
+  Response.json(
+    {
+      ok: false,
+      error: 'rate_limited',
+      message: 'Too many requests',
     },
-  });
+    {
+      status: 429,
+      headers: {
+        ...corsHeaders,
+        'Retry-After': '60',
+      },
+    },
+  );
 
 const sampleKeyToBucket = (sampleKey: string): number => {
   let hash = 2166136261;

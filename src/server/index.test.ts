@@ -1773,6 +1773,10 @@ describe('/api/agent-token rate limiting', () => {
 
     expect(blocked.status).toBe(429);
     expect(blocked.headers.get('Retry-After')).toBe('60');
+    await expect(blocked.clone().json()).resolves.toMatchObject({
+      ok: false,
+      error: 'rate_limited',
+    });
     expect(limiter.limit).toHaveBeenCalledTimes(6);
   });
 
