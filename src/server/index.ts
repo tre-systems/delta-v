@@ -208,10 +208,7 @@ const isLoopbackAddress = (value: string | null): boolean => {
 const isLoopbackRequest = (request: Request): boolean => {
   const url = new URL(request.url);
 
-  return (
-    isLoopbackAddress(url.hostname) ||
-    isLoopbackAddress(request.headers.get('cf-connecting-ip'))
-  );
+  return isLoopbackAddress(url.hostname);
 };
 
 const resolveWorkerSha = (env: Env): string | null => {

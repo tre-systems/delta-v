@@ -196,57 +196,6 @@ get stuck without a mouse.
 
 ## Cost & Abuse Hardening
 
-### Harden Against Rate-Limit Bypass via `cf-connecting-ip` Spoofing (P1)
-
-`isLoopbackRequest` at
-[src/server/index.ts:208](../src/server/index.ts) trusts the incoming
-`cf-connecting-ip` header and short-circuits **every** IP-scoped rate limit
-when the value parses as loopback (`127.0.0.1`, `::1`, etc.). Probed on
-2026-04-24 against the local dev Worker: a client that sets
-`cf-connecting-ip: 127.0.0.1` freely bursts `/create`, `/error`,
-`/telemetry`, `/api/agent-token`, `/api/leaderboard`, `/api/matches`, and
-`/ws/{CODE}` with zero throttling, while the same client without the header
-is capped at 5 / 60 s after request 5. Each bypassed `/create` spins a new
-Durable Object; each bypassed `/error` or `/telemetry` writes a D1 `events`
-row. Unbounded.
-
-In production this is mitigated by Cloudflare's edge, which overwrites
-`cf-connecting-ip` on ingress — attackers hitting the deployed
-`delta-v.tre.systems` through the edge cannot set it. But the bypass is a
-significant footgun:
-
-- Any future deployment that isn't strictly behind the Cloudflare edge
-  (direct origin access, an alternative proxy, a mirror, a staging URL
-  without the same WAF config) activates the bypass.
-- Local dev and integration tests running against the Worker have zero
-  rate-limit coverage because they all trigger the loopback branch.
-- Cloudflare outages that route traffic around the edge would also
-  activate it.
-
-Fix options, least to most disruptive:
-
-1. Remove the `cf-connecting-ip` check from `isLoopbackRequest` entirely
-   and rely only on `isLoopbackAddress(url.hostname)` (the only safe
-   signal of "running inside wrangler dev"). Rate-limit fallback maps
-   still work in dev because the default IP hash is a stable string.
-2. Add an explicit `env.DEV_MODE === '1'` gate around the header-based
-   loopback check, so the bypass only activates when the operator has
-   opted into dev behaviour.
-3. Plumb a Cloudflare-originated signal (`request.cf` exists only when
-   the request came through the edge) and require it be present before
-   honouring any rate-limit decision derived from `cf-connecting-ip`.
-
-Option 1 is the smallest safe change. Either way, add a regression test
-(`src/server/index.test.ts` or `reporting.test.ts`) that asserts a request
-with `cf-connecting-ip: 127.0.0.1` but hostname `delta-v.tre.systems` is
-NOT treated as loopback.
-
-**Files:** [src/server/index.ts](../src/server/index.ts) (`isLoopbackRequest`,
-lines 208–215), [src/server/reporting.ts](../src/server/reporting.ts)
-(all `isCreateRateLimited` / `isTelemetryReportRateLimited` / etc. call
-sites), [src/server/index.test.ts](../src/server/index.test.ts) (add
-regression)
-
 ### Cap Concurrent WebSocket Sockets and Active Rooms Per IP (P2)
 
 The existing rate limits protect **new-connection rate** but nothing caps
