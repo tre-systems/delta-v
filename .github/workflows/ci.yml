@@ -42,7 +42,7 @@ jobs:
         run: npm run build
 
       - name: Browser smoke tests
-        run: npm run test:e2e
+        run: npm run test:e2e:smoke
 
       - name: Playwright accessibility tests
         run: npm run test:e2e:a11y
