@@ -34,6 +34,14 @@ describe('game client minimap helpers', () => {
       height: 90,
       padding: 6,
     });
+
+    expect(getMinimapFrame(812, 375, 96, 2, 104)).toEqual({
+      x: 12,
+      y: 104,
+      width: 73,
+      height: 145,
+      padding: 6,
+    });
   });
 
   it('projects world coordinates into minimap space and back again', () => {
