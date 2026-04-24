@@ -196,6 +196,9 @@
     grid-area: name;
     min-width: 0;
     font-size: 0.74rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .ship-fuel {

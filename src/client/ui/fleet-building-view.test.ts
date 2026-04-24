@@ -102,14 +102,14 @@ describe('FleetBuildingView', () => {
     );
     expect(shopItem).not.toBeNull();
     expect(document.getElementById('fleetCredits')?.textContent).toBe(
-      '25 MC (MegaCredits) remaining',
+      '25 MC left',
     );
 
     shopItem?.click();
 
     expect(document.querySelectorAll('.fleet-cart-chip')).toHaveLength(1);
     expect(document.getElementById('fleetCredits')?.textContent).not.toBe(
-      '25 MC (MegaCredits) remaining',
+      '25 MC left',
     );
 
     document.getElementById('fleetReadyBtn')?.click();
@@ -134,7 +134,7 @@ describe('FleetBuildingView', () => {
       'Choose ships from the list to add them to your fleet.',
     );
     expect(document.getElementById('fleetCredits')?.textContent).toBe(
-      '25 MC (MegaCredits) remaining',
+      '25 MC left',
     );
   });
 
