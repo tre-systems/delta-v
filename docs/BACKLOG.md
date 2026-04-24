@@ -13,8 +13,14 @@ only "done for this slice" history were removed in the 2026-04-24 cleanup.
 
 The current AI backlog has repeatedly converged on the same failure mode: a
 single bad simulation or playtest produces another local weight tweak. That is
-fragile. The next pass should make AI tuning more systematic while keeping the
-heuristic architecture simple.
+fragile. The active AI work is grouped into three tracks:
+
+- **Evaluation loop:** scenario scorecards, failure captures, and fixture
+  regressions.
+- **Reusable planning primitives:** bounded movement planning and ship-role
+  assignment.
+- **Scenario symptom queue:** player-facing balance/AI failures to validate
+  through the first two tracks rather than one-off weight changes.
 
 ### Build Scenario Scorecards and a Failure-State Corpus (P1)
 
@@ -123,28 +129,8 @@ changes:
 
 ## Gameplay UX & Matchmaking
 
-### Ship-entry Name Column Overflows at 320 px Viewport (P2)
-
-At a 320 × 568 viewport (iPhone SE 1st gen, and any device set to "Larger Text"
-that shrinks the visual viewport), the in-game `.ship-list` renders ship names
-with `scrollWidth > clientWidth`. The 320-px layout inherits the
-`(max-width: 640px)` grid rule (`grid-template-columns: minmax(0, 1fr) auto`),
-which collapses the name column to ~40 px — not enough for "Corvette" (the
-shortest ship name) to fit alongside the 27-px `20/20` fuel value. Result: the
-name is visually clipped and runs straight into the fuel pill with no gap (the
-2026-04-24 pass rendered `Corvette20/20`).
-
-Found via EXPLORATORY_TESTING.md R10 mobile sweep (`preview_resize` 320 × 568,
-then `document.querySelector('.ship-name').scrollWidth >
-document.querySelector('.ship-name').clientWidth`).
-
-Fix candidates: add a dedicated `@media (max-width: 360px)` rule that drops
-fuel to its own row, or shrink the name font-size, or truncate with an ellipsis
-plus full-name `title` / `aria-label`. The screenshot-vs-truncation trade-off
-should favour legibility of both values over packing them into one row.
-
-**Files:** [static/styles/responsive.css](../static/styles/responsive.css),
-[src/client/ui/ship-list-view.ts](../src/client/ui/ship-list-view.ts)
+The remaining gameplay UX items group into three product surfaces: mobile layout
+polish, notification-channel discipline, and digital-input parity.
 
 ### Enforce Notification Channel Precedence in Code (P2)
 
