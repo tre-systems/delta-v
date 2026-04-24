@@ -9,70 +9,99 @@ Outstanding tasks that deserve a named home between PRs. Shipped work belongs in
 Sections are grouped by theme and ordered roughly by player impact. Entries with
 only "done for this slice" history were removed in the 2026-04-24 cleanup.
 
-## AI Objective Discipline
+## AI Evaluation & Heuristic Planning
 
-### Retune Passenger-Carrier Doctrine So Arrival Outranks Attrition (P1)
+The current AI backlog has repeatedly converged on the same failure mode: a
+single bad simulation or playtest produces another local weight tweak. That is
+fragile. The next pass should make AI tuning more systematic while keeping the
+heuristic architecture simple.
 
-The escort scenarios have bespoke passenger logic in `src/shared/ai/logistics.ts`
-and `src/shared/ai/astrogation.ts`, but hard-vs-hard samples still resolve too
-often by elimination. Transfer scoring now rejects moving passengers onto a
-materially worse destination runner; the broader evacuation / convoy posture
-still needs tuning so escorts protect scoring lines without turning the scenario
-into an attrition fight.
+### Build Scenario Scorecards and a Failure-State Corpus (P1)
 
-Action: continue retuning passenger astrogation and escort posture so the AI
-strongly prefers preserving a viable destination runner. Reassign passengers
-only when the new carrier materially improves arrival odds, not just combat
-strength or generic ship value.
+Win rate alone is too blunt for asymmetric objective scenarios. Each scenario
+needs a small scorecard that captures the product behavior we actually care
+about: objective-completion share, fleet-elimination share, average turns,
+timeouts, invalid candidate count, fuel-stall count, passenger delivery share,
+and seat balance where relevant. Simulation warnings should compare paired seed
+sets against those scorecards so a PR can say whether it improved the scenario
+instead of only whether one seed got lucky.
 
-**Files:** `src/shared/ai/logistics.ts`, `src/shared/ai/astrogation.ts`,
-`src/shared/ai/scoring.ts`, `scripts/simulate-ai.ts`
+Bad simulation states should also become fixtures. When the harness sees a
+fuel stall, invalid order, passenger transfer mistake, or objective drift, save
+the `GameState` and add a decision-class regression such as "land to refuel",
+"keep the viable passenger carrier", "do not coast while stalled", or "screen
+the carrier instead of chasing attrition". Avoid exact burn assertions unless
+the rules require them.
 
-### Broaden Objective-Discipline Seeded Validation (P2)
+Action:
+- Extend `scripts/simulate-ai.ts` with per-scenario scorecards and richer
+  objective/failure counters.
+- Add a small fixture path for warning states, then grow focused AI tests from
+  those states.
+- Update `docs/SIMULATION_TESTING.md` with the scorecard metrics and required
+  seed discipline for AI PRs.
 
-The AI suite has target-race coverage, passenger-carrier transfer regressions,
-and direct tests around the simulator objective-warning policy. Passenger
-scenarios still need broader seeded validation because convoy / evacuation can
-look acceptable on one seed batch and drift on another.
+**Files:** `scripts/simulate-ai.ts`, `scripts/duel-seed-sweep.ts`,
+`src/shared/simulate-ai-policy.test.ts`, `src/shared/ai.test.ts`,
+`docs/SIMULATION_TESTING.md`
 
-Action: keep extending passenger-objective regressions and seeded sweep docs so
-future convoy / evacuation regressions are judged against repeated objective
-warning samples rather than a single manual sweep.
+### Add a Bounded Engine Planner for Movement Objectives (P1)
 
-**Files:** `src/shared/ai.test.ts`, `src/shared/simulate-ai-policy.test.ts`,
-`scripts/simulate-ai.ts`, `docs/SIMULATION_TESTING.md`
+Grand Tour, evacuation, convoy, and blockade all depend on movement planning
+under fuel, velocity, gravity, and landing constraints. The current scorer uses
+many scalar distance/fuel bonuses where a small bounded planner would provide a
+better signal without replacing the whole AI.
 
-### Finish Grand Tour Seat-Balance Tuning (P1)
-
-Grand Tour no longer deadlocks in 499-turn checkpoint races, and the 2026-04-24
-refuel-navigation pass improved P0 from `0/60` to `18/60` on
-`grandTour 60 -- --ci --seed 1`. It still warns at `30.0%` P0 on that focused
-seed and still includes too many fleet-elimination resolutions instead of clean
-race finishes. A full pre-push `simulate all 60 --ci` sample landed exactly on
-the lower warning bound (`21/60`, `35.0%` P0), so this remains live but narrower
-than the original failure.
-
-Action: finish rebalancing the per-home route / checkpoint policy so both seats
-complete the objective consistently without one side getting a free lane. Keep
-the Grand Tour objective-seat warning green on repeated seeded samples, not only
-one run.
+Action: add a reusable short-horizon planner over `computeCourse` that can score
+"can reach safe refuel / objective / landing line within N turns" and return a
+cost-to-go. Start with a beam search or bounded A* over legal burns for two to
+four turns, then feed that cost into the existing heuristic scorer. Use it first
+for checkpoint/refuel and passenger arrival decisions, where it can replace
+several ad hoc fuel and landing bonuses.
 
 **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,
-`src/shared/movement.ts`, `scripts/simulate-ai.ts`
+`src/shared/movement.ts`, `src/shared/ai.test.ts`
 
-### Evacuation Still Resolves Too Often by Elimination (P1)
+### Separate Ship Roles Before Tactical Scoring (P1)
 
-Fresh reruns after the 2026-04-21 AI changes reconfirmed that evacuation is
-still too short and too attrition-heavy. The relevant failure is not just seat
-balance; objective share is too low for a passenger rescue scenario.
+Generic combat, objective, fuel, and landing scores still fight each other in
+escort scenarios. A cheap role pass would make the scoring simpler and more
+stable: assign each ship a turn-local role such as `carrier`, `escort`,
+`interceptor`, `refuel`, `race`, or `screen`, then let the role choose a smaller
+set of priorities.
 
-Action: tune evacuation passenger objective behavior first, then remeasure
-convoy with the same passenger-objective warning policy so both scenarios reward
-arrival over fleet deletion.
+Action: introduce a lightweight role assignment step for AI phases that need
+coordination. Use it first for convoy / evacuation passenger carriers and
+escorts, then reuse it for Grand Tour race/refuel decisions if it proves useful.
 
-**Files:** `src/shared/ai/scoring.ts`, `src/shared/ai/common.ts`,
-`src/shared/ai/astrogation.ts`, `src/shared/scenario-definitions.ts`,
-`scripts/simulate-ai.ts`
+**Files:** `src/shared/ai/logistics.ts`, `src/shared/ai/astrogation.ts`,
+`src/shared/ai/scoring.ts`
+
+### Scenario Symptoms to Validate With the New Loop (P1)
+
+These are still real player-facing AI issues, but they should be handled through
+the scorecard / fixture / planner workflow above rather than one-off weight
+changes:
+
+- **Passenger scenarios:** convoy and evacuation still resolve too often by
+  elimination. Passenger-carrier doctrine should rank arrival odds and survival
+  of a viable destination runner above hull quality or generic combat value.
+- **Grand Tour:** the 2026-04-24 refuel-navigation pass improved focused
+  `grandTour 60 -- --ci --seed 1` from `0/60` P0 to `18/60`, but the sample
+  still warns at `30.0%` P0 and has too many fleet-elimination resolutions.
+- **Evacuation:** the scenario is still too short and too attrition-heavy; the
+  target metric is objective share, not just seat balance.
+- **FleetAction:** recent large samples are close to acceptable, but keep
+  watching timeout rate and P0 blowout risk on broader seeded sweeps.
+- **Difficulty tiers:** Easy/Normal/Hard now differ more than before. Only widen
+  Hard-vs-Normal again if real playtesting still says the tiers feel too similar.
+- **Ordnance thresholds:** impossible-shot and nuke/torpedo regressions are now
+  covered. Tune remaining hard-tier threshold rows only when scorecards or
+  sweeps show over-firing.
+
+**Files:** `src/shared/ai/`, `src/shared/scenario-definitions.ts`,
+`src/shared/engine/victory.ts`, `scripts/simulate-ai.ts`,
+`scripts/duel-seed-sweep.ts`
 
 ## Gameplay UX & Matchmaking
 
@@ -119,47 +148,6 @@ visually distinct from the platform-operated bot.
 **Files:** `src/client/leaderboard/*.ts`,
 `src/client/game/main-session-shell.ts`, `src/client/game/replay-controller.ts`,
 `src/server/game-do/archive.ts`, `src/shared/types/*`
-
-## AI Behavior & Rules Conformance
-
-### Tune Remaining Ordnance Recommendation Thresholds (P2)
-
-The old impossible-shot and over-eager nuke/torpedo issues now have direct
-regressions and measured hard-tier gates. The remaining work is threshold
-validation against broader scenario outcomes, not another structural rewrite.
-
-Action: if future `simulate:duel-sweep` or scenario sweeps show late-turn hard
-nukes still over-firing, tighten the `3T+` threshold rows first. Add optional
-engine-level integration seeds only if helper-level ordnance coverage stops
-catching regressions.
-
-**Files:** `src/shared/ai/ordnance.ts`, `src/shared/ai/config.ts`,
-`src/shared/engine/combat.ts`, `src/shared/ai.test.ts`,
-`src/shared/test-helpers.ts`
-
-### Keep Watching FleetAction Timeouts (P3)
-
-FleetAction improved after mixed-fleet purchase tuning and stronger local
-closing pressure. Recent large samples put it near "good enough", but it has
-historically drifted between acceptable and too many timeouts.
-
-Action: only revisit if larger seeded sweeps drift back above roughly `8-10%`
-timeouts or reintroduce a strong P0 blowout.
-
-**Files:** `src/shared/ai/`, `scripts/simulate-ai.ts`,
-`src/shared/scenario-definitions.ts`, `src/shared/engine/victory.ts`
-
-### Reassess Difficulty Tier Separation After Real Playtesting (P3)
-
-Easy, Normal, and Hard now differ more in behavior and same-tier mirrors are
-healthier. The menu copy was intentionally simplified again, so the remaining
-question is player-perceived tier separation rather than stale homepage wording.
-
-Action: only widen the Hard-vs-Normal gap again if real playtesting still says
-the tiers feel too similar.
-
-**Files:** `src/shared/ai/config.ts`, `src/shared/ai/`,
-`scripts/simulate-ai.ts`
 
 ## Cost & Abuse Hardening
 
