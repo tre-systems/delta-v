@@ -89,13 +89,28 @@ changes:
 - **Passenger scenarios:** convoy and evacuation still resolve too often by
   elimination. Passenger-carrier doctrine should rank arrival odds and survival
   of a viable destination runner above hull quality or generic combat value.
+  The 2026-04-24 `all 30 --ci` sweep showed convoy objective share 20% with
+  `P0 decided rate 75.9%` warning, and evacuation objective share 50% with
+  average turns 3.2 (still too short to reach Terra meaningfully).
+- **Biplanetary:** the same 2026-04-24 sweep resolved **100% of 30 hard-vs-hard
+  games by fleet elimination** (`objective resolutions 0.0% below 5%` and
+  `fleet-elimination share 100.0% above 90%` warnings). The landing objective
+  is unreachable under current AI doctrine — this is a new symptom for the
+  scorecard loop, not a weight tweak.
 - **Grand Tour:** the 2026-04-24 refuel-navigation pass improved focused
   `grandTour 60 -- --ci --seed 1` from `0/60` P0 to `18/60`, but the sample
   still warns at `30.0%` P0 and has too many fleet-elimination resolutions.
 - **Evacuation:** the scenario is still too short and too attrition-heavy; the
   target metric is objective share, not just seat balance.
+- **FleetAction / InterplanetaryWar fuel stalls:** the 2026-04-24 sweep
+  recorded `Fuel Stalls/Game` of **72.1** (fleetAction) and **110.3**
+  (interplanetaryWar) at hard-vs-hard. That is an order of magnitude worse
+  than convoy (19.3) or duel (2.8). Fleet-scale scenarios have fueled ships
+  coasting instead of burning — good target for the bounded engine planner
+  once it extends past Grand Tour refuel recovery.
 - **FleetAction:** recent large samples are close to acceptable, but keep
-  watching timeout rate and P0 blowout risk on broader seeded sweeps.
+  watching timeout rate and P0 blowout risk on broader seeded sweeps. The
+  2026-04-24 sweep showed `timeoutShare 13.3%` at 30 games.
 - **Difficulty tiers:** Easy/Normal/Hard now differ more than before. Only widen
   Hard-vs-Normal again if real playtesting still says the tiers feel too similar.
 - **Ordnance thresholds:** impossible-shot and nuke/torpedo regressions are now
@@ -107,6 +122,29 @@ changes:
 `scripts/duel-seed-sweep.ts`
 
 ## Gameplay UX & Matchmaking
+
+### Ship-entry Name Column Overflows at 320 px Viewport (P2)
+
+At a 320 × 568 viewport (iPhone SE 1st gen, and any device set to "Larger Text"
+that shrinks the visual viewport), the in-game `.ship-list` renders ship names
+with `scrollWidth > clientWidth`. The 320-px layout inherits the
+`(max-width: 640px)` grid rule (`grid-template-columns: minmax(0, 1fr) auto`),
+which collapses the name column to ~40 px — not enough for "Corvette" (the
+shortest ship name) to fit alongside the 27-px `20/20` fuel value. Result: the
+name is visually clipped and runs straight into the fuel pill with no gap (the
+2026-04-24 pass rendered `Corvette20/20`).
+
+Found via EXPLORATORY_TESTING.md R10 mobile sweep (`preview_resize` 320 × 568,
+then `document.querySelector('.ship-name').scrollWidth >
+document.querySelector('.ship-name').clientWidth`).
+
+Fix candidates: add a dedicated `@media (max-width: 360px)` rule that drops
+fuel to its own row, or shrink the name font-size, or truncate with an ellipsis
+plus full-name `title` / `aria-label`. The screenshot-vs-truncation trade-off
+should favour legibility of both values over packing them into one row.
+
+**Files:** [static/styles/responsive.css](../static/styles/responsive.css),
+[src/client/ui/ship-list-view.ts](../src/client/ui/ship-list-view.ts)
 
 ### Enforce Notification Channel Precedence in Code (P2)
 
