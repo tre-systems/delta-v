@@ -256,50 +256,6 @@ path, lines 534–553), [src/server/reporting.ts](../src/server/reporting.ts)
 (`touchInactivity` logic around line 286),
 [src/shared/constants.ts](../src/shared/constants.ts)
 
-### Clear the Transitive `hono` Advisory in the MCP Adapter Chain (P2)
-
-`npm audit --omit=dev` still reports `GHSA-458j-xx4x-4375` (moderate) via
-`@delta-v/mcp-adapter → @modelcontextprotocol/sdk → hono 4.12.12`. The
-advisory is a JSX-SSR HTML-injection issue; confirmed the codebase never
-imports `hono` or `hono/jsx` (`grep -r "hono" src/ packages/` returns
-empty), so the affected path is unreachable. But because this is dependency
-hygiene, clearing it also quiets the audit noise that otherwise drowns real
-findings.
-
-The MCP SDK declares `hono: ^4.11.4`, which already allows the fixed
-`4.12.14+` range. So a direct upgrade path exists without waiting on the
-SDK — add an `overrides` block to the root `package.json`:
-
-```json
-"overrides": {
-  "hono": "^4.12.14"
-}
-```
-
-Then `npm install && npm audit --omit=dev` should come back clean. Remove
-the override once the MCP SDK itself bumps its `hono` range high enough
-that the constraint becomes redundant.
-
-**Files:** `package.json`, `packages/mcp-adapter/package.json`
-
-### Patch Dev-Only `vite` Advisories Bundled via Vitest (P2)
-
-`npm audit` flags three high-severity `vite 8.0.0–8.0.4` advisories —
-path traversal in `.map` handling
-([GHSA-4w7w-66w2-5vf9](https://github.com/advisories/GHSA-4w7w-66w2-5vf9)),
-`server.fs.deny` bypass
-([GHSA-v2wj-q39q-566r](https://github.com/advisories/GHSA-v2wj-q39q-566r)),
-and WebSocket arbitrary file read
-([GHSA-p9ff-h696-f583](https://github.com/advisories/GHSA-p9ff-h696-f583)).
-All three are **dev-server only**, reachable only when `vitest` / `vite
-dev` is running on a developer machine with an attacker-influenced page
-open. Production workers never load `vite`, so deploy exposure is zero.
-Still, `npm audit fix` performs a safe patch bump to `vitest@4.1.5` (which
-pulls `vite@8.0.5+`) with no code changes required — low cost, clears the
-`high` line from the audit summary.
-
-**Files:** `package.json`, `package-lock.json`
-
 ### Add a Scheduled `npm audit` + Automated Dependency PRs (P3)
 
 `.github/workflows/ci.yml` runs `npm ci` but never `npm audit`; there is
