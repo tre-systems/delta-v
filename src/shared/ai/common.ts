@@ -84,6 +84,85 @@ export const estimateFuelForTravelDistance = (
   currentSpeed = 0,
 ): number => Math.ceil((distance * 2) / 3) + currentSpeed + 1;
 
+export interface ShortHorizonMovementPlan {
+  firstBurn: number | null;
+  turns: number;
+  finalDistance: number;
+  fuelSpent: number;
+}
+
+export const planShortHorizonMovementToHex = (
+  ship: Ship,
+  targetHex: { q: number; r: number },
+  map: SolarSystemMap,
+  destroyedBases: GameState['destroyedBases'],
+  maxTurns = 3,
+): ShortHorizonMovementPlan | null => {
+  const initialDistance = hexDistance(ship.position, targetHex);
+  const directions = [null, 0, 1, 2, 3, 4, 5] as const;
+  const queue: Array<{
+    ship: Ship;
+    firstBurn: number | null;
+    turns: number;
+    fuelSpent: number;
+  }> = [{ ship, firstBurn: null, turns: 0, fuelSpent: 0 }];
+  const seen = new Set<string>();
+  let bestPlan: ShortHorizonMovementPlan | null = null;
+  let bestCost = Number.POSITIVE_INFINITY;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || current.turns >= maxTurns) continue;
+
+    for (const burn of directions) {
+      if (burn !== null && current.ship.fuel <= 0) continue;
+
+      const course = computeCourse(current.ship, burn, map, {
+        destroyedBases,
+      });
+
+      if (course.outcome === 'crash') continue;
+
+      const projectedShip = projectShipAfterCourse(current.ship, course);
+      const turns = current.turns + 1;
+      const firstBurn = current.turns === 0 ? burn : current.firstBurn;
+      const fuelSpent = current.fuelSpent + course.fuelSpent;
+      const finalDistance = hexDistance(course.destination, targetHex);
+      const speed =
+        Math.abs(course.newVelocity.dq) + Math.abs(course.newVelocity.dr);
+      const cost = finalDistance * 100 + turns * 8 + speed * 4 + fuelSpent;
+
+      if (finalDistance < initialDistance && cost < bestCost) {
+        bestCost = cost;
+        bestPlan = {
+          firstBurn,
+          turns,
+          finalDistance,
+          fuelSpent,
+        };
+      }
+
+      const key = JSON.stringify({
+        p: projectedShip.position,
+        v: projectedShip.velocity,
+        f: projectedShip.fuel,
+        turns,
+      });
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+      queue.push({
+        ship: projectedShip,
+        firstBurn,
+        turns,
+        fuelSpent,
+      });
+    }
+  }
+
+  return bestPlan;
+};
+
 const GRAND_TOUR_CHECKPOINT_SET = new Set([
   'Sol',
   'Mercury',
