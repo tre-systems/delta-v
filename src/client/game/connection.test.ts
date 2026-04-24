@@ -191,6 +191,26 @@ describe('game-client-connection', () => {
     expect(spies.exitToMenu).not.toHaveBeenCalled();
   });
 
+  it('ignores close events from sockets replaced by a newer connection', () => {
+    const { deps, spies } = createDeps();
+    const manager = createConnectionManager(deps);
+
+    manager.connect('ABCDE');
+    const firstSocket = FakeWebSocket.instances[0];
+    manager.connect('ABCDE');
+    const secondSocket = FakeWebSocket.instances[1];
+
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    expect(manager.getWs()).toBe(secondSocket);
+    firstSocket.close({ code: 1006, wasClean: false });
+
+    expect(manager.getWs()).toBe(secondSocket);
+    expect(spies.setReconnectAttempts).not.toHaveBeenCalled();
+    expect(spies.setReconnectOverlayState).not.toHaveBeenCalled();
+    expect(spies.showToast).not.toHaveBeenCalled();
+    expect(spies.exitToMenu).not.toHaveBeenCalled();
+  });
+
   it('restarts ping without leaving duplicate intervals behind', () => {
     vi.useFakeTimers();
     const { deps, spies } = createDeps();
