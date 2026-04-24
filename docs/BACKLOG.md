@@ -196,6 +196,95 @@ get stuck without a mouse.
 
 ## Cost & Abuse Hardening
 
+### Harden Against Rate-Limit Bypass via `cf-connecting-ip` Spoofing (P1)
+
+`isLoopbackRequest` at
+[src/server/index.ts:208](../src/server/index.ts) trusts the incoming
+`cf-connecting-ip` header and short-circuits **every** IP-scoped rate limit
+when the value parses as loopback (`127.0.0.1`, `::1`, etc.). Probed on
+2026-04-24 against the local dev Worker: a client that sets
+`cf-connecting-ip: 127.0.0.1` freely bursts `/create`, `/error`,
+`/telemetry`, `/api/agent-token`, `/api/leaderboard`, `/api/matches`, and
+`/ws/{CODE}` with zero throttling, while the same client without the header
+is capped at 5 / 60 s after request 5. Each bypassed `/create` spins a new
+Durable Object; each bypassed `/error` or `/telemetry` writes a D1 `events`
+row. Unbounded.
+
+In production this is mitigated by Cloudflare's edge, which overwrites
+`cf-connecting-ip` on ingress — attackers hitting the deployed
+`delta-v.tre.systems` through the edge cannot set it. But the bypass is a
+significant footgun:
+
+- Any future deployment that isn't strictly behind the Cloudflare edge
+  (direct origin access, an alternative proxy, a mirror, a staging URL
+  without the same WAF config) activates the bypass.
+- Local dev and integration tests running against the Worker have zero
+  rate-limit coverage because they all trigger the loopback branch.
+- Cloudflare outages that route traffic around the edge would also
+  activate it.
+
+Fix options, least to most disruptive:
+
+1. Remove the `cf-connecting-ip` check from `isLoopbackRequest` entirely
+   and rely only on `isLoopbackAddress(url.hostname)` (the only safe
+   signal of "running inside wrangler dev"). Rate-limit fallback maps
+   still work in dev because the default IP hash is a stable string.
+2. Add an explicit `env.DEV_MODE === '1'` gate around the header-based
+   loopback check, so the bypass only activates when the operator has
+   opted into dev behaviour.
+3. Plumb a Cloudflare-originated signal (`request.cf` exists only when
+   the request came through the edge) and require it be present before
+   honouring any rate-limit decision derived from `cf-connecting-ip`.
+
+Option 1 is the smallest safe change. Either way, add a regression test
+(`src/server/index.test.ts` or `reporting.test.ts`) that asserts a request
+with `cf-connecting-ip: 127.0.0.1` but hostname `delta-v.tre.systems` is
+NOT treated as loopback.
+
+**Files:** [src/server/index.ts](../src/server/index.ts) (`isLoopbackRequest`,
+lines 208–215), [src/server/reporting.ts](../src/server/reporting.ts)
+(all `isCreateRateLimited` / `isTelemetryReportRateLimited` / etc. call
+sites), [src/server/index.test.ts](../src/server/index.test.ts) (add
+regression)
+
+### Cap Concurrent WebSocket Sockets and Active Rooms Per IP (P2)
+
+The existing rate limits protect **new-connection rate** but nothing caps
+**steady-state** resource use per IP. `WS_CONNECT_LIMIT = 20 / 60 s`
+([src/server/reporting.ts:74-75](../src/server/reporting.ts)) lets one IP
+open 20 new WebSockets per minute. Nothing reaps the accumulating set of
+open sockets, and a client that sends a message every 4 minutes keeps its
+Durable Object under the `INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000` cliff
+forever (see [src/shared/constants.ts:263](../src/shared/constants.ts)).
+
+A patient attacker can therefore maintain **hundreds to low-thousands of
+warm Durable Objects from one IP**, each billed for wall-clock + WebSocket
+duration. `CREATE_RATE_LIMIT = 5 / 60 s` similarly caps creation rate but
+not ownership: 300 rooms/hour × 5 min keep-alive ≈ 25 concurrent DOs per IP
+steady-state, or more if the attacker pings chat/action frames to block
+inactivity eviction. Multiply by any small botnet.
+
+Add:
+
+- A per-IP concurrent-WebSocket count tracked in the per-isolate map (or a
+  global KV/DO counter if we move there). Reject new WS handshakes with
+  close code 1013 ("try again later") when the IP is over its cap
+  (suggest 10 concurrent).
+- A per-IP concurrent-room-created count tracked similarly.
+- A shorter `INACTIVITY_TIMEOUT_MS` when no opponent has joined (suggest
+  60 s) — a solo seat holding a DO open for 5 minutes with no second
+  player serves no purpose.
+
+Also consider a monthly Cloudflare Workers/DO/R2/D1 billing alert
+(dashboard-only, not code) so any attack that slips the above caps
+surfaces before the invoice does.
+
+**Files:** [src/server/index.ts](../src/server/index.ts) (WS handshake
+path, lines 534–553), [src/server/reporting.ts](../src/server/reporting.ts)
+(rate-limit state), [src/server/game-do/game-do.ts](../src/server/game-do/game-do.ts)
+(`touchInactivity` logic around line 286),
+[src/shared/constants.ts](../src/shared/constants.ts)
+
 ### Clear the Transitive `hono` Advisory in the MCP Adapter Chain (P2)
 
 `npm audit --omit=dev` still reports `GHSA-458j-xx4x-4375` through
@@ -243,12 +332,19 @@ Action: if this area is touched again, consider whether `match.ts` should call
 These items depend on product decisions or external triggers. They are not in
 the active queue.
 
-### WAF or Cloudflare Rate Limits for Join / Replay Probes
+### WAF or Cloudflare `[[ratelimits]]` Binding for Join / Replay / Leaderboard Probes
 
-**Trigger:** distributed scans wake Durable Objects or cost too much.
+**Trigger:** distributed scans wake Durable Objects or cost too much. The
+2026-04-24 pass confirmed that `/join/{CODE}`, `/replay/{CODE}`,
+`/api/leaderboard`, `/api/leaderboard/me`, and `/api/matches` use only the
+per-isolate `joinProbeRateMap` / `replayProbeRateMap` fallback — the
+`[[ratelimits]]` namespaces in wrangler.toml cover `/create`, `/telemetry`,
+`/error`, `/mcp` only. A distributed scan cycling POPs therefore multiplies
+the 100 / 60 s join-probe quota by the number of isolates hit.
 
 Baseline per-isolate rate limiting is already shipped. Add WAF or
-`[[ratelimits]]` only if that baseline proves insufficient.
+`[[ratelimits]]` when distributed activity on read paths becomes visible in
+metrics, or proactively if a monthly billing alert fires.
 
 **Files:** `wrangler.toml`, Cloudflare dashboard, `src/server/index.ts`
 
