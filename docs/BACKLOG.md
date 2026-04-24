@@ -353,6 +353,88 @@ first is cheaper and matches the shipped behaviour.
 **Files:** [docs/SPEC.md](./SPEC.md) (§ Ordnance or § Accepted
 divergences)
 
+### Ship a Minified Client Bundle (P1)
+
+The 2026-04-24 perf review measured the **deployed**
+`https://delta-v.tre.systems/client.js` at **860 799 bytes raw / 174 KB
+gzip**. `esbuild.client.mjs` only minifies when `NODE_ENV=production`, but
+both `.github/workflows/ci.yml` (`run: npm run build`) and the `npm run
+deploy` path invoke the build with the default dev environment — so the
+shipped bundle is unminified.
+
+A local repro with `NODE_ENV=production node esbuild.client.mjs` produces
+**397 133 bytes raw / 117 KB gzip** — a 54% size cut with one environment
+flag. On a 1 Mbps mobile connection that is roughly 4 s of download time
+saved per cold visit, plus the parse/execute reduction from dropping
+~460 KB of whitespace and identifier padding.
+
+Cheapest fix: drop the env-gate in `esbuild.client.mjs` and always minify
+production-shaped builds, then keep `esbuild.watch.mjs` (dev-watch) as the
+only unminified path. Second-cheapest: export `NODE_ENV=production` in the
+`"build"` npm script (and the `"deploy"` step) so the ungated expression
+still fires.
+
+No code-shape risk — the bundle composition is already flat (no single
+module > 3.0% of the minified bundle; `shared/ai/astrogation.ts` is the
+biggest at 3.0%). The whole gain is operational.
+
+**Files:** [esbuild.client.mjs](../esbuild.client.mjs),
+[package.json](../package.json) (`scripts.build`, `scripts.deploy`),
+[.github/workflows/ci.yml](../.github/workflows/ci.yml)
+(build + deploy steps), [docs/ARCHITECTURE.md](./ARCHITECTURE.md) (update
+the bundle baseline once minification ships)
+
+### Content-Hashed Client Asset URLs + Long-Lived Cache (P2)
+
+`https://delta-v.tre.systems/client.js` today returns
+`cache-control: public, max-age=0, must-revalidate` with a content-hash
+etag, so every page visit revalidates the full 860 KB (or, post-minify,
+397 KB) file even when the contents haven't changed. Cloudflare HITs the
+edge cache but the browser still makes the revalidation round-trip on
+every navigation, and on a cold cache eviction the full body redownloads.
+
+Switch to hashed URLs (e.g. `/client.<contenthash>.js`) emitted by esbuild
+(`entryNames: "[name].[hash]"`) plus a `_headers` rule:
+
+```
+/client.*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/style.*.css
+  Cache-Control: public, max-age=31536000, immutable
+```
+
+Index HTML (`/`, `/agents`, `/matches`, `/leaderboard`) stays
+`must-revalidate` so a new deploy lands immediately. Returning visitors
+then get zero bytes for the JS/CSS until the build hash changes. The
+existing `copyStaticToDist` hash in `scripts/bundle-style-css.mjs` already
+knows the cache-bust shape; extend it to rewrite the `<script src>` and
+`<link rel="stylesheet">` tags in `index.html` / the three other shell
+files to point at the hashed paths.
+
+**Files:** [esbuild.client.mjs](../esbuild.client.mjs),
+[scripts/bundle-style-css.mjs](../scripts/bundle-style-css.mjs),
+[dist/_headers](../dist/_headers) (template lives in
+[static/_headers](../static/_headers)),
+[static/index.html](../static/index.html),
+[static/agents.html](../static/agents.html),
+[static/matches.html](../static/matches.html),
+[static/leaderboard.html](../static/leaderboard.html)
+
+### Measure Long-Game Memory Growth (P3)
+
+Not done this pass — the 2026-04-24 review caught the bundle wins but
+did not measure client heap growth over a 20–30 min match. The event-
+source stream accumulates in replays and the renderer holds Canvas
+buffers per turn animation; if either leaks, the browser's tab process
+grows until a major GC or an OOM on mobile. One-hour action: start a
+duel against AI Hard, take Chrome DevTools heap snapshots at 0 / 5 /
+15 / 30 minutes, diff for growing retainers. Escalate only if the diff
+shows unbounded growth; don't chase it if heap stays flat.
+
+**Files:** first-hour measurement, no code changes unless findings
+surface.
+
 ### Optional Deduplication of Initial Publication Path (P3)
 
 `initGameSession` already publishes via the same `GameDO.publishStateChange` to
