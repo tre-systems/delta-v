@@ -24,7 +24,7 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: `npm run dev -- --port ${PORT} --var IP_HASH_SALT:e2e-test-ip-hash-salt`,
+    command: `npm run dev -- --port ${PORT} --var DEV_MODE:1 --var IP_HASH_SALT:e2e-test-ip-hash-salt`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI && !preCommitE2e,
     timeout: 120_000,
