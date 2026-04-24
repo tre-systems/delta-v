@@ -429,7 +429,7 @@ npm run simulate -- grandTour 20 --seed 1 --capture-failures tmp/ai-failures
 
 Each result now ships a **scorecard** (text + JSON) — read it before squinting at raw win-rate. Useful triage rules:
 
-- **Decided-game P0 win-rate outside [40, 60]** at 100+ games → balance issue. The CI gate fires at 45–85% for P0 deliberately wide; tighter thresholds catch real drift earlier.
+- **Decided-game P0 win-rate outside [40, 60]** at 100+ games → balance issue. CI bounds vary per scenario (see `scenarioP0RateBounds` in [scripts/simulate-ai.ts](../scripts/simulate-ai.ts)): biplanetary is deliberately wide at `[0.45, 0.85]`, fleetAction `[0.45, 0.80]`, duel/convoy/interplanetaryWar `[0.30, 0.70]`, evacuation `[0.35, 0.65]`, blockade `[0.25, 0.65]`. Tighter local thresholds catch drift earlier than CI.
 - **`invalidActionShare > 0`** → the built-in AI submitted an engine-rejected order. `--ci` fails on this; on a soft run, capture with `--capture-failures` and promote to a focused `__fixtures__` regression.
 - **`fuelStallsPerGame > 0.1`** → fueled ships are coasting instead of burning or landing. Capture a fixture.
 - **`timeoutShare > 0.05`** → AI is stalemating; the scenario lacks pressure or the turn cap is too short.
