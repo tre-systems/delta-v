@@ -76,22 +76,6 @@ arrival over fleet deletion.
 
 ## Gameplay UX & Matchmaking
 
-### Play-vs-AI Turn 1 Ordnance Phase Unresponsive (Needs Manual Repro)
-
-During exploratory testing on 2026-04-19 via a Claude-in-Chrome MCP tab, a
-Play-vs-AI Duel session got stuck on Turn 1 Ordnance: `SKIP SHIP` /
-`CONFIRM PHASE` did not respond to programmatic `.click()`, only to physical
-clicks via the MCP computer tool. The tab also reported `document.hidden === true`,
-so this may be automation-specific rather than a real gameplay bug.
-
-Action: reproduce manually in a normal foreground browser window. If the buttons
-respond to real clicks and the renderer stays live, close as CDP-specific. If
-not, capture console/timing details and file the bug against input dispatch,
-command routing, phase state, or renderer state.
-
-**Files:** potentially `src/client/ui/button-bindings.ts`,
-`src/client/game/ordnance.ts`, `src/client/game/command-router.ts`
-
 ### Enforce Notification Channel Precedence in Code (P2)
 
 Several high-salience flows now use HUD/sound/game-log feedback instead of
