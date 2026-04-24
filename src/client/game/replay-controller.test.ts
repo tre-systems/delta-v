@@ -142,6 +142,37 @@ describe('replay-controller', () => {
     expect(appliedStates).toEqual(['ABCDE-m1', 'ABCDE-m2']);
   });
 
+  it('surfaces Official Bot provenance in replay status text', async () => {
+    const timeline = {
+      ...createTimeline(asGameId('ABCDE-m1')),
+      officialBotMatch: true,
+    } satisfies ReplayTimeline;
+    const controller = createReplayController({
+      getClientContext: () => ({
+        state: 'gameOver',
+        isLocalGame: false,
+        gameCode: 'ABCDE',
+        gameState: createState(asGameId('ABCDE-m1')),
+      }),
+      fetchReplay: async () => timeline,
+      showToast: () => {},
+      logText: () => {},
+      trackEvent: vi.fn(),
+      clearTrails: () => {},
+      applyGameState: () => {},
+      frameOnActivePlayer: () => {},
+      presentReplayEntry: (_entry, _previousState, done) => done(),
+      exitArchivedReplayToMenu: () => {},
+    });
+
+    controller.onGameOverShown();
+    await controller.toggleReplay();
+
+    expect(controller.controlsSignal.value.statusText).toContain(
+      'Official Bot',
+    );
+  });
+
   it('seeds archived replay from a pre-fetched timeline and starts at turn 1', () => {
     const appliedStates: string[] = [];
     const framedStates: string[] = [];
