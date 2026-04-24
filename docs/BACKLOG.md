@@ -36,10 +36,11 @@ the rules require them.
 Action:
 - Extend `scripts/simulate-ai.ts` with additional objective/failure counters as
   new recurring failure modes appear. The baseline scorecard, invalid-action,
-  and fuel-stall counters are already shipped.
+  fuel-stall, passenger-transfer mistake, and objective-drift counters are
+  already shipped.
 - Grow the fixture path from one captured fuel-stall regression into a broader
-  corpus. Invalid orders, fuel stalls, and objective drift are captured by the
-  harness; passenger transfer mistakes still need a domain-specific detector.
+  corpus. Invalid orders, fuel stalls, passenger transfer mistakes, and
+  objective drift are captured by the harness.
 
 **Files:** `scripts/simulate-ai.ts`, `scripts/duel-seed-sweep.ts`,
 `src/shared/simulate-ai-policy.test.ts`, `src/shared/ai.test.ts`,
