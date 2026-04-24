@@ -43,6 +43,9 @@ type MainInteractionSession = Pick<
 >;
 
 type MainInteractionUI = CommandRouterDeps['ui'] & {
+  overlay: {
+    showToast: (message: string, type: 'error' | 'info' | 'success') => void;
+  };
   showFleetWaiting: () => void;
   toggleHelpOverlay: () => void;
 };
@@ -178,7 +181,7 @@ export const createMainInteractionController = (
     astrogationDeps: deps.actionDeps.astrogationDeps,
     combatDeps: deps.actionDeps.combatDeps,
     ordnanceDeps: deps.actionDeps.ordnanceDeps,
-    ui: deps.ui,
+    ui: { log: deps.ui.log },
     renderer: deps.renderer,
     getCanvasCenter: () => ({
       x: deps.canvas.clientWidth / 2,

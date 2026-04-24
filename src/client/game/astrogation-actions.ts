@@ -14,7 +14,6 @@ export interface AstrogationActionDeps {
   getPlayerId: () => PlayerId;
   getTransport: () => GameTransport | null;
   planningState: PlanningSelectionStore & AstrogationPlanningStore;
-  showToast: (msg: string, type: 'error' | 'info' | 'success') => void;
   logText: (text: string) => void;
 }
 

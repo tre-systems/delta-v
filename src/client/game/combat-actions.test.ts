@@ -106,7 +106,6 @@ const map: SolarSystemMap = {
 const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
   const planningState = createPlanningStore();
   const state = createState();
-  const showToast = vi.fn<CombatActionDeps['showToast']>();
   const logText = vi.fn<CombatActionDeps['logText']>();
   const transport: GameTransport = {
     submitAstrogation: vi.fn(),
@@ -132,7 +131,6 @@ const createDeps = (overrides: Partial<CombatActionDeps> = {}) => {
     getTransport: () => transport,
     getMap: () => map,
     planningState,
-    showToast,
     logText,
   } satisfies CombatActionDeps;
 
@@ -277,7 +275,6 @@ describe('combat action helpers', () => {
 
     expect(deps.transport.endCombat).not.toHaveBeenCalled();
     expect(deps.transport.submitSingleCombat).not.toHaveBeenCalled();
-    expect(deps.showToast).not.toHaveBeenCalled();
     expect(deps.logText).toHaveBeenLastCalledWith(
       'Selected target is blocked or has no legal attackers',
     );
@@ -292,7 +289,6 @@ describe('combat action helpers', () => {
 
     queueAttack(deps);
 
-    expect(deps.showToast).not.toHaveBeenCalled();
     expect(deps.planningState.queuedAttacks).toHaveLength(1);
     expect(deps.planningState.combatTargetId).toBeNull();
   });

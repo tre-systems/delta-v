@@ -53,9 +53,6 @@ export interface CommandRouterSessionRead {
 }
 
 interface CommandRouterUI {
-  overlay: {
-    showToast: (message: string, type: 'error' | 'info' | 'success') => void;
-  };
   log: { toggle: () => void };
 }
 

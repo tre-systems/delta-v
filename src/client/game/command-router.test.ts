@@ -169,7 +169,6 @@ const createDeps = (overrides?: {
     getLogisticsState: () => overrides?.logisticsState ?? null,
     planningState,
   };
-  const showToast = vi.fn<CommandRouterDeps['ui']['overlay']['showToast']>();
   const astrogationLogText = vi.fn<(text: string) => void>();
   const combatLogText = vi.fn<(text: string) => void>();
   const ordnanceLogText = vi.fn<(text: string) => void>();
@@ -189,7 +188,6 @@ const createDeps = (overrides?: {
       getPlayerId: () => ctx.getPlayerId(),
       getTransport: () => ctx.getTransport(),
       planningState: ctx.planningState,
-      showToast,
       logText: astrogationLogText,
     },
     combatDeps: {
@@ -199,7 +197,6 @@ const createDeps = (overrides?: {
       getTransport: () => ctx.getTransport(),
       getMap: () => map,
       planningState: ctx.planningState,
-      showToast,
       logText: combatLogText,
     },
     ordnanceDeps: {
@@ -209,11 +206,9 @@ const createDeps = (overrides?: {
       getMap: () => map,
       getTransport: () => ctx.getTransport(),
       planningState: ctx.planningState,
-      showToast,
       logText: ordnanceLogText,
     },
     ui: {
-      overlay: { showToast },
       log: { toggle: toggleLog },
     },
     renderer,
@@ -252,8 +247,8 @@ describe('game-command-router', () => {
     expect(deps.ctx.planningState.overloads.get('ship-0')).toBe(3);
   });
 
-  it('undoes queued attacks without a toast (HUD shows queue depth)', () => {
-    const { deps, ui } = createDeps();
+  it('undoes queued attacks through HUD-visible queue state only', () => {
+    const { deps } = createDeps();
     deps.ctx.planningState.queuedAttacks = [
       {
         attackerIds: [asShipId('ship-0')],
@@ -272,7 +267,6 @@ describe('game-command-router', () => {
     dispatchGameCommand(deps, { type: 'undoQueuedAttack' });
 
     expect(deps.ctx.planningState.queuedAttacks).toHaveLength(1);
-    expect(ui.overlay.showToast).not.toHaveBeenCalled();
   });
 
   it('guards skipLogistics by client state', () => {
@@ -320,8 +314,8 @@ describe('game-command-router', () => {
     expect(transport.calls.skipLogistics).toHaveLength(1);
   });
 
-  it('selects ships and centers the camera without a selection toast', () => {
-    const { deps, renderer, ui } = createDeps();
+  it('selects ships and centers the camera through HUD/canvas state only', () => {
+    const { deps, renderer } = createDeps();
 
     dispatchGameCommand(deps, {
       type: 'selectShip',
@@ -331,7 +325,6 @@ describe('game-command-router', () => {
     expect(deps.ctx.planningState.selectedShipId).toBe('ship-1');
     expect(deps.ctx.planningState.lastSelectedHex).toBe('0,0');
     expect(renderer.centerOnHex).toHaveBeenCalledWith({ q: 0, r: 0 });
-    expect(ui.overlay.showToast).not.toHaveBeenCalled();
   });
 
   it('cycles combat attackers for the selected target and recenters on the attacker hex', () => {
@@ -489,8 +482,8 @@ describe('game-command-router', () => {
     expect(deps.exitToMenu).toHaveBeenCalledTimes(1);
   });
 
-  it('logs local astrogation validation errors instead of toasting them', () => {
-    const { deps, ui, astrogationLogText } = createDeps({
+  it('logs local astrogation validation errors', () => {
+    const { deps, astrogationLogText } = createDeps({
       gameState: createState({
         ships: [
           createShip({
@@ -510,11 +503,10 @@ describe('game-command-router', () => {
     });
 
     expect(astrogationLogText).toHaveBeenCalledWith('No fuel remaining');
-    expect(ui.overlay.showToast).not.toHaveBeenCalled();
   });
 
-  it('logs local ordnance validation errors instead of toasting them', () => {
-    const { deps, ui, ordnanceLogText } = createDeps({
+  it('logs local ordnance validation errors', () => {
+    const { deps, ordnanceLogText } = createDeps({
       clientState: 'playing_ordnance',
       gameState: createState({
         phase: 'ordnance',
@@ -528,6 +520,5 @@ describe('game-command-router', () => {
     });
 
     expect(ordnanceLogText).toHaveBeenCalledWith('Select a ship first');
-    expect(ui.overlay.showToast).not.toHaveBeenCalled();
   });
 });
