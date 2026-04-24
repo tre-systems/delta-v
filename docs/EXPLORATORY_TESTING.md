@@ -17,7 +17,7 @@ A pass typically takes 60-120 minutes of agent or human time and should produce 
 
 - [Toolkit](#toolkit)
 - [Lenses](#lenses-what-to-look-for)
-- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile/a11y · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep
+- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile layout sweep · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep
 - [Workflow: probe, finding, backlog](#workflow-probe-finding-backlog)
 - [Anti-patterns](#anti-patterns)
 - [Pass log](#pass-log)
@@ -30,7 +30,8 @@ Each row is a separate vantage point on the running system. Use multiple per pas
 
 | Tool | Purpose | Setup |
 |------|---------|-------|
-| **Browser MCP** (Claude in Chrome / Playwright preview) | Drive the SPA as a real user; inspect DOM, console, network | Connect the extension; open https://delta-v.tre.systems |
+| **Browser MCP** (Claude in Chrome) | Drive the *deployed* SPA as a real user; inspect DOM, console, network | Connect the extension; open https://delta-v.tre.systems. See R10 for mobile-viewport limitations. |
+| **Playwright preview MCP** (`preview_*`) | Drive the *local dev server* in a headless Chromium that honours `preview_resize` down to 320 px and respects `prefers-*` media emulation via `preview_eval` — the only reliable way to exercise the `<=760 / <=640 / <=420` responsive breakpoints from an agent | `preview_start` spawns `npm run dev:watch`; use `preview_resize`, `preview_snapshot`, `preview_screenshot`, `preview_inspect`, `preview_eval`, `preview_click`. Essential for R10. |
 | **Local agent MCP** (stdio) | Drive a seat programmatically; inspect raw observation, candidates, tactical hints | `npm run mcp:delta-v` (see [DELTA_V_MCP.md](./DELTA_V_MCP.md)) |
 | **Hosted agent MCP** (`POST /mcp`) | Same surface as local but via streamable-HTTP; useful for probing the deployed adapter and the agent-token flow | `POST /api/agent-token` then `Authorization: Bearer <t>` on `/mcp` calls (see [AGENTS.md](./AGENTS.md)). Requires `Accept: application/json, text/event-stream`. |
 | **Play skill** | Higher-level autonomous play loop sitting on top of agent MCP | `.claude/skills/play/SKILL.md` — useful for smoke runs, **not** for probing (see anti-patterns) |
@@ -55,7 +56,7 @@ A lens is a question to keep mentally active while exploring. Strong lenses forc
 5. **PII / privacy surface.** What user-typed strings end up in public APIs, logs, replays, archives? Are IPs hashed where they should be? Is anything inadvertently long-lived?
 6. **Cost / abuse surface.** Are rate limits enforced where the docs say? Can a single client churn DOs, fill R2, or spam telemetry?
 7. **Cross-vantage consistency.** Does the browser HUD show the same turn/phase/active-player as the MCP observation, the D1 row, and the tail log line at the same instant?
-8. **Mobile / a11y.** Does the SPA reflow at 375px? Does prefers-reduced-motion / prefers-contrast actually take effect? Can keyboard-only users complete a turn?
+8. **Mobile / a11y.** At each declared breakpoint (760 / 640 / 420 px widths and the 560 px short-height rule) does every floating element — HUD bar, bottom-buttons row, ship list, game log, minimap, help/sound buttons, phase alert, tutorial tip, toasts, game-over panel — stay fully visible **and** out of each other's bounding boxes? Can every interactive element be `elementFromPoint`-reached without a decoration stealing the click? Do `env(safe-area-inset-*)` offsets work on notched devices and in landscape? Does `prefers-reduced-motion` / `prefers-contrast` actually take effect? Can keyboard-only users complete a turn?
 9. **Recovery surface.** Reload mid-game — does state restore correctly? Two-tab same player — what wins? Stale `?code=` URL — graceful?
 10. **Public-discovery surprises.** Is anything indexable, cacheable, or Wayback-able that shouldn't be?
 
@@ -189,14 +190,134 @@ Mid-match in a browser tab:
 - Toggle airplane mode for 30s, then reconnect — does the WebSocket auto-recover, or does the user have to reload?
 - For MCP: kill the stdio server, restart it, try `delta_v_get_state` with the old sessionId.
 
-### R10. Mobile / a11y triangulation
+### R10. Mobile layout sweep (overlap, obscuration, safe-area)
 
-- Resize browser to 375 × 812 (iPhone 13). Re-run R7 on at least one scenario.
-- DevTools → Rendering → emulate `prefers-contrast: more` and `prefers-reduced-motion`.
-- Tab-only navigation through the lobby and one full astrogation phase.
-- Cross-reference with [A11Y.md](./A11Y.md) and any open `BACKLOG.md` contrast/audit items.
+Mobile bugs dominate the commit history in this repo and repeat — every UI change is a chance to re-introduce HUD overlap, bottom-bar obscuration, or a button pushed behind a notch. Ship mobile as deliberately as you ship engine rules.
 
-**Tooling caveat — Chrome MCP cannot emulate mobile.** `resize_window` reports success but the underlying OS window refuses to shrink below the display's minimum (observed ~1260 px inner width on a 14" display), so `window.matchMedia('(max-width: 900px)')` stays `false` and the `<=760px` / `<=420px` responsive breakpoints never activate. Dispatching a synthetic `MediaQueryListEvent('change')` on the query list does **not** route to `addEventListener('change', ...)` handlers (legacy vs modern API quirk). For real mobile verification use the Playwright preview MCP (dev-server flow, `preview_resize` honours the viewport without touching OS window state), or DevTools device emulation driven by a human. Filing mobile bugs from Chrome MCP alone without a real narrow viewport is how false negatives on mobile regressions slip through.
+**Setup — Playwright preview only.** Chrome MCP cannot shrink its window below the host display's minimum (~1260 px on a 14" laptop), so `window.matchMedia('(max-width: 760px)')` stays `false` and the responsive breakpoints never fire. Synthetic `MediaQueryListEvent('change')` does not route to `addEventListener('change', ...)` handlers. **Use the Playwright preview MCP or human DevTools device emulation; never file a mobile finding from Chrome MCP alone.**
+
+```
+preview_start                          # boots npm run dev:watch
+preview_eval ({ ... })                 # navigate / prime state if needed
+preview_resize  width=375  height=812  # iPhone 13 portrait
+preview_snapshot                       # structural dump
+preview_screenshot                     # visual proof
+```
+
+**Viewport matrix.** At minimum, step through **every CSS breakpoint boundary** and one real device on each side — missing the boundary misses bugs that live only in the 1-px band between rules in [static/styles/responsive.css](../static/styles/responsive.css).
+
+| Width × height | Why | Breakpoint hit |
+|---|---|---|
+| 320 × 568 | iPhone SE 1st gen; smallest realistic portrait | `<=420`, `<=640`, `<=760` |
+| 360 × 640 | Common low-end Android | `<=420` boundary (just above), `<=640`, `<=760` |
+| 375 × 667 | iPhone SE 2/3, iPhone 8 | `<=640`, `<=760` |
+| 375 × 812 | iPhone 13/14 (notched) | `<=640`, `<=760` |
+| 414 × 896 | iPhone 11 Pro Max | `<=640`, `<=760` |
+| 419 × 800 | **1 px below** `<=420` rule | verifies the tiny-phone rules |
+| 421 × 800 | **1 px above** `<=420` rule | verifies the 640 rules without tiny overrides |
+| 639 × 800 | 1 px below `<=640` rule | verifies 640 rules |
+| 641 × 800 | 1 px above `<=640` rule | verifies the `(min-width: 641px) and (max-width: 760px)` band |
+| 759 × 900 | 1 px below `<=760` rule | last narrow layout |
+| 761 × 900 | 1 px above `<=760` rule | desktop layout just kicks in |
+| 812 × 375 | iPhone landscape — hits `@media (max-height: 560px)` | short-height HUD rules |
+| 640 × 480 | narrow + short combo | compound `(max-width: 640px) and (max-height: 560px)` rule |
+| 1024 × 1366 | iPad portrait, regression check | should look desktop-ish |
+
+Across every cell, run the four checks below and paste each failure into the finding with the exact viewport.
+
+**Check 1 — programmatic overlap detection.** Run this in `preview_eval` once per viewport. It ignores known-OK stacks (modals, toast container) and flags any pairwise intersection between the HUD floaters and interactive elements.
+
+```javascript
+(() => {
+  const targets = [
+    '.hud-bar', '.hud-bottom', '.hud-bottom-buttons',
+    '.ship-list', '.game-log', '.help-btn', '.sound-btn',
+    '#phaseAlert', '.tutorial-tip', '#hudMinimap',
+    '.floating-exit', '.btn-primary', '.game-over-content',
+  ];
+  const rects = targets.flatMap(sel =>
+    [...document.querySelectorAll(sel)]
+      .filter(el => {
+        const s = getComputedStyle(el);
+        return s.display !== 'none' && s.visibility !== 'hidden' && el.offsetWidth > 0;
+      })
+      .map(el => ({ sel, el, r: el.getBoundingClientRect() })));
+  const overlaps = [];
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j];
+      if (a.el.contains(b.el) || b.el.contains(a.el)) continue; // nested is fine
+      const ix = Math.max(0, Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left));
+      const iy = Math.max(0, Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top));
+      if (ix > 2 && iy > 2) overlaps.push({
+        a: a.sel, b: b.sel, area: Math.round(ix * iy),
+        aRect: a.r.toJSON(), bRect: b.r.toJSON(),
+      });
+    }
+  }
+  const offscreen = rects.filter(({ r }) =>
+    r.right <= 0 || r.bottom <= 0 || r.left >= innerWidth || r.top >= innerHeight);
+  return { viewport: { w: innerWidth, h: innerHeight }, overlaps, offscreen: offscreen.map(o => o.sel) };
+})();
+```
+
+Any entry in `overlaps` with `area > 2` is a finding. Any `offscreen` entry with a non-cosmetic selector is a finding. Mute known-benign stacks (e.g. a hidden game-over panel) by checking `display: none` — already done above, but verify.
+
+**Check 2 — click-reachability.** For every primary button and HUD control, confirm the visible pixel at its geometric centre routes clicks back to the element itself. A decorative overlay with higher z-index (or a moved safe-area) can steal taps and produce a bug the snapshot won't show.
+
+```javascript
+(() => {
+  const sels = ['.hud-bottom .btn', '.help-btn', '.sound-btn',
+                '.floating-exit', '.tutorial-tip .btn', '.btn-primary'];
+  const out = [];
+  for (const sel of sels) {
+    for (const el of document.querySelectorAll(sel)) {
+      if (!el.offsetWidth || getComputedStyle(el).pointerEvents === 'none') continue;
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      const ok = hit === el || el.contains(hit);
+      if (!ok) out.push({ sel, label: el.textContent?.trim().slice(0, 32),
+                          stolenBy: hit?.tagName + '.' + hit?.className });
+    }
+  }
+  return out;
+})();
+```
+
+Empty array = fine. Any entry = a control the user cannot tap.
+
+**Check 3 — safe-area on notched + landscape.** Playwright's Chromium has no real safe-area inset, but you can force one via `preview_eval`:
+
+```javascript
+document.documentElement.style.setProperty('--safe-top', '44px');
+document.documentElement.style.setProperty('--safe-bottom', '34px');
+document.documentElement.style.setProperty('--safe-left', '16px');
+document.documentElement.style.setProperty('--safe-right', '16px');
+```
+
+Re-run Checks 1 and 2. Any new overlap or off-screen element at 375 × 812 is a finding: it will repro on a real iPhone even though you saw no bug at 0-inset.
+
+**Check 4 — virtual-keyboard / URL-bar collapse.** iOS Safari and Android Chrome shrink the viewport when the address bar hides and again when a text input is focused. Simulate with `preview_resize` at the portrait height **minus 100–120 px** (e.g. 375 × 700 for iPhone 13 with keyboard up). Lobby callsign input, chat input, and join-code input must remain visible and not be covered by the HUD bottom bar or phase alert.
+
+**Scenario + flow coverage.** Per viewport, walk at minimum:
+
+1. Home menu → scenario select → difficulty (checks `menu-content` padding, logo clipping).
+2. Lobby: Create Private → code reveal (`game-code` letter-spacing wraps on 320 px if broken).
+3. Play vs AI, one full astrogation turn (HUD bar, bottom buttons, ship list, game log, minimap, phase alert).
+4. Open help overlay mid-game (stacking + backdrop + close button reachability).
+5. Game over screen (the `<=420` rules in `responsive.css` go edge-to-edge — verify no floating-panel border on 320 px).
+6. Replay viewer (control bar visibility during animated playback; history archived as a 2026-04-21 regression).
+7. Match history / leaderboard / agents pages — each has its own `@media` rules.
+
+**Other sensory checks.** In the same preview tab: emulate `prefers-contrast: more` and `prefers-reduced-motion: reduce` via `preview_eval` by setting `document.documentElement.style.colorScheme` / forcing a class, or use DevTools rendering panel in a headed browser. Then tab-only through lobby + one astrogation phase. Cross-reference with [A11Y.md](./A11Y.md).
+
+**Recent regression hotspots worth extra scrutiny** (`git log --oneline | grep -iE 'mobile|overlap|hud|floating'` enumerates the recurring ones):
+- `floating-exit` / chat / replay-exit overlap — repeatedly fixed and repeatedly regressed.
+- HUD bottom bar vs utility buttons on narrow + short viewports.
+- Ship list overlapping minimap at `(min-width: 641px) and (max-width: 760px)`.
+- Game-over edge-to-edge treatment at `<= 420 px`.
+- Safe-area-inset for notched devices in landscape.
+- PWA installed shell (no URL bar) — verify the inset math separately from in-browser.
 
 ### R11. Fresh-start: wipe persisted data between runs
 
@@ -259,25 +380,6 @@ Open the SPA in a fresh profile, complete one matchmaking-paired game and one Pl
 
 For each persisted blob, ask: who owns it? When does it get pruned? What happens if the device is shared? Does it contain anything user-typed (callsign, real-name pattern)? Is any auth credential stored in plaintext localStorage? The 2026-04-19 pass surfaced unbounded `delta-v:tokens` accumulation and a `delta-v:player-profile` storing the raw callsign indefinitely.
 
-### R16. Simulation-harness balance sweep
-
-`scripts/simulate-ai.ts` is the existing AI-vs-AI engine harness (see [SIMULATION_TESTING.md](./SIMULATION_TESTING.md)). It's also the cheapest way to surface scenario-balance regressions without playing 100 games by hand.
-
-```bash
-npm run simulate -- all 30 --ci      # all 9 scenarios × 30 games, hard-vs-hard
-npm run simulate -- duel 100 --ci    # narrow a specific scenario for tighter signal
-npm run simulate -- duel 100 --randomize-start   # check seat-balance independence
-```
-
-Read the per-scenario block: P0 win%, P1 win%, draws/timeouts, average turns. Useful triage rules:
-
-- **P0 or P1 win-rate outside [40, 60]** at 100+ games → balance issue. The CI gate fires at 45-85% for P0 (deliberately wide), but tighter thresholds catch real drift earlier.
-- **Timeout rate above 5%** → the AI is stalemating; either the scenario lacks pressure or the turn cap is too short.
-- **Avg turns < 5** → the scenario is being decided too quickly to be interesting; first-player edge dominates.
-- **`Engine Crashes > 0`** → fail closed, file under Architecture & correctness.
-
-The 2026-04-19 sweep surfaced evacuation 96-3 and duel 60-40 from this single command. Run before any AI heuristic change and before any release.
-
 ### R15. Post-game pipeline cross-check
 
 After each completed paired match, verify the data landed in **all four** persistence stores within ~30 s:
@@ -312,6 +414,32 @@ curl -s "https://delta-v.tre.systems/api/leaderboard?includeProvisional=true&lim
 
 Any of these returning empty for a game that completed in the UI is a finding — most likely a thrown exception (see R13) interrupted the archive cascade. The 2026-04-19 pass found the `match_archive` row appeared eventually (after ~90 s, once the alarm path reconciled) — *eventual* archival is acceptable but worth measuring; *missing* archival is a bug.
 
+### R16. Simulation-harness balance and scorecard sweep
+
+`scripts/simulate-ai.ts` is the AI-vs-AI engine harness (see [SIMULATION_TESTING.md](./SIMULATION_TESTING.md) § 1). It's the cheapest way to surface scenario-balance and AI regressions without playing 100 games by hand.
+
+```bash
+npm run simulate -- all 30 --ci      # all 9 scenarios × 30 games, hard-vs-hard
+npm run simulate -- duel 100 --ci    # narrow a scenario for tighter signal
+npm run simulate -- duel 100 --randomize-start   # seat-balance independence
+npm run simulate:duel-sweep          # pacing/seat-balance across many base seeds
+npm run simulate -- grandTour 20 --seed 1 --capture-failures tmp/ai-failures
+```
+
+Each result now ships a **scorecard** (text + JSON) — read it before squinting at raw win-rate. Useful triage rules:
+
+- **Decided-game P0 win-rate outside [40, 60]** at 100+ games → balance issue. The CI gate fires at 45–85% for P0 deliberately wide; tighter thresholds catch real drift earlier.
+- **`invalidActionShare > 0`** → the built-in AI submitted an engine-rejected order. `--ci` fails on this; on a soft run, capture with `--capture-failures` and promote to a focused `__fixtures__` regression.
+- **`fuelStallsPerGame > 0.1`** → fueled ships are coasting instead of burning or landing. Capture a fixture.
+- **`timeoutShare > 0.05`** → AI is stalemating; the scenario lacks pressure or the turn cap is too short.
+- **`objectiveShare` low relative to `fleetEliminationShare`** on a scenario with a non-elimination objective (convoy, evacuation, Grand Tour) → scoring is biasing toward attrition.
+- **`passengerDeliveryShare`** trending down on convoy / evacuation → passenger pipeline regression.
+- **`grandTourCompletionShare`** trending down → refuel / route planning regression.
+- **`averageTurns < 5`** → scenario decided too quickly; first-player edge dominates.
+- **`Engine Crashes > 0`** → fail closed, file under **Architecture & correctness**.
+
+For AI PRs, compare scorecards on **paired seed sets** before/after, not single runs. When a sweep exposes a bad state, use `--capture-failures <dir>` to land a bounded `GameState` JSON under `src/shared/ai/__fixtures__/` and add a decision-class regression test (see [SIMULATION_TESTING.md](./SIMULATION_TESTING.md) § 1). The 2026-04-19 sweep surfaced evacuation 96-3 and duel 60-40; subsequent passes surfaced Grand Tour 60/60 timeouts. Run before any AI heuristic change and before any release.
+
 ---
 
 ## Workflow: probe, finding, backlog
@@ -345,6 +473,9 @@ Things that have wasted exploratory time in past passes — don't repeat them.
 - **Adding "interesting but not actionable" entries to the backlog.** They drown out real items. If you can't write a fix, you don't have a finding yet — keep probing.
 - **Forgetting that exploratory identities still persist in D1.** Use the reserved non-public prefixes (`QA_*`, `Bot_*`, `Probe_*`) for test callsigns; the leaderboard now filters them, but they remain queryable in operator tables and logs.
 - **Filing bugs from programmatic clicks on hidden elements.** `element.click()` in Chrome MCP fires the handler regardless of `display: none` / `hidden` / `offsetWidth === 0`. Buttons a real user can never reach can still execute their handler from a test harness. Before filing a finding triggered by a DOM click, confirm the element is actually visible (`offsetWidth > 0` and a valid `getBoundingClientRect`) in the state you're probing. A hidden button with the "wrong" behaviour may still be a latent bug worth fixing (if CSS ever changes the button is suddenly reachable), but classify it as such rather than as a user-visible regression.
+- **Filing mobile-layout findings from Chrome MCP.** Covered under R10, but bears repeating as an anti-pattern: the OS window cannot shrink below the display's minimum, so `@media (max-width: 760px)` never fires and the responsive breakpoints in [static/styles/responsive.css](../static/styles/responsive.css) stay inert. Switch to the Playwright preview MCP (`preview_resize`) or hand off to DevTools device emulation before filing.
+- **Only testing at one "mobile" viewport (typically 375 × 812).** Delta-V has breakpoints at 760 / 640 / 420 px widths and a 560 px short-height rule, with an extra narrow-and-short combo. 375 × 812 only exercises a subset. R10's matrix includes 1-px boundary viewports (419, 421, 639, 641, 759, 761) specifically because overlap bugs hide in the single-pixel band between `@media` rules. Skipping the boundary means shipping the band.
+- **Treating `100vh` as screen height.** iOS Safari and Android Chrome include the collapsible URL bar in `100vh`, so elements sized with `100vh` overflow on initial load and re-lay-out when the bar hides. If you see a one-time HUD jump on first scroll, expect `100vh` somewhere — prefer `100dvh` or computed offsets anchored to `env(safe-area-inset-*)`. This is cheap to catch during R10 by scrolling once after load and re-running the overlap script.
 
 ---
 
