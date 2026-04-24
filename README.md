@@ -166,12 +166,15 @@ Both editions compile every doc in this index into a single consolidated PDF wit
 | `npm run typecheck:all` | Typecheck app + tooling (`scripts/`, `e2e/`, configs) |
 | `npm test` | Run all unit tests via Vitest |
 | `npm run test:coverage` | Run client and server/shared coverage passes sequentially (enforced thresholds on engine, server, MCP adapter, and client) |
-| `npm run test:e2e` | Playwright browser smoke against a local Wrangler server |
+| `npm run test:e2e` | All Playwright specs against a local Wrangler server |
+| `npm run test:e2e:smoke` | Playwright browser smoke without the dedicated a11y spec |
 | `npm run test:e2e:a11y` | Playwright + axe accessibility baseline |
 | `npm run test:e2e:headed` | Same smoke suite with a visible browser |
 | `npm run test:watch` | Vitest in watch mode |
-| `npm run verify` | Pre-release sweep (lint, typecheck, coverage, build, e2e, a11y, simulation) |
+| `npm run verify:quick` | Fast local gate (lint, typecheck, build) |
+| `npm run verify` / `npm run verify:full` | Full pre-release sweep (lint, typecheck, coverage, build, e2e smoke, a11y, simulation) |
 | `npm run simulate -- [scenario] [iterations] [--ci]` | Headless AI-vs-AI matches |
+| `npm run simulate:smoke` | Short all-scenarios AI smoke run for local push checks |
 | `npm run load:test -- --games 20 --concurrency 5` | WebSocket load / chaos harness |
 | `npm run deploy` | Deploy to Cloudflare Workers |
 
