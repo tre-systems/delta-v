@@ -101,7 +101,7 @@ Doc index by purpose, grouped by theme:
 
 ### Compiled book editions
 
-Both editions compile every doc in this index into a single consolidated PDF with a cover, parts-break, and table of contents. They are rebuilt with `npm run docs:book` and `npm run docs:book:audio`.
+Both editions compile every doc in this index into a single consolidated PDF with a cover, parts-break, and table of contents. They are rebuilt with `npm run docs:book` and `npm run docs:book:audio`. The audio edition renders pre-authored TTS-friendly prose from `docs/audio-rewritten/`; those rewrites are refreshed manually, so the audio edition can lag the main book by a few days after a doc sweep — tracked in [BACKLOG.md](./docs/BACKLOG.md) under **Refresh (and Automate) the Audio-Book Rewrites**.
 
 | Edition | File | Purpose |
 | --- | --- | --- |
