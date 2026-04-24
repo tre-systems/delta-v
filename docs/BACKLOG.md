@@ -288,10 +288,9 @@ forever (see [src/shared/constants.ts:263](../src/shared/constants.ts)).
 
 A patient attacker can therefore maintain **hundreds to low-thousands of
 warm Durable Objects from one IP**, each billed for wall-clock + WebSocket
-duration. `CREATE_RATE_LIMIT = 5 / 60 s` similarly caps creation rate but
-not ownership: 300 rooms/hour × 5 min keep-alive ≈ 25 concurrent DOs per IP
-steady-state, or more if the attacker pings chat/action frames to block
-inactivity eviction. Multiply by any small botnet.
+duration. Public `/create` now has a per-IP active-room cap in addition to
+`CREATE_RATE_LIMIT = 5 / 60 s`, but quick-match-created rooms and
+steady-state WebSocket ownership still need caps.
 
 Add:
 
@@ -299,7 +298,8 @@ Add:
   global KV/DO counter if we move there). Reject new WS handshakes with
   close code 1013 ("try again later") when the IP is over its cap
   (suggest 10 concurrent).
-- A per-IP concurrent-room-created count tracked similarly.
+- Extend the active-room cap to quick-match-created rooms if the matchmaker
+  starts showing the same cost shape as public `/create`.
 - A shorter `INACTIVITY_TIMEOUT_MS` when no opponent has joined (suggest
   60 s) — a solo seat holding a DO open for 5 minutes with no second
   player serves no purpose.

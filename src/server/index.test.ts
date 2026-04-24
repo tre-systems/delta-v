@@ -17,11 +17,13 @@ import { issueAgentToken } from './auth';
 import type { MatchArchive } from './game-do/match-archive';
 import worker, {
   __resetWorkerBootedAtForTests,
+  activeRoomMap,
   createRateMap,
   type Env,
   errorReportRateMap,
   hashIp,
   joinProbeRateMap,
+  registerActiveRoom,
   replayProbeRateMap,
   shouldSampleOperationalLog,
   telemetryReportRateMap,
@@ -1444,6 +1446,7 @@ describe('hashIp', () => {
 describe('/create rate limiting', () => {
   beforeEach(() => {
     createRateMap.clear();
+    activeRoomMap.clear();
   });
 
   it('allows up to 5 creates per IP per minute', async () => {
@@ -1463,6 +1466,52 @@ describe('/create rate limiting', () => {
       );
       expect(response.status).toBe(200);
     }
+  });
+
+  it('tracks successful created rooms against the active-room cap', async () => {
+    const { env } = createEnv();
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-connecting-ip': '1.2.3.4',
+        },
+        body: JSON.stringify({ scenario: 'escape' }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    const body = (await response.json()) as { code: string };
+    const ipHash = await hashIp('1.2.3.4');
+
+    expect(activeRoomMap.get(ipHash)?.has(body.code)).toBe(true);
+  });
+
+  it('returns 429 when the active-room cap is already reached', async () => {
+    const { env, initFetch } = createEnv();
+    const ipHash = await hashIp('1.2.3.4');
+    for (let i = 0; i < 25; i++) {
+      registerActiveRoom(ipHash, `ROOM${i}`);
+    }
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-connecting-ip': '1.2.3.4',
+        },
+        body: JSON.stringify({ scenario: 'escape' }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('60');
+    expect(initFetch).not.toHaveBeenCalled();
   });
 
   it('returns 429 after 5 creates from same IP', async () => {
