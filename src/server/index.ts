@@ -460,6 +460,16 @@ export default {
         return handleJoinCheck(request, env, asRoomCode(joinMatch[1]));
       }
 
+      if (url.pathname.startsWith('/join/') && request.method === 'GET') {
+        return Response.json(
+          {
+            code: 'ROOM_NOT_FOUND',
+            message: 'Room not found',
+          },
+          { status: 404 },
+        );
+      }
+
       const replayMatch = url.pathname.match(/^\/replay\/([A-Z0-9]{5})$/);
       if (replayMatch && request.method === 'GET') {
         const ipHash = await hashIp(

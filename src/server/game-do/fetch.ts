@@ -8,6 +8,18 @@ import { shouldClearDisconnectMarker } from './session';
 
 const MAX_SPECTATORS_PER_ROOM = 8;
 
+const isSpectatorRequest = (url: URL): boolean => {
+  if (url.searchParams.get('viewer') === 'spectator') {
+    return true;
+  }
+
+  const spectator = url.searchParams.get('spectator');
+  return (
+    spectator !== null &&
+    !['', '0', 'false', 'no'].includes(spectator.trim().toLowerCase())
+  );
+};
+
 export type GameDoFetchDeps = {
   handleInit: (request: Request) => Promise<Response>;
   handleJoinCheck: (request: Request) => Promise<Response>;
@@ -66,7 +78,7 @@ export const handleGameDoFetch = async (
       status: 426,
     });
   }
-  if (url.searchParams.get('viewer') === 'spectator') {
+  if (isSpectatorRequest(url)) {
     const roomConfig = await deps.getRoomConfig();
 
     if (!roomConfig) {

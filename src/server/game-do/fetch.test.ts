@@ -87,6 +87,20 @@ describe('handleGameDoFetch', () => {
     expect(deps.resolveJoinAttempt).not.toHaveBeenCalled();
   });
 
+  it('treats truthy spectator query params as spectator websocket joins', async () => {
+    const deps = makeDeps({
+      getRoomConfig: vi.fn().mockResolvedValue(null),
+    });
+    const req = new Request(`${baseUrl}/ws?spectator=1`, {
+      headers: { Upgrade: 'websocket' },
+    });
+
+    const res = await handleGameDoFetch(deps, req);
+
+    expect(res.status).toBe(404);
+    expect(deps.resolveJoinAttempt).not.toHaveBeenCalled();
+  });
+
   it('returns 429 when spectator capacity is already full', async () => {
     const deps = makeDeps({
       getRoomConfig: vi.fn().mockResolvedValue({
