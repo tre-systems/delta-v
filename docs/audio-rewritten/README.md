@@ -30,7 +30,7 @@ The documentation set covers the following purposes. The game specification hold
 
 ### Compiled book editions
 
-Both editions compile every doc in this index into a single consolidated PDF with a cover, parts-break, and table of contents. They are rebuilt with the docs-book and docs-book-audio npm scripts. The audio edition renders pre-authored TTS-friendly prose from the audio-rewritten directory; those rewrites are refreshed manually, so the audio edition can lag the main book by a few days after a documentation sweep — tracked in the backlog under "Refresh and Automate the Audio-Book Rewrites".
+Both editions compile every doc in this index into a single consolidated PDF with a cover, parts-break, and table of contents. They are rebuilt with the docs-book and docs-book-audio npm scripts. The audio edition renders pre-authored text-to-speech-friendly prose from the audio-rewritten directory. The audio build records accepted source hashes in the audio-rewritten source-hashes manifest and refuses to build when a canonical chapter changes without a refreshed rewrite. After refreshing rewrites, run the audio-book command with the update-source-hashes flag once to accept the current source set.
 
 The main edition is a full book containing every canonical Markdown document, the visual concept boards under the docs-assets directory, and the appended 2018 Triplanetary rulebook as a single 25-megabyte PDF. It is intended for reading, printing, or archiving. The audio edition is a listener-friendly rewrite of the same content — roughly fifty-two thousand words, one hundred sixty-five pages, and 1.3 megabytes. Code blocks, tables, and file paths are replaced with plain-English prose for text-to-speech narration.
 

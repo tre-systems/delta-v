@@ -302,48 +302,6 @@ shows unbounded growth; don't chase it if heap stays flat.
 **Files:** first-hour measurement, no code changes unless findings
 surface.
 
-### Refresh (and Automate) the Audio-Book Rewrites (P2)
-
-`docs/audio-rewritten/` holds hand-authored, TTS-friendly prose versions
-of every canonical markdown chapter, consumed by
-[scripts/build-audio-doc-book.mjs](../scripts/build-audio-doc-book.mjs)
-to produce `docs/delta-v-documentation-book.audio.pdf`. The rewriter is
-not a script — the folder was last populated in commit
-[`ea7cb99 Refresh audio documentation book`](../docs/audio-rewritten/)
-on **2026-04-21**. Every source doc updated after that (ARCHITECTURE,
-SECURITY, PRIVACY_TECHNICAL, A11Y, REVIEW_PLAN, SPEC, BACKLOG, and
-anything else touched in the 2026-04-24 sweep) is stale in the audio
-edition. Re-running `npm run docs:book:audio` does not refresh the
-prose — it re-renders the same 2026-04-21 text through Chromium with a
-new build date.
-
-Concrete work:
-
-- Regenerate every audio-rewritten chapter whose source markdown is
-  newer. The prose style is established — spell out acronyms (HTTP,
-  SHA), replace code blocks / tables / file paths with plain-English
-  descriptions, and keep section/chapter headings so the TTS
-  navigation still tracks the main book.
-- Stop shipping stale audio PDFs: add an
-  `npm run docs:book:audio` guard that compares each source's `mtime`
-  (or git blob hash) against the rewritten counterpart and refuses to
-  build when any is stale, printing the list of chapters that need a
-  new pass. The build script already loads chapters from the same
-  `parts` config, so the check is small.
-- Optional follow-up: a skeleton CLI (e.g. `scripts/refresh-audio.mjs`)
-  that drops each source chapter into a prompt for a human or LLM
-  pass, writes the output into `docs/audio-rewritten/<same-path>.md`,
-  and records a metadata timestamp. Until that lands, the refresh
-  stays a manual authorial step.
-
-Until the refresh ships, the audio PDF's front matter /
-`README.md § Compiled book editions` should flag that the audio edition
-may lag the main book by a few days after each doc sweep.
-
-**Files:** [scripts/build-audio-doc-book.mjs](../scripts/build-audio-doc-book.mjs),
-[docs/audio-rewritten/](../docs/audio-rewritten/) (every chapter),
-[README.md](../README.md) (compiled-book section)
-
 ### Optional Deduplication of Initial Publication Path (P3)
 
 `initGameSession` already publishes via the same `GameDO.publishStateChange` to
