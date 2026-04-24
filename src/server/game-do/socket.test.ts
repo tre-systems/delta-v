@@ -33,7 +33,10 @@ describe('socket helpers', () => {
 
     expect(parseClientSocketMessage('{bad json')).toEqual({
       ok: false,
-      error: 'Invalid JSON',
+      error: {
+        message: 'Invalid JSON',
+        code: 'MALFORMED_JSON',
+      },
     });
   });
 
@@ -41,7 +44,34 @@ describe('socket helpers', () => {
     const oversized = 'x'.repeat(WS_MAX_MESSAGE_BYTES + 1);
     expect(parseClientSocketMessage(oversized)).toEqual({
       ok: false,
-      error: `Message exceeds the ${WS_MAX_MESSAGE_BYTES}-byte limit`,
+      error: {
+        message: `Message exceeds the ${WS_MAX_MESSAGE_BYTES}-byte limit`,
+        code: 'INVALID_INPUT',
+      },
+    });
+  });
+
+  it('classifies unknown action and chat-length parse errors', () => {
+    expect(
+      parseClientSocketMessage(JSON.stringify({ type: 'godMode' })),
+    ).toEqual({
+      ok: false,
+      error: {
+        message: 'Unknown message type: godMode',
+        code: 'UNKNOWN_ACTION_TYPE',
+      },
+    });
+
+    expect(
+      parseClientSocketMessage(
+        JSON.stringify({ type: 'chat', text: 'x'.repeat(201) }),
+      ),
+    ).toEqual({
+      ok: false,
+      error: {
+        message: 'Chat message exceeds the 200-character limit',
+        code: 'CHAT_TOO_LONG',
+      },
     });
   });
 

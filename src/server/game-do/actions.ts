@@ -416,6 +416,9 @@ const mapEngineErrorToActionRejectedReason = (
     case ErrorCode.INVALID_SELECTION:
       return 'invalidSelection';
     case ErrorCode.INVALID_INPUT:
+    case ErrorCode.MALFORMED_JSON:
+    case ErrorCode.UNKNOWN_ACTION_TYPE:
+    case ErrorCode.CHAT_TOO_LONG:
       return 'invalidInput';
     case ErrorCode.NOT_ALLOWED:
       return 'notAllowed';

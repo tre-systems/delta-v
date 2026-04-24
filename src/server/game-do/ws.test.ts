@@ -104,7 +104,7 @@ describe('handleGameDoWebSocketMessage', () => {
     });
   });
 
-  it('sends invalid-input errors for malformed messages', async () => {
+  it('sends typed protocol errors for malformed messages', async () => {
     const send = vi.fn();
 
     await handleGameDoWebSocketMessage(
@@ -126,7 +126,8 @@ describe('handleGameDoWebSocketMessage', () => {
       expect.anything(),
       expect.objectContaining({
         type: 'error',
-        code: 'INVALID_INPUT',
+        message: 'Invalid JSON',
+        code: 'MALFORMED_JSON',
       }),
     );
   });
