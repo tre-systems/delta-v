@@ -225,9 +225,10 @@ export const createConnectionManager = (
   };
 
   const handleSocketClose = (socket: WebSocket, ev: CloseEvent) => {
-    if (runtime.ws === socket) {
-      runtime.ws = null;
+    if (runtime.ws !== socket) {
+      return;
     }
+    runtime.ws = null;
     runtime.lastClose = {
       code: ev.code,
       reason: ev.reason,
@@ -246,6 +247,7 @@ export const createConnectionManager = (
     runtime.suppressDisconnectHandling = false;
     runtime.lastClose = null;
     const spectator = deps.isSpectatorSession();
+    const previousSocket = runtime.ws;
     const socket = new WebSocketCtor(
       buildWebSocketUrl(
         location,
@@ -255,6 +257,7 @@ export const createConnectionManager = (
       ),
     );
     runtime.ws = socket;
+    previousSocket?.close();
     socket.onmessage = (e) => {
       handleSocketMessage(e.data);
     };
