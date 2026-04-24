@@ -113,6 +113,27 @@ describe('ShipListView', () => {
     expect(details).not.toContain('Cargo');
   });
 
+  it('exposes full ship name and fuel in the entry title', () => {
+    const view = createShipListView({ onSelectShip: vi.fn() });
+    view.setMobile(true);
+
+    view.update(
+      [
+        createShip({
+          id: asShipId('corvette'),
+          type: 'corvette',
+          fuel: 20,
+        }),
+      ],
+      null,
+      new Map(),
+    );
+
+    const entry = document.querySelector<HTMLElement>('#shipList .ship-entry');
+
+    expect(entry?.title).toBe('Corvette 20/20');
+  });
+
   it('marks destroyed ships and does not emit clicks for them', () => {
     const onSelectShip = vi.fn<(shipId: string) => void>();
     const view = createShipListView({ onSelectShip });
