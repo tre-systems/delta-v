@@ -36,7 +36,7 @@
 
   .hud-bottom {
     left: var(--hud-edge-left);
-    right: var(--hud-edge-right);
+    right: calc(var(--hud-edge-right) + 3rem);
     bottom: calc(0.85rem + var(--safe-bottom));
     width: auto;
     max-width: none;
@@ -44,7 +44,7 @@
     align-items: center;
     box-sizing: border-box;
     padding-left: var(--hud-minimap-gutter);
-    padding-right: 3.5rem;
+    padding-right: 0;
   }
 
   .hud-bottom-buttons {
