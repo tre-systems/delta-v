@@ -297,62 +297,6 @@ gaps are narrower:
 
 ## Architecture & Correctness
 
-### Lock Rulebook Constants Against Silent Drift (P3)
-
-The 2026-04-24 rules-conformance spot-check sampled four concrete rules
-from [SPEC.md](./SPEC.md) against the engine — all four conform today:
-
-- **Velocity combat modifier** (SPEC: "subtract 1 per hex of relative
-  velocity above 2") → `VELOCITY_MODIFIER_THRESHOLD = 2` in
-  [src/shared/constants.ts](../src/shared/constants.ts), applied as
-  `max(0, velDiff - 2)` in
-  [src/shared/combat.ts:250](../src/shared/combat.ts).
-- **Mine / nuke self-destruct** (SPEC: "Remain active for 5 turns") →
-  `ORDNANCE_LIFETIME = 5`.
-- **Anti-nuke odds** (SPEC: "Guns and planetary defenses may attack
-  nukes at 2:1 odds") → `ANTI_NUKE_ODDS = '2:1'`, applied with range +
-  velocity mods, any disabling result destroys
-  ([src/shared/engine/combat.ts:89-94](../src/shared/engine/combat.ts)).
-- **Asteroid damage** (SPEC: "D1 on rolls 5–6 (2018 rulebook)" at
-  speed > 1) → `OTHER_DAMAGE_TABLES.asteroid = [0,0,0,0,1,1]` with
-  `if (speed <= 1) return;` gate at
-  [src/shared/engine/ordnance.ts:897-899](../src/shared/engine/ordnance.ts).
-
-**Gap:** existing tests don't lock these exact values. The only test in
-`constants.test.ts` asserts `ORDNANCE_LIFETIME > 0` — a change to
-`4` or `10` passes silently, only the AI simulation balance gate would
-eventually flag it, and only if it swung a win-rate past the bound. Add
-a small `rulebook-constants.test.ts` that asserts the four numbers
-above plus any other SPEC-pinned values
-(`DAMAGE_ELIMINATION_THRESHOLD = 6`, `BASE_COMBAT_ODDS = '2:1'`, fuel
-costs on `SHIP_STATS`, ordnance mass values) so a rulebook change
-surfaces as a test failure, not a balance drift.
-
-**Files:** [src/shared/constants.ts](../src/shared/constants.ts),
-[src/shared/combat.ts](../src/shared/combat.ts) (`OTHER_DAMAGE_TABLES`),
-new `src/shared/rulebook-constants.test.ts` or additions to existing
-[src/shared/constants.test.ts](../src/shared/constants.test.ts),
-[docs/SPEC.md](./SPEC.md) (target of the cross-reference)
-
-### Document Torpedo Lifetime in SPEC or Engine (P3)
-
-SPEC [§ Ordnance → Torpedoes](./SPEC.md#ordnance) says torpedoes
-"Continue moving if they miss" but gives no explicit lifetime. The
-engine applies the shared `ORDNANCE_LIFETIME = 5` to all ordnance
-types — mine, torpedo, and nuke — via
-[astrogation.ts:295,308](../src/shared/engine/astrogation.ts). That is
-sensible game-balance (an orphan torpedo flying forever would eventually
-collide with something random and create confusing late-game events),
-but it is not noted in SPEC's **Accepted divergences** list.
-
-Either add a "torpedo lifetime matches mine / nuke at 5 turns" bullet
-under Accepted divergences, or split the constant so torpedoes get a
-different (or null) lifetime matching the literal SPEC phrasing. The
-first is cheaper and matches the shipped behaviour.
-
-**Files:** [docs/SPEC.md](./SPEC.md) (§ Ordnance or § Accepted
-divergences)
-
 ### Content-Hashed Client Asset URLs + Long-Lived Cache (P2)
 
 `https://delta-v.tre.systems/client.js` today returns
