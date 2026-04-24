@@ -71,9 +71,11 @@ stable: assign each ship a turn-local role such as `carrier`, `escort`,
 `interceptor`, `refuel`, `race`, or `screen`, then let the role choose a smaller
 set of priorities.
 
-Action: introduce a lightweight role assignment step for AI phases that need
-coordination. Use it first for convoy / evacuation passenger carriers and
-escorts, then reuse it for Grand Tour race/refuel decisions if it proves useful.
+Action: continue expanding the lightweight role assignment step for AI phases
+that need coordination. The first pass now classifies convoy / evacuation
+passenger ships as carrier, escort, screen, or refuel and feeds passenger
+astrogation scoring. Next, reuse the same idea for Grand Tour race/refuel
+decisions if it proves useful.
 
 **Files:** `src/shared/ai/logistics.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`

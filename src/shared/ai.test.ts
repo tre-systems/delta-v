@@ -53,7 +53,11 @@ import {
   planShortHorizonMovementToHex,
 } from './ai/common';
 import { AI_CONFIG } from './ai/config';
-import { scorePassengerEscortCourse } from './ai/logistics';
+import {
+  assignPassengerShipRoles,
+  getPrimaryPassengerCarrier,
+  scorePassengerEscortCourse,
+} from './ai/logistics';
 import {
   assessNukeBallisticToEnemy,
   evaluateOrdnanceLaunchIntercept,
@@ -1028,6 +1032,69 @@ describe('buildAIFleetPurchases', () => {
   });
 });
 describe('aiLogistics', () => {
+  it('assigns passenger mission roles before tactical scoring', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('LOG-ROLES'),
+      findBaseHex,
+    );
+    const liner = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'liner'),
+    );
+    const tanker = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'tanker'),
+    );
+    const frigate = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'frigate'),
+    );
+
+    liner.position = { q: 3, r: 0 };
+    liner.velocity = { dq: 1, dr: 0 };
+    tanker.position = liner.position;
+    tanker.velocity = liner.velocity;
+    tanker.lifecycle = 'active';
+    frigate.position = { q: 2, r: 0 };
+    frigate.velocity = { dq: 1, dr: 0 };
+    frigate.lifecycle = 'active';
+
+    const roles = assignPassengerShipRoles(state, 0, map);
+
+    expect(roles.get(liner.id)).toBe('carrier');
+    expect(roles.get(tanker.id)).toBe('refuel');
+    expect(roles.get(frigate.id)).toBe('escort');
+  });
+
+  it('prefers the passenger carrier with the better arrival line on equal load', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.evacuation,
+      map,
+      asGameId('LOG-CARRIER'),
+      findBaseHex,
+    );
+    const transport = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'transport'),
+    );
+    const corvette = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'corvette'),
+    );
+    const targetBody = must(
+      map.bodies.find((body) => body.name === state.players[0].targetBody),
+    );
+
+    transport.passengersAboard = 10;
+    transport.position = {
+      q: targetBody.center.q + 12,
+      r: targetBody.center.r,
+    };
+    transport.fuel = 0;
+    corvette.passengersAboard = 10;
+    corvette.position = targetBody.center;
+    corvette.fuel = 5;
+
+    expect(getPrimaryPassengerCarrier(state, 0, map)?.id).toBe(corvette.id);
+  });
+
   it('flags passenger transfers from a viable carrier to a worse arrival carrier', () => {
     const state = createGameOrThrow(
       SCENARIOS.evacuation,
