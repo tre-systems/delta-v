@@ -353,37 +353,6 @@ first is cheaper and matches the shipped behaviour.
 **Files:** [docs/SPEC.md](./SPEC.md) (§ Ordnance or § Accepted
 divergences)
 
-### Ship a Minified Client Bundle (P1)
-
-The 2026-04-24 perf review measured the **deployed**
-`https://delta-v.tre.systems/client.js` at **860 799 bytes raw / 174 KB
-gzip**. `esbuild.client.mjs` only minifies when `NODE_ENV=production`, but
-both `.github/workflows/ci.yml` (`run: npm run build`) and the `npm run
-deploy` path invoke the build with the default dev environment — so the
-shipped bundle is unminified.
-
-A local repro with `NODE_ENV=production node esbuild.client.mjs` produces
-**397 133 bytes raw / 117 KB gzip** — a 54% size cut with one environment
-flag. On a 1 Mbps mobile connection that is roughly 4 s of download time
-saved per cold visit, plus the parse/execute reduction from dropping
-~460 KB of whitespace and identifier padding.
-
-Cheapest fix: drop the env-gate in `esbuild.client.mjs` and always minify
-production-shaped builds, then keep `esbuild.watch.mjs` (dev-watch) as the
-only unminified path. Second-cheapest: export `NODE_ENV=production` in the
-`"build"` npm script (and the `"deploy"` step) so the ungated expression
-still fires.
-
-No code-shape risk — the bundle composition is already flat (no single
-module > 3.0% of the minified bundle; `shared/ai/astrogation.ts` is the
-biggest at 3.0%). The whole gain is operational.
-
-**Files:** [esbuild.client.mjs](../esbuild.client.mjs),
-[package.json](../package.json) (`scripts.build`, `scripts.deploy`),
-[.github/workflows/ci.yml](../.github/workflows/ci.yml)
-(build + deploy steps), [docs/ARCHITECTURE.md](./ARCHITECTURE.md) (update
-the bundle baseline once minification ships)
-
 ### Content-Hashed Client Asset URLs + Long-Lived Cache (P2)
 
 `https://delta-v.tre.systems/client.js` today returns
