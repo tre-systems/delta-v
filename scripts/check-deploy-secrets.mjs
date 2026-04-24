@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Pre-deploy gate: refuse to ship when AGENT_TOKEN_SECRET is missing on
+// Pre-deploy gate: refuse to ship when required production secrets are missing on
 // the target Cloudflare environment. Runs `wrangler secret list` (which
 // hits the remote environment) and exits 1 if the expected secret is
 // absent, so a careless `npm run deploy` can't accidentally ship a
-// Worker that silently falls through to the dev placeholder.
+// Worker that silently falls through to dev placeholders.
 //
 // Skip with DELTA_V_SKIP_DEPLOY_CHECK=1 when the deploy is deliberate
 // (e.g. first deploy on a fresh environment that is about to receive
@@ -11,7 +11,7 @@
 
 import { spawnSync } from 'node:child_process';
 
-const REQUIRED_SECRETS = ['AGENT_TOKEN_SECRET'];
+const REQUIRED_SECRETS = ['AGENT_TOKEN_SECRET', 'IP_HASH_SALT'];
 
 if (process.env.DELTA_V_SKIP_DEPLOY_CHECK === '1') {
   console.log('check-deploy-secrets: skipped via DELTA_V_SKIP_DEPLOY_CHECK=1');
@@ -57,7 +57,7 @@ if (missing.length > 0) {
     `check-deploy-secrets: missing required secrets on this environment: ${missing.join(', ')}`,
   );
   console.error(
-    'Set them with:  wrangler secret put AGENT_TOKEN_SECRET   (then rerun deploy)',
+    `Set them with:  ${missing.map((secret) => `wrangler secret put ${secret}`).join('  &&  ')}   (then rerun deploy)`,
   );
   console.error(
     'Override for an intentional first deploy:  DELTA_V_SKIP_DEPLOY_CHECK=1 npm run deploy',
