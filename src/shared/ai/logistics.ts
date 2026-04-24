@@ -127,9 +127,10 @@ export const isPassengerEscortMission = (
   deriveCapabilities(state.scenarioRules).targetWinRequiresPassengers &&
   !!state.players[playerId]?.targetBody;
 
-export const getPrimaryPassengerCarrier = (
+const selectPrimaryPassengerCarrier = (
   state: GameState,
   playerId: PlayerId,
+  map?: SolarSystemMap,
 ): Ship | null =>
   maxBy(
     state.ships.filter(
@@ -138,8 +139,83 @@ export const getPrimaryPassengerCarrier = (
         ship.lifecycle !== 'destroyed' &&
         (ship.passengersAboard ?? 0) > 0,
     ),
-    (ship) => ship.passengersAboard ?? 0,
+    (ship) =>
+      (ship.passengersAboard ?? 0) * 1000 +
+      (map ? scorePassengerArrivalOdds(ship, playerId, state, map) : 0),
   ) ?? null;
+
+export const getPrimaryPassengerCarrier = (
+  state: GameState,
+  playerId: PlayerId,
+  map?: SolarSystemMap,
+): Ship | null => selectPrimaryPassengerCarrier(state, playerId, map);
+
+export type PassengerShipRole = 'carrier' | 'escort' | 'screen' | 'refuel';
+
+export const assignPassengerShipRoles = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+): Map<string, PassengerShipRole> => {
+  const roles = new Map<string, PassengerShipRole>();
+
+  if (!isPassengerEscortMission(state, playerId)) {
+    return roles;
+  }
+
+  const primaryCarrier = selectPrimaryPassengerCarrier(state, playerId, map);
+
+  if (primaryCarrier == null) {
+    return roles;
+  }
+
+  roles.set(primaryCarrier.id, 'carrier');
+
+  const nearestCarrierThreat = minBy(
+    getThreateningEnemies(
+      state.ships.filter(
+        (ship) => ship.owner !== playerId && ship.lifecycle !== 'destroyed',
+      ),
+    ),
+    (enemy) => hexDistance(primaryCarrier.position, enemy.position),
+  );
+  const threatStrength =
+    nearestCarrierThreat != null
+      ? getCombatStrength([nearestCarrierThreat])
+      : 0;
+
+  for (const ship of state.ships) {
+    if (
+      ship.owner !== playerId ||
+      ship.id === primaryCarrier.id ||
+      ship.lifecycle !== 'active' ||
+      ship.baseStatus === 'emplaced' ||
+      (ship.passengersAboard ?? 0) > 0
+    ) {
+      continue;
+    }
+
+    if (
+      ship.type === 'tanker' &&
+      hexEqual(ship.position, primaryCarrier.position) &&
+      ship.velocity.dq === primaryCarrier.velocity.dq &&
+      ship.velocity.dr === primaryCarrier.velocity.dr
+    ) {
+      roles.set(ship.id, 'refuel');
+      continue;
+    }
+
+    if (!canAttack(ship)) {
+      continue;
+    }
+
+    const shipStrength = getCombatStrength([ship]);
+
+    roles.set(ship.id, shipStrength >= threatStrength ? 'escort' : 'screen');
+  }
+
+  return roles;
+};
 
 export const getThreateningEnemies = (enemyShips: Ship[]): Ship[] =>
   enemyShips.filter((enemy) => canAttack(enemy));
