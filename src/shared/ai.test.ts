@@ -1,4 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  findFuelStallShipIds,
+  type SimulationFailureCapture,
+} from '../../scripts/simulate-ai';
 import {
   aiCombat,
   aiLogistics,
@@ -86,6 +91,12 @@ const openMap: SolarSystemMap = {
   bodies: [],
   bounds: { minQ: -50, maxQ: 50, minR: -50, maxR: 50 },
 };
+
+const loadAIFailureFixture = (name: string): SimulationFailureCapture =>
+  JSON.parse(
+    readFileSync(new URL(`./ai/__fixtures__/${name}`, import.meta.url), 'utf8'),
+  ) as SimulationFailureCapture;
+
 beforeEach(() => {
   map = buildSolarSystemMap();
 });
@@ -1841,6 +1852,28 @@ describe('aiAstrogation — checkpoint race', () => {
     const [order] = aiAstrogation(state, 0, map, 'hard');
 
     expect(order.burn).not.toBeNull();
+  });
+  it('grandTour: captured fuel-stall fixture now picks an active order', () => {
+    const fixture = loadAIFailureFixture('grand-tour-fuel-stall.json');
+    const orders = aiAstrogation(
+      fixture.state,
+      fixture.activePlayer,
+      map,
+      fixture.difficulty,
+    );
+    const stalledShipIds = findFuelStallShipIds(
+      fixture.state,
+      fixture.activePlayer,
+      orders,
+    );
+    const stalledShipId = must(fixture.stalledShipIds?.[0]);
+    const order = must(
+      orders.find((candidate) => candidate.shipId === stalledShipId),
+    );
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(stalledShipIds).toEqual([]);
+    expect(order.burn !== null || order.land === true).toBe(true);
   });
   it('grandTour: avoids re-landing on the wrong checkpoint body while racing to the next one', () => {
     const state = createGameOrThrow(

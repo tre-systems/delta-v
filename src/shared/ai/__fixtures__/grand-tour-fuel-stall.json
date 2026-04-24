@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "scenario": "grandTour",
+  "seed": 2654435770,
+  "gameIndex": 0,
+  "playerDifficulties": {
+    "p0": "hard",
+    "p1": "hard"
+  },
+  "kind": "fuelStall",
+  "turnNumber": 43,
+  "phase": "astrogation",
+  "activePlayer": 0,
+  "difficulty": "hard",
+  "state": {
+    "schemaVersion": 1,
+    "gameId": "sim-grandTour-2654435770",
+    "scenario": "grandTour",
+    "scenarioRules": {
+      "planetaryDefenseEnabled": true,
+      "hiddenIdentityInspection": false,
+      "escapeEdge": "any",
+      "combatDisabled": true,
+      "checkpointBodies": [
+        "Sol",
+        "Mercury",
+        "Venus",
+        "Terra",
+        "Mars",
+        "Jupiter",
+        "Io",
+        "Callisto"
+      ],
+      "sharedBases": ["Terra", "Venus", "Mars", "Callisto"]
+    },
+    "escapeMoralVictoryAchieved": false,
+    "turnNumber": 43,
+    "phase": "astrogation",
+    "activePlayer": 0,
+    "ships": [
+      {
+        "id": "p0s0",
+        "type": "corvette",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": -9,
+          "r": 10
+        },
+        "lastMovementPath": [
+          {
+            "q": -9,
+            "r": 10
+          }
+        ],
+        "velocity": {
+          "dq": 0,
+          "dr": 0
+        },
+        "fuel": 5,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": false,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "lastBurnDirection": 0
+      },
+      {
+        "id": "p1s0",
+        "type": "corvette",
+        "owner": 1,
+        "originalOwner": 1,
+        "position": {
+          "q": -3,
+          "r": -2
+        },
+        "lastMovementPath": [
+          {
+            "q": -4,
+            "r": 0
+          },
+          {
+            "q": -3,
+            "r": -1
+          },
+          {
+            "q": -3,
+            "r": -2
+          }
+        ],
+        "velocity": {
+          "dq": 1,
+          "dr": -2
+        },
+        "fuel": 16,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": false,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "lastBurnDirection": 2
+      }
+    ],
+    "ordnance": [],
+    "pendingAstrogationOrders": null,
+    "pendingAsteroidHazards": [],
+    "destroyedAsteroids": [],
+    "destroyedBases": [],
+    "players": [
+      {
+        "connected": true,
+        "ready": true,
+        "targetBody": "",
+        "homeBody": "Luna",
+        "bases": [
+          "10,-7",
+          "10,-8",
+          "9,-8",
+          "8,-7",
+          "8,-6",
+          "9,-6",
+          "-5,5",
+          "-5,7",
+          "-7,5",
+          "-9,7",
+          "-9,9",
+          "-7,9",
+          "7,-7",
+          "3,-3",
+          "7,-5",
+          "5,-7",
+          "3,-5",
+          "5,-3",
+          "-8,-6",
+          "-10,-4",
+          "-8,-5",
+          "-9,-6",
+          "-10,-5",
+          "-9,-4",
+          "-5,-16"
+        ],
+        "escapeWins": false,
+        "visitedBodies": ["Luna", "Sol", "Mercury", "Terra", "Venus"],
+        "totalFuelSpent": 33
+      },
+      {
+        "connected": true,
+        "ready": true,
+        "targetBody": "",
+        "homeBody": "Mars",
+        "bases": [
+          "-8,-6",
+          "-10,-4",
+          "-8,-5",
+          "-9,-6",
+          "-10,-5",
+          "-9,-4",
+          "-5,5",
+          "-5,7",
+          "-7,5",
+          "-9,7",
+          "-9,9",
+          "-7,9",
+          "7,-7",
+          "3,-3",
+          "7,-5",
+          "5,-7",
+          "3,-5",
+          "5,-3",
+          "-5,-16"
+        ],
+        "escapeWins": false,
+        "visitedBodies": [
+          "Mars",
+          "Jupiter",
+          "Callisto",
+          "Io",
+          "Terra",
+          "Sol",
+          "Mercury",
+          "Venus"
+        ],
+        "totalFuelSpent": 36
+      }
+    ],
+    "outcome": null
+  },
+  "action": {
+    "type": "astrogation",
+    "orders": [
+      {
+        "shipId": "p0s0",
+        "burn": null,
+        "overload": null
+      }
+    ]
+  },
+  "stalledShipIds": ["p0s0"]
+}
