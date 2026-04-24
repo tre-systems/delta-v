@@ -23,6 +23,7 @@ const metrics = (
       invalidActions: 0,
       invalidActionPhases: {},
       fuelStalls: 0,
+      passengerTransferMistakes: 0,
     },
     reasons: { 'Landed on Terra with colonists!': 20 },
   };
@@ -51,6 +52,7 @@ describe('evaluateSimulationPolicies', () => {
         invalidActions: 1,
         invalidActionPhases: { astrogation: 1 },
         fuelStalls: 5,
+        passengerTransferMistakes: 2,
       },
       reasons: {
         'Landed on Venus with colonists!': 6,
@@ -75,6 +77,8 @@ describe('evaluateSimulationPolicies', () => {
     expect(scorecard.invalidActionShare).toBe(0.05);
     expect(scorecard.fuelStalls).toBe(5);
     expect(scorecard.fuelStallsPerGame).toBe(0.25);
+    expect(scorecard.passengerTransferMistakes).toBe(2);
+    expect(scorecard.passengerTransferMistakesPerGame).toBe(0.1);
   });
 
   it('fails CI policy evaluation when AI actions are rejected', () => {
@@ -86,6 +90,7 @@ describe('evaluateSimulationPolicies', () => {
           invalidActions: 1,
           invalidActionPhases: { combat: 1 },
           fuelStalls: 0,
+          passengerTransferMistakes: 0,
         },
       }),
     ]);

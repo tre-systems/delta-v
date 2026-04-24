@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   findFuelStallShipIds,
+  findPassengerTransferMistakes,
   type SimulationFailureCapture,
 } from '../../scripts/simulate-ai';
 import {
@@ -17,6 +18,7 @@ import type {
   GameState,
   OrdnanceLaunch,
   PlayerId,
+  TransferOrder,
 } from './types/domain';
 
 // Deterministic RNG for test calls that historically omitted the parameter.
@@ -1026,6 +1028,49 @@ describe('buildAIFleetPurchases', () => {
   });
 });
 describe('aiLogistics', () => {
+  it('flags passenger transfers from a viable carrier to a worse arrival carrier', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.evacuation,
+      map,
+      asGameId('LOG0'),
+      findBaseHex,
+    );
+    const transport = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'transport'),
+    );
+    const corvette = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'corvette'),
+    );
+    const targetBody = must(
+      map.bodies.find((body) => body.name === state.players[0].targetBody),
+    );
+    const transfer: TransferOrder = {
+      sourceShipId: transport.id,
+      targetShipId: corvette.id,
+      transferType: 'passengers',
+      amount: 5,
+    };
+
+    state.phase = 'logistics';
+    state.activePlayer = 0;
+    transport.position = targetBody.center;
+    transport.velocity = { dq: 0, dr: 0 };
+    transport.fuel = 10;
+    transport.passengersAboard = 20;
+    corvette.position = { q: targetBody.center.q + 12, r: targetBody.center.r };
+    corvette.velocity = { dq: 0, dr: 0 };
+    corvette.fuel = 0;
+    corvette.cargoUsed = 0;
+
+    expect(findPassengerTransferMistakes(state, 0, [transfer], map)).toEqual([
+      expect.objectContaining({
+        sourceShipId: transport.id,
+        targetShipId: corvette.id,
+        amount: 5,
+      }),
+    ]);
+  });
+
   it('moves passengers onto a stronger escort during rescue scenarios', () => {
     const state = createGameOrThrow(
       SCENARIOS.evacuation,
