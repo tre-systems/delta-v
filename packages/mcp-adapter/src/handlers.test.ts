@@ -16,6 +16,7 @@ import {
 import { buildMcpServer, handleMcpHttpRequest } from './handlers';
 
 const TEST_SECRET = 'mcp-handlers-test-secret-must-be-16-chars';
+const TEST_IP_HASH_SALT = 'mcp-handlers-test-ip-hash-salt';
 
 // Helper: build a fake DurableObjectStub that records GAME DO fetches and
 // returns whatever JSON we tell it to. The Worker's MCP tools delegate to
@@ -47,6 +48,7 @@ const buildEnv = (
     MATCHMAKER: namespace, // not exercised here; keep shape
     LIVE_REGISTRY: liveRegistry,
     AGENT_TOKEN_SECRET: TEST_SECRET,
+    IP_HASH_SALT: TEST_IP_HASH_SALT,
   } as unknown as Env;
   return { env, calls };
 };
@@ -86,7 +88,11 @@ const post = (body: unknown): Request =>
 const findSampledIp = async (): Promise<string> => {
   for (let index = 1; index < 256; index++) {
     const candidate = `10.0.1.${index}`;
-    if (shouldSampleOperationalLog(await hashIp(candidate))) {
+    if (
+      shouldSampleOperationalLog(
+        await hashIp(candidate, { IP_HASH_SALT: TEST_IP_HASH_SALT }),
+      )
+    ) {
       return candidate;
     }
   }
@@ -97,6 +103,7 @@ describe('handleMcpHttpRequest abuse protections', () => {
   it('returns 500 when AGENT_TOKEN_SECRET is missing in production mode', async () => {
     const res = await handleMcpHttpRequest(post(initializeBody), {
       GAME: {},
+      IP_HASH_SALT: TEST_IP_HASH_SALT,
     } as unknown as Env);
     expect(res.status).toBe(500);
     const body = (await res.json()) as { error: string };
@@ -144,6 +151,7 @@ describe('handleMcpHttpRequest abuse protections', () => {
       GAME: {},
       MATCHMAKER: {},
       AGENT_TOKEN_SECRET: TEST_SECRET,
+      IP_HASH_SALT: TEST_IP_HASH_SALT,
       MCP_RATE_LIMITER: { limit },
     } as unknown as Env;
     const res = await handleMcpHttpRequest(
@@ -194,6 +202,7 @@ describe('handleMcpHttpRequest abuse protections', () => {
       GAME: {},
       MATCHMAKER: {},
       AGENT_TOKEN_SECRET: TEST_SECRET,
+      IP_HASH_SALT: TEST_IP_HASH_SALT,
       MCP_RATE_LIMITER: { limit },
     } as unknown as Env;
     const { token } = await issueAgentToken({

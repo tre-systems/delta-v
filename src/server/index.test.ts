@@ -50,6 +50,7 @@ type MockEnv = {
   };
   DB: MockDb;
   AGENT_TOKEN_SECRET?: string;
+  IP_HASH_SALT?: string;
   INTERNAL_METRICS_TOKEN?: string;
   DEV_MODE?: string;
   CF_VERSION_METADATA?: {
@@ -97,7 +98,11 @@ const mockCtx = (): MockExecutionContext => ({
 const findSampledIp = async (): Promise<string> => {
   for (let index = 1; index < 256; index++) {
     const candidate = `10.0.0.${index}`;
-    if (shouldSampleOperationalLog(await hashIp(candidate))) {
+    if (
+      shouldSampleOperationalLog(
+        await hashIp(candidate, { IP_HASH_SALT: 'index-test-ip-hash-salt' }),
+      )
+    ) {
       return candidate;
     }
   }
@@ -143,6 +148,7 @@ const createEnv = (
     },
     DB: mockDb(),
     AGENT_TOKEN_SECRET: 'mcp-handlers-test-secret-must-be-16-chars',
+    IP_HASH_SALT: 'index-test-ip-hash-salt',
     DEV_MODE: '0',
     ...overrides,
   };
@@ -1423,23 +1429,51 @@ describe('/telemetry endpoint', () => {
 
 describe('hashIp', () => {
   it('returns a 16-char hex string', async () => {
-    const hash = await hashIp('192.168.1.1');
+    const hash = await hashIp('192.168.1.1', {
+      IP_HASH_SALT: 'index-test-ip-hash-salt',
+    });
 
     expect(hash).toMatch(/^[0-9a-f]{16}$/);
   });
 
   it('returns same hash for same input', async () => {
-    const a = await hashIp('10.0.0.1');
-    const b = await hashIp('10.0.0.1');
+    const a = await hashIp('10.0.0.1', {
+      IP_HASH_SALT: 'index-test-ip-hash-salt',
+    });
+    const b = await hashIp('10.0.0.1', {
+      IP_HASH_SALT: 'index-test-ip-hash-salt',
+    });
 
     expect(a).toBe(b);
   });
 
   it('returns different hashes for different IPs', async () => {
-    const a = await hashIp('10.0.0.1');
-    const b = await hashIp('10.0.0.2');
+    const a = await hashIp('10.0.0.1', {
+      IP_HASH_SALT: 'index-test-ip-hash-salt',
+    });
+    const b = await hashIp('10.0.0.2', {
+      IP_HASH_SALT: 'index-test-ip-hash-salt',
+    });
 
     expect(a).not.toBe(b);
+  });
+
+  it('changes the hash when the salt changes', async () => {
+    const a = await hashIp('10.0.0.1', {
+      IP_HASH_SALT: 'index-test-ip-hash-salt',
+    });
+    const b = await hashIp('10.0.0.1', {
+      IP_HASH_SALT: 'other-index-test-ip-hash-salt',
+    });
+
+    expect(a).not.toBe(b);
+  });
+
+  it('allows a deterministic dev fallback only in DEV_MODE', async () => {
+    await expect(hashIp('10.0.0.1', {})).rejects.toThrow('IP_HASH_SALT');
+    await expect(hashIp('10.0.0.1', { DEV_MODE: '1' })).resolves.toMatch(
+      /^[0-9a-f]{16}$/,
+    );
   });
 });
 
@@ -1484,14 +1518,14 @@ describe('/create rate limiting', () => {
     );
 
     const body = (await response.json()) as { code: string };
-    const ipHash = await hashIp('1.2.3.4');
+    const ipHash = await hashIp('1.2.3.4', env);
 
     expect(activeRoomMap.get(ipHash)?.has(body.code)).toBe(true);
   });
 
   it('returns 429 when the active-room cap is already reached', async () => {
     const { env, initFetch } = createEnv();
-    const ipHash = await hashIp('1.2.3.4');
+    const ipHash = await hashIp('1.2.3.4', env);
     for (let i = 0; i < 25; i++) {
       registerActiveRoom(ipHash, `ROOM${i}`);
     }

@@ -55,10 +55,12 @@ simple = { limit = 20, period = 60 }
 crons = ["0 4 * * *"]
 
 [vars]
-# Production: keep `DEV_MODE=0` so missing `AGENT_TOKEN_SECRET` never falls
-# through to the public dev placeholder. For local `wrangler dev`, copy
-# `.dev.vars.example` → `.dev.vars` and set `DEV_MODE=1` (and optionally a
-# local `AGENT_TOKEN_SECRET`) — Wrangler merges `.dev.vars` over these defaults.
+# Production: keep `DEV_MODE=0` so missing `AGENT_TOKEN_SECRET` or
+# `IP_HASH_SALT` never falls through to public dev placeholders. Set both with
+# `wrangler secret put ...` before deploy. For local `wrangler dev`, copy
+# `.dev.vars.example` → `.dev.vars` and set `DEV_MODE=1` (and optionally local
+# `AGENT_TOKEN_SECRET` / `IP_HASH_SALT` values) — Wrangler merges `.dev.vars`
+# over these defaults.
 DEV_MODE = "0"
 
 [observability]
