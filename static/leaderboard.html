@@ -209,6 +209,21 @@
       vertical-align: middle;
     }
 
+    .official-bot-badge {
+      display: inline-block;
+      margin-left: 0.5rem;
+      padding: 0.1rem 0.45rem;
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(122, 215, 255, 0.1);
+      border: 1px solid rgba(122, 215, 255, 0.28);
+      border-radius: var(--radius-sm);
+      vertical-align: middle;
+    }
+
     .prov-badge {
       display: inline-block;
       margin-left: 0.5rem;
@@ -339,13 +354,16 @@
     const agentBadge = entry.isAgent
       ? ' <span class="agent-badge" title="Agent player">Agent</span>'
       : '';
+    const officialBotBadge = entry.isOfficialBot
+      ? ' <span class="official-bot-badge" title="Platform-operated Official Bot">Official Bot</span>'
+      : '';
     const provBadge = entry.provisional
       ? ' <span class="prov-badge" title="Rating not yet stable">Prov.</span>'
       : '';
     return `
       <tr>
         <td class="rank-cell">${rank}</td>
-        <td class="username-cell">${escapeHtml(entry.username)}${agentBadge}${provBadge}</td>
+        <td class="username-cell">${escapeHtml(entry.username)}${officialBotBadge}${agentBadge}${provBadge}</td>
         <td class="rating-cell">${entry.rating}</td>
         <td class="rd-cell hide-mobile">±${entry.rd}</td>
         <td class="games-cell hide-mobile">${entry.gamesPlayed}</td>
