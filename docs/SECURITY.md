@@ -19,10 +19,10 @@ The authoritative-server boundary enforces these invariants on every match:
 - Client-to-server WebSocket messages are runtime-validated before any engine handler executes; malformed payloads are rejected rather than trusted structurally.
 - After a WebSocket is accepted, **per-socket message rate limiting** (10 messages per second, then close with code 1008) caps garbage traffic to the Durable Object. Chat is also throttled in-memory (minimum 500 ms between accepted chat messages per player).
 - Room codes are generated from a cryptographically strong RNG rather than `Math.random()` (see `generateRoomCode` in `src/server/protocol.ts`).
-- `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches`, `GET /api/leaderboard`, and `GET /api/leaderboard/me` share a **join-style** hashed-IP probe throttle in the Worker (**100** GETs / 60 s, per isolate). `GET /replay/:code` uses a **separate** replay probe bucket (**250** GETs / 60 s, per isolate) so replay traffic cannot exhaust the join budget.
-- `GET /ws/:code` WebSocket upgrades have a hashed-IP in-memory cap (20 upgrades / 60 s, per isolate), reducing repeated socket-churn abuse in lower environments.
-- `POST /telemetry` and `POST /error` are JSON-only with a 4 KB cap and hashed-IP window limits, limiting abuse and D1 write amplification in the default path. A daily cron (`purgeOldEvents`) deletes `events` rows older than **30 days**.
-- `POST /mcp` uses Cloudflare's edge `MCP_RATE_LIMITER` binding (20 RPM keyed on `agentToken` hash or hashed IP) with a **16 KB body cap** checked before JSON-RPC dispatch ([`packages/mcp-adapter/src/handlers.ts`](../packages/mcp-adapter/src/handlers.ts)).
+- `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches`, `GET /api/leaderboard`, and `GET /api/leaderboard/me` share a **join-style** salted hashed-IP probe throttle in the Worker (**100** GETs / 60 s, per isolate). `GET /replay/:code` uses a **separate** replay probe bucket (**250** GETs / 60 s, per isolate) so replay traffic cannot exhaust the join budget.
+- `GET /ws/:code` WebSocket upgrades have a salted hashed-IP in-memory cap (20 upgrades / 60 s, per isolate), reducing repeated socket-churn abuse in lower environments.
+- `POST /telemetry` and `POST /error` are JSON-only with a 4 KB cap and salted hashed-IP window limits, limiting abuse and D1 write amplification in the default path. A daily cron (`purgeOldEvents`) deletes `events` rows older than **30 days**.
+- `POST /mcp` uses Cloudflare's edge `MCP_RATE_LIMITER` binding (20 RPM keyed on `agentToken` hash or salted hashed IP) with a **16 KB body cap** checked before JSON-RPC dispatch ([`packages/mcp-adapter/src/handlers.ts`](../packages/mcp-adapter/src/handlers.ts)).
 - `GET /api/metrics` is **not** a public read surface. It requires `Authorization: Bearer <INTERNAL_METRICS_TOKEN>` in production and exists only for operator-facing aggregate snapshots over D1 telemetry.
 - Worker responses apply a shared hardening baseline: `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: geolocation=(), microphone=(), camera=()`.
 - Public read endpoints (`/healthz`, `/api/matches`, `/api/leaderboard`, `/api/leaderboard/me`, `/replay/:code`, and `/.well-known/agent.json`) return explicit wildcard CORS headers so browser-hosted embeds and third-party tools can consume those read-only surfaces without a same-origin proxy.
@@ -63,7 +63,7 @@ sequenceDiagram
 | `agentToken` | Long-lived agent identity (embeds `playerKey`) | 24 h, renewable | `Authorization: Bearer …` header | `POST /api/agent-token` |
 | `matchToken` | Per-match credential (HMAC payload with `code` + `playerToken`) | 4 h | Tool args field `matchToken` | `delta_v_quick_match` (when called with agentToken auth) |
 
-Both are HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET` (set via `wrangler secret put AGENT_TOKEN_SECRET` in production). The Worker **fails closed** when the secret is unset: `/mcp` and `/api/agent-token` return `500 server_misconfigured` instead of signing with a placeholder. The default `wrangler.toml` `[vars]` keeps `DEV_MODE = "0"`. For local `wrangler dev`, copy `.dev.vars.example` to `.dev.vars` and set `DEV_MODE=1` so the deterministic placeholder can engage when `AGENT_TOKEN_SECRET` is unset (Wrangler merges `.dev.vars` over `[vars]`). Production deploys do not load `.dev.vars`, so the placeholder path never engages there. `npm run deploy` also runs `scripts/check-deploy-secrets.mjs`, which calls `wrangler secret list` and refuses to proceed when `AGENT_TOKEN_SECRET` is missing on the target environment.
+Both are HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET` (set via `wrangler secret put AGENT_TOKEN_SECRET` in production). The Worker **fails closed** when the secret is unset: `/mcp` and `/api/agent-token` return `500 server_misconfigured` instead of signing with a placeholder. The default `wrangler.toml` `[vars]` keeps `DEV_MODE = "0"`. For local `wrangler dev`, copy `.dev.vars.example` to `.dev.vars` and set `DEV_MODE=1` so deterministic placeholders can engage when `AGENT_TOKEN_SECRET` or `IP_HASH_SALT` are unset (Wrangler merges `.dev.vars` over `[vars]`). Production deploys do not load `.dev.vars`, so the placeholder path never engages there. `npm run deploy` also runs `scripts/check-deploy-secrets.mjs`, which calls `wrangler secret list` and refuses to proceed when `AGENT_TOKEN_SECRET` or `IP_HASH_SALT` is missing on the target environment.
 
 `matchToken` embeds a SHA-256 hash of the issuing `agentToken`. Hosted MCP **requires** the matching `agentToken` as `Authorization: Bearer …` on every tool call that passes `matchToken` (or the hosted compatibility alias `sessionId`), so a leaked blob alone cannot be replayed.
 
@@ -113,7 +113,7 @@ flowchart TB
   E -->|no| APP["Worker in-memory gate"]
   EDGE --> APP
   APP --> ROUTE{"route class"}
-  ROUTE -->|create / claim / quick-match / agent-token| C["strict hashed-IP local bucket"]
+  ROUTE -->|create / claim / quick-match / agent-token| C["strict salted hashed-IP local bucket"]
   ROUTE -->|telemetry / error / mcp| B["binding-backed POST gate + body cap"]
   ROUTE -->|join / replay / leaderboard / upgrades| G["GET / upgrade probe buckets"]
   C --> DO{"upgrade or action?"}
@@ -125,17 +125,17 @@ flowchart TB
 
 | Endpoint / scope | Limit | Window | Scope | Binding | On exceed |
 | --- | --- | --- | --- | --- | --- |
-| `POST /create` | 5 | 60 s | per hashed IP | in-memory (strict per isolate) + Cloudflare `CREATE_RATE_LIMITER` (best-effort edge layer) | 429 + `Retry-After` |
-| `POST /api/agent-token` | 5 | 60 s | per hashed IP | reuses the same strict local bucket + `CREATE_RATE_LIMITER` edge layer | 429 |
-| `POST /quick-match` | 5 | 60 s | per hashed IP | reuses the same strict local bucket + `CREATE_RATE_LIMITER` edge layer | 429 |
-| `GET /ws/:code` (upgrade) | 20 | 60 s | per hashed IP | in-memory (per isolate) | 429 |
-| `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches` | 100 | 60 s | per hashed IP | in-memory (per isolate) | 429 |
-| `GET /replay/:code` | 250 | 60 s | per hashed IP | in-memory (per isolate, separate bucket) | 429 |
-| `POST /telemetry` | 120 | 60 s | per hashed IP | Cloudflare `TELEMETRY_RATE_LIMITER` (global), in-memory fallback; body capped at 4 KB | 429 |
-| `POST /error` | 40 | 60 s | per hashed IP | Cloudflare `ERROR_RATE_LIMITER` (global), in-memory fallback; body capped at 4 KB | 429 |
-| `POST /mcp` (hosted MCP entry) | 20 | 60 s | per `agentToken` hash (Bearer) or hashed IP | Cloudflare `MCP_RATE_LIMITER`; body capped at 16 KB | 429 + `Retry-After` |
-| `POST /api/claim-name` | 5 | 60 s | per hashed IP | reuses the same strict local bucket + `CREATE_RATE_LIMITER` edge layer | 429 |
-| `GET /api/leaderboard`, `GET /api/leaderboard/me` | 100 | 60 s | per hashed IP | in-memory (shares the join-probe bucket) | 429 |
+| `POST /create` | 5 | 60 s | per salted hashed IP | in-memory (strict per isolate) + Cloudflare `CREATE_RATE_LIMITER` (best-effort edge layer) | 429 + `Retry-After` |
+| `POST /api/agent-token` | 5 | 60 s | per salted hashed IP | reuses the same strict local bucket + `CREATE_RATE_LIMITER` edge layer | 429 |
+| `POST /quick-match` | 5 | 60 s | per salted hashed IP | reuses the same strict local bucket + `CREATE_RATE_LIMITER` edge layer | 429 |
+| `GET /ws/:code` (upgrade) | 20 | 60 s | per salted hashed IP | in-memory (per isolate) | 429 |
+| `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches` | 100 | 60 s | per salted hashed IP | in-memory (per isolate) | 429 |
+| `GET /replay/:code` | 250 | 60 s | per salted hashed IP | in-memory (per isolate, separate bucket) | 429 |
+| `POST /telemetry` | 120 | 60 s | per salted hashed IP | Cloudflare `TELEMETRY_RATE_LIMITER` (global), in-memory fallback; body capped at 4 KB | 429 |
+| `POST /error` | 40 | 60 s | per salted hashed IP | Cloudflare `ERROR_RATE_LIMITER` (global), in-memory fallback; body capped at 4 KB | 429 |
+| `POST /mcp` (hosted MCP entry) | 20 | 60 s | per `agentToken` hash (Bearer) or salted hashed IP | Cloudflare `MCP_RATE_LIMITER`; body capped at 16 KB | 429 + `Retry-After` |
+| `POST /api/claim-name` | 5 | 60 s | per salted hashed IP | reuses the same strict local bucket + `CREATE_RATE_LIMITER` edge layer | 429 |
+| `GET /api/leaderboard`, `GET /api/leaderboard/me` | 100 | 60 s | per salted hashed IP | in-memory (shares the join-probe bucket) | 429 |
 | WebSocket messages (after connect) | 10 | 1 s | per socket | in-memory (`WeakMap<WebSocket, RateWindow>`) | close 1008 |
 | Chat messages | 1 per 500 ms | — | per player ID | in-memory | silently dropped |
 | Room-code guessing | 32⁵ ≈ 33.6 M combinations | — | — | cryptographic RNG | collision-checked at `/create` |
@@ -154,7 +154,7 @@ Constants live in [`src/server/reporting.ts`](../src/server/reporting.ts) (per-I
 
 - **Cloudflare WAF** or extra `[[ratelimits]]` namespaces can cap `POST /telemetry`, `POST /error`, join/replay probes, and WebSocket upgrades *across all edge isolates*.
 - **Turnstile** on `/create` if automated room creation becomes a problem (integration surface described in §5 below).
-- WebSocket **upgrades** have a per-isolate hashed-IP window in application code but are not globally message-throttled at the edge. Two-seats-per-room plus per-socket post-upgrade message limits further blunt the abuse shape.
+- WebSocket **upgrades** have a per-isolate salted hashed-IP window in application code but are not globally message-throttled at the edge. Two-seats-per-room plus per-socket post-upgrade message limits further blunt the abuse shape.
 
 ### 4. Cost-abuse surface (current gaps)
 
@@ -216,7 +216,7 @@ Current assessment:
 - **Host-seat integrity:** good
 - **Guest-seat integrity:** acceptable for friendly matches (room-code model is deliberate)
 - **Match availability under hostile payloads:** good
-- **Rate limiting:** good — `/create`, `/api/agent-token`, `/quick-match`, and `/api/claim-name` now use a strict per-isolate hashed-IP bucket plus Cloudflare `[[ratelimits]]` as an extra edge layer; `/telemetry`, `/error`, and `/mcp` use Cloudflare bindings with in-memory fallback or companion limits; WebSocket upgrades and join/replay/match-list/leaderboard probes have per-isolate hashed-IP windows; WebSocket message flood is capped per socket (see table above); optional WAF remains available for true cross-edge caps
+- **Rate limiting:** good — `/create`, `/api/agent-token`, `/quick-match`, and `/api/claim-name` now use a strict per-isolate salted hashed-IP bucket plus Cloudflare `[[ratelimits]]` as an extra edge layer; `/telemetry`, `/error`, and `/mcp` use Cloudflare bindings with in-memory fallback or companion limits; WebSocket upgrades and join/replay/match-list/leaderboard probes have per-isolate salted hashed-IP windows; WebSocket message flood is capped per socket (see table above); optional WAF remains available for true cross-edge caps
 - **XSS posture:** good (trusted HTML boundary, no user-generated content)
 - **Room secrecy / public matchmaking readiness:** weak (short codes; default join/replay throttles are per-isolate, not global)
 

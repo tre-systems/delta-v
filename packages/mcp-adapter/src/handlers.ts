@@ -865,6 +865,7 @@ const resolveAgentIdentity = async (
   if (!verified.ok) {
     const ipHash = await hashIp(
       request.headers.get('cf-connecting-ip') ?? 'unknown',
+      env,
     );
     logSampledOperationalEvent('auth-failure', ipHash, {
       route: '/mcp',
@@ -919,7 +920,7 @@ const enforceMcpRateLimit = async (
   const bearer = extractBearerToken(request.headers.get('Authorization'));
   const key = bearer
     ? `agent:${await hashAgentToken(bearer)}`
-    : `ip:${await hashIp(request.headers.get('cf-connecting-ip') ?? 'unknown')}`;
+    : `ip:${await hashIp(request.headers.get('cf-connecting-ip') ?? 'unknown', env)}`;
   const localBlocked = isMcpRateLimitedInMemory(key);
   if (!env.MCP_RATE_LIMITER) {
     return localBlocked
@@ -959,6 +960,7 @@ export const handleMcpHttpRequest = async (
   if (!isAgentTokenSecretSet(env) && env.DEV_MODE !== '1') {
     const ipHash = await hashIp(
       request.headers.get('cf-connecting-ip') ?? 'unknown',
+      env,
     );
     logSampledOperationalEvent('auth-failure', ipHash, {
       route: '/mcp',
@@ -1012,6 +1014,7 @@ export const handleMcpHttpRequest = async (
   if (rateLimited) {
     const ipHash = await hashIp(
       request.headers.get('cf-connecting-ip') ?? 'unknown',
+      env,
     );
     logSampledOperationalEvent('rate-limit', ipHash, {
       route: '/mcp',

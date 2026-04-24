@@ -90,6 +90,7 @@ const buildQuickMatchEnqueueHeaders = async (
   const base: Record<string, string> = { 'Content-Type': contentType };
   const ipHash = await hashIp(
     incoming.headers.get('cf-connecting-ip') ?? 'unknown',
+    env,
   );
 
   let parsed: { player?: { playerKey?: unknown } };
@@ -352,6 +353,7 @@ export default {
         const ua = request.headers.get('user-agent');
         const ipHash = await hashIp(
           request.headers.get('cf-connecting-ip') ?? 'unknown',
+          env,
         );
         const audit = await inspectCreateRequest(request);
 
@@ -417,7 +419,7 @@ export default {
       if (url.pathname === '/quick-match' && request.method === 'POST') {
         if (!isLoopbackRequest(request)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-          const ipHash = await hashIp(ip);
+          const ipHash = await hashIp(ip, env);
 
           if (await isCreateRateLimited(env, ipHash)) {
             return tooManyRequests();
@@ -446,6 +448,7 @@ export default {
       if (quickMatchTicketMatch && request.method === 'GET') {
         const ipHash = await hashIp(
           request.headers.get('cf-connecting-ip') ?? 'unknown',
+          env,
         );
         if (
           checkWindowedRateLimit(
@@ -473,6 +476,7 @@ export default {
       if (joinMatch && request.method === 'GET') {
         const ipHash = await hashIp(
           request.headers.get('cf-connecting-ip') ?? 'unknown',
+          env,
         );
         if (
           checkWindowedRateLimit(
@@ -502,6 +506,7 @@ export default {
       if (replayMatch && request.method === 'GET') {
         const ipHash = await hashIp(
           request.headers.get('cf-connecting-ip') ?? 'unknown',
+          env,
         );
         if (
           checkWindowedRateLimit(
@@ -520,6 +525,7 @@ export default {
       if (url.pathname === '/error' && request.method === 'POST') {
         const ipHash = await hashIp(
           request.headers.get('cf-connecting-ip') ?? 'unknown',
+          env,
         );
         if (await isErrorReportRateLimited(env, ipHash)) {
           return tooManyRequests();
@@ -550,6 +556,7 @@ export default {
       if (url.pathname === '/telemetry' && request.method === 'POST') {
         const ipHash = await hashIp(
           request.headers.get('cf-connecting-ip') ?? 'unknown',
+          env,
         );
         if (await isTelemetryReportRateLimited(env, ipHash)) {
           return tooManyRequests();
@@ -573,7 +580,7 @@ export default {
       if (wsMatch) {
         if (!isLoopbackRequest(request)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-          const ipHash = await hashIp(ip);
+          const ipHash = await hashIp(ip, env);
 
           if (
             checkWindowedRateLimit(
@@ -593,6 +600,7 @@ export default {
       if (url.pathname === '/api/agent-token') {
         const ipHash = await hashIp(
           request.headers.get('cf-connecting-ip') ?? 'unknown',
+          env,
         );
         if (!isLoopbackRequest(request)) {
           if (await isCreateRateLimited(env, ipHash)) {
@@ -623,7 +631,7 @@ export default {
       if (url.pathname === '/api/claim-name') {
         if (!isLoopbackRequest(request)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-          const ipHash = await hashIp(ip);
+          const ipHash = await hashIp(ip, env);
           if (await isCreateRateLimited(env, ipHash)) {
             return tooManyRequests();
           }
@@ -634,7 +642,7 @@ export default {
       if (url.pathname === '/api/leaderboard' && request.method === 'GET') {
         if (!isLoopbackRequest(request)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-          const ipHash = await hashIp(ip);
+          const ipHash = await hashIp(ip, env);
           if (
             checkWindowedRateLimit(
               joinProbeRateMap,
@@ -653,7 +661,7 @@ export default {
       if (url.pathname === '/api/leaderboard/me' && request.method === 'GET') {
         if (!isLoopbackRequest(request)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-          const ipHash = await hashIp(ip);
+          const ipHash = await hashIp(ip, env);
           if (
             checkWindowedRateLimit(
               joinProbeRateMap,
@@ -682,7 +690,7 @@ export default {
       if (url.pathname === '/api/matches' && request.method === 'GET') {
         if (!isLoopbackRequest(request)) {
           const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-          const ipHash = await hashIp(ip);
+          const ipHash = await hashIp(ip, env);
           if (
             checkWindowedRateLimit(
               joinProbeRateMap,

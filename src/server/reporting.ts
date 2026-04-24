@@ -1,4 +1,4 @@
-import type { CreateRateLimiterBinding } from './env';
+import type { CreateRateLimiterBinding, Env } from './env';
 
 // Reporting endpoints (/telemetry, /error) are called by the delta-v
 // first-party client only. Cross-origin callers are never expected; a
@@ -109,10 +109,38 @@ export const wsConnectRateMap = new Map<
   { count: number; windowStart: number }
 >();
 
-export const hashIp = async (ip: string): Promise<string> => {
+export class MissingIpHashSaltError extends Error {
+  constructor() {
+    super(
+      'IP_HASH_SALT is not set. Configure it via `wrangler secret put IP_HASH_SALT` for production, or set DEV_MODE=1 for local dev.',
+    );
+    this.name = 'MissingIpHashSaltError';
+  }
+}
+
+const DEV_IP_HASH_SALT =
+  'delta-v-dev-only-ip-hash-salt-do-not-use-in-production';
+
+const resolveIpHashSalt = (
+  env: Pick<Env, 'IP_HASH_SALT' | 'DEV_MODE'>,
+): string => {
+  if (env.IP_HASH_SALT && env.IP_HASH_SALT.length >= 16) {
+    return env.IP_HASH_SALT;
+  }
+  if (env.DEV_MODE === '1') {
+    return DEV_IP_HASH_SALT;
+  }
+  throw new MissingIpHashSaltError();
+};
+
+export const hashIp = async (
+  ip: string,
+  env: Pick<Env, 'IP_HASH_SALT' | 'DEV_MODE'>,
+): Promise<string> => {
+  const salt = resolveIpHashSalt(env);
   const buf = await crypto.subtle.digest(
     'SHA-256',
-    new TextEncoder().encode(ip),
+    new TextEncoder().encode(`${salt}:${ip}`),
   );
 
   return [...new Uint8Array(buf)]

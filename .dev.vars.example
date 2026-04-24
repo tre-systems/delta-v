@@ -6,3 +6,6 @@ DEV_MODE=1
 #
 # Optional: use a real local secret instead of the placeholder:
 # AGENT_TOKEN_SECRET=your-local-secret-at-least-16-chars
+#
+# Optional: use a real local IP hash salt instead of the dev placeholder:
+# IP_HASH_SALT=your-local-ip-hash-salt-at-least-16-chars
