@@ -95,7 +95,10 @@ export interface SimulationOptions {
   quiet?: boolean;
 }
 
-export type SimulationFailureKind = 'fuelStall' | 'invalidAction';
+export type SimulationFailureKind =
+  | 'fuelStall'
+  | 'invalidAction'
+  | 'objectiveDrift';
 
 export interface SimulationFailureCapture {
   schemaVersion: 1;
@@ -369,6 +372,11 @@ const countReasonsMatching = (
     0,
   );
 
+const matchesAnyReason = (
+  reason: string,
+  matchers: readonly RegExp[],
+): boolean => matchers.some((matcher) => matcher.test(reason));
+
 const countTimeoutReasons = (reasons: Record<string, number>): number =>
   Object.entries(reasons).reduce((total, [reason, count]) => {
     const lower = reason.toLowerCase();
@@ -530,6 +538,7 @@ const runSingleGame = async (
 ) => {
   const failureCounters = emptyFailureCounters();
   const scenario = SCENARIOS[scenarioName];
+  const objectivePolicy = OBJECTIVE_WARNING_POLICIES[scenarioName];
 
   const map = buildSolarSystemMap();
   const rng = mulberry32(gameSeed);
@@ -612,6 +621,30 @@ const runSingleGame = async (
       message,
     });
     throw new AIActionError(phase, playerId, failureCounters, message);
+  };
+
+  const recordObjectiveDrift = async (
+    winner: PlayerId | null,
+    reason: string | null,
+  ): Promise<void> => {
+    if (
+      !reason ||
+      winner === null ||
+      !objectivePolicy ||
+      matchesAnyReason(reason, objectivePolicy.objectiveReasonMatchers)
+    ) {
+      return;
+    }
+
+    await recordFailure({
+      kind: 'objectiveDrift',
+      turnNumber: state.turnNumber,
+      phase: state.phase,
+      activePlayer: state.activePlayer,
+      difficulty: state.activePlayer === 0 ? p0Diff : p1Diff,
+      state,
+      message: reason,
+    });
   };
 
   while (state.phase !== 'gameOver' && phaseLimit > 0) {
@@ -780,6 +813,10 @@ const runSingleGame = async (
 
   if (phaseLimit <= 0) {
     const timeoutResolution = resolveCheckpointRaceTimeout(state, map);
+    await recordObjectiveDrift(
+      timeoutResolution.winner,
+      timeoutResolution.reason,
+    );
     return {
       winner: timeoutResolution.winner,
       turns: state.turnNumber,
@@ -787,6 +824,11 @@ const runSingleGame = async (
       failureCounters,
     };
   }
+
+  await recordObjectiveDrift(
+    state.outcome?.winner ?? null,
+    state.outcome?.reason ?? null,
+  );
 
   return {
     winner: state.outcome?.winner ?? null,
