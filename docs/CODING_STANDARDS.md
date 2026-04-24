@@ -94,7 +94,7 @@ The 1000-line threshold applies less strictly to imperative boundary orchestrato
 - Keep Playwright focused on browser-only contracts (boot, multi-page join/reconnect/chat, storage/session recovery). Gameplay rules and scenario combinatorics go to Vitest and simulation.
 - Use data-driven tests (`it.each`) for tables, mappings, and input-output pairs.
 - Use property-based tests (`fast-check`) for invariants on core engine functions — co-locate as `*.property.test.ts`.
-- Coverage thresholds on engine, server, MCP adapter, and client code are enforced; the pre-push hook and CI both run `test:coverage`.
+- Coverage thresholds on engine, server, MCP adapter, and client code are enforced; CI and the full local gate (`npm run verify` or `DELTAV_FULL_PRE_PUSH=1 git push`) run `test:coverage`.
 - **Replay / projection:** changes to `event-projector`, `archive` persistence, or engine state shape must keep parity tests (`verifyGameDoProjectionParity`, game-do / event-projector tests) green and extend them when adding new persisted event types.
 
 Pattern detail (fixtures, mock storage, seeded RNG in tests, coverage thresholds): [patterns/testing.md](../patterns/testing.md). Intro to property-based testing: fast-check's [Why Property-Based Testing?](https://fast-check.dev/docs/introduction/why-property-based/).
@@ -401,7 +401,7 @@ Biome enforces (as errors, not warnings): `useConst`, `noVar`, `noDoubleEquals`,
 
 Exceptions (e.g. Cloudflare globals in `src/server/`) are configured in `biome.json` rather than assumed in prose.
 
-**CI and hooks:** [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs lint, typecheck, coverage, build, browser smoke, a11y, simulation, and deploy validation. Husky splits the local gate: pre-commit runs lint + boundary checks + `typecheck:all`, while pre-push runs the heavier coverage / e2e / simulation sweep. `npm run verify` remains the one-command local release sweep — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+**CI and hooks:** [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs lint, typecheck, coverage, build, browser smoke, a11y, simulation, and deploy validation. Husky splits the local gate: pre-commit runs lint + boundary checks + `typecheck:all`, while pre-push runs lint, boundary checks, `typecheck:all`, build, and an impacted simulation smoke when AI/engine/scenario files changed. Use `DELTAV_FULL_PRE_PUSH=1 git push` or `npm run verify` for the exhaustive local release sweep — see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 Type checking is split intentionally:
 

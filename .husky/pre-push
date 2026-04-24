@@ -73,7 +73,36 @@ if [ "$docs_only" -eq 1 ]; then
   exit 0
 fi
 
-echo "Running pre-push verification: lint, boundary checks, typecheck, coverage, e2e, a11y, simulation."
+needs_sim_smoke=0
+while IFS= read -r path; do
+  case "$path" in
+    scripts/simulate-ai.ts|scripts/duel-seed-sweep.ts|src/shared/ai.ts|src/shared/ai/*|src/shared/agent/*|src/shared/engine/*|src/shared/scenario-capabilities.ts|src/shared/scenario-definitions.ts|src/shared/simulate-ai-policy.test.ts)
+      needs_sim_smoke=1
+      break
+      ;;
+  esac
+done <<EOF
+$pushed_files
+EOF
+
+if [ "${DELTAV_FULL_PRE_PUSH:-0}" != "1" ]; then
+  echo "Running fast pre-push verification: lint, boundary checks, typecheck, build."
+  npm run lint
+  run_boundary_checks
+  npm run typecheck:all
+  npm run build
+
+  if [ "$needs_sim_smoke" -eq 1 ]; then
+    echo "AI/engine/scenario changes detected: running simulation smoke."
+    npm run simulate:smoke
+  fi
+
+  echo "Skipping exhaustive local pre-push checks. CI will run coverage, browser smoke, a11y, and simulate all 60."
+  echo "Set DELTAV_FULL_PRE_PUSH=1 to run the full local gate before pushing."
+  exit 0
+fi
+
+echo "Running full pre-push verification: lint, boundary checks, typecheck, coverage, e2e, a11y, simulation."
 npm run lint
 run_boundary_checks
 npm run typecheck:all
@@ -89,6 +118,6 @@ npm run test:coverage
 # Free port + no reuse: avoids clashing with dev servers or a stuck process on a fixed port.
 E2E_PORT="$(node -e "const n=require('net');const s=n.createServer();s.listen(0,'127.0.0.1',()=>{process.stdout.write(String(s.address().port));s.close();});")"
 export E2E_PORT
-DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e
+DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e:smoke
 DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e:a11y
 npm run simulate all 60 -- --ci

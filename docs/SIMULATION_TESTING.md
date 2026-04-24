@@ -53,7 +53,7 @@ focused decision-class regression ("land to refuel", "preserve passenger
 carrier", "do not coast while stalled") over adding another global weight from
 one trace.
 
-**CI + pre-push iteration count.** Both run `simulate all 60 -- --ci` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) and [`.husky/pre-push`](../.husky/pre-push)). `npm run verify` uses 40 to stay responsive for manual invocation. Change all three together if the count changes.
+**CI + full verification iteration count.** CI, `npm run verify`, and `DELTAV_FULL_PRE_PUSH=1 git push` run `simulate all 60 -- --ci` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), [`package.json`](../package.json), and [`.husky/pre-push`](../.husky/pre-push)). The default pre-push hook only runs `npm run simulate:smoke` when AI, agent, engine, scenario, or simulation files changed.
 
 `npm run simulate:duel-sweep` runs `scripts/duel-seed-sweep.ts` — the same duel harness across many base seeds in one table, showing pacing (`avgTurn`) and seat balance (`p0/dec%`) variance before changing duel geometry or rules. Options: `--iterations N`, `--from` / `--to`, `--seeds 0,1,2`, `--scenario <key>`, `--json`.
 

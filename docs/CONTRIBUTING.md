@@ -21,7 +21,7 @@ For non-doc changes it runs, in order:
 
 ## Pre-push (Husky)
 
-[`.husky/pre-push`](../.husky/pre-push) is the slow local gate.
+[`.husky/pre-push`](../.husky/pre-push) is the fast local push gate by default.
 
 If the pushed diff is **documentation-only** (`README.md`, `AGENT_SPEC.md`, `docs/`, `patterns/`), it runs only:
 
@@ -32,13 +32,18 @@ For non-doc pushes it runs, in order:
 1. `npm run lint`
 2. The same grep-based boundary checks as pre-commit
 3. `npm run typecheck:all`
-4. `npx wrangler d1 migrations apply delta-v-telemetry --local`
-5. Fresh `coverage/` directory, then `npm run test:coverage`
-6. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e` (Playwright browser smoke)
-7. `DELTAV_PRE_COMMIT_E2E=1 npm run test:e2e:a11y` (Playwright + axe baseline)
-8. `npm run simulate all 60 -- --ci` (headless AI sweep across all 9 scenarios)
+4. `npm run build`
+5. `npm run simulate:smoke` only when AI, agent, engine, scenario, or simulation files changed
 
-CI still runs the full verification list (without local D1 setup) — see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+CI still runs the full verification list — coverage, browser smoke, a11y, `simulate all 60 -- --ci`, deploy dry-run, and deployment checks — see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+
+To run the exhaustive local gate before pushing:
+
+```bash
+DELTAV_FULL_PRE_PUSH=1 git push
+```
+
+That mode runs the local D1 migration setup, fresh coverage, Playwright smoke, Playwright a11y, and the 60-iteration simulation sweep before allowing the push.
 
 ### Coverage
 
@@ -54,8 +59,8 @@ Both `npm test` and `npm run test:coverage` set `NODE_OPTIONS=--localstorage-fil
 
 The default Playwright port is **8787** ([`playwright.config.ts`](../playwright.config.ts)).
 
-- **CI** runs `npm run test:e2e` on port 8787.
-- **Pre-push** picks a free TCP port via Node, sets `E2E_PORT`, and sets `DELTAV_PRE_COMMIT_E2E=1` so Playwright does **not** reuse an existing server. This avoids attaching to a dev server on a fixed port.
+- **CI** runs `npm run test:e2e:smoke` and `npm run test:e2e:a11y` on port 8787.
+- **Full pre-push** (`DELTAV_FULL_PRE_PUSH=1`) picks a free TCP port via Node, sets `E2E_PORT`, and sets `DELTAV_PRE_COMMIT_E2E=1` so Playwright does **not** reuse an existing server. This avoids attaching to a dev server on a fixed port.
 - To run e2e manually while `npm run dev` holds 8787: `E2E_PORT=8788 npm run test:e2e` (any free port).
 
 ### Windows
@@ -76,7 +81,7 @@ Prefer fixing the underlying issue — `--no-verify` skips all the checks that C
 npm run verify
 ```
 
-Runs the local release gate: lint, typecheck (app + tools), coverage, build, e2e, a11y e2e, and `simulate all 40 -- --ci`. Pre-commit and CI use 60 iterations; `verify` uses 40 to stay responsive when invoked by hand.
+Runs the full local release gate: lint, typecheck (app + tools), coverage, build, Playwright smoke, a11y e2e, and `simulate all 60 -- --ci`. Use `npm run verify:quick` for the fast lint/typecheck/build gate.
 
 ## Documentation
 

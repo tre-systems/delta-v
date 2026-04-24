@@ -226,11 +226,13 @@ These run in CI and don't replace manual experience checks:
 
 | Command | What it checks |
 | --- | --- |
-| `npm run verify` | Full local release gate (lint / typecheck / coverage / build / e2e / a11y / simulation) |
+| `npm run verify:quick` | Fast local gate (lint / typecheck / build) |
+| `npm run verify` | Full local release gate (lint / typecheck / coverage / build / e2e smoke / a11y / simulation) |
 | `npm test` | Unit, property, and regression tests |
-| `npm run test:e2e` | Thin Playwright browser smoke |
+| `npm run test:e2e:smoke` | Thin Playwright browser smoke |
 | `npm run test:e2e:a11y` | Playwright + axe accessibility baseline |
-| `npm run simulate -- all 40` | Engine stability / balance sweep (`verify` uses 40; pre-commit / CI use 60) |
+| `npm run simulate:smoke` | Short all-scenarios AI smoke for local push checks |
+| `npm run simulate -- all 60 --ci` | Engine stability / balance sweep used by full verification and CI |
 | `npm run lint` / `typecheck:all` | Code style / type safety |
 
 Playwright is intentionally small — see [CONTRIBUTING.md](./CONTRIBUTING.md) for the layered test strategy. Scenario walk-throughs and deep rule validation belong in Vitest and simulation, not Playwright.
