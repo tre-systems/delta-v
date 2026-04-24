@@ -218,6 +218,101 @@ get stuck without a mouse.
 
 ## Cost & Abuse Hardening
 
+### Salt the `ip_hash` Function So D1 Rows Resist IP Rainbow Lookup (P1)
+
+[src/server/reporting.ts:112-122](../src/server/reporting.ts) hashes
+client IPs with plain `SHA-256(ip)` truncated to 16 hex chars. No salt.
+Any maintainer (or anyone with read access to the D1 `events` table via
+the Cloudflare dashboard, `wrangler d1 execute --remote`, or a leaked
+dump) can compute the hash of any candidate IPv4 (4 B keyspace —
+seconds, not hours) and directly query for that user's rows across the
+30-day retention window. The truncation to 64 bits doesn't help: it only
+adds collision ambiguity, not resistance to the forward lookup.
+
+The 2026-04-24 privacy review confirmed the hash has been unsalted since
+it shipped, and
+[docs/PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) describes the
+transform accurately (SHA-256 truncated) without flagging the missing
+salt. The mitigation is small:
+
+- Add `IP_HASH_SALT` as a `wrangler secret put` secret (or
+  `.dev.vars` for local dev), fail closed when missing in production
+  (`DEV_MODE !== '1'` branch akin to `AGENT_TOKEN_SECRET`).
+- Include the salt in the hash input:
+  `SHA-256(salt + ':' + ip).slice(0, 16)`.
+- Rotating the salt makes historic hashes non-correlatable with future
+  rows — a poor-operator's right-to-be-forgotten for the whole
+  `events` table.
+
+Existing rows stay queryable under the old (unsalted) hash, so the
+rotation must be coordinated with any active incident analysis, but
+otherwise it is transparent to callers.
+
+**Files:** [src/server/reporting.ts](../src/server/reporting.ts),
+[src/server/env.ts](../src/server/env.ts) (add `IP_HASH_SALT?: string`),
+[wrangler.toml](../wrangler.toml) (secret binding reference in comment),
+[docs/PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md) (update to describe
+the salt), [docs/SECURITY.md](./SECURITY.md) (cross-reference)
+
+### Document + Extend "Forget my callsign" Scope to Include `anonId` (P2)
+
+[src/client/ui/lobby-view.ts:318-322](../src/client/ui/lobby-view.ts)
+wires the lobby's "Forget my callsign" button to
+`resetPlayerIdentity()`, which clears `delta-v:tokens` and
+`delta-v:player-profile`
+([src/client/ui/ui.ts:129-132](../src/client/ui/ui.ts)). It does **not**
+rotate `deltav_anon_id` (the stable telemetry UUID in
+[src/client/telemetry.ts:29](../src/client/telemetry.ts)), so new
+telemetry events after the reset still attach to the same
+`anon_id` that linked every previous callsign and session from the
+device. A maintainer with D1 read access could trivially correlate
+pre-forget and post-forget activity.
+
+[docs/PRIVACY_TECHNICAL.md:12](./PRIVACY_TECHNICAL.md) describes the
+control as "removes this local profile and clears cached room tokens"
+— accurate, but silent on `anonId`. Two options:
+
+- **Documentation:** name the scope limit explicitly in
+  PRIVACY_TECHNICAL.md so users / operators know "Forget" does not
+  break the telemetry link.
+- **Implementation:** rotate `deltav_anon_id` when `resetPlayerIdentity`
+  fires. Cheap — `localStorage.removeItem(ANON_ID_KEY)` in the reset
+  path; `resolveAnonId` will mint a fresh UUID on next call.
+
+Implementation is the honest option; the doc-only fix is acceptable if
+we want to keep long-term telemetry continuity more than forgettability.
+
+**Files:** [src/client/telemetry.ts](../src/client/telemetry.ts),
+[src/client/ui/ui.ts](../src/client/ui/ui.ts)
+(`resetPlayerIdentity`),
+[src/client/game/player-profile-store.ts](../src/client/game/player-profile-store.ts),
+[docs/PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md)
+
+### Scrub `engine_error` Stack Traces Before D1 Persist (P3)
+
+[src/server/game-do/telemetry.ts:20-39](../src/server/game-do/telemetry.ts)
+writes `{ code, phase, turn, message, stack }` to
+`events.props` for every engine error. Stack traces are typically
+file/function paths only, but thrown `Error` messages can capture value
+literals (`"invalid ship id 'my-callsign'"` etc.) — any engine error
+whose message is constructed from user-reachable input leaks that
+string into the 30-day-retained `events` table.
+
+Current code doesn't obviously construct error messages from user-typed
+strings — the engine's action-validation errors use symbolic codes
+(`INVALID_INPUT` etc.) and structured payloads — but a single thrown
+`Error(\`unknown scenario: ${scenario}\`)` upstream would slip through.
+Audit the thrown-error surface for template interpolation of client-
+supplied strings and either replace with structured codes or truncate
+`message` / `stack` at safe bounds (e.g. 1 KB each) before persist.
+
+Low likelihood of active exposure; recommend bundling with the next
+auth/validation pass rather than as a standalone task.
+
+**Files:** [src/server/game-do/telemetry.ts](../src/server/game-do/telemetry.ts),
+[src/server/protocol.ts](../src/server/protocol.ts),
+[src/server/room-routes.ts](../src/server/room-routes.ts)
+
 ### Cap Concurrent WebSocket Sockets and Active Rooms Per IP (P2)
 
 The existing rate limits protect **new-connection rate** but nothing caps
