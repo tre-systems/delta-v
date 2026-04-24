@@ -196,6 +196,24 @@ get stuck without a mouse.
 `src/client/game/client-runtime.ts`, `src/client/game/input-events.ts`,
 `src/client/game/input.ts`, `src/client/game/combat.ts`, `src/client/ui/hud.ts`
 
+### Separate Tiny-Phone Utility Buttons From the Bottom HUD (P3)
+
+The 2026-04-24 live-site exploratory pass reproduced a visual overlap at
+320 × 568 during Play-vs-AI Duel astrogation: `.help-btn` and `.sound-btn`
+intersect the `.hud-bottom` action bar after dismissing the tutorial. The
+controls remain reachable by `elementFromPoint`, so this is not a blocking
+mobile issue, but the lower-right utility stack visually sits on the same
+surface as the confirm button.
+
+Found via EXPLORATORY_TESTING.md R10 against
+`https://delta-v.tre.systems` with the documented overlap and click-
+reachability checks. Keep the fix small: adjust the `<=420px` utility-button
+offsets or reserve a slightly narrower bottom HUD width so the buttons and
+action bar no longer share pixels on iPhone SE-sized screens.
+
+**Files:** [static/styles/responsive.css](../static/styles/responsive.css),
+[static/styles/hud.css](../static/styles/hud.css)
+
 ## Cost & Abuse Hardening
 
 ### Cap Concurrent WebSocket Sockets Per IP (P2)
