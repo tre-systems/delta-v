@@ -475,6 +475,34 @@
   }
 }
 
+@media (max-width: 360px) {
+  .ship-list.ship-list--compact {
+    width: min(44vw, 140px);
+  }
+
+  .ship-list.ship-list--compact .ship-entry,
+  .ship-list.ship-list--compact .ship-entry.ship-entry--quiet,
+  .ship-list.ship-list--compact .ship-entry.ship-entry--quiet:not(:has(.ship-details)) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'name'
+      'fuel'
+      'status'
+      'details';
+    gap: 0.12rem;
+  }
+
+  .ship-list.ship-list--compact .ship-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ship-list.ship-list--compact .ship-fuel {
+    justify-self: start;
+  }
+}
+
 @media (max-height: 560px) {
   .hud-bar {
     padding: 0.25rem 0.6rem;

@@ -116,6 +116,9 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
             .filter(Boolean)
             .join(', '),
         );
+        entry.title = [entryView.displayName, entryView.fuelText]
+          .filter(Boolean)
+          .join(' ');
         entry.setAttribute('aria-pressed', String(entryView.isSelected));
 
         if (entryView.isSelected) {
