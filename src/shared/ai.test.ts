@@ -1646,15 +1646,13 @@ describe('aiAstrogation — checkpoint race', () => {
     );
     const checkpoints = state.scenarioRules.checkpointBodies ?? [];
 
-    state.players[0].visitedBodies = ['Luna', 'Sol', 'Mercury'];
-    state.players[1].visitedBodies = ['Mars', 'Callisto', 'Io'];
+    state.players[0].visitedBodies = ['Luna', 'Sol', 'Terra'];
+    state.players[1].visitedBodies = ['Mars', 'Callisto', 'Jupiter'];
 
     expect(pickNextCheckpoint(state.players[0], checkpoints, map)).toBe(
-      'Venus',
+      'Mercury',
     );
-    expect(pickNextCheckpoint(state.players[1], checkpoints, map)).toBe(
-      'Jupiter',
-    );
+    expect(pickNextCheckpoint(state.players[1], checkpoints, map)).toBe('Io');
   });
 
   it('grandTour: AI navigates toward unvisited bodies', () => {
