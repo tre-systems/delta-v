@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   type AIDifficulty,
@@ -87,9 +89,34 @@ export interface SimulationOptions {
   forcedStart: PlayerId | null;
   baseSeed: number;
   json: boolean;
+  captureFailuresDir?: string | null;
+  captureFailuresLimit?: number;
   /** When true, skip banner/progress/footer logs (errors still print). */
   quiet?: boolean;
 }
+
+export type SimulationFailureKind = 'fuelStall' | 'invalidAction';
+
+export interface SimulationFailureCapture {
+  schemaVersion: 1;
+  kind: SimulationFailureKind;
+  scenario: ScenarioKey;
+  seed: number;
+  gameIndex: number;
+  turnNumber: number;
+  phase: Phase;
+  activePlayer: PlayerId;
+  difficulty: AIDifficulty;
+  playerDifficulties: { p0: AIDifficulty; p1: AIDifficulty };
+  state: GameState;
+  action?: unknown;
+  stalledShipIds?: string[];
+  message?: string;
+}
+
+type SimulationFailureRecorder = (
+  capture: SimulationFailureCapture,
+) => Promise<void>;
 
 export type SimulationPolicyWarning = {
   scenario: string;
@@ -180,6 +207,28 @@ const parseDifficulty = (value: string): AIDifficulty => {
 const deriveGameSeed = (baseSeed: number, gameIndex: number): number =>
   (baseSeed + Math.imul(gameIndex + 1, 0x9e3779b9)) | 0;
 
+const safeFilenameSegment = (value: string): string =>
+  value.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'unknown';
+
+const writeFailureCapture = async (
+  directory: string,
+  ordinal: number,
+  capture: SimulationFailureCapture,
+): Promise<void> => {
+  await mkdir(directory, { recursive: true });
+  const filename = [
+    String(ordinal).padStart(3, '0'),
+    safeFilenameSegment(capture.scenario),
+    String(capture.seed),
+    capture.kind,
+    `turn-${capture.turnNumber}`,
+    `p${capture.activePlayer}`,
+  ].join('-');
+  const absolutePath = path.join(directory, `${filename}.json`);
+
+  await writeFile(absolutePath, `${JSON.stringify(capture, null, 2)}\n`);
+};
+
 class AIActionError extends Error {
   constructor(
     readonly phase: Phase,
@@ -211,27 +260,29 @@ const mergeFailureCounters = (
   }
 };
 
-const countFuelStalls = (
+export const findFuelStallShipIds = (
   state: GameState,
   playerId: PlayerId,
   orders: readonly AstrogationOrder[],
-): number => {
+): string[] => {
   const ordersByShip = new Map(orders.map((order) => [order.shipId, order]));
 
-  return getOrderableShipsForPlayer(state, playerId).filter((ship) => {
-    if (ship.lifecycle !== 'active') return false;
-    if (ship.damage.disabledTurns > 0) return false;
-    if (ship.fuel <= 0) return false;
-    if (hexVecLength(ship.velocity) !== 0) return false;
+  return getOrderableShipsForPlayer(state, playerId)
+    .filter((ship) => {
+      if (ship.lifecycle !== 'active') return false;
+      if (ship.damage.disabledTurns > 0) return false;
+      if (ship.fuel <= 0) return false;
+      if (hexVecLength(ship.velocity) !== 0) return false;
 
-    const order = ordersByShip.get(ship.id);
-    return (
-      order != null &&
-      order.burn === null &&
-      (order.overload ?? null) === null &&
-      order.land !== true
-    );
-  }).length;
+      const order = ordersByShip.get(ship.id);
+      return (
+        order != null &&
+        order.burn === null &&
+        (order.overload ?? null) === null &&
+        order.land !== true
+      );
+    })
+    .map((ship) => ship.id);
 };
 
 const resolveCheckpointRaceTimeout = (
@@ -467,10 +518,14 @@ const runSingleGame = async (
     randomizeStart,
     forcedStart,
     gameSeed,
+    gameIndex,
+    captureFailure,
   }: {
     randomizeStart: boolean;
     forcedStart: PlayerId | null;
     gameSeed: number;
+    gameIndex: number;
+    captureFailure?: SimulationFailureRecorder;
   },
 ) => {
   const failureCounters = emptyFailureCounters();
@@ -521,6 +576,44 @@ const runSingleGame = async (
 
   let phaseLimit = 1000; // allow for long games traversing the system
 
+  const recordFailure = async (
+    capture: Omit<
+      SimulationFailureCapture,
+      'schemaVersion' | 'scenario' | 'seed' | 'gameIndex' | 'playerDifficulties'
+    >,
+  ): Promise<void> => {
+    if (!captureFailure) return;
+    await captureFailure({
+      schemaVersion: 1,
+      scenario: scenarioName,
+      seed: gameSeed >>> 0,
+      gameIndex,
+      playerDifficulties: { p0: p0Diff, p1: p1Diff },
+      ...capture,
+      state: structuredClone(capture.state),
+    });
+  };
+
+  const rejectAIAction = async (
+    phase: Phase,
+    playerId: PlayerId,
+    difficulty: AIDifficulty,
+    action: unknown,
+    message: string,
+  ): Promise<never> => {
+    await recordFailure({
+      kind: 'invalidAction',
+      turnNumber: state.turnNumber,
+      phase,
+      activePlayer: playerId,
+      difficulty,
+      state,
+      action,
+      message,
+    });
+    throw new AIActionError(phase, playerId, failureCounters, message);
+  };
+
   while (state.phase !== 'gameOver' && phaseLimit > 0) {
     const activePlayer = state.activePlayer;
     const difficulty = activePlayer === 0 ? p0Diff : p1Diff;
@@ -528,11 +621,24 @@ const runSingleGame = async (
     try {
       if (state.phase === 'astrogation') {
         const orders = aiAstrogation(state, activePlayer, map, difficulty, rng);
-        failureCounters.fuelStalls += countFuelStalls(
+        const stalledShipIds = findFuelStallShipIds(
           state,
           activePlayer,
           orders,
         );
+        failureCounters.fuelStalls += stalledShipIds.length;
+        if (stalledShipIds.length > 0) {
+          await recordFailure({
+            kind: 'fuelStall',
+            turnNumber: state.turnNumber,
+            phase: state.phase,
+            activePlayer,
+            difficulty,
+            state,
+            action: { type: 'astrogation', orders },
+            stalledShipIds,
+          });
+        }
         const result = processAstrogation(
           state,
           activePlayer,
@@ -541,14 +647,16 @@ const runSingleGame = async (
           rng,
         );
         if ('error' in result) {
-          throw new AIActionError(
+          await rejectAIAction(
             state.phase,
             activePlayer,
-            failureCounters,
+            difficulty,
+            { type: 'astrogation', orders },
             result.error.message,
           );
+        } else {
+          state = result.state;
         }
-        state = result.state;
       } else if (state.phase === 'ordnance') {
         const launches = aiOrdnance(state, activePlayer, map, difficulty, rng);
 
@@ -561,25 +669,29 @@ const runSingleGame = async (
             rng,
           );
           if ('error' in result) {
-            throw new AIActionError(
+            await rejectAIAction(
               state.phase,
               activePlayer,
-              failureCounters,
+              difficulty,
+              { type: 'ordnance', launches },
               result.error.message,
             );
+          } else {
+            state = result.state;
           }
-          state = result.state;
         } else {
           const result = skipOrdnance(state, activePlayer, map, rng);
           if ('error' in result) {
-            throw new AIActionError(
+            await rejectAIAction(
               state.phase,
               activePlayer,
-              failureCounters,
+              difficulty,
+              { type: 'skipOrdnance' },
               result.error.message,
             );
+          } else {
+            state = result.state;
           }
-          state = result.state;
         }
       } else if (state.phase === 'logistics') {
         const transfers = aiLogistics(state, activePlayer, map, difficulty);
@@ -588,26 +700,32 @@ const runSingleGame = async (
             ? processLogistics(state, activePlayer, transfers, map)
             : skipLogistics(state, activePlayer, map);
         if ('error' in result) {
-          throw new AIActionError(
+          await rejectAIAction(
             state.phase,
             activePlayer,
-            failureCounters,
+            difficulty,
+            transfers.length > 0
+              ? { type: 'logistics', transfers }
+              : { type: 'skipLogistics' },
             result.error.message,
           );
+        } else {
+          state = result.state;
         }
-        state = result.state;
       } else if (state.phase === 'combat') {
         // Evaluate pre-combat (asteroid hazards)
         const preResult = beginCombatPhase(state, activePlayer, map, rng);
         if ('error' in preResult) {
-          throw new AIActionError(
+          await rejectAIAction(
             state.phase,
             activePlayer,
-            failureCounters,
+            difficulty,
+            { type: 'beginCombat' },
             preResult.error.message,
           );
+        } else {
+          state = preResult.state;
         }
-        state = preResult.state;
 
         if (state.phase === 'combat') {
           const attacks = aiCombat(state, activePlayer, map, difficulty);
@@ -621,25 +739,29 @@ const runSingleGame = async (
               rng,
             );
             if ('error' in result) {
-              throw new AIActionError(
+              await rejectAIAction(
                 state.phase,
                 activePlayer,
-                failureCounters,
+                difficulty,
+                { type: 'combat', attacks },
                 result.error.message,
               );
+            } else {
+              state = result.state;
             }
-            state = result.state;
           } else {
             const result = skipCombat(state, activePlayer, map, rng);
             if ('error' in result) {
-              throw new AIActionError(
+              await rejectAIAction(
                 state.phase,
                 activePlayer,
-                failureCounters,
+                difficulty,
+                { type: 'skipCombat' },
                 result.error.message,
               );
+            } else {
+              state = result.state;
             }
-            state = result.state;
           }
         }
       }
@@ -720,6 +842,21 @@ export const runSimulation = async (
   };
 
   const startTime = Date.now();
+  let capturedFailureCount = 0;
+  const captureFailuresDir = options.captureFailuresDir ?? null;
+  const captureFailuresLimit = options.captureFailuresLimit ?? 5;
+  const captureFailure: SimulationFailureRecorder | undefined =
+    captureFailuresDir === null
+      ? undefined
+      : async (capture) => {
+          if (capturedFailureCount >= captureFailuresLimit) return;
+          capturedFailureCount++;
+          await writeFailureCapture(
+            captureFailuresDir,
+            capturedFailureCount,
+            capture,
+          );
+        };
 
   for (let i = 0; i < iterations; i++) {
     const gameSeed = deriveGameSeed(options.baseSeed, i);
@@ -733,6 +870,8 @@ export const runSimulation = async (
           randomizeStart: options.randomizeStart,
           forcedStart: options.forcedStart,
           gameSeed,
+          gameIndex: i,
+          captureFailure,
         },
       );
       metrics.totalGames++;
@@ -798,6 +937,11 @@ export const runSimulation = async (
         `Invalid Action Seeds: ${metrics.invalidActionSeeds.join(', ')}`,
       );
     }
+    if (captureFailuresDir !== null) {
+      console.log(
+        `Failure Captures: ${capturedFailureCount} written to ${captureFailuresDir}`,
+      );
+    }
 
     console.log(`\nWin Reasons:`);
     for (const [reason, count] of Object.entries(metrics.reasons)) {
@@ -853,6 +997,8 @@ const main = async () => {
     forcedStart: null,
     baseSeed: Date.now() | 0,
     json: false,
+    captureFailuresDir: null,
+    captureFailuresLimit: 5,
     quiet: false,
   };
   const positionals: string[] = [];
@@ -887,6 +1033,18 @@ const main = async () => {
       }
       case '--json':
         options.json = true;
+        break;
+      case '--capture-failures':
+        options.captureFailuresDir = args[++i] ?? '';
+        if (options.captureFailuresDir.length === 0) {
+          throw new Error('--capture-failures requires an output directory');
+        }
+        break;
+      case '--capture-failures-limit':
+        options.captureFailuresLimit = Math.max(
+          0,
+          Number.parseInt(args[++i] ?? '', 10) || 0,
+        );
         break;
       case '--quiet':
         options.quiet = true;

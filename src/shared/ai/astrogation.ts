@@ -1461,6 +1461,40 @@ export const aiAstrogation = (
       }
     }
 
+    if (
+      checkpoints &&
+      ship.lifecycle === 'active' &&
+      hexVecLength(ship.velocity) === 0 &&
+      canBurnFuel &&
+      bestBurn === null &&
+      !bestLand &&
+      shipTargetHex != null
+    ) {
+      const currentDist = hexDistance(ship.position, shipTargetHex);
+      let fallbackBurn: number | null = null;
+      let fallbackDist = currentDist;
+
+      for (const direction of directions) {
+        const course = computeCourse(ship, direction, map, {
+          destroyedBases: state.destroyedBases,
+        });
+
+        if (course.outcome === 'crash') continue;
+
+        const dist = hexDistance(course.destination, shipTargetHex);
+        if (dist < fallbackDist) {
+          fallbackDist = dist;
+          fallbackBurn = direction;
+        }
+      }
+
+      if (fallbackBurn !== null) {
+        bestBurn = fallbackBurn;
+        bestOverload = null;
+        bestWeakGrav = undefined;
+      }
+    }
+
     orders.push({
       shipId: ship.id,
       burn: bestBurn,

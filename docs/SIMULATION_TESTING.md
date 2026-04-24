@@ -25,6 +25,7 @@ npm run simulate                             # 100 games of the default scenario
 npm run simulate -- all 60 --ci              # CI gate: all 9 scenarios × 60 games
 npm run simulate -- duel 30 --randomize-start
 npm run simulate:duel-sweep                  # duel pacing/seat-balance across many seeds
+npm run simulate -- grandTour 20 --seed 1 --capture-failures tmp/ai-failures
 ```
 
 - `--ci` fails on engine crashes or rejected built-in AI actions; balance and objective warnings print but are non-fatal.
@@ -56,6 +57,16 @@ win rate. If a simulation exposes a bad state, prefer saving that state as a
 focused decision-class regression ("land to refuel", "preserve passenger
 carrier", "do not coast while stalled") over adding another global weight from
 one trace.
+
+**Failure captures.** Use `--capture-failures <dir>` to write bounded JSON
+snapshots for invalid built-in AI actions and fuel stalls. The default cap is
+5 files; override it with `--capture-failures-limit N`. Captures include the
+seed, scenario, active player, proposed action, stalled ship ids when relevant,
+and the full `GameState`. To promote a capture, copy the JSON into a focused
+`__fixtures__` path and assert the decision class has changed. For example,
+[`src/shared/ai/__fixtures__/grand-tour-fuel-stall.json`](../src/shared/ai/__fixtures__/grand-tour-fuel-stall.json)
+backs a regression that checks the AI no longer submits a fueled stationary
+coast for that state.
 
 **CI + full verification iteration count.** CI, `npm run verify`, and `DELTAV_FULL_PRE_PUSH=1 git push` run `simulate all 60 -- --ci` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), [`package.json`](../package.json), and [`.husky/pre-push`](../.husky/pre-push)). The default pre-push hook only runs `npm run simulate:smoke` when AI, agent, engine, scenario, or simulation files changed.
 
