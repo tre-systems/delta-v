@@ -230,26 +230,6 @@ existing success path.
 **Files:** `src/server/auth/claim-name.ts`, `src/server/auth/turnstile.ts`,
 `static/index.html`, `src/client/`, `wrangler.toml`
 
-### Proof-of-Work on First Agent Name Claim
-
-**Trigger:** logs show bulk agent-token issuance being used to farm leaderboard
-pseudonyms.
-
-Server issues a challenge; client submits a nonce whose hash beats a threshold.
-Keep the per-IP rate limit in place alongside it.
-
-**Files:** `src/server/auth/agent-token.ts`, `src/shared/pow.ts`
-
-### Spectator Delay for Organized Competitive Play
-
-**Trigger:** organized matches or tournaments make real-time spectator leakage a
-meaningful competitive risk.
-
-Delay spectator-facing state/replay updates without affecting player latency.
-
-**Files:** `src/server/game-do/broadcast.ts`,
-`src/shared/engine/resolve-movement.ts`, replay/socket viewer paths
-
 ### Populate Help Overlay Screenshots
 
 **Trigger:** UI/UX is frozen enough that in-game screenshots will not go stale
