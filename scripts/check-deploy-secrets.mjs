@@ -11,7 +11,7 @@
 
 import { spawnSync } from 'node:child_process';
 
-const REQUIRED_SECRETS = ['AGENT_TOKEN_SECRET', 'IP_HASH_SALT'];
+const REQUIRED_SECRETS = ['AGENT_TOKEN_SECRET'];
 
 if (process.env.DELTA_V_SKIP_DEPLOY_CHECK === '1') {
   console.log('check-deploy-secrets: skipped via DELTA_V_SKIP_DEPLOY_CHECK=1');

@@ -29,10 +29,10 @@ export interface Env {
   // that need the secret fail with 500 when it is unset unless
   // DEV_MODE is enabled.
   AGENT_TOKEN_SECRET?: string;
-  // Salt for one-way client IP hashes stored in D1 telemetry rows and
-  // used by per-IP abuse buckets. Set via `wrangler secret put
-  // IP_HASH_SALT` in production. Missing salt fails closed unless
-  // DEV_MODE is enabled.
+  // Optional dedicated salt for one-way client IP hashes stored in D1
+  // telemetry rows and used by per-IP abuse buckets. Set via
+  // `wrangler secret put IP_HASH_SALT` in production when separate
+  // rotation from AGENT_TOKEN_SECRET is desired.
   IP_HASH_SALT?: string;
   // Set to '1' for local dev / test to allow a deterministic
   // placeholder secret when AGENT_TOKEN_SECRET is unset. Unset in

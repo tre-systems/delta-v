@@ -98,11 +98,7 @@ const mockCtx = (): MockExecutionContext => ({
 const findSampledIp = async (): Promise<string> => {
   for (let index = 1; index < 256; index++) {
     const candidate = `10.0.0.${index}`;
-    if (
-      shouldSampleOperationalLog(
-        await hashIp(candidate, { IP_HASH_SALT: 'index-test-ip-hash-salt' }),
-      )
-    ) {
+    if (shouldSampleOperationalLog(await hashIp(candidate, createEnv().env))) {
       return candidate;
     }
   }
@@ -1474,6 +1470,14 @@ describe('hashIp', () => {
     await expect(hashIp('10.0.0.1', { DEV_MODE: '1' })).resolves.toMatch(
       /^[0-9a-f]{16}$/,
     );
+  });
+
+  it('falls back to AGENT_TOKEN_SECRET as the production salt', async () => {
+    await expect(
+      hashIp('10.0.0.1', {
+        AGENT_TOKEN_SECRET: 'index-test-agent-secret-salt',
+      }),
+    ).resolves.toMatch(/^[0-9a-f]{16}$/);
   });
 });
 
