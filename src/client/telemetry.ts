@@ -10,6 +10,7 @@ import { warnOnce } from './log-once';
 export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem?(key: string): void;
 }
 
 type TelemetryEventType = 'error' | 'unhandledrejection';
@@ -81,6 +82,19 @@ export const getOrCreateAnonId = (storage: StorageLike): string => {
 };
 
 let cachedAnonId: string | null = null;
+
+export const rotateAnonId = (): void => {
+  cachedAnonId = null;
+
+  const storage = telemetryRuntime.getStorage();
+  if (!storage?.removeItem) return;
+
+  try {
+    storage.removeItem(ANON_ID_KEY);
+  } catch {
+    /* storage unavailable; next telemetry event will use a fresh in-memory ID */
+  }
+};
 
 const resolveAnonId = (): string => {
   if (cachedAnonId) {

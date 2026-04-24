@@ -198,65 +198,6 @@ get stuck without a mouse.
 
 ## Cost & Abuse Hardening
 
-### Document + Extend "Forget my callsign" Scope to Include `anonId` (P2)
-
-[src/client/ui/lobby-view.ts:318-322](../src/client/ui/lobby-view.ts)
-wires the lobby's "Forget my callsign" button to
-`resetPlayerIdentity()`, which clears `delta-v:tokens` and
-`delta-v:player-profile`
-([src/client/ui/ui.ts:129-132](../src/client/ui/ui.ts)). It does **not**
-rotate `deltav_anon_id` (the stable telemetry UUID in
-[src/client/telemetry.ts:29](../src/client/telemetry.ts)), so new
-telemetry events after the reset still attach to the same
-`anon_id` that linked every previous callsign and session from the
-device. A maintainer with D1 read access could trivially correlate
-pre-forget and post-forget activity.
-
-[docs/PRIVACY_TECHNICAL.md:12](./PRIVACY_TECHNICAL.md) describes the
-control as "removes this local profile and clears cached room tokens"
-— accurate, but silent on `anonId`. Two options:
-
-- **Documentation:** name the scope limit explicitly in
-  PRIVACY_TECHNICAL.md so users / operators know "Forget" does not
-  break the telemetry link.
-- **Implementation:** rotate `deltav_anon_id` when `resetPlayerIdentity`
-  fires. Cheap — `localStorage.removeItem(ANON_ID_KEY)` in the reset
-  path; `resolveAnonId` will mint a fresh UUID on next call.
-
-Implementation is the honest option; the doc-only fix is acceptable if
-we want to keep long-term telemetry continuity more than forgettability.
-
-**Files:** [src/client/telemetry.ts](../src/client/telemetry.ts),
-[src/client/ui/ui.ts](../src/client/ui/ui.ts)
-(`resetPlayerIdentity`),
-[src/client/game/player-profile-store.ts](../src/client/game/player-profile-store.ts),
-[docs/PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md)
-
-### Scrub `engine_error` Stack Traces Before D1 Persist (P3)
-
-[src/server/game-do/telemetry.ts:20-39](../src/server/game-do/telemetry.ts)
-writes `{ code, phase, turn, message, stack }` to
-`events.props` for every engine error. Stack traces are typically
-file/function paths only, but thrown `Error` messages can capture value
-literals (`"invalid ship id 'my-callsign'"` etc.) — any engine error
-whose message is constructed from user-reachable input leaks that
-string into the 30-day-retained `events` table.
-
-Current code doesn't obviously construct error messages from user-typed
-strings — the engine's action-validation errors use symbolic codes
-(`INVALID_INPUT` etc.) and structured payloads — but a single thrown
-`Error(\`unknown scenario: ${scenario}\`)` upstream would slip through.
-Audit the thrown-error surface for template interpolation of client-
-supplied strings and either replace with structured codes or truncate
-`message` / `stack` at safe bounds (e.g. 1 KB each) before persist.
-
-Low likelihood of active exposure; recommend bundling with the next
-auth/validation pass rather than as a standalone task.
-
-**Files:** [src/server/game-do/telemetry.ts](../src/server/game-do/telemetry.ts),
-[src/server/protocol.ts](../src/server/protocol.ts),
-[src/server/room-routes.ts](../src/server/room-routes.ts)
-
 ### Cap Concurrent WebSocket Sockets Per IP (P2)
 
 The existing rate limits protect **new-connection rate** but nothing caps
@@ -291,29 +232,6 @@ path, lines 534–553), [src/server/reporting.ts](../src/server/reporting.ts)
 (rate-limit state), [src/server/game-do/game-do.ts](../src/server/game-do/game-do.ts)
 (`touchInactivity` logic around line 286),
 [src/shared/constants.ts](../src/shared/constants.ts)
-
-### Add a Scheduled `npm audit` + Automated Dependency PRs (P3)
-
-`.github/workflows/ci.yml` runs `npm ci` but never `npm audit`; there is
-no `.github/dependabot.yml`, no `renovate.json`. The 2026-04-24
-dependency review caught two advisories manually — the next one lands
-silently unless someone re-runs the audit. Two low-cost options:
-
-- **Cheapest:** add a weekly `.github/workflows/audit.yml` that runs
-  `npm audit --omit=dev --audit-level=high` on a cron and opens an issue
-  on non-zero exit.
-- **More proactive:** enable Dependabot (GitHub-native, zero cost) with
-  weekly / monthly schedule and `open-pull-requests-limit: 3` so the
-  inbox stays small. Group patch updates together via Dependabot
-  `groups` to reduce PR churn.
-
-Scope this once one of the two existing advisories re-surfaces or the
-production runtime picks up a new direct dependency. Until then, the
-attack surface is genuinely small (one root runtime dep,
-`@delta-v/mcp-adapter`, pulling only `@modelcontextprotocol/sdk` + `zod`
-+ transitive `hono` into the Worker).
-
-**Files:** new `.github/workflows/audit.yml` or `.github/dependabot.yml`
 
 ## Telemetry & Observability
 
