@@ -41,12 +41,9 @@ the rules require them.
 
 Action:
 - Extend `scripts/simulate-ai.ts` with additional objective/failure counters as
-  new recurring failure modes appear. The baseline scorecard, invalid-action,
-  fuel-stall, passenger-transfer mistake, and objective-drift counters are
-  already shipped.
-- Grow the fixture path from one captured fuel-stall regression into a broader
-  corpus. Invalid orders, fuel stalls, passenger transfer mistakes, and
-  objective drift are captured by the harness.
+  new recurring failure modes appear.
+- Grow the fixture path into a broader corpus of decision-class regressions as
+  the harness captures new recurring failures.
 
 **Files:** `scripts/simulate-ai.ts`, `scripts/duel-seed-sweep.ts`,
 `src/shared/simulate-ai-policy.test.ts`, `src/shared/ai.test.ts`,
@@ -59,12 +56,11 @@ under fuel, velocity, gravity, and landing constraints. The current scorer uses
 many scalar distance/fuel bonuses where a small bounded planner would provide a
 better signal without replacing the whole AI.
 
-Action: continue growing the reusable short-horizon planner over `computeCourse`
-that can score "can reach safe refuel / objective / landing line within N
-turns" and return a cost-to-go. The first helper is now used for Grand Tour
-checkpoint fuel-stall recovery. Next, feed that cost into checkpoint/refuel
-ranking more directly, then passenger arrival decisions, where it can replace
-several ad hoc fuel and landing bonuses.
+Action: grow the reusable short-horizon planner over `computeCourse` so it can
+score "can reach safe refuel / objective / landing line within N turns" and
+return a cost-to-go. Feed that cost into checkpoint/refuel ranking more
+directly, then passenger arrival decisions, where it can replace several ad hoc
+fuel and landing bonuses.
 
 **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/movement.ts`, `src/shared/ai.test.ts`
@@ -77,11 +73,9 @@ stable: assign each ship a turn-local role such as `carrier`, `escort`,
 `interceptor`, `refuel`, `race`, or `screen`, then let the role choose a smaller
 set of priorities.
 
-Action: continue expanding the lightweight role assignment step for AI phases
-that need coordination. The first pass now classifies convoy / evacuation
-passenger ships as carrier, escort, screen, or refuel and feeds passenger
-astrogation scoring. Next, reuse the same idea for Grand Tour race/refuel
-decisions if it proves useful.
+Action: expand the lightweight role assignment step for AI phases that need
+coordination. Reuse the same idea for Grand Tour race/refuel decisions if it
+proves useful.
 
 **Files:** `src/shared/ai/logistics.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`
@@ -132,31 +126,18 @@ changes:
 The remaining gameplay UX items group into digital-input parity and WebSocket
 protocol diagnostics.
 
-### Multiplayer WebSocket Protocol Diagnostics (P2)
+### Verify Same-Token WebSocket Replacement (P2)
 
 The 2026-04-24 multiplayer deep probe exercised `POST /create`,
 `GET /join/{CODE}`, `POST /quick-match`, the paired WebSocket flow, spectator
 attach, mid-match disconnect/reconnect, and rate limits. Core flows work —
-seat assignment, reconnect by stored `playerToken`, rate-limit close (1008 with
-reason), matchmaker pairing, idempotent same-player tickets. HTTP validation and
-URL diagnostics have shipped; the remaining gaps are WebSocket protocol
-ergonomics for clients and agents.
+seat assignment, reconnect by stored `playerToken`, typed WebSocket rejection
+frames, rate-limit close (1008 with reason), matchmaker pairing, and idempotent
+same-player tickets. HTTP validation and URL diagnostics have shipped; the
+remaining gap is replacement behavior for duplicate same-seat sockets.
 
 Concrete issues observed on the local dev server:
 
-- **WebSocket handshake rejections collapse to close code 1006 with no
-  reason.** The server returns well-shaped 400/403/404/409/410 JSON bodies
-  from `resolveJoinAttempt` during the HTTP upgrade, but the browser and
-  `undici` WebSocket APIs discard the handshake response body entirely —
-  the client only sees a `CloseEvent` with code `1006` and empty reason.
-  "Game full", "invalid token", "game already completed", and raw network
-  failures are indistinguishable. Client UX relies on `/join/{CODE}`
-  preflight as a workaround. Fix: accept the WebSocket first, send a typed
-  `rejected` S2C frame carrying `ErrorCode.ROOM_FULL` /
-  `GAME_COMPLETED` / `INVALID_TOKEN`, then close with an application close
-  code in `4000–4999` and a human-readable reason (the rate-limit path at
-  `src/server/game-do/socket.ts:34` already demonstrates the shape with
-  `close(1008, 'Rate limit exceeded')`).
 - **Verify behaviour of a second WebSocket with the same `playerToken`.**
   Server code at [game-do.ts:178-184](../src/server/game-do/game-do.ts) calls
   `old.close(1000, 'Replaced by new connection')` when a same-seat socket
@@ -169,10 +150,9 @@ Concrete issues observed on the local dev server:
   zombie sockets per tab-switch until the client hits a rate-limit close.
 
 Found via EXPLORATORY_TESTING.md R5 / R8 / R9 applied to the multiplayer
-surface with a purpose-built WebSocket harness (see the 2026-04-24
-`/tmp/mp-probe*.mjs` traces referenced in the pass log). A reusable
-`scripts/mp-connectivity.mjs` harness would keep these probes close to
-hand for future passes.
+surface with a purpose-built WebSocket harness. A reusable
+`scripts/mp-connectivity.mjs` harness would keep this probe close to hand for
+future passes.
 
 **Files:** [src/server/game-do/fetch.ts](../src/server/game-do/fetch.ts),
 [src/server/game-do/http-handlers.ts](../src/server/game-do/http-handlers.ts),
@@ -277,7 +257,7 @@ auth/validation pass rather than as a standalone task.
 [src/server/protocol.ts](../src/server/protocol.ts),
 [src/server/room-routes.ts](../src/server/room-routes.ts)
 
-### Cap Concurrent WebSocket Sockets and Active Rooms Per IP (P2)
+### Cap Concurrent WebSocket Sockets Per IP (P2)
 
 The existing rate limits protect **new-connection rate** but nothing caps
 **steady-state** resource use per IP. `WS_CONNECT_LIMIT = 20 / 60 s`
@@ -289,9 +269,8 @@ forever (see [src/shared/constants.ts:263](../src/shared/constants.ts)).
 
 A patient attacker can therefore maintain **hundreds to low-thousands of
 warm Durable Objects from one IP**, each billed for wall-clock + WebSocket
-duration. Public `/create` now has a per-IP active-room cap in addition to
-`CREATE_RATE_LIMIT = 5 / 60 s`, but quick-match-created rooms and
-steady-state WebSocket ownership still need caps.
+duration. Public `/create` already has a per-IP active-room cap; steady-state
+WebSocket ownership still needs a cap.
 
 Add:
 
@@ -299,8 +278,6 @@ Add:
   global KV/DO counter if we move there). Reject new WS handshakes with
   close code 1013 ("try again later") when the IP is over its cap
   (suggest 10 concurrent).
-- Extend the active-room cap to quick-match-created rooms if the matchmaker
-  starts showing the same cost shape as public `/create`.
 - A shorter `INACTIVITY_TIMEOUT_MS` when no opponent has joined (suggest
   60 s) — a solo seat holding a DO open for 5 minutes with no second
   player serves no purpose.
@@ -360,10 +337,10 @@ gaps are narrower:
 
 `https://delta-v.tre.systems/client.js` today returns
 `cache-control: public, max-age=0, must-revalidate` with a content-hash
-etag, so every page visit revalidates the full 860 KB (or, post-minify,
-397 KB) file even when the contents haven't changed. Cloudflare HITs the
-edge cache but the browser still makes the revalidation round-trip on
-every navigation, and on a cold cache eviction the full body redownloads.
+etag, so every page visit revalidates the full client bundle even when the
+contents haven't changed. Cloudflare HITs the edge cache but the browser still
+makes the revalidation round-trip on every navigation, and on a cold cache
+eviction the full body redownloads.
 
 Switch to hashed URLs (e.g. `/client.<contenthash>.js`) emitted by esbuild
 (`entryNames: "[name].[hash]"`) plus a `_headers` rule:
