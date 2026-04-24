@@ -16,11 +16,11 @@ The escort scenarios already have bespoke passenger logic in `src/shared/ai/logi
 
 Action: continue retuning passenger astrogation and escort posture so the AI strongly prefers preserving a viable destination runner. Reassign passengers only when the new carrier materially improves arrival odds, not just combat strength or generic ship value.
 
-### Add objective-discipline regression tests and simulation thresholds (P2)
+### Broaden objective-discipline seeded validation (P2)
 
-The AI suite now has better target-race coverage and a focused passenger-carrier transfer regression, but the passenger scenarios still need broader seeded validation. `scripts/simulate-ai.ts` now emits objective-resolution warnings, yet we still mostly rely on ad-hoc seeded sweeps to decide whether convoy / evacuation behavior is good enough.
+The AI suite now has better target-race coverage, a focused passenger-carrier transfer regression, and direct tests around the simulator's objective-warning policy. The passenger scenarios still need broader seeded validation because convoy / evacuation behavior can look acceptable on one seed batch and still drift on another.
 
-Action: keep extending passenger-objective regressions and the simulation harness / docs so future regressions show up as explicit objective warnings rather than only in manual sweep review.
+Action: keep extending passenger-objective regressions and seeded sweep docs so future convoy / evacuation regressions are judged against repeated objective-warning samples rather than a single manual sweep.
 
 ## Launch-readiness snapshot (2026-04-19)
 
