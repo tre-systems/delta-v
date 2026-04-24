@@ -38,11 +38,12 @@ const sendInvalidSocketMessageError = (
   deps: Pick<GameDoWebSocketMessageDeps, 'send'>,
   ws: WebSocket,
   message: string,
+  code: ErrorCode,
 ): void => {
   deps.send(ws, {
     type: 'error',
     message,
-    code: ErrorCode.INVALID_INPUT,
+    code,
   });
 };
 
@@ -98,7 +99,12 @@ export const handleGameDoWebSocketMessage = async (
   const parsed = parseClientSocketMessage(message);
 
   if (!parsed.ok) {
-    sendInvalidSocketMessageError(deps, ws, parsed.error);
+    sendInvalidSocketMessageError(
+      deps,
+      ws,
+      parsed.error.message,
+      parsed.error.code,
+    );
     return;
   }
 

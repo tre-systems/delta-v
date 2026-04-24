@@ -157,15 +157,6 @@ Concrete issues observed on the local dev server:
   code in `4000–4999` and a human-readable reason (the rate-limit path at
   `src/server/game-do/socket.ts:34` already demonstrates the shape with
   `close(1008, 'Rate limit exceeded')`).
-- **`INVALID_INPUT` is the only error code for all protocol-frame
-  violations.** A client that sends a chat over the 200-char limit, a
-  well-typed action in the wrong phase, an unknown action `type`, raw
-  non-JSON, or an object missing a required `type` all receive
-  `{ type: 'error', code: 'INVALID_INPUT' }`. Agents can't route error
-  recovery (retry vs fix vs drop) without more granular codes like
-  `CHAT_TOO_LONG`, `WRONG_PHASE`, `UNKNOWN_ACTION_TYPE`, `MALFORMED_JSON`.
-  The [AGENTS.md](./AGENTS.md) contract already hints at per-reason codes;
-  make the implementation match.
 - **Verify behaviour of a second WebSocket with the same `playerToken`.**
   Server code at [game-do.ts:178-184](../src/server/game-do/game-do.ts) calls
   `old.close(1000, 'Replaced by new connection')` when a same-seat socket
