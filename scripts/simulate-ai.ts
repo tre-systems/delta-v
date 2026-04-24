@@ -54,6 +54,17 @@ export interface SimulationOptions {
   quiet?: boolean;
 }
 
+export type SimulationPolicyWarning = {
+  scenario: string;
+  kind: 'balance' | 'objective';
+  message: string;
+};
+
+export type SimulationPolicyEvaluation = {
+  failed: boolean;
+  warnings: SimulationPolicyWarning[];
+};
+
 // Per-scenario P0 decided-game rate thresholds (min, max).
 // Decided games = total minus draws/timeouts.
 // null = skip balance check (cooperative/race scenarios).
@@ -215,6 +226,99 @@ const countReasonsMatching = (
       matchers.some((matcher) => matcher.test(reason)) ? total + count : total,
     0,
   );
+
+export const evaluateSimulationPolicies = (
+  metricsList: readonly SimulationMetrics[],
+): SimulationPolicyEvaluation => {
+  const warnings: SimulationPolicyWarning[] = [];
+  let failed = false;
+
+  for (const metrics of metricsList) {
+    if (metrics.crashes > 0) {
+      failed = true;
+    }
+
+    const threshold = BALANCE_THRESHOLDS[metrics.scenario];
+    if (threshold) {
+      const decidedGames = metrics.player0Wins + metrics.player1Wins;
+      if (decidedGames >= 5) {
+        const p0Rate = metrics.player0Wins / decidedGames;
+        const [lo, hi] = threshold;
+        if (p0Rate < lo || p0Rate > hi) {
+          warnings.push({
+            scenario: metrics.scenario,
+            kind: 'balance',
+            message:
+              `P0 decided rate ${(p0Rate * 100).toFixed(1)}% outside ` +
+              `[${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}%]`,
+          });
+        }
+      }
+    }
+
+    const objectivePolicy = OBJECTIVE_WARNING_POLICIES[metrics.scenario];
+
+    if (!objectivePolicy) {
+      continue;
+    }
+
+    const objectiveCompletions = countReasonsMatching(
+      metrics.reasons,
+      objectivePolicy.objectiveReasonMatchers,
+    );
+    const eliminationResolutions = metrics.reasons['Fleet eliminated!'] ?? 0;
+    const objectiveShare = objectiveCompletions / metrics.totalGames;
+    const eliminationShare = eliminationResolutions / metrics.totalGames;
+
+    if (
+      objectivePolicy.minObjectiveShare != null &&
+      objectiveShare < objectivePolicy.minObjectiveShare
+    ) {
+      warnings.push({
+        scenario: metrics.scenario,
+        kind: 'objective',
+        message:
+          `objective resolutions ${(objectiveShare * 100).toFixed(1)}% below ` +
+          `${(objectivePolicy.minObjectiveShare * 100).toFixed(0)}%`,
+      });
+    }
+
+    if (
+      objectivePolicy.maxEliminationShare != null &&
+      eliminationShare > objectivePolicy.maxEliminationShare
+    ) {
+      warnings.push({
+        scenario: metrics.scenario,
+        kind: 'objective',
+        message:
+          `fleet-elimination share ${(eliminationShare * 100).toFixed(1)}% above ` +
+          `${(objectivePolicy.maxEliminationShare * 100).toFixed(0)}%`,
+      });
+    }
+
+    if (objectivePolicy.decidedP0RateBounds != null) {
+      const decidedGames = metrics.player0Wins + metrics.player1Wins;
+
+      if (decidedGames >= 5) {
+        const p0Rate = metrics.player0Wins / decidedGames;
+        const [lo, hi] = objectivePolicy.decidedP0RateBounds;
+
+        if (p0Rate < lo || p0Rate > hi) {
+          warnings.push({
+            scenario: metrics.scenario,
+            kind: 'objective',
+            message:
+              `objective-seat balance P0 decided rate ` +
+              `${(p0Rate * 100).toFixed(1)}% outside ` +
+              `[${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}%]`,
+          });
+        }
+      }
+    }
+  }
+
+  return { failed, warnings };
+};
 
 const runSingleGame = async (
   scenarioName: ScenarioKey,
@@ -551,95 +655,24 @@ const main = async () => {
 
   // Evaluate strict constraints if running in CI format
   if (isCiMode) {
-    let failed = false;
-    let balanceWarnings = 0;
-    let objectiveWarnings = 0;
+    const policyEvaluation = evaluateSimulationPolicies(allMetrics);
+
     for (const metrics of allMetrics) {
       if (metrics.crashes > 0) {
         console.error(
           `❌ CI FAILURE: ${metrics.scenario} — Engine crashed ${metrics.crashes} times.`,
         );
-        failed = true;
-      }
-
-      const threshold = BALANCE_THRESHOLDS[metrics.scenario];
-      if (threshold) {
-        const decidedGames = metrics.player0Wins + metrics.player1Wins;
-        if (decidedGames >= 5) {
-          const p0Rate = metrics.player0Wins / decidedGames;
-          const [lo, hi] = threshold;
-          if (p0Rate < lo || p0Rate > hi) {
-            balanceWarnings++;
-            console.warn(
-              `⚠️  ${metrics.scenario}: P0 decided rate ` +
-                `${(p0Rate * 100).toFixed(1)}% outside ` +
-                `[${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}%]`,
-            );
-          }
-        }
-      }
-
-      const objectivePolicy = OBJECTIVE_WARNING_POLICIES[metrics.scenario];
-
-      if (!objectivePolicy) {
-        continue;
-      }
-
-      const objectiveCompletions = countReasonsMatching(
-        metrics.reasons,
-        objectivePolicy.objectiveReasonMatchers,
-      );
-      const eliminationResolutions = metrics.reasons['Fleet eliminated!'] ?? 0;
-      const objectiveShare = objectiveCompletions / metrics.totalGames;
-      const eliminationShare = eliminationResolutions / metrics.totalGames;
-
-      if (
-        objectivePolicy.minObjectiveShare != null &&
-        objectiveShare < objectivePolicy.minObjectiveShare
-      ) {
-        objectiveWarnings++;
-        console.warn(
-          `⚠️  ${metrics.scenario}: objective resolutions ` +
-            `${(objectiveShare * 100).toFixed(1)}% below ` +
-            `${(objectivePolicy.minObjectiveShare * 100).toFixed(0)}%`,
-        );
-      }
-
-      if (
-        objectivePolicy.maxEliminationShare != null &&
-        eliminationShare > objectivePolicy.maxEliminationShare
-      ) {
-        objectiveWarnings++;
-        console.warn(
-          `⚠️  ${metrics.scenario}: fleet-elimination share ` +
-            `${(eliminationShare * 100).toFixed(1)}% above ` +
-            `${(objectivePolicy.maxEliminationShare * 100).toFixed(0)}%`,
-        );
-      }
-
-      if (objectivePolicy.decidedP0RateBounds != null) {
-        const decidedGames = metrics.player0Wins + metrics.player1Wins;
-
-        if (decidedGames >= 5) {
-          const p0Rate = metrics.player0Wins / decidedGames;
-          const [lo, hi] = objectivePolicy.decidedP0RateBounds;
-
-          if (p0Rate < lo || p0Rate > hi) {
-            objectiveWarnings++;
-            console.warn(
-              `⚠️  ${metrics.scenario}: objective-seat balance P0 decided rate ` +
-                `${(p0Rate * 100).toFixed(1)}% outside ` +
-                `[${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}%]`,
-            );
-          }
-        }
       }
     }
 
-    if (failed) {
+    for (const warning of policyEvaluation.warnings) {
+      console.warn(`⚠️  ${warning.scenario}: ${warning.message}`);
+    }
+
+    if (policyEvaluation.failed) {
       console.error('\n🚨 CI Constraints Failed. Exiting with code 1.');
       process.exit(1);
-    } else if (balanceWarnings > 0 || objectiveWarnings > 0) {
+    } else if (policyEvaluation.warnings.length > 0) {
       console.log(
         '\n✅ CI stability checks passed. Balance/objective warnings above are non-fatal.',
       );
