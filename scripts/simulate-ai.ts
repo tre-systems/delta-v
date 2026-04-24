@@ -10,6 +10,7 @@ import {
   buildAIFleetPurchases,
 } from '../src/shared/ai';
 import { estimateRemainingCheckpointTourCost } from '../src/shared/ai/common';
+import { scorePassengerArrivalOdds } from '../src/shared/ai/logistics';
 import {
   beginCombatPhase,
   createGame,
@@ -38,6 +39,7 @@ import type {
   GameState,
   Phase,
   PlayerId,
+  TransferOrder,
 } from '../src/shared/types';
 
 export interface SimulationMetrics {
@@ -60,6 +62,7 @@ export interface SimulationFailureCounters {
   invalidActions: number;
   invalidActionPhases: Record<string, number>;
   fuelStalls: number;
+  passengerTransferMistakes: number;
 }
 
 export interface ScenarioScorecard {
@@ -80,6 +83,8 @@ export interface ScenarioScorecard {
   invalidActionShare: number;
   fuelStalls: number;
   fuelStallsPerGame: number;
+  passengerTransferMistakes: number;
+  passengerTransferMistakesPerGame: number;
 }
 
 export interface SimulationOptions {
@@ -98,7 +103,17 @@ export interface SimulationOptions {
 export type SimulationFailureKind =
   | 'fuelStall'
   | 'invalidAction'
-  | 'objectiveDrift';
+  | 'objectiveDrift'
+  | 'passengerTransferMistake';
+
+export interface PassengerTransferMistake {
+  sourceShipId: string;
+  targetShipId: string;
+  amount: number;
+  sourceArrivalScore: number;
+  targetArrivalScore: number;
+  reason: string;
+}
 
 export interface SimulationFailureCapture {
   schemaVersion: 1;
@@ -114,6 +129,7 @@ export interface SimulationFailureCapture {
   state: GameState;
   action?: unknown;
   stalledShipIds?: string[];
+  passengerTransferMistakes?: PassengerTransferMistake[];
   message?: string;
 }
 
@@ -248,6 +264,7 @@ const emptyFailureCounters = (): SimulationFailureCounters => ({
   invalidActions: 0,
   invalidActionPhases: {},
   fuelStalls: 0,
+  passengerTransferMistakes: 0,
 });
 
 const mergeFailureCounters = (
@@ -256,11 +273,84 @@ const mergeFailureCounters = (
 ): void => {
   target.invalidActions += source.invalidActions;
   target.fuelStalls += source.fuelStalls;
+  target.passengerTransferMistakes += source.passengerTransferMistakes;
 
   for (const [phase, count] of Object.entries(source.invalidActionPhases)) {
     target.invalidActionPhases[phase] =
       (target.invalidActionPhases[phase] ?? 0) + count;
   }
+};
+
+const PASSENGER_TRANSFER_ARRIVAL_LOSS_THRESHOLD = 40;
+
+export const findPassengerTransferMistakes = (
+  state: GameState,
+  playerId: PlayerId,
+  transfers: readonly TransferOrder[],
+  map: ReturnType<typeof buildSolarSystemMap>,
+): PassengerTransferMistake[] => {
+  if (!state.scenarioRules.targetWinRequiresPassengers) {
+    return [];
+  }
+
+  const mistakes: PassengerTransferMistake[] = [];
+
+  for (const transfer of transfers) {
+    if (transfer.transferType !== 'passengers') {
+      continue;
+    }
+
+    const source = state.ships.find(
+      (ship) => ship.id === transfer.sourceShipId,
+    );
+    const target = state.ships.find(
+      (ship) => ship.id === transfer.targetShipId,
+    );
+
+    if (!source || !target || source.owner !== playerId) {
+      continue;
+    }
+
+    const sourceCompromised =
+      source.damage.disabledTurns > 0 ||
+      source.control !== 'own' ||
+      source.lifecycle !== 'active';
+
+    if (sourceCompromised || (source.passengersAboard ?? 0) <= 0) {
+      continue;
+    }
+
+    const sourceArrivalScore = scorePassengerArrivalOdds(
+      source,
+      playerId,
+      state,
+      map,
+    );
+    const targetArrivalScore = scorePassengerArrivalOdds(
+      target,
+      playerId,
+      state,
+      map,
+    );
+    const arrivalLoss = sourceArrivalScore - targetArrivalScore;
+
+    if (arrivalLoss < PASSENGER_TRANSFER_ARRIVAL_LOSS_THRESHOLD) {
+      continue;
+    }
+
+    mistakes.push({
+      sourceShipId: source.id,
+      targetShipId: target.id,
+      amount: transfer.amount,
+      sourceArrivalScore,
+      targetArrivalScore,
+      reason:
+        `passenger transfer loses ${arrivalLoss.toFixed(1)} arrival score ` +
+        `from ${source.id} to ${target.id}`,
+    });
+  }
+
+  return mistakes;
 };
 
 export const findFuelStallShipIds = (
@@ -427,6 +517,10 @@ export const buildScenarioScorecard = (
     invalidActionShare: metrics.failureCounters.invalidActions / totalGames,
     fuelStalls: metrics.failureCounters.fuelStalls,
     fuelStallsPerGame: metrics.failureCounters.fuelStalls / totalGames,
+    passengerTransferMistakes:
+      metrics.failureCounters.passengerTransferMistakes,
+    passengerTransferMistakesPerGame:
+      metrics.failureCounters.passengerTransferMistakes / totalGames,
   };
 };
 
@@ -728,6 +822,29 @@ const runSingleGame = async (
         }
       } else if (state.phase === 'logistics') {
         const transfers = aiLogistics(state, activePlayer, map, difficulty);
+        const passengerTransferMistakes = findPassengerTransferMistakes(
+          state,
+          activePlayer,
+          transfers,
+          map,
+        );
+        failureCounters.passengerTransferMistakes +=
+          passengerTransferMistakes.length;
+        if (passengerTransferMistakes.length > 0) {
+          await recordFailure({
+            kind: 'passengerTransferMistake',
+            turnNumber: state.turnNumber,
+            phase: state.phase,
+            activePlayer,
+            difficulty,
+            state,
+            action: { type: 'logistics', transfers },
+            passengerTransferMistakes,
+            message: passengerTransferMistakes
+              .map((mistake) => mistake.reason)
+              .join('; '),
+          });
+        }
         const result =
           transfers.length > 0
             ? processLogistics(state, activePlayer, transfers, map)
@@ -1022,6 +1139,11 @@ export const runSimulation = async (
     if (metrics.scorecard.fuelStalls > 0) {
       console.log(
         `  - Fuel Stalls/Game: ${metrics.scorecard.fuelStallsPerGame.toFixed(2)}`,
+      );
+    }
+    if (metrics.scorecard.passengerTransferMistakes > 0) {
+      console.log(
+        `  - Passenger Transfer Mistakes/Game: ${metrics.scorecard.passengerTransferMistakesPerGame.toFixed(2)}`,
       );
     }
   }

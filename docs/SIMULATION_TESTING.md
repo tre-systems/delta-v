@@ -59,12 +59,13 @@ carrier", "do not coast while stalled") over adding another global weight from
 one trace.
 
 **Failure captures.** Use `--capture-failures <dir>` to write bounded JSON
-snapshots for invalid built-in AI actions, fuel stalls, and objective-scenario
-drift such as fleet-elimination resolutions. The default cap is 5 files;
-override it with `--capture-failures-limit N`. Captures include the seed,
-scenario, active player, proposed action when relevant, stalled ship ids when
-relevant, and the full `GameState`. To promote a capture, copy the JSON into a
-focused `__fixtures__` path and assert the decision class has changed. For example,
+snapshots for invalid built-in AI actions, fuel stalls, passenger-transfer
+mistakes, and objective-scenario drift such as fleet-elimination resolutions.
+The default cap is 5 files; override it with `--capture-failures-limit N`.
+Captures include the seed, scenario, active player, proposed action when
+relevant, stalled ship ids or passenger-transfer diagnostics when relevant, and
+the full `GameState`. To promote a capture, copy the JSON into a focused
+`__fixtures__` path and assert the decision class has changed. For example,
 [`src/shared/ai/__fixtures__/grand-tour-fuel-stall.json`](../src/shared/ai/__fixtures__/grand-tour-fuel-stall.json)
 backs a regression that checks the AI no longer submits a fueled stationary
 coast for that state.

@@ -73,7 +73,7 @@ const getPlayerTargetHex = (
     : null;
 };
 
-const scorePassengerArrivalOdds = (
+export const scorePassengerArrivalOdds = (
   ship: Ship,
   playerId: PlayerId,
   state: GameState,
