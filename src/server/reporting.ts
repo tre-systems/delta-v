@@ -122,10 +122,13 @@ const DEV_IP_HASH_SALT =
   'delta-v-dev-only-ip-hash-salt-do-not-use-in-production';
 
 const resolveIpHashSalt = (
-  env: Pick<Env, 'IP_HASH_SALT' | 'DEV_MODE'>,
+  env: Pick<Env, 'AGENT_TOKEN_SECRET' | 'IP_HASH_SALT' | 'DEV_MODE'>,
 ): string => {
   if (env.IP_HASH_SALT && env.IP_HASH_SALT.length >= 16) {
     return env.IP_HASH_SALT;
+  }
+  if (env.AGENT_TOKEN_SECRET && env.AGENT_TOKEN_SECRET.length >= 16) {
+    return env.AGENT_TOKEN_SECRET;
   }
   if (env.DEV_MODE === '1') {
     return DEV_IP_HASH_SALT;
@@ -135,7 +138,7 @@ const resolveIpHashSalt = (
 
 export const hashIp = async (
   ip: string,
-  env: Pick<Env, 'IP_HASH_SALT' | 'DEV_MODE'>,
+  env: Pick<Env, 'AGENT_TOKEN_SECRET' | 'IP_HASH_SALT' | 'DEV_MODE'>,
 ): Promise<string> => {
   const salt = resolveIpHashSalt(env);
   const buf = await crypto.subtle.digest(

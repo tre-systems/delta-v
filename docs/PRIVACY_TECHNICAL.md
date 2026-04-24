@@ -18,7 +18,7 @@ Telemetry/error collection, server-side diagnostics, and match-archive storage. 
 ## Server storage
 
 - `POST /telemetry` and `POST /error` accept JSON up to **4 KB** ([`src/server/index.ts`](../src/server/index.ts)).
-- The client IP is transformed into `ip_hash` (`SHA-256(IP_HASH_SALT + ':' + ip)`, truncated to 16 hex chars) before any D1 write; the raw IP is not written. `IP_HASH_SALT` is a production secret, and production fails closed when it is missing. Rotating the salt makes future rows unlinkable from historic rows through the application hash.
+- The client IP is transformed into `ip_hash` (`SHA-256(secretSalt + ':' + ip)`, truncated to 16 hex chars) before any D1 write; the raw IP is not written. `IP_HASH_SALT` can provide a dedicated production salt; when unset, the existing `AGENT_TOKEN_SECRET` is used as the salt so hashes remain resistant to forward lookup. Rotating the active salt makes future rows unlinkable from historic rows through the application hash.
 - Events are stored in D1 `events` with columns `ts`, `anon_id`, `event`, `props`, `ip_hash`, `ua` — see [`migrations/0001_create_events.sql`](../migrations/0001_create_events.sql).
 - Durable Object diagnostic events (`engine_error`, `projection_parity_mismatch`, `game_abandoned`, lifecycle events) insert with `ip_hash = 'server'`; diagnostic payloads may include stack traces. Stack-trace scrubbing is a P3 follow-up in [BACKLOG.md](./BACKLOG.md) — low likelihood of user-typed-string exposure today but worth bounding when we next touch the error-reporting path.
 
