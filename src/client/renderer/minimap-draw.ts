@@ -125,16 +125,23 @@ export const drawMinimapOverlay = (input: DrawMinimapOverlayInput): void => {
     hexSize,
     selectedShipId,
   } = input;
+  const rootStyles = getComputedStyle(document.documentElement);
   const hudTopOffset = parseFloat(
-    getComputedStyle(document.documentElement).getPropertyValue(
-      '--hud-top-offset',
-    ) || '0',
+    rootStyles.getPropertyValue('--hud-top-offset') || '0',
   );
-  const hudBottomOffset = parseFloat(
-    getComputedStyle(document.documentElement).getPropertyValue(
-      '--hud-bottom-offset',
-    ) || '0',
+  // Use a stable bottom reserve — NOT the live `--hud-bottom-offset` —
+  // so the minimap doesn't slide up and down when `.hud-bottom-buttons`
+  // toggles `is-empty` between phases (e.g. your turn → opponent turn).
+  // The reserve is sized to cover the largest populated hud-bottom
+  // footprint (CONFIRM + hint line + gap ≈ 104 px at the CSS default
+  // of 6.5rem) plus the device's safe-area inset. `.hud-bottom` is
+  // bottom-anchored so the minimap clears it regardless of which
+  // button set is currently visible.
+  const MINIMAP_BOTTOM_RESERVE_PX = 104;
+  const safeBottomPx = parseFloat(
+    rootStyles.getPropertyValue('--safe-bottom') || '0',
   );
+  const hudBottomOffset = MINIMAP_BOTTOM_RESERVE_PX + safeBottomPx;
   const layout = createMinimapLayout(
     map.bounds,
     screenW,
