@@ -917,6 +917,21 @@ export const aiAstrogation = (
                   hexDistance(shipTargetHex, continuationBase),
                 );
               })();
+        const standingBaseBody = map.hexes.get(hexKey(ship.position))?.base
+          ?.bodyName;
+        const standingOnRefuelBase =
+          standingBaseBody != null &&
+          (standingBaseBody === player.homeBody ||
+            caps.sharedBases.includes(standingBaseBody));
+
+        if (
+          standingOnRefuelBase &&
+          ship.fuel <= fuelForTrip + continuationFuel + 4
+        ) {
+          shipTargetBody = standingBaseBody;
+          shipTargetHex = ship.position;
+          seekingFuel = true;
+        }
 
         if (ship.fuel < fuelForTrip + continuationFuel) {
           const basePos = findNearestRefuelBase(
@@ -1010,7 +1025,13 @@ export const aiAstrogation = (
       weakGravityChoices?: Record<HexKey, boolean>;
     };
     const directions = [0, 1, 2, 3, 4, 5] as const;
-    const inOrbit = detectOrbit(ship, map) !== null;
+    const currentHex = map.hexes.get(hexKey(ship.position));
+    const canBrakeToLandOnBase =
+      ship.lifecycle !== 'landed' &&
+      hexVecLength(ship.velocity) === 1 &&
+      currentHex?.base != null &&
+      currentHex.gravity?.bodyName === currentHex.base.bodyName;
+    const inOrbit = detectOrbit(ship, map) !== null || canBrakeToLandOnBase;
     const options: BurnOption[] = [
       { burn: null, overload: null },
       ...(canBurnFuel
@@ -1042,10 +1063,10 @@ export const aiAstrogation = (
       if (course.outcome === 'crash') continue;
 
       let gravityRiskPenalty = 0;
+      const fuelAfterCourse = ship.fuel - course.fuelSpent;
 
       if (course.outcome !== 'landing') {
         const simShip = projectShipAfterCourse(ship, course);
-        const fuelAfter = ship.fuel - course.fuelSpent;
         const driftCourse = computeCourse(simShip, null, map, {
           destroyedBases: state.destroyedBases,
         });
@@ -1054,7 +1075,7 @@ export const aiAstrogation = (
           if (!allowsCorrectiveBurnLookahead) {
             continue;
           }
-          if (fuelAfter <= 0) continue;
+          if (fuelAfterCourse <= 0) continue;
 
           let canSurvive = false;
           for (let d2 = 0; d2 < 6; d2++) {
@@ -1064,7 +1085,7 @@ export const aiAstrogation = (
 
             if (escapeResult.outcome === 'crash') continue;
 
-            if (escapeResult.outcome !== 'landing' && fuelAfter > 1) {
+            if (escapeResult.outcome !== 'landing' && fuelAfterCourse > 1) {
               const sim2 = projectShipAfterCourse(simShip, escapeResult);
               const drift2 = computeCourse(sim2, null, map, {
                 destroyedBases: state.destroyedBases,
@@ -1181,6 +1202,53 @@ export const aiAstrogation = (
 
       if (seekingFuel && course.outcome === 'landing') {
         score += cfg.fuelSeekLandingBonus;
+      }
+
+      if (seekingFuel && shipTargetHex != null) {
+        const currentDist = hexDistance(ship.position, shipTargetHex);
+        const newDist = hexDistance(course.destination, shipTargetHex);
+        const currentSpeed = hexVecLength(ship.velocity);
+        const newSpeed = hexVecLength(course.newVelocity);
+        const currentFuelMargin =
+          ship.fuel - estimateFuelForTravelDistance(currentDist, currentSpeed);
+        const newFuelMargin =
+          fuelAfterCourse - estimateFuelForTravelDistance(newDist, newSpeed);
+
+        score += (newFuelMargin - currentFuelMargin) * 70;
+        score += (currentDist - newDist) * 45;
+
+        if (fuelAfterCourse <= 1 && course.outcome !== 'landing') {
+          score -= 420;
+        }
+
+        if (newDist <= 2 && course.outcome !== 'landing') {
+          score -= newSpeed * 110;
+        }
+      }
+
+      if (
+        checkpoints &&
+        !seekingFuel &&
+        shipTargetHex != null &&
+        ship.lifecycle !== 'landed' &&
+        course.outcome !== 'landing'
+      ) {
+        const currentDist = hexDistance(ship.position, shipTargetHex);
+        const newDist = hexDistance(course.destination, shipTargetHex);
+        const currentSpeed = hexVecLength(ship.velocity);
+        const newSpeed = hexVecLength(course.newVelocity);
+
+        if (currentSpeed === 0 && currentDist <= 3) {
+          score += (currentDist - newDist) * cfg.navTargetLandingBonus * 0.25;
+
+          if (opt.burn === null) {
+            score -= cfg.navStayLandedPenalty * cfg.multiplier * 10;
+          }
+        }
+
+        if (currentDist <= 2 && newDist < currentDist && newSpeed <= 1) {
+          score += cfg.navImminentLandingBonus * cfg.multiplier;
+        }
       }
 
       if (

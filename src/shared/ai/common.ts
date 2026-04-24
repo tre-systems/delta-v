@@ -98,22 +98,22 @@ const GRAND_TOUR_CHECKPOINT_SET = new Set([
 const GRAND_TOUR_ROUTE_BY_HOME: Record<string, readonly string[]> = {
   Luna: [
     'Sol',
+    'Terra',
     'Mercury',
     'Venus',
-    'Terra',
     'Mars',
-    'Jupiter',
     'Io',
+    'Jupiter',
     'Callisto',
   ],
   Mars: [
     'Callisto',
-    'Io',
     'Jupiter',
+    'Io',
     'Terra',
-    'Venus',
     'Mercury',
     'Sol',
+    'Venus',
     'Mars',
   ],
 };

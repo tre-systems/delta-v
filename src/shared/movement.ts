@@ -199,6 +199,7 @@ const checkLanding = (
   if (ship.lifecycle === 'landed') return null;
   const key = hexKey(destination);
   const hex = map.hexes.get(key);
+  const currentHex = map.hexes.get(hexKey(ship.position));
 
   if (hex?.base && !destroyedBases.has(key)) {
     if (bodyHasGravity(hex.base.bodyName, map)) {
@@ -208,6 +209,15 @@ const checkLanding = (
         hexKey(ship.position) === key;
 
       if (alreadyStationaryOnBase) {
+        return hex.base.bodyName;
+      }
+
+      const brakingToStopOnBase =
+        fuelSpent === 1 &&
+        hexVecLength(newVelocity) === 0 &&
+        currentHex?.gravity?.bodyName === hex.base.bodyName;
+
+      if (brakingToStopOnBase) {
         return hex.base.bodyName;
       }
 
@@ -360,13 +370,14 @@ const computeNormalCourse = ({
   // of base defense fire).
   if (land && fuelSpent === 1) {
     const dir = burn !== null ? HEX_DIRECTIONS[burn] : { dq: 0, dr: 0 };
+    const postBurnVelocity = {
+      dq: ship.velocity.dq + dir.dq,
+      dr: ship.velocity.dr + dir.dr,
+    };
     const postBurnShip: Ship = {
       ...ship,
       position: destination,
-      velocity: {
-        dq: ship.velocity.dq + dir.dq,
-        dr: ship.velocity.dr + dir.dr,
-      },
+      velocity: postBurnVelocity,
       pendingGravityEffects: [],
     };
     const orbitBody = detectOrbit(ship, map) ?? detectOrbit(postBurnShip, map);
@@ -399,6 +410,27 @@ const computeNormalCourse = ({
           landedAt: orbitBody,
         };
       }
+    }
+
+    const currentHex = map.hexes.get(hexKey(ship.position));
+    if (
+      currentHex?.base &&
+      currentHex.gravity?.bodyName === currentHex.base.bodyName &&
+      hexVecLength(postBurnVelocity) === 0 &&
+      !destroyedBases.has(hexKey(ship.position))
+    ) {
+      return {
+        destination: ship.position,
+        path: [ship.position],
+        newVelocity: { dq: 0, dr: 0 },
+        fuelSpent,
+        gravityEffects: (ship.pendingGravityEffects ?? []).map((e) => ({
+          ...e,
+        })),
+        enteredGravityEffects: [],
+        outcome: 'landing' as const,
+        landedAt: currentHex.base.bodyName,
+      };
     }
   }
 
