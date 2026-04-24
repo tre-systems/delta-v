@@ -239,7 +239,8 @@ Across every cell, run the four checks below and paste each failure into the fin
     [...document.querySelectorAll(sel)]
       .filter(el => {
         const s = getComputedStyle(el);
-        return s.display !== 'none' && s.visibility !== 'hidden' && el.offsetWidth > 0;
+        return s.display !== 'none' && s.visibility !== 'hidden'
+          && parseFloat(s.opacity) > 0 && el.offsetWidth > 0;
       })
       .map(el => ({ sel, el, r: el.getBoundingClientRect() })));
   const overlaps = [];
@@ -498,3 +499,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | 2026-04-19 | agent (Opus 4.7) | Lobby flows (Join / Forget my callsign / callsign input), reserved-name blocklist gap, final re-verification of shipped fixes | 1 |
 | 2026-04-21 | agent (Opus 4.7) | Post-Stream-2 regression: full Play-vs-AI flow, archived-replay playback, client-state audit (R14), 6-scenario sweep (R7), hard-refresh reconnect (R9), API surface + validation (R1/R2); filed 0 new entries but surfaced Chrome-MCP resize-emulation gap (doc'd in R10) and the latent replay-exit routing quirk that shipped as 2746ca9 | 0 |
 | 2026-04-21 | agent (Opus 4.7) | Deep pass post-Stream-1-AI deploy: R12 external doc links (28/28 OK), R16 simulation balance (2×30 games all scenarios — surfaced Grand Tour 60/60 timeouts + evacuation/convoy/fleetAction seat drift), R2 deep validation (oversize, Unicode, malformed JSON — all clean), R3 source-vs-agent.json description drift (4 scenarios differ), R5 hosted-MCP edge cases (oversize chat + bad sessionId error shape), R7 live UI re-check of corner buttons + replay exit | 4 |
+| 2026-04-24 | agent (Opus 4.7) | First run of the revised R10 mobile sweep (surfaced ship-entry name overflow at 320 px), R16 sim balance (biplanetary 100% elimination + interplanetaryWar 110 fuel-stalls/game), R1/R2 live API + validation (all params reject cleanly), R12 doc-link sweep (55/55 OK); inline-fixed the R10 Check-1 script to ignore opacity:0 elements (false positive on `#phaseAlert` over menu) | 2 |
