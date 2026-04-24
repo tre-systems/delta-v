@@ -5,14 +5,24 @@
  */
 
 import { validateClientMessage } from '../../shared/protocol';
-import type { PlayerId, Result } from '../../shared/types/domain';
+import {
+  ErrorCode,
+  type PlayerId,
+  type Result,
+} from '../../shared/types/domain';
 import type { C2S, S2C } from '../../shared/types/protocol';
+import { isObject } from '../../shared/util';
 import type { AuxMessage } from './actions';
 
 export const WS_MSG_RATE_LIMIT = 10;
 export const WS_MSG_RATE_WINDOW_MS = 1_000;
 export const CHAT_RATE_LIMIT_MS = 500;
 export const WS_MAX_MESSAGE_BYTES = 8 * 1024;
+
+type SocketParseError = {
+  message: string;
+  code: ErrorCode;
+};
 
 interface RateWindow {
   count: number;
@@ -45,11 +55,48 @@ export const applySocketRateLimit = (
   return true;
 };
 
-export const parseClientSocketMessage = (message: string): Result<C2S> => {
+const isUnknownMessageTypeError = (error: string): boolean =>
+  error.startsWith('Unknown message type:');
+
+const classifyValidatedClientMessageError = (
+  raw: unknown,
+  error: string,
+): SocketParseError => {
+  if (
+    isObject(raw) &&
+    raw.type === 'chat' &&
+    typeof raw.text === 'string' &&
+    raw.text.trim().length > 200
+  ) {
+    return {
+      message: 'Chat message exceeds the 200-character limit',
+      code: ErrorCode.CHAT_TOO_LONG,
+    };
+  }
+
+  if (isUnknownMessageTypeError(error)) {
+    return {
+      message: error,
+      code: ErrorCode.UNKNOWN_ACTION_TYPE,
+    };
+  }
+
+  return {
+    message: error,
+    code: ErrorCode.INVALID_INPUT,
+  };
+};
+
+export const parseClientSocketMessage = (
+  message: string,
+): Result<C2S, SocketParseError> => {
   if (message.length > WS_MAX_MESSAGE_BYTES) {
     return {
       ok: false,
-      error: `Message exceeds the ${WS_MAX_MESSAGE_BYTES}-byte limit`,
+      error: {
+        message: `Message exceeds the ${WS_MAX_MESSAGE_BYTES}-byte limit`,
+        code: ErrorCode.INVALID_INPUT,
+      },
     };
   }
 
@@ -57,12 +104,21 @@ export const parseClientSocketMessage = (message: string): Result<C2S> => {
   try {
     raw = JSON.parse(message);
   } catch {
-    return { ok: false, error: 'Invalid JSON' };
+    return {
+      ok: false,
+      error: {
+        message: 'Invalid JSON',
+        code: ErrorCode.MALFORMED_JSON,
+      },
+    };
   }
 
   const parsed = validateClientMessage(raw);
   if (!parsed.ok) {
-    return { ok: false, error: parsed.error };
+    return {
+      ok: false,
+      error: classifyValidatedClientMessageError(raw, parsed.error),
+    };
   }
   return { ok: true, value: parsed.value };
 };
