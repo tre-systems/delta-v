@@ -125,9 +125,52 @@ describe('MatchmakerDO additional coverage', () => {
     });
     await expect(missingPlayer.json()).resolves.toMatchObject({
       ok: false,
-      error: 'invalid_payload',
-      message: 'Invalid quick-match payload.',
+      error: 'invalid_player',
+      message:
+        'player.playerKey must be 8-64 characters using letters, numbers, "_" or "-".',
       hint: 'Send { player: { playerKey, username? }, scenario? } as JSON.',
+    });
+  });
+
+  it('names quick-match validation fields for recoverable client errors', async () => {
+    const { matchmaker } = createMatchmaker();
+
+    const unknownScenario = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'not-a-scenario',
+          player: { playerKey: 'playerkey1' },
+        }),
+      }),
+    );
+    const badUsername = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'duel',
+          player: {
+            playerKey: 'playerkey1',
+            username: 'x'.repeat(21),
+          },
+        }),
+      }),
+    );
+
+    expect(unknownScenario.status).toBe(400);
+    await expect(unknownScenario.json()).resolves.toMatchObject({
+      ok: false,
+      error: 'unknown_scenario',
+      message: 'scenario must be one of the published scenario keys.',
+    });
+    expect(badUsername.status).toBe(400);
+    await expect(badUsername.json()).resolves.toMatchObject({
+      ok: false,
+      error: 'username_too_long',
+      message:
+        'player.username must be 2-20 characters using letters, numbers, spaces, "_" or "-".',
     });
   });
 
