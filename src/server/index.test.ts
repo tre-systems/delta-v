@@ -1651,6 +1651,32 @@ describe('/create rate limiting', () => {
 
     expect(limiter.limit).not.toHaveBeenCalled();
   });
+
+  it('does not trust spoofed loopback cf-connecting-ip on public hosts', async () => {
+    const limiter = {
+      limit: vi.fn(async () => ({ success: false })),
+    };
+    const { env, initFetch } = createEnv(undefined, {
+      CREATE_RATE_LIMITER: limiter,
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'cf-connecting-ip': '127.0.0.1',
+        },
+        body: JSON.stringify({ scenario: 'escape' }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(429);
+    expect(limiter.limit).toHaveBeenCalledTimes(1);
+    expect(initFetch).not.toHaveBeenCalled();
+  });
 });
 
 describe('/api/agent-token rate limiting', () => {
