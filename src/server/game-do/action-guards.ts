@@ -145,6 +145,22 @@ export class IdempotencyKeyCache {
   clear(): void {
     this.byPlayer.clear();
   }
+
+  // Keep keys alive for retries within the same authoritative scope. Clear
+  // only when the game actually moves to a new turn/phase/match.
+  clearIfScopeChanged(
+    previous: Pick<GameState, 'gameId' | 'turnNumber' | 'phase'> | null,
+    next: Pick<GameState, 'gameId' | 'turnNumber' | 'phase'>,
+  ): void {
+    if (
+      previous === null ||
+      previous.gameId !== next.gameId ||
+      previous.turnNumber !== next.turnNumber ||
+      previous.phase !== next.phase
+    ) {
+      this.clear();
+    }
+  }
 }
 
 // Build the S2C actionRejected payload for a guard or idempotency failure.
