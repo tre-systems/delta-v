@@ -14,9 +14,13 @@ Extend or adjust the projector and archive tests inside the server game-do folde
 
 MCP here stands for Model Context Protocol. Refresh the agent playbook configuration file and any agent-facing documentation if the set of legal actions or phase rules has changed. Then run the MCP and bridge smoke test, following the quick-start steps in the agents documentation, against either a local or staging Worker.
 
+## Database migrations (forward-only)
+
+Add any new migration as a numbered SQL file under the migrations directory — the filename ordering is authoritative. Apply migrations locally using the Wrangler database-migrations-apply command with the local flag; the continuous-integration job and the pre-push hook already do this. The deploy job runs the same migration-apply command with the remote flag before the Worker deploys. Remember: rollback is "redeploy previous Worker on a compatible schema", not automatic down-migration.
+
 ## Client bundle
 
-Run the build command so that the version manifest picks up a new assets hash. Confirm that the main HTML entry point's query-string cache-busting parameters reference the new hash.
+Run the build command so that the version manifest picks up a new assets hash. The build now minifies the client bundle on every invocation, so the baseline is roughly 397 kilobytes raw and 117 kilobytes gzipped. Confirm that the main HTML entry point's query-string cache-busting parameters reference the new hash.
 
 ## Deploy
 

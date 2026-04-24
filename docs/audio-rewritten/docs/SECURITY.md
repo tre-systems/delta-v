@@ -10,11 +10,13 @@ WebSocket actions are validated and resolved on the server against the shared en
 
 The room creator receives a reserved reconnect token for seat zero. Guest-seat claiming is still room-code based in the default friendly-match flow, but once a seat is claimed the reconnect flow is token-based and seat reclamation is keyed to player identity.
 
-Malformed client-to-server WebSocket messages are rejected at runtime before any engine handler executes. After a socket is accepted, per-socket rate limiting caps message flood, and chat is separately throttled.
+Malformed client-to-server WebSocket messages are rejected at runtime before any engine handler executes. After a socket is accepted, per-socket rate limiting caps message flood at ten messages per second before closing the socket, and chat is separately throttled to at most one accepted message every five hundred milliseconds per player.
 
 Room codes come from a cryptographically strong random-number generator rather than a non-cryptographic helper.
 
-Join-style probes, replay fetches, leaderboard reads, WebSocket upgrades, telemetry, error reporting, and hosted Model Context Protocol requests all sit behind rate limits. The Worker also applies a shared response-hardening header baseline, and public read endpoints intentionally expose explicit wildcard CORS because they are read-only surfaces meant for browser embedding and tooling.
+Join-style probes, replay fetches, leaderboard reads, WebSocket upgrades, telemetry, error reporting, and hosted Model Context Protocol requests all sit behind rate limits. The Worker also applies a shared response-hardening header baseline, and public read endpoints intentionally expose explicit wildcard cross-origin headers because they are read-only surfaces meant for browser embedding and tooling.
+
+All user-originating rate limits are keyed per salted hashed IP. The client IP address is never stored in plaintext — it is hashed together with a production secret, and that secret is the key material used to bucket requests. The Worker fails closed when the secret is missing: hosted endpoints refuse to sign or hash rather than falling back to a predictable placeholder in production.
 
 ## Remote MCP token model
 
@@ -26,9 +28,9 @@ The second is the match token. It is a per-match credential, lasts four hours, a
 
 The important security property is that the match token is bound to the issuing agent token. Hosted MCP requires the matching bearer token on every request that uses a match token or the compatibility alias session identifier. That means a leaked match token alone is not enough to replay a hosted session.
 
-The Worker fails closed when the signing secret is absent. Local development can explicitly opt into a deterministic placeholder through development configuration, but production cannot.
+Both tokens are signed with a production secret loaded at boot. The Worker fails closed when the signing secret is absent — hosted endpoints return a server-misconfigured error rather than signing with a placeholder. The same secret is also the salt used when hashing client IP addresses, unless a dedicated IP-hash salt secret is configured. Local development can opt into deterministic placeholders through the development-mode variable, but production never loads that override.
 
-Hosted MCP no longer accepts raw room-code and player-token tool arguments. The expected path is: mint agent token, start or discover a hosted session, receive a match token, then use that match token on later hosted tool calls.
+Hosted MCP no longer accepts raw room-code and player-token tool arguments. The expected path is: mint an agent token, start or discover a hosted session, receive a match token, then use that match token on later hosted tool calls.
 
 Token revocation is still coarse. Rotating the signing secret invalidates all outstanding tokens at once.
 
@@ -36,7 +38,7 @@ Token revocation is still coarse. Rotating the signing secret invalidates all ou
 
 The first remaining risk is guest-seat claiming. The creator seat is protected, but the open guest seat is still claimed through the room code or a copied room link. That is acceptable for friendly matches and weak for public matchmaking.
 
-The second remaining risk is room secrecy. Five-character room codes are intentionally short and easy to share, which makes them appropriate for friends and weak for open public play.
+The second remaining risk is room secrecy. Five-character room codes are intentionally short and easy to share, which makes them appropriate for friends and weak for open public play. The alphabet has thirty-two characters, which gives roughly thirty-three million combinations — collision-checked at creation time.
 
 ## Rate limiting architecture
 
@@ -48,7 +50,9 @@ Inside the Worker, in-memory per-isolate buckets cover WebSocket upgrades plus j
 
 Inside the game Durable Object, per-socket limits cap post-upgrade message flood and chat cooldown.
 
-The route budgets themselves are straightforward. Create, agent-token, quick-match, and claim-name are limited to five requests per minute per hashed IP. WebSocket upgrades are limited to twenty per minute. Join-style reads and leaderboard reads share a budget of one hundred per minute. Replay fetches have a separate budget of two hundred fifty per minute. Telemetry allows one hundred twenty per minute with a four-kilobyte body cap. Error reporting allows forty per minute with the same body cap. Hosted MCP allows twenty per minute with a sixteen-kilobyte body cap. Post-upgrade WebSocket messages are capped at ten per second per socket, and chat is limited to one accepted message every five hundred milliseconds per player.
+All user-originating route limits are keyed per salted hashed IP rather than by the raw address.
+
+The route budgets are as follows. Create, agent-token, quick-match, and claim-name are limited to five requests per minute per salted hashed IP, using both the strict per-isolate bucket and the Cloudflare create rate limiter binding. WebSocket upgrades are limited to twenty per minute per salted hashed IP in the per-isolate bucket. Join-style reads — including join, quick-match ticket polling, match-list, leaderboard, and per-player leaderboard lookup — share a budget of one hundred per minute per salted hashed IP. Replay fetches have a separate bucket of two hundred fifty per minute per salted hashed IP so replay traffic cannot exhaust the join budget. Telemetry allows one hundred twenty per minute per salted hashed IP with a four-kilobyte body cap, backed by the Cloudflare telemetry limiter with in-memory fallback. Error reporting allows forty per minute per salted hashed IP with the same body cap, backed by the error limiter. Hosted MCP allows twenty per minute keyed by agent-token hash or salted hashed IP, with a sixteen-kilobyte body cap. Post-upgrade WebSocket messages are capped at ten per second per socket, and chat is limited to one accepted message every five hundred milliseconds per player.
 
 The practical caveat is that in-memory per-isolate limits are not global across all edge locations. If distributed abuse becomes real, WAF rules or additional edge rate-limit namespaces are the escalation path.
 
@@ -92,14 +96,14 @@ If the product scope expands, the next likely steps are longer room identifiers,
 
 ## Data retention
 
-The events table has a thirty-day rolling purge.
+The events table has a thirty-day rolling purge run by a daily scheduled cron.
 
-The match-archive metadata table and the R2 match JSON objects now have a one-hundred-eighty-day rolling purge tied to the same scheduled cleanup path.
+The match-archive metadata table and the paired R2 match-JSON objects have a one-hundred-eighty-day rolling purge tied to the same scheduled cleanup path, which deletes both the database row and the archive object together.
 
 The player table, match-rating table, and some remaining Durable Object storage do not have automatic time-to-live behavior beyond the room-archive lifecycle.
 
-Operationally, the available levers are D1 export and delete operations, R2 lifecycle policies, and documented runbooks for any future user-erasure process.
+Operationally, the available levers are database export and delete operations, R2 lifecycle policies, and documented runbooks for any future user-erasure process. Erasure requests can be correlated by anonymous identifier for the events table within the thirty-day window, by player key for the player and match-rating tables, and by game identifier or room code for match-archive rows and R2 archives.
 
 ## Operational references
 
-The observability document explains the logging and database side in detail. The technical privacy summary explains what the stack stores. Cloudflare's own documentation covers WAF rate limiting and Turnstile. OWASP references cover XSS and DOM-based XSS prevention.
+The observability document explains the logging and database side in detail. The technical privacy summary explains what the stack stores. Cloudflare's own documentation covers WAF rate limiting and Turnstile. OWASP references cover cross-site scripting and DOM-based cross-site scripting prevention.

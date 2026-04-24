@@ -4,25 +4,37 @@ This document covers the contributor workflow only. The readme handles onboardin
 
 ## Pre-commit (Husky)
 
-The pre-commit hook runs a series of checks in order before any commit is accepted.
+The pre-commit hook is now the cheap local gate.
 
-First, it runs the lint check. Next, it performs a set of boundary checks using text search — these will fail the commit if any violations are found. Specifically, it checks for direct inner-HTML assignment outside the dedicated DOM helper module (which requires using the set-trusted-HTML helper instead), for use of the built-in random number generator inside the shared engine directory (which requires using an injected random number generator instead), and for any console log, warn, or error calls inside the shared layer (which must remain side-effect free).
+If the staged diff is documentation-only — limited to the readme, the agent specification, the docs directory, or the patterns directory — it runs only the doc-links check.
 
-After the boundary checks, it runs a full typecheck across all packages. Then it applies any pending local database migrations. Next, it clears the coverage directory and runs the full test suite with coverage reporting. It then runs Playwright browser smoke tests with end-to-end testing enabled, followed by Playwright accessibility baseline tests using the axe tool. Finally, it runs a headless simulation sweep across all nine scenarios for sixty iterations.
+For non-documentation changes, it runs the following in order. First, it runs the lint check. Next, it performs a set of boundary checks using text search — these will fail the commit if any violations are found. Specifically, it checks for direct inner-HTML assignment outside the dedicated DOM helper module, which requires using the set-trusted-HTML helper instead; for use of the built-in random number generator inside the shared engine directory, which requires using an injected random number generator; and for any console log, warn, or error calls inside the shared layer, which must remain side-effect free. After the boundary checks, it runs a full typecheck across all packages.
 
-Continuous integration runs the same list, except for the local database setup step.
+## Pre-push (Husky)
+
+The pre-push hook is the fast local push gate by default.
+
+If the pushed diff is documentation-only — under the same four paths as the pre-commit hook — it runs only the doc-links check.
+
+For non-documentation pushes it runs, in order: the lint script; the same text-search boundary checks as pre-commit; the full typecheck; the build; and the simulate-smoke script, but only when AI, agent, engine, scenario, or simulation files changed.
+
+Continuous integration still runs the full verification list — coverage, browser smoke, accessibility, the sixty-iteration simulation sweep in continuous-integration mode, deploy dry-run, and deployment checks.
+
+To run the exhaustive local gate before pushing, set the full-pre-push environment variable to one before invoking git push. That mode runs the local database migration setup, fresh coverage, Playwright smoke, Playwright accessibility, and the sixty-iteration simulation sweep before allowing the push.
 
 ### Coverage
 
-The coverage test run uses a flag to disable file parallelism so that the coverage file merger does not encounter race conditions on its temporary files. If coverage fails unexpectedly, removing the coverage directory and retrying is the recommended fix.
+The coverage test run executes two sequential Vitest coverage passes. The client tests write reports under the coverage-client directory, and the server, shared, and MCP tests write reports under the coverage-server-shared directory.
 
-Both the standard test command and the coverage test command set a Node options environment variable to silence experimental web-storage warnings that appear in Node version 25 and later.
+Each pass still uses the no-file-parallelism flag, but the real fix is that the two suites no longer share one coverage temp directory. If coverage fails unexpectedly, remove the coverage directory and retry.
+
+Both the standard test command and the coverage test command set a Node options environment variable pointing to a local-storage file under the temporary directory, which silences experimental web-storage warnings that appear in Node version 25 and later.
 
 ### Playwright ports
 
 The default port for Playwright end-to-end tests is 8787.
 
-In continuous integration, end-to-end tests run on that default port. In the pre-commit hook, a free TCP port is chosen dynamically via Node, and a flag is set so that Playwright does not attempt to reuse an existing server — this avoids accidentally attaching to a running development server. To run end-to-end tests manually while a development server is already holding the default port, you can set the port environment variable to any other free port before running the end-to-end test command.
+In continuous integration, the end-to-end smoke and accessibility suites run on port 8787. In full pre-push mode, a free TCP port is chosen dynamically via Node, the end-to-end port environment variable is set, and a pre-commit end-to-end flag is set so that Playwright does not attempt to reuse an existing server — this avoids accidentally attaching to a running development server. To run end-to-end tests manually while a development server is already holding the default port, set the end-to-end port environment variable to any other free port before running the end-to-end test command.
 
 ### Windows
 
@@ -34,7 +46,7 @@ You can bypass the pre-commit hook by passing a no-verify flag to the git commit
 
 ## Full verification
 
-The verify command runs the full local release gate in sequence: lint, typecheck for both the application and tools, coverage, build, end-to-end tests, accessibility end-to-end tests, and a headless simulation sweep. The simulation sweep uses forty iterations when run via the verify command, compared to sixty iterations in pre-commit and continuous integration, to keep it responsive when invoked by hand.
+The verify script runs the full local release gate in sequence: lint, typecheck for both the application and tools, coverage, build, Playwright smoke, accessibility end-to-end, and the sixty-iteration simulation sweep in continuous-integration mode. Use the quick verify script for the fast lint, typecheck, and build gate.
 
 ## Documentation
 
