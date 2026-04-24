@@ -31,6 +31,28 @@ npm run simulate:duel-sweep                  # duel pacing/seat-balance across m
 - `--randomize-start` forces per-game seat randomization. Duel, interplanetaryWar, and fleetAction auto-randomize seat anyway so seat-order bias doesn't dominate short batches.
 - CI balance warnings use per-scenario decided-game win-rate bands. Cooperative / race scenarios (like Grand Tour) skip the normal balance gate, but objective policies can still emit non-fatal seat-skew warnings when a race resolves correctly yet remains grossly one-sided.
 
+**Scenario scorecards.** Every simulation result now includes a `scorecard`
+object in JSON output and prints a compact scorecard in text mode. Treat that
+scorecard as the first stop for AI tuning reviews:
+
+- `objectiveShare` — games that resolved through the scenario's intended
+  objective route.
+- `fleetEliminationShare` — games that ended by deleting the opposing fleet.
+- `timeoutShare` — draws or progress-tiebreak timeouts.
+- `player0DecidedRate` — decided-game seat balance when applicable.
+- `passengerDeliveryShare` — passenger objective completions for convoy /
+  evacuation-style scenarios.
+- `grandTourCompletionShare` — clean Grand Tour completions rather than
+  attrition or timeout progress wins.
+- `averageTurns` — pacing signal; compare on paired seeds before/after a
+  change.
+
+For AI PRs, compare scorecards on paired seed sets rather than only quoting
+win rate. If a simulation exposes a bad state, prefer saving that state as a
+focused decision-class regression ("land to refuel", "preserve passenger
+carrier", "do not coast while stalled") over adding another global weight from
+one trace.
+
 **CI + pre-push iteration count.** Both run `simulate all 60 -- --ci` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) and [`.husky/pre-push`](../.husky/pre-push)). `npm run verify` uses 40 to stay responsive for manual invocation. Change all three together if the count changes.
 
 `npm run simulate:duel-sweep` runs `scripts/duel-seed-sweep.ts` — the same duel harness across many base seeds in one table, showing pacing (`avgTurn`) and seat balance (`p0/dec%`) variance before changing duel geometry or rules. Options: `--iterations N`, `--from` / `--to`, `--seeds 0,1,2`, `--scenario <key>`, `--json`.
