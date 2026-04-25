@@ -167,6 +167,11 @@ type ObjectiveWarningPolicy = {
   objectiveReasonMatchers: RegExp[];
   minObjectiveShare?: number;
   maxEliminationShare?: number;
+  // Convoy ran 19.3 stalls/game in the 2026-04-24 hard-vs-hard sweep,
+  // duel ran 2.8. Fleet-scale scenarios came in 72-110. A gate around 30
+  // catches that order-of-magnitude regression without flapping on
+  // healthy convoy/blockade samples.
+  maxFuelStallsPerGame?: number;
   decidedP0RateBounds?: [number, number];
 };
 
@@ -175,6 +180,7 @@ const OBJECTIVE_WARNING_POLICIES: Record<string, ObjectiveWarningPolicy> = {
     objectiveReasonMatchers: [/^Landed on .*?!$/],
     minObjectiveShare: 0.05,
     maxEliminationShare: 0.9,
+    maxFuelStallsPerGame: 30,
   },
   blockade: {
     objectiveReasonMatchers: [/^Landed on .*?!$/],
@@ -182,16 +188,19 @@ const OBJECTIVE_WARNING_POLICIES: Record<string, ObjectiveWarningPolicy> = {
     // but defender wins by destruction are expected and goal-consistent.
     // Keep balance checks, but do not treat low landing share as objective
     // drift the way we do in symmetric landing races.
+    maxFuelStallsPerGame: 30,
   },
   evacuation: {
     objectiveReasonMatchers: [/with colonists!/],
     minObjectiveShare: 0.05,
     maxEliminationShare: 0.9,
+    maxFuelStallsPerGame: 30,
   },
   convoy: {
     objectiveReasonMatchers: [/with colonists!/],
     minObjectiveShare: 0.05,
     maxEliminationShare: 0.9,
+    maxFuelStallsPerGame: 30,
   },
   grandTour: {
     objectiveReasonMatchers: [
@@ -200,6 +209,19 @@ const OBJECTIVE_WARNING_POLICIES: Record<string, ObjectiveWarningPolicy> = {
     ],
     minObjectiveShare: 0.1,
     decidedP0RateBounds: [0.35, 0.65],
+    maxFuelStallsPerGame: 30,
+  },
+  // Fleet-scale combat scenarios have no landing objective to gate, but
+  // the 2026-04-24 sweep flagged them with 72-110 stalls/game — an order
+  // of magnitude worse than convoy. Gate fuel stalls so a regression
+  // there can't hide behind a clean win-rate distribution.
+  fleetAction: {
+    objectiveReasonMatchers: [],
+    maxFuelStallsPerGame: 30,
+  },
+  interplanetaryWar: {
+    objectiveReasonMatchers: [],
+    maxFuelStallsPerGame: 30,
   },
 };
 
@@ -605,6 +627,23 @@ export const evaluateSimulationPolicies = (
               `[${(lo * 100).toFixed(0)}-${(hi * 100).toFixed(0)}%]`,
           });
         }
+      }
+    }
+
+    if (
+      objectivePolicy.maxFuelStallsPerGame != null &&
+      metrics.totalGames >= 5
+    ) {
+      const stallsPerGame = metrics.scorecard.fuelStallsPerGame;
+      if (stallsPerGame > objectivePolicy.maxFuelStallsPerGame) {
+        warnings.push({
+          scenario: metrics.scenario,
+          kind: 'objective',
+          message:
+            `fuel stalls/game ${stallsPerGame.toFixed(1)} above ` +
+            `${objectivePolicy.maxFuelStallsPerGame.toFixed(0)} (fueled ships ` +
+            `coasting instead of burning — see BACKLOG fleet-scale entry)`,
+        });
       }
     }
   }
