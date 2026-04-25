@@ -120,6 +120,7 @@ const createDeps = (
     onAnimationComplete: track('onAnimationComplete'),
     logScenarioBriefing: track('logScenarioBriefing'),
     trackEvent: track('trackEvent'),
+    recordLatencySample: track('recordLatencySample'),
     deserializeState: (raw: GameState) => raw,
     renderer: {
       clearTrails: track('renderer.clearTrails'),

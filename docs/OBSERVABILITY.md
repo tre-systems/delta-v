@@ -92,6 +92,7 @@ From `migrations/0001_create_events.sql`:
   - `ws_invalid_message` with `{ error }`
   - `ws_connect_error` with no additional props (fires on `WebSocket` `error` before close)
   - `ws_connect_closed` with `{ code, wasClean, reasonLen }` (first connect / reconnect close telemetry)
+  - `ws_session_quality` with `{ durationMs, samples, latencyAvgMs, latencyMinMs, latencyMaxMs, closeCode }` (one event per WS lifecycle that received at least one pong; aggregates the 5-second RTT samples so we can spot players on consistently slow / jittery connections without piling per-pong rows into D1)
   - `turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
   - `first_turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
   - `scenario_browsed` with no additional props

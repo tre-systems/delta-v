@@ -37,6 +37,15 @@ export interface ConnectionManager {
   handleDisconnect: () => void;
   close: () => void;
   getWs: () => WebSocket | null;
+  recordLatencySample: (latencyMs: number) => void;
+}
+
+interface LatencyAccumulator {
+  sessionStartedAt: number;
+  samples: number;
+  sumMs: number;
+  minMs: number;
+  maxMs: number;
 }
 
 interface ConnectionRuntime {
@@ -46,7 +55,17 @@ interface ConnectionRuntime {
   suppressDisconnectHandling: boolean;
   /** Last WebSocket close from the active transport (for UX + telemetry). */
   lastClose: { code: number; reason: string; wasClean: boolean } | null;
+  /** Per-WS latency stats; reset on every fresh `connect()`. */
+  latency: LatencyAccumulator | null;
 }
+
+const createLatencyAccumulator = (): LatencyAccumulator => ({
+  sessionStartedAt: Date.now(),
+  samples: 0,
+  sumMs: 0,
+  minMs: Number.POSITIVE_INFINITY,
+  maxMs: 0,
+});
 
 const PING_INTERVAL_MS = 5000;
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -98,6 +117,31 @@ export const createConnectionManager = (
     reconnectTimer: null,
     suppressDisconnectHandling: false,
     lastClose: null,
+    latency: null,
+  };
+
+  const flushSessionQuality = (closeCode: number | null): void => {
+    const acc = runtime.latency;
+    runtime.latency = null;
+    if (!acc || acc.samples === 0) return;
+    deps.trackEvent('ws_session_quality', {
+      durationMs: Date.now() - acc.sessionStartedAt,
+      samples: acc.samples,
+      latencyAvgMs: Math.round(acc.sumMs / acc.samples),
+      latencyMinMs: acc.minMs,
+      latencyMaxMs: acc.maxMs,
+      closeCode,
+    });
+  };
+
+  const recordLatencySample = (latencyMs: number): void => {
+    if (latencyMs < 0) return;
+    const acc = runtime.latency ?? createLatencyAccumulator();
+    runtime.latency = acc;
+    acc.samples += 1;
+    acc.sumMs += latencyMs;
+    if (latencyMs < acc.minMs) acc.minMs = latencyMs;
+    if (latencyMs > acc.maxMs) acc.maxMs = latencyMs;
   };
 
   const send = (msg: unknown) => {
@@ -234,6 +278,7 @@ export const createConnectionManager = (
       reason: ev.reason,
       wasClean: ev.wasClean,
     };
+    flushSessionQuality(ev.code);
 
     const shouldHandleDisconnect = !runtime.suppressDisconnectHandling;
     runtime.suppressDisconnectHandling = false;
@@ -275,6 +320,7 @@ export const createConnectionManager = (
     runtime.suppressDisconnectHandling = true;
     stopPing();
     clearReconnectFlow();
+    flushSessionQuality(null);
     runtime.ws?.close();
     runtime.ws = null;
   };
@@ -288,5 +334,6 @@ export const createConnectionManager = (
     handleDisconnect,
     close,
     getWs: () => runtime.ws,
+    recordLatencySample,
   };
 };
