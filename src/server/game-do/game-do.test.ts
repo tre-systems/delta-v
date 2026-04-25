@@ -1177,6 +1177,12 @@ describe('GameDO', () => {
       }
     ).touchInactivity.bind(game);
 
+    // Both seats connected → full 5-minute window. Without sockets the room
+    // is treated as solo-waiting and gets the shorter timeout (covered
+    // separately below).
+    ctx.acceptWebSocket({}, ['player:0']);
+    ctx.acceptWebSocket({}, ['player:1']);
+
     vi.spyOn(Date, 'now').mockReturnValue(100_000);
     await touch();
     const first = await ctx.storage.get<number>('inactivityAt');
@@ -1189,6 +1195,41 @@ describe('GameDO', () => {
     expect(updated).toBe(110_000 + 300_000);
     expect(updated).not.toBe(first);
     expect(ctx.storage.alarmAt).toBe(updated);
+  });
+
+  it('uses the shorter solo timeout when waiting for a second human', async () => {
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+    const touch = (
+      game as unknown as { touchInactivity: () => Promise<void> }
+    ).touchInactivity.bind(game);
+
+    ctx.acceptWebSocket({}, ['player:0']);
+
+    vi.spyOn(Date, 'now').mockReturnValue(200_000);
+    await touch();
+    expect(await ctx.storage.get<number>('inactivityAt')).toBe(
+      200_000 + 60_000,
+    );
+  });
+
+  it('keeps the full timeout when the empty seat is reserved for an agent', async () => {
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+    const touch = (
+      game as unknown as { touchInactivity: () => Promise<void> }
+    ).touchInactivity.bind(game);
+
+    ctx.acceptWebSocket({}, ['player:0']);
+    await ctx.storage.put('roomConfig', {
+      players: [{ kind: 'human' }, { kind: 'agent' }],
+    });
+
+    vi.spyOn(Date, 'now').mockReturnValue(300_000);
+    await touch();
+    expect(await ctx.storage.get<number>('inactivityAt')).toBe(
+      300_000 + 300_000,
+    );
   });
 
   it('reads inactivity deadlines from storage for alarm scheduling', async () => {

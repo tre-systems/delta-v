@@ -261,5 +261,9 @@ export const CAMERA_LERP_SPEED = 5;
 
 // Game constants
 export const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000;
+// Tighter timeout for rooms still waiting for a second human (no opponent
+// present, no agent assigned). Holding a Durable Object open for the full
+// 5 minutes when nobody has joined just costs wall-clock for no gameplay.
+export const INACTIVITY_TIMEOUT_SOLO_MS = 60 * 1000;
 export const TURN_TIMEOUT_MS = 2 * 60 * 1000;
 export const CODE_LENGTH = 5;
