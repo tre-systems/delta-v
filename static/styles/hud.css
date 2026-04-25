@@ -44,7 +44,6 @@
 }
 
 .hud-bar,
-.hud-bottom-buttons,
 .ship-entry,
 .game-log {
   --hud-surface-bg: var(--chrome-surface);
@@ -70,8 +69,6 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.45rem;
-  padding: 0.5rem;
-  border-radius: 20px;
 }
 
 .hud-bottom-buttons.is-empty {
@@ -662,7 +659,6 @@ html[data-hud-scale='small'] .fleet-status {
 
 @media (prefers-contrast: more) {
   .hud-bar,
-  .hud-bottom-buttons,
   .ship-entry,
   .game-log {
     backdrop-filter: none;
@@ -683,7 +679,6 @@ html[data-hud-scale='small'] .fleet-status {
 
 @media (forced-colors: active) {
   .hud-bar,
-  .hud-bottom-buttons,
   .ship-entry,
   .game-log {
     backdrop-filter: none;
