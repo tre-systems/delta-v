@@ -213,15 +213,21 @@ warm Durable Objects from one IP**, each billed for wall-clock + WebSocket
 duration. Public `/create` already has a per-IP active-room cap; steady-state
 WebSocket ownership still needs a cap.
 
-Add:
+Still to add:
 
-- A per-IP concurrent-WebSocket count tracked in the per-isolate map (or a
-  global KV/DO counter if we move there). Reject new WS handshakes with
-  close code 1013 ("try again later") when the IP is over its cap
-  (suggest 10 concurrent).
-- A shorter `INACTIVITY_TIMEOUT_MS` when no opponent has joined (suggest
-  60 s) — a solo seat holding a DO open for 5 minutes with no second
-  player serves no purpose.
+- A per-IP concurrent-WebSocket count. Tricky in the current shape: the
+  Worker handles the WS upgrade but the Durable Object holds the socket,
+  so a per-isolate `Map<ipHash, count>` in `reporting.ts` can be
+  incremented at handshake but never decremented on close. A useful
+  implementation needs DO-coordinated state (e.g., a singleton "ws
+  accountant" DO, or per-DO postMessage back to the isolate). Until
+  that's in place the windowed `WS_CONNECT_LIMIT` is the only protection.
+
+Already shipped: shorter `INACTIVITY_TIMEOUT_SOLO_MS = 60s` for rooms
+that are still waiting for a second human (no opponent connected and no
+agent seat reserved). See
+[src/server/game-do/game-do.ts](../src/server/game-do/game-do.ts)
+`shouldUseSoloInactivityTimeout`.
 
 Also consider a monthly Cloudflare Workers/DO/R2/D1 billing alert
 (dashboard-only, not code) so any attack that slips the above caps
