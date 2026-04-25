@@ -146,6 +146,12 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
     'hudBoardSummary',
   ) as HTMLElement | null;
 
+  const setBtnLabel = (btn: HTMLElement, label: string): void => {
+    const labelEl = btn.querySelector<HTMLElement>('.btn-label');
+    if (labelEl) labelEl.textContent = label;
+    else btn.textContent = label;
+  };
+
   const setMobile = (isMobile: boolean): void => {
     isMobileSignal.value = isMobile;
   };
@@ -315,11 +321,10 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       landFromOrbitBtn.disabled = hudView.landFromOrbit.disabled;
       landFromOrbitBtn.style.opacity = hudView.landFromOrbit.opacity;
       landFromOrbitBtn.title = hudView.landFromOrbit.title;
-      landFromOrbitBtn.textContent = hudView.landFromOrbit.title.startsWith(
-        'Landing',
-      )
-        ? 'LANDING'
-        : 'LAND';
+      setBtnLabel(
+        landFromOrbitBtn,
+        hudView.landFromOrbit.title.startsWith('Landing') ? 'LANDING' : 'LAND',
+      );
 
       visible(
         launchMineBtn,
@@ -351,12 +356,12 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
         !hideActions && hudView.confirmOrdnance.visible,
         'inline-block',
       );
-      nextOrdnanceBtn.textContent = hudView.nextOrdnance.label;
+      setBtnLabel(nextOrdnanceBtn, hudView.nextOrdnance.label);
       nextOrdnanceBtn.className = hudView.nextOrdnance.className;
       nextOrdnanceBtn.disabled = hudView.nextOrdnance.disabled;
       nextOrdnanceBtn.style.opacity = hudView.nextOrdnance.opacity;
       nextOrdnanceBtn.title = hudView.nextOrdnance.title;
-      confirmOrdnanceBtn.textContent = hudView.confirmOrdnance.label;
+      setBtnLabel(confirmOrdnanceBtn, hudView.confirmOrdnance.label);
       confirmOrdnanceBtn.className = hudView.confirmOrdnance.className;
       confirmOrdnanceBtn.disabled = hudView.confirmOrdnance.disabled;
       confirmOrdnanceBtn.style.opacity = hudView.confirmOrdnance.opacity;
@@ -510,7 +515,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       const fireButton = fireButtonSignal.value;
 
       visible(fireBtn, !hideActions && fireButton.isVisible, 'inline-block');
-      text(fireBtn, 'END COMBAT');
+      setBtnLabel(fireBtn, 'END COMBAT');
       fireBtn.className = 'btn btn-skip';
     });
 

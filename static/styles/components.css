@@ -475,6 +475,25 @@
     filter 140ms ease;
 }
 
+.btn-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+.btn:hover:not(:disabled) .btn-icon {
+  opacity: 1;
+}
+
+.btn-label {
+  display: inline-block;
+}
+
+.btn-label:empty {
+  display: none;
+}
+
 .btn:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.02);
   border-color: var(--btn-border-hover);
