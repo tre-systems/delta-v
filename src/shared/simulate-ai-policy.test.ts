@@ -143,6 +143,58 @@ describe('evaluateSimulationPolicies', () => {
     ]);
   });
 
+  it('warns when fuel stalls per game exceed the scenario threshold', () => {
+    const evaluation = evaluateSimulationPolicies([
+      metrics({
+        scenario: 'fleetAction',
+        totalGames: 10,
+        player0Wins: 5,
+        player1Wins: 5,
+        reasons: { 'Fleet eliminated!': 10 },
+        failureCounters: {
+          invalidActions: 0,
+          invalidActionPhases: {},
+          // 720 stalls / 10 games = 72.0/game — matches the 2026-04-24
+          // hard-vs-hard fleetAction observation.
+          fuelStalls: 720,
+          passengerTransferMistakes: 0,
+        },
+      }),
+    ]);
+
+    expect(evaluation.failed).toBe(false);
+    expect(evaluation.warnings).toContainEqual({
+      scenario: 'fleetAction',
+      kind: 'objective',
+      message:
+        'fuel stalls/game 72.0 above 30 (fueled ships coasting instead of ' +
+        'burning — see BACKLOG fleet-scale entry)',
+    });
+  });
+
+  it('does not warn on healthy fuel-stall density', () => {
+    const evaluation = evaluateSimulationPolicies([
+      metrics({
+        scenario: 'convoy',
+        totalGames: 30,
+        player0Wins: 15,
+        player1Wins: 15,
+        reasons: { 'Landed on Venus with colonists!': 30 },
+        failureCounters: {
+          invalidActions: 0,
+          invalidActionPhases: {},
+          // 19.3/game — convoy's observed steady-state.
+          fuelStalls: 579,
+          passengerTransferMistakes: 0,
+        },
+      }),
+    ]);
+
+    expect(
+      evaluation.warnings.find((w) => w.message.startsWith('fuel stalls/game')),
+    ).toBeUndefined();
+  });
+
   it('fails only on engine crashes', () => {
     const evaluation = evaluateSimulationPolicies([
       metrics({
