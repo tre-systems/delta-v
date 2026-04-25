@@ -48,6 +48,7 @@ export interface MessageHandlerDeps {
   onAnimationComplete: () => void;
   logScenarioBriefing: () => void;
   trackEvent: (event: string, props?: Record<string, unknown>) => void;
+  recordLatencySample: (latencyMs: number) => void;
   deserializeState: (raw: GameState) => GameState;
   renderer: {
     clearTrails: () => void;
@@ -321,6 +322,7 @@ export const handleServerMessage = (
     case 'pong':
       if (plan.latencyMs !== null) {
         setLatencyMs(deps.ctx, plan.latencyMs);
+        deps.recordLatencySample(plan.latencyMs);
       }
       return;
     case 'opponentStatus':

@@ -255,12 +255,10 @@ path, lines 534–553), [src/server/reporting.ts](../src/server/reporting.ts)
 ### Add Remaining Discovery / Session-Quality Signals (P2)
 
 The internal metrics endpoint, observability SQL recipes, discovery page views,
-replay engagement events, and `scenario_selected` are shipped. The remaining
-gaps are narrower:
+replay engagement events, `scenario_selected`, and `ws_session_quality` (RTT
+aggregate per WS lifecycle) are shipped. The remaining gaps are narrower:
 
 - `leaderboard_row_clicked` once leaderboard rows become interactive.
-- A connection-quality metric over a session, such as RTT or out-of-order frame
-  counts, rather than only `ws_invalid_message`.
 
 **Files:** `src/client/game/main-session-shell.ts`,
 `src/client/game/replay-controller.ts`, `src/client/leaderboard/*.ts`,

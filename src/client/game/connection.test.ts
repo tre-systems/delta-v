@@ -178,6 +178,45 @@ describe('game-client-connection', () => {
     });
   });
 
+  it('emits ws_session_quality on socket close with aggregated latency stats', () => {
+    const { deps, spies } = createDeps();
+    const manager = createConnectionManager(deps);
+
+    manager.connect('ABCDE');
+    manager.recordLatencySample(80);
+    manager.recordLatencySample(120);
+    manager.recordLatencySample(40);
+
+    const ws = FakeWebSocket.instances[0];
+    ws.close({ code: 1000, wasClean: true });
+
+    const qualityCall = spies.trackEvent.mock.calls.find(
+      ([name]) => name === 'ws_session_quality',
+    );
+    expect(qualityCall).toBeDefined();
+    expect(qualityCall?.[1]).toMatchObject({
+      samples: 3,
+      latencyAvgMs: 80,
+      latencyMinMs: 40,
+      latencyMaxMs: 120,
+      closeCode: 1000,
+    });
+  });
+
+  it('skips ws_session_quality when no latency samples landed', () => {
+    const { deps, spies } = createDeps();
+    const manager = createConnectionManager(deps);
+
+    manager.connect('ABCDE');
+    const ws = FakeWebSocket.instances[0];
+    ws.close({ code: 1006, wasClean: false });
+
+    const qualityCall = spies.trackEvent.mock.calls.find(
+      ([name]) => name === 'ws_session_quality',
+    );
+    expect(qualityCall).toBeUndefined();
+  });
+
   it('does not treat an intentional close as a reconnectable disconnect', () => {
     const { deps, spies } = createDeps();
     const manager = createConnectionManager(deps);

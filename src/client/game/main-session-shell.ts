@@ -360,6 +360,8 @@ export const createMainSessionShell = (
     onAnimationComplete,
     logScenarioBriefing: () => args.hud.logScenarioBriefing(),
     trackEvent: args.track,
+    recordLatencySample: (latencyMs) =>
+      connection.recordLatencySample(latencyMs),
     deserializeState: (raw) => raw,
     renderer: args.renderer,
     ui: args.ui,
