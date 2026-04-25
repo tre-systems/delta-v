@@ -494,6 +494,25 @@
   display: none;
 }
 
+@media (max-width: 760px) {
+  .btn-label-extra {
+    display: none;
+  }
+}
+
+.hud-bottom .btn {
+  background-color: rgba(9, 17, 31, 0.72);
+  background-image: linear-gradient(180deg, var(--btn-bg), var(--btn-bg));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+}
+
+.hud-bottom .btn:hover:not(:disabled) {
+  background-color: rgba(9, 17, 31, 0.82);
+  background-image: linear-gradient(180deg, var(--btn-bg-hover), var(--btn-bg-hover));
+}
+
 .btn:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.02);
   border-color: var(--btn-border-hover);
@@ -534,11 +553,12 @@
 }
 
 .btn-confirm {
-  --btn-color: var(--success);
-  --btn-border: rgba(149, 214, 135, 0.42);
-  --btn-border-hover: rgba(149, 214, 135, 0.58);
-  --btn-bg: var(--success-soft);
-  --btn-bg-hover: rgba(149, 214, 135, 0.22);
+  --btn-color: #d4f3c8;
+  --btn-border: rgba(149, 214, 135, 0.7);
+  --btn-border-hover: rgba(149, 214, 135, 0.9);
+  --btn-bg: rgba(149, 214, 135, 0.22);
+  --btn-bg-hover: rgba(149, 214, 135, 0.34);
+  --btn-shadow: 0 0 0 1px rgba(149, 214, 135, 0.18) inset;
 }
 
 .btn-attack {
@@ -561,6 +581,16 @@
   background: rgba(255, 197, 106, 0.35);
   border-color: rgba(255, 197, 106, 0.7);
   box-shadow: 0 0 6px rgba(255, 197, 106, 0.3);
+  animation: btn-armed-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes btn-armed-pulse {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(255, 197, 106, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(255, 197, 106, 0.55);
+  }
 }
 
 .btn-nuke {
@@ -575,6 +605,23 @@
   background: rgba(255, 100, 100, 0.35);
   border-color: rgba(255, 110, 110, 0.7);
   box-shadow: 0 0 6px rgba(255, 100, 100, 0.3);
+  animation: btn-nuke-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes btn-nuke-pulse {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(255, 100, 100, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(255, 100, 100, 0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-ordnance.active,
+  .btn-nuke.active {
+    animation: none;
+  }
 }
 
 .btn-skip {

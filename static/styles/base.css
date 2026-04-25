@@ -253,8 +253,7 @@ body::before {
   .btn,
   .ship-entry,
   .game-log,
-  .hud-bar,
-  .hud-bottom-buttons {
+  .hud-bar {
     border-color: CanvasText;
   }
 
