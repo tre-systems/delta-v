@@ -208,36 +208,33 @@ wins.
 
 ## Cost & Abuse Hardening
 
-### Cap Concurrent WebSocket Sockets Per IP (P2)
+### Cap Concurrent WebSocket Sockets Per IP (P2 — deferred pending evidence)
 
-The existing rate limits protect **new-connection rate** but nothing caps
-**steady-state** resource use per IP. `WS_CONNECT_LIMIT = 20 / 60 s`
-([src/server/reporting.ts:74-75](../src/server/reporting.ts)) lets one IP
-open 20 new WebSockets per minute. Nothing reaps the accumulating set of
-open sockets, and a client that sends a message every 4 minutes keeps its
-Durable Object under the `INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000` cliff
-forever (see [src/shared/constants.ts:263](../src/shared/constants.ts)).
+When this entry was first written the concern was "hundreds to low-thousands of
+warm Durable Objects from one IP." The 2026-04-25 review re-did the math under
+the constraints that have shipped since then:
 
-A patient attacker can therefore maintain **hundreds to low-thousands of
-warm Durable Objects from one IP**, each billed for wall-clock + WebSocket
-duration. Public `/create` already has a per-IP active-room cap; steady-state
-WebSocket ownership still needs a cap.
+- `ACTIVE_ROOM_LIMIT = 25 / 5min` per IP at `/create`
+  ([reporting.ts:77-78](../src/server/reporting.ts)).
+- `WS_CONNECT_LIMIT = 20 / 60s` per IP at the WS handshake
+  ([reporting.ts:74-75](../src/server/reporting.ts)).
+- `INACTIVITY_TIMEOUT_SOLO_MS = 60s` reaps any seat waiting alone for a
+  second human or agent
+  ([game-do.ts](../src/server/game-do/game-do.ts) `shouldUseSoloInactivityTimeout`).
 
-Still to add:
+Worst case under those caps is roughly **25 sustained Durable Objects per
+IP** — bounded by the active-room cap, with solo seats reaped within a
+minute and active 2-player games requiring a real opponent the attacker
+cannot easily fabricate. That is several orders of magnitude smaller than
+the original "hundreds to low-thousands" estimate.
 
-- A per-IP concurrent-WebSocket count. Tricky in the current shape: the
-  Worker handles the WS upgrade but the Durable Object holds the socket,
-  so a per-isolate `Map<ipHash, count>` in `reporting.ts` can be
-  incremented at handshake but never decremented on close. A useful
-  implementation needs DO-coordinated state (e.g., a singleton "ws
-  accountant" DO, or per-DO postMessage back to the isolate). Until
-  that's in place the windowed `WS_CONNECT_LIMIT` is the only protection.
-
-Already shipped: shorter `INACTIVITY_TIMEOUT_SOLO_MS = 60s` for rooms
-that are still waiting for a second human (no opponent connected and no
-agent seat reserved). See
-[src/server/game-do/game-do.ts](../src/server/game-do/game-do.ts)
-`shouldUseSoloInactivityTimeout`.
+Adding a true concurrent counter would still tighten the bound, but it
+requires new infrastructure: a singleton "WS accountant" Durable Object
+issuing leases at handshake and releasing them in
+`webSocketClose`, plus lease-leak recovery for crashed DOs. That's a
+real PR — not justified speculatively. Re-open this entry only with
+telemetry evidence (`ws_session_quality`, billing alert, abuse report)
+showing the existing caps are insufficient.
 
 Also consider a monthly Cloudflare Workers/DO/R2/D1 billing alert
 (dashboard-only, not code) so any attack that slips the above caps
