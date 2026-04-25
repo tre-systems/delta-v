@@ -184,17 +184,28 @@ Candidate small fixes:
 
 ### Finish Digital-Input Parity for Pointer-First Tactical Picks (P2)
 
-Combat target cycling, attacker cycling, and standard gamepad paths have shipped.
-The remaining gap is any tactical pick that still requires pointer interaction
-instead of keyboard/gamepad navigation.
+Combat target cycling, attacker cycling, and standard gamepad paths have
+shipped. A 2026-04-25 audit walked astrogation, ordnance, logistics, and
+hex/ship selection looking for pointer-only paths and found the remaining
+candidates fall into one of three buckets that don't justify code changes
+right now:
 
-Action: audit astrogation, ordnance, logistics, and ship/hex selection for
-pointer-only choices and add digital command paths where a player can otherwise
-get stuck without a mouse.
+- **Already keyboard-reachable:** logistics +/-/MAX buttons are standard
+  `<button>` elements (`src/client/game/logistics-ui.ts:171-220`) — Tab
+  focuses them and Enter/Space activates. Burn vector picks have 1-6
+  digit keys; torpedo direction has 1-6 once aiming is active; weak
+  gravity has the `G` cycle.
+- **Out of scope per [A11Y.md § Scope](./A11Y.md#scope):** per-hex picks
+  on the canvas board (e.g., toggling a *specific* weak gravity hex,
+  drilling into a *specific* transfer pair at a multi-pair location).
+  Full keyboard tactical play on the canvas is explicitly deferred.
+- **No-op defaults exist:** mines and nukes default to ship position
+  when launched without an aim target, so a keyboard-only player isn't
+  stuck — they just can't off-aim.
 
-**Files:** `src/client/game-client-browser.ts`,
-`src/client/game/client-runtime.ts`, `src/client/game/input-events.ts`,
-`src/client/game/input.ts`, `src/client/game/combat.ts`, `src/client/ui/hud.ts`
+Re-open this entry only when a real player reports a flow they cannot
+complete digitally; the punch-list approach has run out of contained
+wins.
 
 ## Cost & Abuse Hardening
 
