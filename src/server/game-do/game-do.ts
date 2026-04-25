@@ -1,6 +1,10 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { LastTurnAutoPlayed } from '../../shared/agent/types';
-import { INACTIVITY_TIMEOUT_MS, TURN_TIMEOUT_MS } from '../../shared/constants';
+import {
+  INACTIVITY_TIMEOUT_MS,
+  INACTIVITY_TIMEOUT_SOLO_MS,
+  TURN_TIMEOUT_MS,
+} from '../../shared/constants';
 import { filterStateForPlayer } from '../../shared/engine/game-engine';
 import {
   buildSolarSystemMap,
@@ -284,11 +288,27 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async touchInactivity(): Promise<void> {
+    const timeoutMs = (await this.shouldUseSoloInactivityTimeout())
+      ? INACTIVITY_TIMEOUT_SOLO_MS
+      : INACTIVITY_TIMEOUT_MS;
     await this.storage.put(
       GAME_DO_STORAGE_KEYS.inactivityAt,
-      Date.now() + INACTIVITY_TIMEOUT_MS,
+      Date.now() + timeoutMs,
     );
     await this.rescheduleAlarm();
+  }
+
+  // True only when the room is waiting for a second human and nothing else
+  // is happening: no agent assigned to the empty seat, no second WS already
+  // attached. Once an agent or both humans are present we keep the full
+  // 5-minute window so a brief disconnect doesn't reap an active game.
+  private async shouldUseSoloInactivityTimeout(): Promise<boolean> {
+    const seat0Connected = this.getWebSockets('player:0').length > 0;
+    const seat1Connected = this.getWebSockets('player:1').length > 0;
+    if (seat0Connected && seat1Connected) return false;
+    if (!seat0Connected && (await this.isAgentSeat(0))) return false;
+    if (!seat1Connected && (await this.isAgentSeat(1))) return false;
+    return true;
   }
 
   private async getAlarmDeadlines() {
