@@ -18,3 +18,14 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://delta-v.tre.systems wss://delta-v.tre.systems ws://delta-v.tre.systems https://cloudflareinsights.com; img-src 'self' data: https://storage.ko-fi.com; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+
+# Each build stamps `index.html` with `?v=<contenthash>` for the JS/CSS
+# bundles (see scripts/bundle-style-css.mjs). The hash changes with the
+# bytes, so the request URL itself acts as the cache key — `immutable`
+# tells browsers never to revalidate the asset they already hold. New
+# builds publish a different query and bypass the old cache entry.
+/client.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/style.css
+  Cache-Control: public, max-age=31536000, immutable

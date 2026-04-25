@@ -30,7 +30,11 @@ export function bundleStyleCss(rootDir) {
 
 /**
  * Writes `dist/style.css` (bundled), injects `__BUILD_HASH__` into SW and CSS,
- * and cache-busts `index.html` asset URLs.
+ * and cache-busts `index.html` asset URLs with a `?v=<hash>` query.
+ *
+ * The hash query lets us pair an immutable cache header with the assets
+ * (see `static/_headers`). New builds get a new query, browsers cache each
+ * version forever, and revalidation round-trips disappear for repeat visits.
  */
 export function postprocessDistStatic() {
   const clientJs = readFileSync('dist/client.js');

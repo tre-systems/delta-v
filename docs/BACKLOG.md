@@ -251,43 +251,6 @@ gaps are narrower:
 
 ## Architecture & Correctness
 
-### Content-Hashed Client Asset URLs + Long-Lived Cache (P2)
-
-`https://delta-v.tre.systems/client.js` today returns
-`cache-control: public, max-age=0, must-revalidate` with a content-hash
-etag, so every page visit revalidates the full client bundle even when the
-contents haven't changed. Cloudflare HITs the edge cache but the browser still
-makes the revalidation round-trip on every navigation, and on a cold cache
-eviction the full body redownloads.
-
-Switch to hashed URLs (e.g. `/client.<contenthash>.js`) emitted by esbuild
-(`entryNames: "[name].[hash]"`) plus a `_headers` rule:
-
-```
-/client.*.js
-  Cache-Control: public, max-age=31536000, immutable
-
-/style.*.css
-  Cache-Control: public, max-age=31536000, immutable
-```
-
-Index HTML (`/`, `/agents`, `/matches`, `/leaderboard`) stays
-`must-revalidate` so a new deploy lands immediately. Returning visitors
-then get zero bytes for the JS/CSS until the build hash changes. The
-existing `copyStaticToDist` hash in `scripts/bundle-style-css.mjs` already
-knows the cache-bust shape; extend it to rewrite the `<script src>` and
-`<link rel="stylesheet">` tags in `index.html` / the three other shell
-files to point at the hashed paths.
-
-**Files:** [esbuild.client.mjs](../esbuild.client.mjs),
-[scripts/bundle-style-css.mjs](../scripts/bundle-style-css.mjs),
-[dist/_headers](../dist/_headers) (template lives in
-[static/_headers](../static/_headers)),
-[static/index.html](../static/index.html),
-[static/agents.html](../static/agents.html),
-[static/matches.html](../static/matches.html),
-[static/leaderboard.html](../static/leaderboard.html)
-
 ### Measure Long-Game Memory Growth (P3)
 
 Not done this pass — the 2026-04-24 review caught the bundle wins but
