@@ -141,18 +141,17 @@ Concrete issues observed on the local dev server:
 - **Verify behaviour of a second WebSocket with the same `playerToken`.**
   Server code at [game-do.ts:178-184](../src/server/game-do/game-do.ts) calls
   `old.close(1000, 'Replaced by new connection')` when a same-seat socket
-  replaces an existing one. In the 2026-04-24 local dev probe, a second
-  node-side `undici` socket connected without the old socket seeing any
-  close event over 10 s (HOST1 remained `readyState: OPEN` but received no
-  further broadcasts). This may be a `wrangler dev` hibernation-API quirk,
-  an `undici` quirk, or a real prod regression — triangulate against
-  deployed production before acting. If reproducible in prod, it leaks
-  zombie sockets per tab-switch until the client hits a rate-limit close.
-
-Found via EXPLORATORY_TESTING.md R5 / R8 / R9 applied to the multiplayer
-surface with a purpose-built WebSocket harness. A reusable
-`scripts/mp-connectivity.mjs` harness would keep this probe close to hand for
-future passes.
+  replaces an existing one. The 2026-04-25 run of the new
+  [scripts/mp-connectivity.mjs](../scripts/mp-connectivity.mjs) harness
+  against `wrangler dev` reproduced the symptom: socket A reached
+  `readyState: CLOSING` (2) but never finished the close handshake within
+  the 8 s window, so any client treating CLOSING as a transient state would
+  perceive the socket as effectively zombie. Likely a `wrangler dev`
+  hibernation API quirk; the next step is to point the harness at
+  `wss://delta-v.tre.systems` to confirm whether prod actually closes the
+  socket cleanly. If prod also stalls, ship a fix in the DO replacement
+  path; if prod is clean, file this as a wrangler-dev caveat in
+  EXPLORATORY_TESTING.md and close.
 
 **Files:** [src/server/game-do/fetch.ts](../src/server/game-do/fetch.ts),
 [src/server/game-do/http-handlers.ts](../src/server/game-do/http-handlers.ts),
