@@ -26,6 +26,8 @@ npm run simulate -- all 60 --ci              # CI gate: all 9 scenarios × 60 ga
 npm run simulate -- duel 30 --randomize-start
 npm run simulate:duel-sweep                  # duel pacing/seat-balance across many seeds
 npm run simulate:duel-sweep -- --scenario convoy --iterations 30
+npm run simulate:duel-sweep -- --scenario convoy --iterations 30 --json > before.json
+npm run simulate:duel-sweep -- --scenario convoy --iterations 30 --json --baseline-json before.json
 npm run simulate -- grandTour 20 --seed 1 --capture-failures tmp/ai-failures
 ```
 
@@ -86,8 +88,10 @@ Use `--json` when the review needs the full scorecard, including passenger
 delivery, Grand Tour completion, invalid-action, and transfer-mistake fields.
 The JSON payload includes both per-seed `rows` and an aggregate `summary`, which
 is the preferred artifact to paste into AI behavior PRs before and after a
-planner or role-scoring change. Options: `--iterations N`, `--from` / `--to`,
-`--seeds 0,1,2`, `--scenario <key>`, `--json`.
+planner or role-scoring change. Pass `--baseline-json <path>` with a previous
+JSON report to include a `comparison` block in JSON mode and print a concise
+delta line in table mode. Options: `--iterations N`, `--from` / `--to`,
+`--seeds 0,1,2`, `--scenario <key>`, `--json`, `--baseline-json <path>`.
 
 ---
 
