@@ -17,7 +17,7 @@ A pass typically takes 60-120 minutes of agent or human time and should produce 
 
 - [Toolkit](#toolkit)
 - [Lenses](#lenses-what-to-look-for)
-- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile layout sweep · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep
+- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile layout sweep · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep · R17 callsign recovery
 - [Workflow: probe, finding, backlog](#workflow-probe-finding-backlog)
 - [Anti-patterns](#anti-patterns)
 - [Pass log](#pass-log)
@@ -36,7 +36,7 @@ Each row is a separate vantage point on the running system. Use multiple per pas
 | **Hosted agent MCP** (`POST /mcp`) | Same surface as local but via streamable-HTTP; useful for probing the deployed adapter and the agent-token flow | `POST /api/agent-token` then `Authorization: Bearer <t>` on `/mcp` calls (see [AGENTS.md](./AGENTS.md)). Requires `Accept: application/json, text/event-stream`. |
 | **Play skill** | Higher-level autonomous play loop sitting on top of agent MCP | `.claude/skills/play/SKILL.md` — useful for smoke runs, **not** for probing (see anti-patterns) |
 | **`curl` against public endpoints** | Probe HTTP API surface, validation, error shapes | Anything documented in `/.well-known/agent.json` |
-| **`wrangler d1 execute --remote`** | Inspect or mutate D1 tables (`events`, `match_archive`, `player`, `match_rating`) | OAuth via `wrangler login` (interactive). For headless runs, set `CLOUDFLARE_API_TOKEN` with `D1:Edit`. |
+| **`wrangler d1 execute --remote`** | Inspect or mutate D1 tables (`events`, `match_archive`, `player`, `player_recovery`, `match_rating`) | OAuth via `wrangler login` (interactive). For headless runs, set `CLOUDFLARE_API_TOKEN` with `D1:Edit`. |
 | **`wrangler tail delta-v --format json`** | Live Worker + DO logs with full CF metadata | OAuth via `wrangler login`. **Captures real client IPs, geo, TLS fingerprints** — never paste raw output anywhere shared. |
 | **Cloudflare dashboard → Logs** | Historical persisted logs (observability is enabled in `wrangler.toml`) | Dashboard access. Wrangler 4.x has no CLI for historical query. |
 | **R2 object inspection** | Replay JSON, archive payloads | `wrangler r2 object get delta-v-match-archive/matches/{gameId}.json --remote`. Bulk listing isn't a CLI primitive — use the dashboard or a throwaway Worker route. |
@@ -57,7 +57,7 @@ A lens is a question to keep mentally active while exploring. Strong lenses forc
 6. **Cost / abuse surface.** Are rate limits enforced where the docs say? Can a single client churn DOs, fill R2, or spam telemetry?
 7. **Cross-vantage consistency.** Does the browser HUD show the same turn/phase/active-player as the MCP observation, the D1 row, and the tail log line at the same instant?
 8. **Mobile / a11y.** At each declared breakpoint (760 / 640 / 420 px widths and the 560 px short-height rule) does every floating element — HUD bar, bottom-buttons row, ship list, game log, minimap, help/sound buttons, phase alert, tutorial tip, toasts, game-over panel — stay fully visible **and** out of each other's bounding boxes? Can every interactive element be `elementFromPoint`-reached without a decoration stealing the click? Do `env(safe-area-inset-*)` offsets work on notched devices and in landscape? Does `prefers-reduced-motion` / `prefers-contrast` actually take effect? Can keyboard-only users complete a turn?
-9. **Recovery surface.** Reload mid-game — does state restore correctly? Two-tab same player — what wins? Stale `?code=` URL — graceful?
+9. **Recovery surface.** Reload mid-game — does state restore correctly? Two-tab same player — what wins? Stale `?code=` URL — graceful? Callsign recovery codes — are they shown only once, never persisted client-side, revocable through "Forget my callsign", and unusable after rotation or revoke?
 10. **Public-discovery surprises.** Is anything indexable, cacheable, or Wayback-able that shouldn't be?
 
 ---
@@ -78,6 +78,8 @@ for p in /.well-known/agent.json /agent-playbook.json /agents /how-to-play \
 done
 ```
 
+For POST-only identity endpoints (`/api/claim-name`, `/api/agent-token`, `/api/player-recovery/issue`, `/api/player-recovery/restore`, `/api/player-recovery/revoke`), a plain GET should return only a method/error response — never player profile data, recovery-code material, or a verbose stack.
+
 ### R2. Endpoint filter / validation probing
 
 For every documented query parameter, send a deliberately wrong value and check the response. Silent acceptance is the bug.
@@ -87,6 +89,33 @@ curl -s "https://delta-v.tre.systems/api/matches?scenario=nonexistent&limit=3" |
 curl -s "https://delta-v.tre.systems/api/matches?limit=99999" | python3 -m json.tool | head
 curl -sX POST https://delta-v.tre.systems/api/agent-token \
   -H 'Content-Type: application/json' -d '{"playerKey":"human_x"}'   # wrong prefix
+```
+
+For the human callsign flow, probe the public recovery endpoints as a set. Use a reserved QA callsign (`QA_*`, `Probe_*`, `Bot_*`) and revoke any code you issue before ending the pass. Recovery codes are bearer secrets: do **not** paste real issued codes into chat, commits, screenshots, or backlog entries.
+
+```bash
+# Issue requires a previously claimed human player.
+curl -sX POST https://delta-v.tre.systems/api/claim-name \
+  -H 'Content-Type: application/json' \
+  -d '{"playerKey":"probe_recovery_20260426","username":"QA_Recovery_26"}'
+
+curl -sX POST https://delta-v.tre.systems/api/player-recovery/issue \
+  -H 'Content-Type: application/json' \
+  -d '{"playerKey":"probe_recovery_20260426"}' | python3 -m json.tool
+
+# Invalid / abuse edges.
+curl -sX POST https://delta-v.tre.systems/api/player-recovery/issue \
+  -H 'Content-Type: application/json' -d '{"playerKey":"agent_reserved123"}' -w "\n%{http_code}\n"
+curl -sX POST https://delta-v.tre.systems/api/player-recovery/issue \
+  -H 'Content-Type: application/json' -d '{"playerKey":"unclaimed_probe_20260426"}' -w "\n%{http_code}\n"
+curl -sX POST https://delta-v.tre.systems/api/player-recovery/restore \
+  -H 'Content-Type: application/json' -d '{"recoveryCode":"dv1-not-a-real-code"}' -w "\n%{http_code}\n"
+
+# Revoke is intentionally idempotent; repeat it and expect success.
+curl -sX POST https://delta-v.tre.systems/api/player-recovery/revoke \
+  -H 'Content-Type: application/json' -d '{"playerKey":"probe_recovery_20260426"}' -w "\n%{http_code}\n"
+curl -sX POST https://delta-v.tre.systems/api/player-recovery/revoke \
+  -H 'Content-Type: application/json' -d '{"playerKey":"probe_recovery_20260426"}' -w "\n%{http_code}\n"
 ```
 
 For state-changing POSTs, also test rate limits and payload validation as a pair — they're often filed together because both sides of the same boundary are involved:
@@ -329,6 +358,7 @@ curl -s "https://delta-v.tre.systems/api/matches?status=live" | python3 -m json.
 
 npx wrangler d1 execute delta-v-telemetry --remote --command "
   DELETE FROM match_rating;
+  DELETE FROM player_recovery;
   DELETE FROM match_archive;
   DELETE FROM player;
   DELETE FROM events;"
@@ -336,7 +366,7 @@ npx wrangler d1 execute delta-v-telemetry --remote --command "
 
 R2 has no `wrangler r2 object list` in 4.x — purge via the Cloudflare dashboard ("Delete all objects" on the bucket), via a temporary Worker route that uses the binding, or via rclone configured with R2 S3 credentials.
 
-After the wipe, verify with the same snapshot query in R4 (all four tables should report `n = 0`) and confirm `/api/matches`, `/api/leaderboard`, `/api/matches?status=live` all return empty.
+After the wipe, verify with the same snapshot query in R4 (all D1 tables above should report `n = 0`) and confirm `/api/matches`, `/api/leaderboard`, `/api/matches?status=live` all return empty.
 
 ### R12. Doc-link fetch sweep
 
@@ -379,7 +409,7 @@ Open the SPA in a fresh profile, complete one matchmaking-paired game and one Pl
 })
 ```
 
-For each persisted blob, ask: who owns it? When does it get pruned? What happens if the device is shared? Does it contain anything user-typed (callsign, real-name pattern)? Is any auth credential stored in plaintext localStorage? The 2026-04-19 pass surfaced unbounded `delta-v:tokens` accumulation and a `delta-v:player-profile` storing the raw callsign indefinitely.
+For each persisted blob, ask: who owns it? When does it get pruned? What happens if the device is shared? Does it contain anything user-typed (callsign, real-name pattern)? Is any auth credential stored in plaintext localStorage? Callsign recovery codes must **not** appear in localStorage, sessionStorage, IndexedDB, Cache Storage, service-worker cache entries, logs, or replay/archive payloads; only the recovered `playerKey` + `username` belong in `delta-v:player-profile`. The 2026-04-19 pass surfaced unbounded `delta-v:tokens` accumulation and a `delta-v:player-profile` storing the raw callsign indefinitely.
 
 ### R15. Post-game pipeline cross-check
 
@@ -441,6 +471,33 @@ Each result now ships a **scorecard** (text + JSON) — read it before squinting
 
 For AI PRs, compare scorecards on **paired seed sets** before/after, not single runs. When a sweep exposes a bad state, use `--capture-failures <dir>` to land a bounded `GameState` JSON under `src/shared/ai/__fixtures__/` and add a decision-class regression test (see [SIMULATION_TESTING.md](./SIMULATION_TESTING.md) § 1). The 2026-04-19 sweep surfaced evacuation 96-3 and duel 60-40; subsequent passes surfaced Grand Tour 60/60 timeouts. Run before any AI heuristic change and before any release.
 
+### R17. Callsign recovery flow
+
+The callsign recovery feature is deliberately "login-like" without becoming a login wall. Probe it as a possession-secret flow: the game remains playable without setup, and anyone with the code can restore the callsign.
+
+**Happy path.**
+
+1. Fresh profile → enter a non-default QA callsign such as `QA_Recovery_26` → blur or Quick Match to claim.
+2. Click **Save recovery code**. Confirm the UI claims first if needed, shows one `dv1-...` code, and leaves Quick Match / Play vs AI ahead of the recovery controls in keyboard tab order.
+3. Copy the code. Confirm the copied value exactly matches the shown code.
+4. In a fresh browser profile or after clearing `delta-v:player-profile`, click **Restore callsign**, paste the code, submit, and confirm the callsign input, rank/status text, and `delta-v:player-profile` all reflect the restored `{ playerKey, username }`.
+
+**Security / state edges.**
+
+- Issue a second recovery code for the same player; the first code must stop restoring.
+- Click **Forget my callsign**; recovery should revoke before local identity resets, and the old code must fail afterward.
+- Go offline before **Forget my callsign**; local reset should still happen, with a status that revoke was not confirmed.
+- Try invalid, malformed, whitespace-padded, lowercase, and unknown-but-well-formed codes.
+- Try issuing from an unclaimed playerKey and an `agent_` key.
+- Try restore after the associated player row has been renamed; the restored profile should use the current username, not a stale name embedded in the code.
+
+**Privacy / observability checks.**
+
+- Search browser storage and network logs for the literal issued code. It should appear only in the issue response, restore request body, the visible one-time UI, and explicit clipboard action.
+- D1 `player_recovery` should store `recovery_hash` only, never a literal `dv1-...` string or `playerKey`-derived secret.
+- `wrangler tail` / sampled events / replay archives should not log recovery codes. If a code appears in a tail line, screenshot, or backlog entry, treat it as compromised: revoke it before continuing.
+- Confirm `docs/PRIVACY_TECHNICAL.md` still matches the client/server storage reality after any recovery-flow change.
+
 ---
 
 ## Workflow: probe, finding, backlog
@@ -473,6 +530,8 @@ Things that have wasted exploratory time in past passes — don't repeat them.
 - **Mass-purging production data without a paired check on `?status=live`.** R11 destroys real matches if any are in flight. Always verify zero live matches first, and confirm scope with the operator.
 - **Adding "interesting but not actionable" entries to the backlog.** They drown out real items. If you can't write a fix, you don't have a finding yet — keep probing.
 - **Forgetting that exploratory identities still persist in D1.** Use the reserved non-public prefixes (`QA_*`, `Bot_*`, `Probe_*`) for test callsigns; the leaderboard now filters them, but they remain queryable in operator tables and logs.
+- **Treating recovery codes like ordinary test output.** Recovery codes are bearer secrets. Do not paste live codes into chat, test logs, screenshots, commits, traces, or backlog entries. Redact or immediately revoke any code that escapes the browser.
+- **Letting secondary menu utilities take over the primary tab path.** The home-screen tab order is part of the accessibility contract: Callsign → Quick Match → Play vs AI → difficulty. Recovery, privacy, support, and other utility actions must remain keyboard-accessible without jumping ahead of the primary play flow.
 - **Filing bugs from programmatic clicks on hidden elements.** `element.click()` in Chrome MCP fires the handler regardless of `display: none` / `hidden` / `offsetWidth === 0`. Buttons a real user can never reach can still execute their handler from a test harness. Before filing a finding triggered by a DOM click, confirm the element is actually visible (`offsetWidth > 0` and a valid `getBoundingClientRect`) in the state you're probing. A hidden button with the "wrong" behaviour may still be a latent bug worth fixing (if CSS ever changes the button is suddenly reachable), but classify it as such rather than as a user-visible regression.
 - **Filing mobile-layout findings from Chrome MCP.** Covered under R10, but bears repeating as an anti-pattern: the OS window cannot shrink below the display's minimum, so `@media (max-width: 760px)` never fires and the responsive breakpoints in [static/styles/responsive.css](../static/styles/responsive.css) stay inert. Switch to the Playwright preview MCP (`preview_resize`) or hand off to DevTools device emulation before filing.
 - **Only testing at one "mobile" viewport (typically 375 × 812).** Delta-V has breakpoints at 760 / 640 / 420 px widths and a 560 px short-height rule, with an extra narrow-and-short combo. 375 × 812 only exercises a subset. R10's matrix includes 1-px boundary viewports (419, 421, 639, 641, 759, 761) specifically because overlap bugs hide in the single-pixel band between `@media` rules. Skipping the boundary means shipping the band.
