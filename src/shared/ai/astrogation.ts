@@ -745,8 +745,8 @@ export const aiAstrogation = (
   const objectiveRaceOpponent =
     !caps.isCheckpointRace &&
     !caps.targetWinRequiresPassengers &&
-    !!player.targetBody &&
-    !!player.homeBody &&
+    player.targetBody &&
+    player.homeBody &&
     myCombatShips.length === 1 &&
     enemyCombatShips.length === 1
       ? enemyCombatShips[0]

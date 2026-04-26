@@ -396,7 +396,7 @@ const getCurrentBundleHash = (): string | null => {
   const scripts = Array.from(document.querySelectorAll('script[src]'));
   for (const script of scripts) {
     const src = script.getAttribute('src');
-    if (!src || !src.includes('client.js')) continue;
+    if (!src?.includes('client.js')) continue;
     try {
       const url = new URL(src, window.location.href);
       const hash = url.searchParams.get('v')?.trim();
