@@ -68,11 +68,12 @@ export const postClaimName = async (
   if (res.status === 400) {
     const body = (await res.json().catch(() => null)) as {
       error?: string;
+      message?: string;
     } | null;
     return {
       ok: false,
       error: 'invalid_name',
-      message: body?.error,
+      message: body?.message ?? body?.error,
     };
   }
   if (res.status === 409) {

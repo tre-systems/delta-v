@@ -121,8 +121,9 @@ describe('handleClaimName', () => {
       env(db),
     );
     expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toContain('agent-token');
+    const body = (await res.json()) as { error: string; message: string };
+    expect(body.error).toBe('agent_player_key_not_allowed');
+    expect(body.message).toContain('agent-token');
   });
 
   it('rejects an invalid username', async () => {

@@ -1,6 +1,6 @@
 import { must } from '../../shared/assert';
 import { validateServerMessage } from '../../shared/protocol';
-import type { GameState } from '../../shared/types/domain';
+import { ErrorCode, type GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { getConnectCloseToastMessage } from '../messages/server-error-presentation';
 import { TOAST } from '../messages/toasts';
@@ -69,6 +69,7 @@ const createLatencyAccumulator = (): LatencyAccumulator => ({
 
 const PING_INTERVAL_MS = 5000;
 const MAX_RECONNECT_ATTEMPTS = 5;
+const REPLACED_CLOSE_REASON = 'Replaced by new connection';
 
 const clearPingInterval = (
   runtime: Pick<ConnectionRuntime, 'pingInterval'>,
@@ -179,10 +180,30 @@ export const createConnectionManager = (
     deps.exitToMenu();
   };
 
-  const handleSocketMessage = (payload: string) => {
+  const handleSessionReplaced = (socket: WebSocket): void => {
+    if (runtime.ws !== socket) {
+      return;
+    }
+    runtime.ws = null;
+    runtime.suppressDisconnectHandling = true;
+    flushSessionQuality(1000);
+    stopPing();
+    clearReconnectFlow();
+    deps.trackEvent('ws_session_replaced');
+    deps.exitToMenu();
+    socket.close(1000, REPLACED_CLOSE_REASON);
+  };
+
+  const handleSocketMessage = (socket: WebSocket, payload: string) => {
     const message = parseServerPayload(payload, deps);
     if (message) {
       deps.handleMessage(message);
+      if (
+        message.type === 'error' &&
+        message.code === ErrorCode.SESSION_REPLACED
+      ) {
+        handleSessionReplaced(socket);
+      }
     }
   };
 
@@ -280,6 +301,15 @@ export const createConnectionManager = (
     };
     flushSessionQuality(ev.code);
 
+    if (ev.reason === REPLACED_CLOSE_REASON) {
+      runtime.suppressDisconnectHandling = false;
+      stopPing();
+      clearReconnectFlow();
+      deps.trackEvent('ws_session_replaced');
+      deps.exitToMenu();
+      return;
+    }
+
     const shouldHandleDisconnect = !runtime.suppressDisconnectHandling;
     runtime.suppressDisconnectHandling = false;
 
@@ -304,7 +334,7 @@ export const createConnectionManager = (
     runtime.ws = socket;
     previousSocket?.close();
     socket.onmessage = (e) => {
-      handleSocketMessage(e.data);
+      handleSocketMessage(socket, e.data);
     };
     socket.onclose = (ev) => {
       handleSocketClose(socket, ev);

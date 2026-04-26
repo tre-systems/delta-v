@@ -16,6 +16,7 @@ import {
   MIN_GAMES_PLAYED,
 } from '../../shared/rating/provisional';
 import type { Env } from '../env';
+import { jsonError } from '../json-errors';
 
 interface PlayerRow {
   username: string;
@@ -39,28 +40,22 @@ export const handlePlayerRank = async (
   env: Env,
 ): Promise<Response> => {
   if (request.method !== 'GET') {
-    return Response.json(
-      {
-        error: 'method_not_allowed',
-        message: 'Use GET on this endpoint.',
-      },
-      { status: 405, headers: { Allow: 'GET' } },
-    );
+    return jsonError(405, 'method_not_allowed', 'Use GET on this endpoint.', {
+      headers: { Allow: 'GET' },
+    });
   }
 
   const url = new URL(request.url);
   const playerKey = url.searchParams.get('playerKey');
   if (!isValidPlayerKey(playerKey)) {
-    return Response.json(
-      { ok: false, error: 'Invalid playerKey' },
-      { status: 400 },
-    );
+    return jsonError(400, 'invalid_player_key', 'Invalid playerKey.');
   }
 
   if (!env.DB) {
-    return Response.json(
-      { ok: false, error: 'leaderboard_unavailable' },
-      { status: 503 },
+    return jsonError(
+      503,
+      'leaderboard_unavailable',
+      'Leaderboard unavailable.',
     );
   }
 
@@ -72,7 +67,7 @@ export const handlePlayerRank = async (
     .first<PlayerRow>();
 
   if (!row) {
-    return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+    return jsonError(404, 'not_found', 'Player not found.');
   }
 
   const provisional = isProvisional({
