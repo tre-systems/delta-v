@@ -101,6 +101,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const copyButtonTextSignal = signal('Copy Link');
   const copySpectateTextSignal = signal('Copy Observer Link (view-only)');
   const recoveryBusySignal = signal(false);
+  const forgetConfirmSignal = signal(false);
   const queueElapsedTick = signal(0);
   const defaultFetch = globalThis.fetch.bind(globalThis);
   const postClaimImpl = deps.postClaimName ?? postClaimName;
@@ -277,6 +278,27 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     return deps.getPlayerName() !== buildDefaultUsername(playerKey);
   };
 
+  const recoverySavedStorageKey = (playerKey: string): string =>
+    `delta-v:recovery-code-saved:${playerKey}`;
+
+  const hasSavedRecoveryCode = (): boolean => {
+    const storageKey = recoverySavedStorageKey(deps.getPlayerKey());
+    return ls?.getItem(storageKey) === '1';
+  };
+
+  const markRecoveryCodeSaved = (playerKey = deps.getPlayerKey()): void => {
+    ls?.setItem(recoverySavedStorageKey(playerKey), '1');
+  };
+
+  const clearRecoveryCodeSaved = (playerKey: string): void => {
+    ls?.removeItem(recoverySavedStorageKey(playerKey));
+  };
+
+  const withRecoveryNudge = (status: string): string =>
+    hasClaimedCallsign() && !hasSavedRecoveryCode()
+      ? `${status} · Save a recovery code to keep it.`
+      : status;
+
   // True when the current URL will boot the client into a non-menu view
   // (spectator, live join, archived replay). In that case the menu is
   // never shown on initial load, so the best-effort rank lookup below
@@ -447,7 +469,10 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       const playerKey = deps.getPlayerKey();
       void fetchRank({ playerKey }).then((result) => {
         if (!result.ok) return;
-        setCallsignStatus(formatRankText(result.player), 'info');
+        setCallsignStatus(
+          withRecoveryNudge(formatRankText(result.player)),
+          'info',
+        );
       });
     };
 
@@ -465,7 +490,10 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
     const applyClaimResult = (result: ClaimNameResult): void => {
       if (result.ok) {
-        setCallsignStatus(`Claimed as ${result.player.username}`, 'success');
+        setCallsignStatus(
+          withRecoveryNudge(`Claimed as ${result.player.username}`),
+          'success',
+        );
         // Follow up with the player's rank once the claim lands so
         // the status switches from "Claimed as X" to
         // "Rating N · rank #K" (or · provisional).
@@ -564,6 +592,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     };
 
     const createRecoveryCode = async (): Promise<void> => {
+      forgetConfirmSignal.value = false;
       recoveryBusySignal.value = true;
       try {
         const claimed = await claimCurrentNameForRecovery();
@@ -574,6 +603,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         setCallsignStatus('Creating recovery code…', 'info');
         const result = await issueRecovery({ playerKey: deps.getPlayerKey() });
         if (result.ok) {
+          markRecoveryCodeSaved();
           showRecoveryCode(result.recoveryCode);
           setCallsignStatus('Recovery code ready. Save it now.', 'success');
         } else {
@@ -585,6 +615,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     };
 
     const restoreCallsign = async (): Promise<void> => {
+      forgetConfirmSignal.value = false;
       recoveryBusySignal.value = true;
       try {
         setCallsignStatus('Restoring callsign…', 'info');
@@ -598,6 +629,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
         const profile = restorePlayerIdentity(result.profile);
         playerNameInput.value = profile.username;
+        markRecoveryCodeSaved(result.profile.playerKey);
         recoveryCodeInput.value = '';
         hideRecoveryPanel();
         setCallsignStatus(`Restored as ${profile.username}`, 'success');
@@ -608,6 +640,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     };
 
     const forgetCallsign = async (): Promise<void> => {
+      forgetConfirmSignal.value = false;
       recoveryBusySignal.value = true;
       const playerKey = deps.getPlayerKey();
       let revokeFailed = false;
@@ -618,6 +651,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       } catch {
         revokeFailed = true;
       } finally {
+        clearRecoveryCodeSaved(playerKey);
         const profile = deps.resetPlayerIdentity();
         playerNameInput.value = profile.username;
         hideRecoveryPanel();
@@ -630,6 +664,42 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         );
       }
     };
+
+    let forgetConfirmTimer: number | null = null;
+
+    const clearForgetConfirmTimer = (): void => {
+      if (forgetConfirmTimer === null) {
+        return;
+      }
+      window.clearTimeout(forgetConfirmTimer);
+      forgetConfirmTimer = null;
+    };
+
+    const resetForgetConfirmation = (): void => {
+      clearForgetConfirmTimer();
+      forgetConfirmSignal.value = false;
+    };
+
+    const requestForgetCallsign = (): void => {
+      if (forgetConfirmSignal.value) {
+        resetForgetConfirmation();
+        void forgetCallsign();
+        return;
+      }
+
+      forgetConfirmSignal.value = true;
+      setCallsignStatus(
+        'Tap Forget my callsign again to clear this device.',
+        'error',
+      );
+      clearForgetConfirmTimer();
+      forgetConfirmTimer = window.setTimeout(() => {
+        forgetConfirmTimer = null;
+        forgetConfirmSignal.value = false;
+      }, 3000);
+    };
+
+    registerDisposer(clearForgetConfirmTimer);
 
     const runClaim = (
       postClaim: (opts: {
@@ -684,6 +754,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     });
 
     listen(restoreCallsignBtn, 'click', () => {
+      resetForgetConfirmation();
       showRestoreForm();
     });
 
@@ -708,7 +779,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     });
 
     listen(forgetCallsignBtn, 'click', () => {
-      void forgetCallsign();
+      requestForgetCallsign();
     });
 
     hideRecoveryPanel();
@@ -774,6 +845,10 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       recoveryCodeInput.disabled = loading || !online || recoveryBusy;
       submitRecoveryCodeBtn.disabled = loading || !online || recoveryBusy;
       copyRecoveryCodeBtn.disabled = loading || !online || recoveryBusy;
+      text(
+        forgetCallsignBtn,
+        forgetConfirmSignal.value ? 'Confirm forget' : 'Forget my callsign',
+      );
       text(
         createBtn,
         loadingKind === 'create' ? 'CREATING...' : 'Create Private Match',
