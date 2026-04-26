@@ -70,8 +70,11 @@ mistakes, and objective-scenario drift such as fleet-elimination resolutions.
 The default cap is 5 files; override it with `--capture-failures-limit N`.
 Captures include the seed, scenario, active player, proposed action when
 relevant, stalled ship ids or passenger-transfer diagnostics when relevant, and
-the full `GameState`. To promote a capture, copy the JSON into a focused
-`__fixtures__` path and assert the decision class has changed. For example,
+the full `GameState`. The capture directory also gets a
+`capture-manifest.json` sidecar with one compact row per file, so reviewers can
+scan captured failure kinds without opening full states. To promote a capture,
+copy the JSON into a focused `__fixtures__` path and assert the decision class
+has changed. For example,
 [`src/shared/ai/__fixtures__/grand-tour-fuel-stall.json`](../src/shared/ai/__fixtures__/grand-tour-fuel-stall.json)
 backs a regression that checks the AI no longer submits a fueled stationary
 coast for that state.
