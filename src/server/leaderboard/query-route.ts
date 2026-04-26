@@ -200,10 +200,13 @@ export const handleLeaderboardQuery = async (
   ctx?: ExecutionContext,
 ): Promise<Response> => {
   if (request.method !== 'GET') {
-    return new Response('Method Not Allowed', {
-      status: 405,
-      headers: { Allow: 'GET' },
-    });
+    return Response.json(
+      {
+        error: 'method_not_allowed',
+        message: 'Use GET on this endpoint.',
+      },
+      { status: 405, headers: { Allow: 'GET' } },
+    );
   }
 
   const url = new URL(request.url);

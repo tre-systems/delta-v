@@ -45,10 +45,14 @@ export const handleClaimName = async (
   env: Env,
 ): Promise<Response> => {
   if (request.method !== 'POST') {
-    return new Response('Method Not Allowed', {
-      status: 405,
-      headers: { Allow: 'POST' },
-    });
+    return Response.json(
+      {
+        ok: false,
+        error: 'method_not_allowed',
+        message: 'Use POST on this endpoint.',
+      },
+      { status: 405, headers: { Allow: 'POST' } },
+    );
   }
 
   let body: ClaimBody;

@@ -73,10 +73,14 @@ export const handleAgentTokenIssue = async (
   env: Env,
 ): Promise<Response> => {
   if (request.method !== 'POST') {
-    return new Response('Method Not Allowed', {
-      status: 405,
-      headers: { Allow: 'POST' },
-    });
+    return Response.json(
+      {
+        ok: false,
+        error: 'method_not_allowed',
+        message: 'Use POST on this endpoint.',
+      },
+      { status: 405, headers: { Allow: 'POST' } },
+    );
   }
   // Fail closed when the HMAC secret is missing in production. The dev
   // fallback inside resolveAgentTokenSecret only kicks in under DEV_MODE,

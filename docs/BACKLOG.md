@@ -198,14 +198,18 @@ these programmatically can't generically detect "rate limited" or
 | `/create` | `{ok: false, error: "<code>", message: "<human>"}` |
 | `/api/agent-token`, `/api/claim-name`, `/api/player-recovery/issue` | `{ok: false, error: "<human message>"}` (no `message`, `error` is the human string) |
 | `/api/player-recovery/restore` | `{ok: false, error: "<code>"}` (no `message`) |
-| GET on POST-only routes (`/create` GET, `/api/claim-name` GET) | plain-text `Method Not Allowed` |
+
+(2026-04-26 update: the wrong-method paths previously returned
+plain-text `Method Not Allowed`; they now return JSON
+`{[ok: false,] error: "method_not_allowed", message: "Use <verb> on
+this endpoint."}` matching whichever shape the rest of the route uses.
+The 4xx-on-bad-input shapes still drift.)
 
 Standardise on `{ok: false, error: "<code>", message: "<human>"}` (or
 the no-`ok` variant — pick one and migrate the other). Keep `error`
 as a stable enum (`invalid_query`, `invalid_payload`,
 `missing_scenario`, `invalid_recovery_code`, etc.) and let `message`
-carry the prose. Plain-text 405 should become a JSON
-`{ok: false, error: "method_not_allowed"}` for parity with the rest.
+carry the prose.
 
 Found via R2 validation probing (2026-04-26).
 
