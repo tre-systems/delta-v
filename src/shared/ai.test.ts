@@ -58,6 +58,7 @@ import { AI_CONFIG } from './ai/config';
 import {
   assignPassengerShipRoles,
   getPrimaryPassengerCarrier,
+  scorePassengerArrivalOdds,
   scorePassengerEscortCourse,
 } from './ai/logistics';
 import {
@@ -1095,6 +1096,58 @@ describe('aiLogistics', () => {
     corvette.fuel = 5;
 
     expect(getPrimaryPassengerCarrier(state, 0, map)?.id).toBe(corvette.id);
+  });
+
+  it('rewards a carrier whose momentum closes the planner-confirmed approach', () => {
+    // Two carriers with identical fuel and the same hex distance to the
+    // destination. One has velocity already pointing at the target so the
+    // planner finds a low-cost arrival within the horizon; the other is
+    // stationary and depends on burning to close the gap. The arrival
+    // score should rank the momentum-favoured ship higher even though
+    // the legacy distance-only term would tie them.
+    const state = createGameOrThrow(
+      SCENARIOS.evacuation,
+      map,
+      asGameId('PLANNER-ARRIV'),
+      findBaseHex,
+    );
+    const targetBody = must(
+      map.bodies.find((body) => body.name === state.players[0].targetBody),
+    );
+    const ownShips = state.ships.filter((ship) => ship.owner === 0);
+    const movingTransport = must(ownShips[0]);
+    const stationaryTransport = must(ownShips[1]);
+
+    movingTransport.position = {
+      q: targetBody.center.q - 4,
+      r: targetBody.center.r,
+    };
+    movingTransport.velocity = { dq: 1, dr: 0 };
+    movingTransport.fuel = 8;
+    movingTransport.passengersAboard = 5;
+
+    stationaryTransport.position = {
+      q: targetBody.center.q - 4,
+      r: targetBody.center.r,
+    };
+    stationaryTransport.velocity = { dq: 0, dr: 0 };
+    stationaryTransport.fuel = 8;
+    stationaryTransport.passengersAboard = 5;
+
+    const movingScore = scorePassengerArrivalOdds(
+      movingTransport,
+      0,
+      state,
+      map,
+    );
+    const stationaryScore = scorePassengerArrivalOdds(
+      stationaryTransport,
+      0,
+      state,
+      map,
+    );
+
+    expect(movingScore).toBeGreaterThan(stationaryScore);
   });
 
   it('flags passenger transfers from a viable carrier to a worse arrival carrier', () => {

@@ -13,7 +13,11 @@ import type {
   TransferOrder,
 } from '../types';
 import { maxBy, minBy } from '../util';
-import { estimateFuelForTravelDistance, findNearestBase } from './common';
+import {
+  estimateFuelForTravelDistance,
+  findNearestBase,
+  planShortHorizonMovementToHex,
+} from './common';
 import { AI_CONFIG, type AIDifficultyConfig } from './config';
 import { scoreCourse } from './scoring';
 import type { AIDifficulty } from './types';
@@ -87,14 +91,41 @@ export const scorePassengerArrivalOdds = (
 
   const distance = hexDistance(ship.position, targetHex);
   const speed = hexVecLength(ship.velocity);
-  const requiredFuel = estimateFuelForTravelDistance(distance, speed);
+  // The bounded planner threads through `computeCourse` so it knows when
+  // momentum closes the gap for free vs when a brake-and-burn pattern
+  // is required. Trust its `fuelSpent` over the linear-distance heuristic
+  // when it succeeds. When the 4-turn horizon can't find a plan, fall
+  // back to the heuristic so this score still reflects coarse-but-real
+  // distance and fuel pressure for far-out approaches.
+  const plan = planShortHorizonMovementToHex(
+    ship,
+    targetHex,
+    map,
+    state.destroyedBases,
+    4,
+  );
+  const requiredFuel =
+    plan != null
+      ? plan.fuelSpent
+      : estimateFuelForTravelDistance(distance, speed);
   const fuelMargin = ship.fuel - requiredFuel;
+  // Reward a planner-confirmed approach, but only when the plan
+  // actually consumes some fuel — a free-coast plan already gets
+  // captured by the heuristic distance term, and adding a bonus on
+  // top biases the carrier toward stalling on a fueled coast (the
+  // fuel-stall metric flags that). Burning carriers should win
+  // ties, not coasting ones.
+  const planSuccessBonus =
+    plan != null && plan.fuelSpent > 0
+      ? Math.max(0, 30 - plan.finalDistance * 8 - plan.turns * 3)
+      : 0;
 
   return (
     -distance * 22 +
     Math.min(8, Math.max(0, fuelMargin)) * 10 -
     Math.max(0, -fuelMargin) * 55 -
-    speed * 2
+    speed * 2 +
+    planSuccessBonus
   );
 };
 
