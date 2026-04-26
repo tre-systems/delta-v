@@ -62,6 +62,12 @@ export type SeedSweepJsonReport = {
   rows?: unknown[];
 };
 
+export type SeedSweepBaselineContext = {
+  scenario: string;
+  iterations: number;
+  seeds: readonly number[];
+};
+
 export const summarizeSeedSweepRows = (
   rows: readonly SeedSweepRow[],
 ): SeedSweepSummary => {
@@ -130,6 +136,32 @@ export const compareSeedSweepSummaries = (
     before.meanPassengerTransferMistakesPerGame,
   totalCrashesDelta: after.totalCrashes - before.totalCrashes,
 });
+
+export const validateSeedSweepBaseline = (
+  baseline: SeedSweepJsonReport,
+  current: SeedSweepBaselineContext,
+): void => {
+  if (baseline.scenario !== current.scenario) {
+    throw new Error(
+      `Baseline scenario mismatch: expected ${current.scenario}, got ${baseline.scenario}.`,
+    );
+  }
+
+  if (baseline.iterations !== current.iterations) {
+    throw new Error(
+      `Baseline iteration mismatch: expected ${current.iterations}, got ${baseline.iterations}.`,
+    );
+  }
+
+  const currentSeeds = current.seeds.join(',');
+  const baselineSeeds = baseline.seeds.join(',');
+
+  if (baselineSeeds !== currentSeeds) {
+    throw new Error(
+      `Baseline seed mismatch: expected [${currentSeeds}], got [${baselineSeeds}].`,
+    );
+  }
+};
 
 const parseSeedSweepJsonReport = (raw: string): SeedSweepJsonReport => {
   let parsed: Partial<SeedSweepJsonReport>;
@@ -266,6 +298,9 @@ const main = async () => {
       baselineJsonPath === null
         ? null
         : parseSeedSweepJsonReport(await readFile(baselineJsonPath, 'utf8'));
+    if (baseline !== null) {
+      validateSeedSweepBaseline(baseline, { scenario, iterations, seeds });
+    }
     const comparison =
       baseline === null
         ? null
@@ -347,6 +382,9 @@ const main = async () => {
     baselineJsonPath === null
       ? null
       : parseSeedSweepJsonReport(await readFile(baselineJsonPath, 'utf8'));
+  if (baseline !== null) {
+    validateSeedSweepBaseline(baseline, { scenario, iterations, seeds });
+  }
   const comparison =
     baseline === null
       ? null
