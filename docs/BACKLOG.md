@@ -214,23 +214,6 @@ single dismissable prompt in the lobby on a subsequent visit.
 
 ## Gameplay UX & Matchmaking
 
-### Reposition the Floating Sound Control on Small Lobby Viewports (P3)
-
-The 2026-04-26 live R10 sweep found `#soundBtn` colliding with lobby
-content on narrow portrait screens. At `320 x 568` its bounding box overlaps
-the right edge of `#singlePlayerBtn`, while `elementFromPoint()` at the sound
-button centre returns the lobby shell instead of the button. At `390 x 844`
-the same control intersects the lower discovery cards. This is low severity
-because the main menu actions still work, but the utility control is visually
-and interactively fragile on the smallest supported viewport.
-
-Action: reserve explicit space for the floating utility control or move it
-outside the menu card stack at tiny portrait sizes. Re-check at `320 x 568`,
-`360 x 640`, `390 x 844`, and `812 x 375`.
-
-**Files:** `static/styles/base.css`, `static/styles/responsive.css`,
-`static/index.html`, `e2e/a11y.spec.ts`
-
 ### Surface Rating Delta on the Game-Over Screen (P2)
 
 The server already computes Glicko-2 ratings on every paired-human
@@ -434,23 +417,6 @@ aggregate per WS lifecycle) are shipped. The remaining gaps are narrower:
 `static/matches.html`, `static/leaderboard.html`, `src/server/metrics-route.ts`
 
 ## Architecture & Correctness
-
-### Stabilize the Production WebSocket Replacement Probe (P3)
-
-The 2026-04-26 live R9 probe showed production replacement behavior working
-when observed with the `ws` client: the old socket receives
-`SESSION_REPLACED` and closes with code `1000` / reason
-`Replaced by new connection` before the replacement socket continues. The
-same production flow still fails in [scripts/mp-connectivity.mjs](../scripts/mp-connectivity.mjs)
-because the script's WebSocket client remains in `CLOSING` past its 8 s
-timeout, producing a false regression signal.
-
-Action: update the harness to use stable Node client semantics or assert the
-explicit `SESSION_REPLACED` frame plus clean close outcome in a way that does
-not depend on the platform WebSocket close-event timing. Keep the production
-target in the script's documented usage.
-
-**Files:** `scripts/mp-connectivity.mjs`, `docs/EXPLORATORY_TESTING.md`
 
 ### Optional Deduplication of Initial Publication Path (P3)
 

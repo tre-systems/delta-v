@@ -551,6 +551,13 @@
   line-height: 1;
 }
 
+body.ui-mode-menu .sound-btn {
+  top: calc(0.9rem + var(--safe-top));
+  bottom: auto;
+  right: calc(0.9rem + var(--safe-right));
+  z-index: 31;
+}
+
 .hud-exit-btn {
   display: inline-flex;
   align-items: center;
