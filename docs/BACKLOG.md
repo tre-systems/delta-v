@@ -43,34 +43,25 @@ The integration point is evidence, not shared code: Stream 2 should land with
 paired-seed scorecard output from Stream 1's harness showing objective,
 elimination, timeout, fuel-stall, and passenger-delivery impact.
 
-### Build Scenario Scorecards and a Failure-State Corpus (P1)
+### Promote Captured Failure States into Fixtures (P1, ongoing)
 
-Win rate alone is too blunt for asymmetric objective scenarios. The simulation
-harness now prints and exports scorecards, seed-sweep summaries, baseline
-comparisons, failure captures, and capture manifests. The remaining work is to
-use those artifacts consistently: compare paired seed sets before/after AI
-changes, promote recurring bad states into focused fixtures, and add new
-failure counters only when the current scorecard misses a recurring failure
-mode.
+The scorecard / seed-sweep / failure-capture / capture-manifest plumbing has
+shipped. The recurring work is to keep promoting captured `GameState`
+snapshots into decision-class regressions in
+[src/shared/ai/__fixtures__/](../src/shared/ai/__fixtures__/) when a
+particular bad decision appears repeatedly across seeds — "land to refuel",
+"keep the viable passenger carrier", "do not coast while stalled", "screen
+the carrier instead of chasing attrition", etc. Avoid exact burn assertions
+unless the rules require them. Fixture-backed behaviour assertions should
+land with the Stream 2 AI fix that makes the bad decision unrepresentable.
 
-Bad simulation states should also become fixtures. When the harness sees a
-fuel stall, invalid order, passenger transfer mistake, or objective drift, save
-the `GameState` and add a decision-class regression such as "land to refuel",
-"keep the viable passenger carrier", "do not coast while stalled", or "screen
-the carrier instead of chasing attrition". Avoid exact burn assertions unless
-the rules require them.
+Add a new failure counter only when the current scorecard / capture
+manifest genuinely misses a recurring symptom; pure tuning belongs in
+existing counters.
 
-Action:
-- Promote captured fuel-stall, invalid-order, passenger-transfer, and
-  objective-drift states into decision-class regressions as recurring failures
-  appear.
-- Add additional objective/failure counters only for recurring symptoms not
-  already visible in the scorecard or capture manifest.
-
-**Files:** `scripts/simulate-ai.ts`, `scripts/duel-seed-sweep.ts`,
-`src/shared/simulate-ai-policy.test.ts`, `src/shared/ai/__fixtures__/`,
-`docs/SIMULATION_TESTING.md`. Fixture-backed behavior assertions should land
-with the Stream 2 AI behavior change that fixes the captured decision class.
+**Files:** `src/shared/ai/__fixtures__/`,
+`src/shared/simulate-ai-policy.test.ts` (gates), `docs/SIMULATION_TESTING.md`
+(when adding a counter).
 
 ### Add a Bounded Engine Planner for Movement Objectives (P1)
 
@@ -80,24 +71,17 @@ many scalar distance/fuel bonuses where a small bounded planner would provide a
 better signal without replacing the whole AI.
 
 Already plumbed via [planShortHorizonMovementToHex](../src/shared/ai/common.ts):
+refuel base reachability ([findReachableRefuelBase](../src/shared/ai/common.ts)),
+passenger arrival odds ([scorePassengerArrivalOdds](../src/shared/ai/logistics.ts)),
+and the burn-vs-coast gate that drove fleet-scale fuel stalls (drift bonus
+gated to "fuel tight, drift closes the gap, or genuinely nothing to do" plus
+a stall penalty for stationary fueled ships ignoring engagements).
 
-- Refuel base reachability — [findReachableRefuelBase](../src/shared/ai/common.ts)
-  replaces the legacy "nearest base + naive fuel-vs-distance check" with a
-  real planner pass that honours velocity and gravity (commit `a3202ba`).
-- Passenger arrival odds — [scorePassengerArrivalOdds](../src/shared/ai/logistics.ts)
-  uses planner-confirmed `fuelSpent` and rewards burn-bearing approach plans
-  (commit `57dab96`). Evacuation 60-game `--seed 1` rose from a baseline 50%
-  objective share to 56.7%; fleet-elim share fell 50% → 43.3%.
-
-Still to do:
-
-- Score the *cost-to-go* (turns × fuel) for the next checkpoint so Grand Tour
-  ships pre-emptively detour to refuel rather than committing to a
-  checkpoint they can't reach with current fuel + velocity.
-- Extend the planner-aware decision to the *burn-vs-coast* gate driving
-  fleet-scale fuel stalls (fleetAction / interplanetaryWar): a fueled ship
-  with a real objective should not coast unless the planner agrees the
-  coast genuinely closes distance.
+Still to do: score the *cost-to-go* (turns × fuel) for the next checkpoint
+so Grand Tour ships pre-emptively detour to refuel rather than committing
+to a checkpoint they can't reach with current fuel + velocity. The seed-1
+Grand Tour `28.3% P0` decided rate hasn't moved despite the refuel work —
+this is the next planner extension to attempt.
 
 **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`, `src/shared/ai.test.ts`
@@ -146,27 +130,17 @@ changes:
 - **Evacuation:** the scenario is still too short — average 2.3 turns at
   30 games — but objective share has crossed back above 50% on the
   focused seed. Continue to track on broader sweeps.
-- **FleetAction / InterplanetaryWar fuel stalls:** the 2026-04-24 sweep
-  recorded `Fuel Stalls/Game` of **72.1** (fleetAction) and **110.3**
-  (interplanetaryWar) at hard-vs-hard. Root cause was the unconditional
-  `fuelDriftBonus` interacting with the fuel-spent tie-break in
-  [astrogation.ts](../src/shared/ai/astrogation.ts) — every stationary
-  fueled ship tied with any productive burn on raw score, then won the
-  tie by spending zero fuel. Drift bonus is now gated to "fuel tight,
-  drift closes the gap, or genuinely nothing to do," and a stall
-  penalty fires when a stationary fueled ship ignores live enemies or
-  an objective. 2026-04-26 re-run: **fleetAction 75.0/game** (still
-  above the 30 gate but down from 150.8 with the unconditional bonus),
-  **interplanetaryWar 21.2/game** (below the gate). Continue tightening
-  via the bounded engine planner if needed.
-- **FleetAction:** recent large samples are close to acceptable, but keep
-  watching timeout rate and P0 blowout risk on broader seeded sweeps. The
-  2026-04-24 sweep showed `timeoutShare 13.3%` at 30 games.
-- **Difficulty tiers:** Easy/Normal/Hard now differ more than before. Only widen
-  Hard-vs-Normal again if real playtesting still says the tiers feel too similar.
-- **Ordnance thresholds:** impossible-shot and nuke/torpedo regressions are now
-  covered. Tune remaining hard-tier threshold rows only when scorecards or
-  sweeps show over-firing.
+- **FleetAction fuel stalls:** legacy `fuelDriftBonus` + fuel-spent
+  tie-break landed fleetAction at **72-150 stalls/game** depending on
+  the sweep. After the 2026-04-26 drift gate + stall penalty work,
+  fleetAction sits at **40.2/game on `--seed 1`** (above the 30 gate
+  but well off the prior peak). Tightening further likely needs the
+  bounded-planner extension into combat positioning rather than another
+  scalar.
+- **FleetAction balance:** recent large samples are close to acceptable,
+  but keep watching timeout rate and P0 blowout risk on broader seeded
+  sweeps. The 2026-04-24 sweep showed `timeoutShare 13.3%` at 30 games;
+  2026-04-26 `--seed 1` was 10%.
 
 **Files:** `src/shared/ai/`, `src/shared/scenario-definitions.ts`,
 `src/shared/engine/victory.ts`, `scripts/simulate-ai.ts`,
