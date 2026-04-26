@@ -276,6 +276,39 @@ aggregate per WS lifecycle) are shipped. The remaining gaps are narrower:
 
 ## Architecture & Correctness
 
+### Add Public Discovery Fallbacks for Crawlers and PWA Tooling (P3)
+
+Found via the 2026-04-26 live exploratory R1 scan. The deployed site serves
+`/site.webmanifest` and all same-origin page links resolve, but common
+discovery URLs `/sitemap.xml` and `/manifest.json` return 404. This does not
+break gameplay, but it weakens public discovery and can confuse generic PWA /
+SEO tooling that probes conventional paths before following HTML `<link>`
+metadata.
+
+Action: either add a small static sitemap and a `/manifest.json` alias or
+redirect to `/site.webmanifest`, or explicitly remove those paths from the
+exploratory scan if the product decision is to keep them unsupported.
+
+**Files:** `static/site.webmanifest`, new `static/sitemap.xml`,
+`src/server/index.ts` if aliases are handled at the Worker route layer.
+
+### Self-Host Menu Fonts or Make Third-Party Font Failure Explicit (P3)
+
+Found via the 2026-04-26 live browser smoke. In headless Chromium,
+`fonts.googleapis.com` failed to load while the game still launched and fell
+back to local fonts. The current external Google Fonts dependency is therefore
+a reliability and privacy tradeoff rather than a gameplay blocker: blocked
+third-party CSS changes visual fidelity, and successful requests disclose page
+loads to a third party.
+
+Action: either self-host the `Space Grotesk` and `IBM Plex Mono` assets under
+`static/` with long-lived cache headers, or document/accept the dependency and
+ensure the fallback stack remains visually acceptable across menu, HUD, and
+leaderboard pages.
+
+**Files:** `static/index.html`, `static/styles/base.css`, new `static/fonts/`
+assets if self-hosting.
+
 ### Measure Long-Game Memory Growth (P3)
 
 Not done this pass — the 2026-04-24 review caught the bundle wins but
