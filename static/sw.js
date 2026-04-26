@@ -6,6 +6,12 @@ const PRECACHE_URLS = [
   `/style.css?v=${BUILD_HASH}`,
   '/favicon.svg',
   '/site.webmanifest',
+  '/manifest.json',
+  '/sitemap.xml',
+  '/fonts/space-grotesk-latin.woff2',
+  '/fonts/ibm-plex-mono-latin-400.woff2',
+  '/fonts/ibm-plex-mono-latin-500.woff2',
+  '/fonts/ibm-plex-mono-latin-600.woff2',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
 ];
@@ -52,20 +58,6 @@ self.addEventListener('fetch', (event) => {
     url.pathname === '/telemetry' ||
     url.pathname === '/version.json'
   ) {
-    return;
-  }
-
-  // Google Fonts: cache-first
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
-    event.respondWith(
-      caches.match(event.request).then((cached) =>
-        cached || fetch(event.request).then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
-        })
-      )
-    );
     return;
   }
 
