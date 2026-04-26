@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   compareSeedSweepSummaries,
@@ -8,6 +11,7 @@ import {
   buildFailureCaptureManifestEntry,
   buildScenarioScorecard,
   evaluateSimulationPolicies,
+  runSimulation,
   type SimulationFailureCapture,
   type SimulationMetrics,
 } from '../../scripts/simulate-ai';
@@ -393,5 +397,37 @@ describe('buildFailureCaptureManifestEntry', () => {
       message: 'stationary fueled ships coasted',
       stalledShipIds: ['ship-a', 'ship-b'],
     });
+  });
+
+  it('writes a capture manifest sidecar when captures are enabled', async () => {
+    const captureDir = await mkdtemp(path.join(tmpdir(), 'delta-v-captures-'));
+
+    try {
+      await runSimulation('convoy', 1, {
+        p0Diff: 'hard',
+        p1Diff: 'hard',
+        randomizeStart: false,
+        forcedStart: null,
+        baseSeed: 0,
+        json: false,
+        captureFailuresDir: captureDir,
+        captureFailuresLimit: 0,
+        quiet: true,
+      });
+
+      const manifest = JSON.parse(
+        await readFile(path.join(captureDir, 'capture-manifest.json'), 'utf8'),
+      );
+
+      expect(manifest).toMatchObject({
+        schemaVersion: 1,
+        scenario: 'convoy',
+        captureLimit: 0,
+        captured: 0,
+        entries: [],
+      });
+    } finally {
+      await rm(captureDir, { recursive: true, force: true });
+    }
   });
 });
