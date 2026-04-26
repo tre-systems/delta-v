@@ -6,6 +6,7 @@ import {
   compareSeedSweepSummaries,
   type SeedSweepRow,
   summarizeSeedSweepRows,
+  validateSeedSweepBaseline,
 } from '../../scripts/duel-seed-sweep';
 import {
   buildFailureCaptureManifestEntry,
@@ -357,6 +358,44 @@ describe('summarizeSeedSweepRows', () => {
     expect(comparison.meanPassengerTransferMistakesPerGameDelta).toBeCloseTo(
       -0.1,
     );
+  });
+
+  it('rejects baseline comparisons for mismatched seed sweeps', () => {
+    const baseline = {
+      scenario: 'convoy',
+      iterations: 30,
+      seeds: [0, 1],
+      summary: summarizeSeedSweepRows([
+        {
+          ...metrics({ scenario: 'convoy' }),
+          baseSeed: 0,
+          p0DecidedPct: 50,
+          avgTurns: 5,
+        },
+      ]),
+    };
+
+    expect(() =>
+      validateSeedSweepBaseline(baseline, {
+        scenario: 'evacuation',
+        iterations: 30,
+        seeds: [0, 1],
+      }),
+    ).toThrow('Baseline scenario mismatch');
+    expect(() =>
+      validateSeedSweepBaseline(baseline, {
+        scenario: 'convoy',
+        iterations: 20,
+        seeds: [0, 1],
+      }),
+    ).toThrow('Baseline iteration mismatch');
+    expect(() =>
+      validateSeedSweepBaseline(baseline, {
+        scenario: 'convoy',
+        iterations: 30,
+        seeds: [1, 0],
+      }),
+    ).toThrow('Baseline seed mismatch');
   });
 });
 
