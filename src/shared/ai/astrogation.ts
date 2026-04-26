@@ -1373,7 +1373,11 @@ export const aiAstrogation = (
           if (fuelTight || driftClosesDistance || nothingToDo) {
             score += cfg.fuelDriftBonus;
           } else if (stationary && canBurnFuel) {
-            score -= 3 * cfg.multiplier;
+            // Penalty has to clear the fuel-spent tie-break (~0) plus
+            // any spurious closing/positioning ties; the legacy
+            // scoreNavigation stay-landed penalty doesn't apply here
+            // because fleetAction-style ships have no targetHex.
+            score -= 10 * cfg.multiplier;
           }
         }
       } else if (opt.overload !== null) {
