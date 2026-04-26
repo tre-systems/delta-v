@@ -25,6 +25,7 @@ npm run simulate                             # 100 games of the default scenario
 npm run simulate -- all 60 --ci              # CI gate: all 9 scenarios × 60 games
 npm run simulate -- duel 30 --randomize-start
 npm run simulate:duel-sweep                  # duel pacing/seat-balance across many seeds
+npm run simulate:duel-sweep -- --scenario convoy --iterations 30
 npm run simulate -- grandTour 20 --seed 1 --capture-failures tmp/ai-failures
 ```
 
@@ -75,7 +76,16 @@ coast for that state.
 
 **CI + full verification iteration count.** CI, `npm run verify`, and `DELTAV_FULL_PRE_PUSH=1 git push` run `simulate all 60 -- --ci` (see [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), [`package.json`](../package.json), and [`.husky/pre-push`](../.husky/pre-push)). The default pre-push hook only runs `npm run simulate:smoke` when AI, agent, engine, scenario, or simulation files changed.
 
-`npm run simulate:duel-sweep` runs `scripts/duel-seed-sweep.ts` — the same duel harness across many base seeds in one table, showing pacing (`avgTurn`) and seat balance (`p0/dec%`) variance before changing duel geometry or rules. Options: `--iterations N`, `--from` / `--to`, `--seeds 0,1,2`, `--scenario <key>`, `--json`.
+`npm run simulate:duel-sweep` runs `scripts/duel-seed-sweep.ts` — the same
+harness across many base seeds in one table. Despite the historical script
+name, `--scenario <key>` makes it the paired-seed baseline tool for any
+scenario. The table reports pacing (`avgTurn`), seat balance (`p0/dec%`), and
+scorecard signals (`obj%`, `elim%`, `timeout%`, `stall/g`) so AI behavior PRs
+can compare objective progress and failure density across identical seed sets.
+Use `--json` when the review needs the full scorecard, including passenger
+delivery, Grand Tour completion, invalid-action, and transfer-mistake fields.
+Options: `--iterations N`, `--from` / `--to`, `--seeds 0,1,2`,
+`--scenario <key>`, `--json`.
 
 ---
 

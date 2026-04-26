@@ -22,6 +22,27 @@ fragile. The active AI work is grouped into three tracks:
 - **Scenario symptom queue:** player-facing balance/AI failures to validate
   through the first two tracks rather than one-off weight changes.
 
+Current concurrent work should stay split into two streams so both can branch
+from `main` without touching the same files:
+
+- **Stream 1 — AI evaluation and failure corpus.** Own the simulation harness,
+  seed-sweep reporting, scorecard policy tests, promoted failure fixtures, and
+  simulation docs. Do not change AI behavior in this stream. Files:
+  `scripts/simulate-ai.ts`, `scripts/duel-seed-sweep.ts`,
+  `src/shared/simulate-ai-policy.test.ts`, `src/shared/ai/__fixtures__/`, and
+  `docs/SIMULATION_TESTING.md`.
+- **Stream 2 — AI planner and role behavior.** Own planner/heuristic changes
+  and behavior-focused AI tests. Consume Stream 1's paired-seed scorecards
+  before and after changes, but avoid editing the harness while Stream 1 is
+  active. Files: `src/shared/ai/common.ts`,
+  `src/shared/ai/astrogation.ts`, `src/shared/ai/logistics.ts`,
+  `src/shared/ai/scoring.ts`, and targeted behavior tests in
+  `src/shared/ai.test.ts`.
+
+The integration point is evidence, not shared code: Stream 2 should land with
+paired-seed scorecard output from Stream 1's harness showing objective,
+elimination, timeout, fuel-stall, and passenger-delivery impact.
+
 ### Build Scenario Scorecards and a Failure-State Corpus (P1)
 
 Win rate alone is too blunt for asymmetric objective scenarios. Each scenario
