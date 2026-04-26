@@ -2223,6 +2223,36 @@ describe('aiAstrogation — pure combat positioning', () => {
     // Should burn toward enemy
     expect(orders[0].burn).not.toBeNull();
   });
+  it('stationary fleet ship with fuel and a live enemy burns instead of stalling', () => {
+    // Regression for the fleet-scale fuel-stall pattern (BACKLOG —
+    // fleetAction 150/game, interplanetaryWar 110/game). The legacy
+    // `fuelDriftBonus + fuel-spent tie-break` combination elected
+    // null-burn for any stationary fueled ship whose burns scored even
+    // close to coast. Once both sides camp, every turn becomes a stall.
+    // Use duel for the ship pair, then strip targetBody to mimic
+    // fleetAction's "no nav objective, just enemies on the board" mode.
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('STALL1'),
+      findBaseHex,
+    );
+    state.players[0].targetBody = '';
+    state.players[1].targetBody = '';
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemyShip = must(state.ships.find((s) => s.owner === 0));
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: 5, r: 0 };
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.fuel = 20;
+    enemyShip.lifecycle = 'active';
+    enemyShip.position = { q: -5, r: 0 };
+    enemyShip.velocity = { dq: 0, dr: 0 };
+    enemyShip.fuel = 20;
+    const orders = aiAstrogation(state, 1, map, 'hard');
+    const order = must(orders.find((o) => o.shipId === aiShip.id));
+    expect(order.burn).not.toBeNull();
+  });
   it('AI penalizes staying landed in pure combat', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,

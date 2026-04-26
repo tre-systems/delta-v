@@ -1348,7 +1348,33 @@ export const aiAstrogation = (
 
       if (opt.burn === null) {
         if (!interceptingEnemy) {
-          score += cfg.fuelDriftBonus;
+          // Coast bonus / penalty. The legacy unconditional bonus
+          // (combined with the fuel-spent tie-break at line ~1465)
+          // produces fleet-scale fuel stalls: a stationary fueled ship
+          // ties any productive burn on raw score, then wins the
+          // tie-break by spending zero fuel. To break that, reward
+          // coast only when it's actually correct (fuel tight, drift
+          // closes the gap, or there's nothing to chase) and *penalise*
+          // it when there's a real target or live enemies and the
+          // coast doesn't progress. Penalty magnitude exceeds the
+          // legacy +0.5 drift bonus and the navigation tie threshold so
+          // a productive burn wins the choice deterministically.
+          const fuelTight = ship.fuel <= 4 || seekingFuel;
+          const driftClosesDistance =
+            shipTargetHex != null &&
+            hexDistance(course.destination, shipTargetHex) <
+              hexDistance(ship.position, shipTargetHex);
+          const nothingToDo =
+            shipTargetHex == null && enemyCombatShips.length === 0;
+          const stationary =
+            hexVecLength(ship.velocity) === 0 &&
+            hexVecLength(course.newVelocity) === 0;
+
+          if (fuelTight || driftClosesDistance || nothingToDo) {
+            score += cfg.fuelDriftBonus;
+          } else if (stationary && canBurnFuel) {
+            score -= 3 * cfg.multiplier;
+          }
         }
       } else if (opt.overload !== null) {
         const overloadPenalty =
