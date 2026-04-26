@@ -148,60 +148,6 @@ changes:
 
 ## Gameplay UX & Matchmaking
 
-### First-Time Recovery-Code Nudge (P3)
-
-A new player picks a callsign, plays a few games, and then has to actively
-discover the **Save recovery code** button to keep their callsign across
-devices or browsers. The button is a small `menu-profile-clear`-styled
-text link sharing visual weight with **Restore callsign** and **Forget
-my callsign** ([static/index.html:99-101](../static/index.html), rendered
-in the lobby `menu-profile-actions` row). There is no proactive prompt —
-once the player clears localStorage, claims a new callsign, or switches
-device they lose their leaderboard identity silently.
-
-The current copy assumes a player who *already knows* recovery codes
-exist; nothing on the home screen explains why they would matter.
-2026-04-26 live observation: the warning text "Anyone with this code
-can use your callsign" lives inside `#recoveryPanel`, which is `hidden`
-until *after* `Save recovery code` issues a code, so a new player only
-sees the bearer-secret framing as soon as the code is on screen — too
-late for a screenshot-then-think workflow.
-
-Action: surface a one-time post-claim hint such as a status-line
-nudge ("Save a recovery code so you keep this callsign on a new
-device") that disappears once a code has been issued or explicitly
-dismissed. Optionally, render the bearer-secret warning *before*
-issuing instead of alongside the issued code.
-
-**Files:** [static/index.html](../static/index.html) (the
-`menu-profile-actions` row + `#recoveryPanel` warning),
-[src/client/ui/lobby-view.ts](../src/client/ui/lobby-view.ts) (the
-`createRecoveryCode` flow).
-
-Found via R17 callsign recovery (2026-04-26 live exploratory pass).
-
-### Confirm Step Before "Forget My Callsign" (P3)
-
-`Forget my callsign` is a destructive action — it revokes any issued
-recovery code and clears the local `delta-v:player-profile`
-([src/client/ui/lobby-view.ts:610-632](../src/client/ui/lobby-view.ts)).
-It currently fires on a single click with no confirmation, sharing the
-exact same `menu-profile-clear` text-link styling as the adjacent
-**Save recovery code** and **Restore callsign** buttons. On mobile the
-three buttons sit on one wrapping row — fat-finger risk is real, and
-once the recovery is revoked there is no undo.
-
-Action: add a one-step inline confirmation (status-line "Tap again to
-confirm" / `aria-live` polite + a 3 s timeout) or a small modal. Keep
-the keyboard tab order so the destructive button stays *after* Save /
-Restore.
-
-**Files:** [src/client/ui/lobby-view.ts](../src/client/ui/lobby-view.ts)
-(`forgetCallsign`), [static/index.html](../static/index.html)
-(`#forgetCallsignBtn`).
-
-Found via R17 (2026-04-26).
-
 ### Small Accessibility Polish (P3)
 
 The 2026-04-24 a11y re-audit (axe 8/8, manual sweep at 375 × 812) passed

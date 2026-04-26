@@ -63,6 +63,7 @@ const installFixture = () => {
 
 describe('LobbyView', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     installFixture();
     (
       globalThis as typeof globalThis & {
@@ -770,6 +771,9 @@ describe('LobbyView', () => {
     await expect
       .poll(() => document.getElementById('recoveryCodeText')?.textContent)
       .toBe('dv1-ABCD-EFGH-JKLM-NPQR-STUV-WXYZ');
+    expect(document.getElementById('callsignStatus')?.textContent).toBe(
+      'Recovery code ready. Save it now.',
+    );
     expect(setPlayerName).toHaveBeenCalledWith('  Pilot 1  ');
     expect(postClaimName).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -786,6 +790,52 @@ describe('LobbyView', () => {
     document.getElementById('copyRecoveryCodeBtn')?.click();
     await expect.poll(() => copyText.mock.calls.length).toBe(1);
     expect(copyText).toHaveBeenCalledWith('dv1-ABCD-EFGH-JKLM-NPQR-STUV-WXYZ');
+  });
+
+  it('nudges claimed players to save a recovery code until one is issued', async () => {
+    const postClaimName = vi.fn(async () => ({
+      ok: true as const,
+      player: {
+        username: 'Pilot 1',
+        isAgent: false,
+        rating: 1500,
+        rd: 350,
+        gamesPlayed: 0,
+      },
+      renamed: false,
+    }));
+    const fetchPlayerRank = vi.fn(async () => ({
+      ok: true as const,
+      player: {
+        username: 'Pilot 1',
+        rating: 1500,
+        rd: 350,
+        gamesPlayed: 1,
+        provisional: true,
+        rank: null,
+      },
+    }));
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name.trim(),
+      getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
+      postClaimName,
+      fetchPlayerRank,
+    });
+
+    document
+      .getElementById('playerNameInput')
+      ?.dispatchEvent(new FocusEvent('blur'));
+
+    await expect
+      .poll(() => document.getElementById('callsignStatus')?.textContent)
+      .toContain('Save a recovery code to keep it.');
   });
 
   it('restores a callsign from a recovery code', async () => {
@@ -848,7 +898,7 @@ describe('LobbyView', () => {
     );
   });
 
-  it('forgets the local callsign after revoking recovery', async () => {
+  it('forgets the local callsign after a confirmation click', async () => {
     const resetPlayerIdentity = vi.fn(() => ({ username: 'Pilot ABC' }));
     const postClaimName = vi.fn();
     const revokeRecoveryCode = vi.fn(async () => ({ ok: true as const }));
@@ -867,6 +917,16 @@ describe('LobbyView', () => {
     });
 
     document.getElementById('forgetCallsignBtn')?.click();
+    expect(revokeRecoveryCode).not.toHaveBeenCalled();
+    expect(resetPlayerIdentity).not.toHaveBeenCalled();
+    expect(document.getElementById('callsignStatus')?.textContent).toContain(
+      'Tap Forget my callsign again',
+    );
+    expect(document.getElementById('forgetCallsignBtn')?.textContent).toBe(
+      'Confirm forget',
+    );
+
+    document.getElementById('forgetCallsignBtn')?.click();
 
     await expect.poll(() => resetPlayerIdentity.mock.calls.length).toBe(1);
     expect(revokeRecoveryCode).toHaveBeenCalledWith(
@@ -881,5 +941,33 @@ describe('LobbyView', () => {
     expect(document.getElementById('callsignStatus')?.textContent).toContain(
       'Local callsign cleared',
     );
+  });
+
+  it('expires the forget confirmation without clearing identity', () => {
+    vi.useFakeTimers();
+    const resetPlayerIdentity = vi.fn(() => ({ username: 'Pilot ABC' }));
+    const revokeRecoveryCode = vi.fn(async () => ({ ok: true as const }));
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name.trim(),
+      getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity,
+      revokeRecoveryCode,
+      postClaimName: async () => ({ ok: false as const, error: 'network' }),
+    });
+
+    document.getElementById('forgetCallsignBtn')?.click();
+    vi.advanceTimersByTime(3000);
+
+    expect(document.getElementById('forgetCallsignBtn')?.textContent).toBe(
+      'Forget my callsign',
+    );
+    expect(revokeRecoveryCode).not.toHaveBeenCalled();
+    expect(resetPlayerIdentity).not.toHaveBeenCalled();
   });
 });
