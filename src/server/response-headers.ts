@@ -16,8 +16,8 @@ export const buildContentSecurityPolicy = (request: Request): string =>
     // static/_headers for the matching rationale. Externalise those
     // scripts to drop the directive.
     "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
     `connect-src ${buildConnectSrc(request)} https://cloudflareinsights.com`,
     "img-src 'self' data: https://storage.ko-fi.com",
     "base-uri 'self'",

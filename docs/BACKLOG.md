@@ -184,30 +184,6 @@ Concrete issues observed on the local dev server:
 [src/server/game-do/actions.ts](../src/server/game-do/actions.ts),
 [src/shared/types/domain.ts](../src/shared/types/domain.ts) (ErrorCode enum)
 
-### HEAD method 404s on JSON GET endpoints (P3)
-
-`HEAD /api/matches` and `HEAD /api/leaderboard` both return 404 even
-though `GET` returns 200 and the `OPTIONS` preflight on the same path
-advertises `Access-Control-Allow-Methods: GET, HEAD, OPTIONS`. Per
-RFC 9110, HEAD must be supported wherever GET is and must return the
-same headers without a body — the current state is a contract
-violation between the OPTIONS-advertised methods and the actual
-handler. CDNs, uptime monitors, and reverse proxies that probe with
-HEAD will mark the JSON endpoints as down. Cheap fix: route HEAD on
-the matches / leaderboard / metrics handlers through the same dispatch
-as GET, dropping the body in the response builder.
-
-Found via R1 surface scan (2026-04-26). Reproduce:
-```bash
-curl -sI https://delta-v.tre.systems/api/matches | head -1
-# HTTP/2 404
-curl -s -o /dev/null -w "%{http_code}\n" https://delta-v.tre.systems/api/matches
-# 200
-```
-
-**Files:** [src/server/index.ts](../src/server/index.ts) (route
-matchers around the `/api/matches` and `/api/leaderboard` handlers).
-
 ### Inconsistent JSON error response shape across public endpoints (P3)
 
 Public endpoints return at least three different JSON error shapes
@@ -275,39 +251,6 @@ aggregate per WS lifecycle) are shipped. The remaining gaps are narrower:
 `static/matches.html`, `static/leaderboard.html`, `src/server/metrics-route.ts`
 
 ## Architecture & Correctness
-
-### Add Public Discovery Fallbacks for Crawlers and PWA Tooling (P3)
-
-Found via the 2026-04-26 live exploratory R1 scan. The deployed site serves
-`/site.webmanifest` and all same-origin page links resolve, but common
-discovery URLs `/sitemap.xml` and `/manifest.json` return 404. This does not
-break gameplay, but it weakens public discovery and can confuse generic PWA /
-SEO tooling that probes conventional paths before following HTML `<link>`
-metadata.
-
-Action: either add a small static sitemap and a `/manifest.json` alias or
-redirect to `/site.webmanifest`, or explicitly remove those paths from the
-exploratory scan if the product decision is to keep them unsupported.
-
-**Files:** `static/site.webmanifest`, new `static/sitemap.xml`,
-`src/server/index.ts` if aliases are handled at the Worker route layer.
-
-### Self-Host Menu Fonts or Make Third-Party Font Failure Explicit (P3)
-
-Found via the 2026-04-26 live browser smoke. In headless Chromium,
-`fonts.googleapis.com` failed to load while the game still launched and fell
-back to local fonts. The current external Google Fonts dependency is therefore
-a reliability and privacy tradeoff rather than a gameplay blocker: blocked
-third-party CSS changes visual fidelity, and successful requests disclose page
-loads to a third party.
-
-Action: either self-host the `Space Grotesk` and `IBM Plex Mono` assets under
-`static/` with long-lived cache headers, or document/accept the dependency and
-ensure the fallback stack remains visually acceptable across menu, HUD, and
-leaderboard pages.
-
-**Files:** `static/index.html`, `static/styles/base.css`, new `static/fonts/`
-assets if self-hosting.
 
 ### Measure Long-Game Memory Growth (P3)
 
