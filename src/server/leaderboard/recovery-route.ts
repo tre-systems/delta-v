@@ -29,10 +29,14 @@ const readJson = async <T>(request: Request): Promise<T | null> => {
 };
 
 const methodNotAllowed = (): Response =>
-  new Response('Method Not Allowed', {
-    status: 405,
-    headers: { Allow: 'POST' },
-  });
+  Response.json(
+    {
+      ok: false,
+      error: 'method_not_allowed',
+      message: 'Use POST on this endpoint.',
+    },
+    { status: 405, headers: { Allow: 'POST' } },
+  );
 
 const validateHumanPlayerKey = (
   playerKey: unknown,
