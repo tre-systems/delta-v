@@ -7,6 +7,7 @@
  *   npx tsx scripts/duel-seed-sweep.ts
  *   npx tsx scripts/duel-seed-sweep.ts --iterations 60 --from 0 --to 31
  *   npx tsx scripts/duel-seed-sweep.ts --seeds 0,1,42 --json
+ *   npx tsx scripts/duel-seed-sweep.ts --scenario convoy --iterations 30
  */
 import { pathToFileURL } from 'node:url';
 import { isValidScenario, type ScenarioKey } from '../src/shared/map-data';
@@ -127,6 +128,7 @@ const main = async () => {
             crashes: r.crashes,
             p0DecidedPct: r.p0DecidedPct,
             avgTurns: r.avgTurns,
+            scorecard: r.scorecard,
             reasons: r.reasons,
           })),
         },
@@ -140,20 +142,25 @@ const main = async () => {
   const hdr =
     'seed'.padEnd(12) +
     'p0/dec%'.padStart(10) +
-    'draw%'.padStart(8) +
+    'obj%'.padStart(8) +
+    'elim%'.padStart(8) +
+    'timeout%'.padStart(10) +
+    'stall/g'.padStart(10) +
     'avgTurn'.padStart(10) +
     'crash'.padStart(8);
   console.log(`\n${scenario} × ${iterations} games per base seed\n${hdr}`);
   console.log('-'.repeat(hdr.length));
 
   for (const r of rows) {
-    const drawPct = (r.draws / r.totalGames) * 100;
     const p0DecidedCell =
       r.p0DecidedPct !== null ? r.p0DecidedPct.toFixed(1) : '—';
     console.log(
       String(r.baseSeed >>> 0).padEnd(12) +
         p0DecidedCell.padStart(10) +
-        `${drawPct.toFixed(1)}%`.padStart(8) +
+        `${(r.scorecard.objectiveShare * 100).toFixed(1)}%`.padStart(8) +
+        `${(r.scorecard.fleetEliminationShare * 100).toFixed(1)}%`.padStart(8) +
+        `${(r.scorecard.timeoutShare * 100).toFixed(1)}%`.padStart(10) +
+        r.scorecard.fuelStallsPerGame.toFixed(1).padStart(10) +
         r.avgTurns.toFixed(1).padStart(10) +
         String(r.crashes).padStart(8),
     );
@@ -161,6 +168,9 @@ const main = async () => {
 
   console.log(
     '\n`p0/dec%` is Player 0 wins divided by decided games (wins only, no draws).',
+  );
+  console.log(
+    '`obj%`, `elim%`, `timeout%`, and `stall/g` come from the scenario scorecard.',
   );
 
   const avgs = rows.map((r) => r.avgTurns);
@@ -174,12 +184,23 @@ const main = async () => {
     decidedRates.length > 0
       ? decidedRates.reduce((a, b) => a + b, 0) / decidedRates.length
       : null;
+  const meanObjectiveShare =
+    rows.reduce((sum, r) => sum + r.scorecard.objectiveShare, 0) / rows.length;
+  const meanEliminationShare =
+    rows.reduce((sum, r) => sum + r.scorecard.fleetEliminationShare, 0) /
+    rows.length;
+  const meanFuelStallsPerGame =
+    rows.reduce((sum, r) => sum + r.scorecard.fuelStallsPerGame, 0) /
+    rows.length;
 
   console.log(
     `\nAcross ${rows.length} base seeds: avg turns mean ${meanTurn.toFixed(1)} (min ${minTurn.toFixed(1)}, max ${maxTurn.toFixed(1)})` +
       (meanP0Decided !== null
         ? `; mean P0/decided ${meanP0Decided.toFixed(1)}%`
-        : ''),
+        : '') +
+      `; mean objective ${(meanObjectiveShare * 100).toFixed(1)}%` +
+      `; mean elimination ${(meanEliminationShare * 100).toFixed(1)}%` +
+      `; mean stalls/game ${meanFuelStallsPerGame.toFixed(1)}`,
   );
 
   const totalCrashes = rows.reduce((s, r) => s + r.crashes, 0);
