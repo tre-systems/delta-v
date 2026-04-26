@@ -551,7 +551,7 @@
   line-height: 1;
 }
 
-body.ui-mode-menu .sound-btn {
+body.ui-mode-overlay .sound-btn {
   top: calc(0.9rem + var(--safe-top));
   bottom: auto;
   right: calc(0.9rem + var(--safe-right));
