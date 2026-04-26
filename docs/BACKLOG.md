@@ -45,13 +45,13 @@ elimination, timeout, fuel-stall, and passenger-delivery impact.
 
 ### Build Scenario Scorecards and a Failure-State Corpus (P1)
 
-Win rate alone is too blunt for asymmetric objective scenarios. Each scenario
-needs a small scorecard that captures the product behavior we actually care
-about: objective-completion share, fleet-elimination share, average turns,
-timeouts, invalid candidate count, fuel-stall count, passenger delivery share,
-and seat balance where relevant. Simulation warnings should compare paired seed
-sets against those scorecards so a PR can say whether it improved the scenario
-instead of only whether one seed got lucky.
+Win rate alone is too blunt for asymmetric objective scenarios. The simulation
+harness now prints and exports scorecards, seed-sweep summaries, baseline
+comparisons, failure captures, and capture manifests. The remaining work is to
+use those artifacts consistently: compare paired seed sets before/after AI
+changes, promote recurring bad states into focused fixtures, and add new
+failure counters only when the current scorecard misses a recurring failure
+mode.
 
 Bad simulation states should also become fixtures. When the harness sees a
 fuel stall, invalid order, passenger transfer mistake, or objective drift, save
@@ -61,14 +61,15 @@ the carrier instead of chasing attrition". Avoid exact burn assertions unless
 the rules require them.
 
 Action:
-- Extend `scripts/simulate-ai.ts` with additional objective/failure counters as
-  new recurring failure modes appear.
-- Grow the fixture path into a broader corpus of decision-class regressions as
-  the harness captures new recurring failures.
+- Promote captured fuel-stall, invalid-order, passenger-transfer, and
+  objective-drift states into decision-class regressions as recurring failures
+  appear.
+- Add additional objective/failure counters only for recurring symptoms not
+  already visible in the scorecard or capture manifest.
 
 **Files:** `scripts/simulate-ai.ts`, `scripts/duel-seed-sweep.ts`,
-`src/shared/simulate-ai-policy.test.ts`, `src/shared/ai.test.ts`,
-`docs/SIMULATION_TESTING.md`
+`src/shared/simulate-ai-policy.test.ts`, `src/shared/ai/__fixtures__/`,
+`src/shared/ai.test.ts`, `docs/SIMULATION_TESTING.md`
 
 ### Add a Bounded Engine Planner for Movement Objectives (P1)
 
