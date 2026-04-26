@@ -48,6 +48,8 @@ const aiOrdnance = (
 import {
   estimateRemainingCheckpointTourCost,
   findDirectionToward,
+  findNearestRefuelBase,
+  findReachableRefuelBase,
   getHomeDefenseThreat,
   pickNextCheckpoint,
   planShortHorizonMovementToHex,
@@ -3279,5 +3281,75 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
     });
     const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
     expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
+  });
+});
+
+describe('findReachableRefuelBase', () => {
+  it('prefers a base the planner can actually thread to over the geometrically nearest one', () => {
+    // Ship coasts toward +q at speed 3 with no fuel to brake. The
+    // geometrically nearest base sits 2 hexes behind the ship; the legacy
+    // distance picker would commit to it even though the ship physically
+    // cannot reverse momentum within the planner's 3-turn horizon. A
+    // farther base sitting along the coast line gets reached on turn 2
+    // for free.
+    const ship = createTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 3, dr: 0 },
+      fuel: 0,
+    });
+    const behindBase = asHexKey('-2,0');
+    const aheadBase = asHexKey('6,0');
+
+    expect(
+      findNearestRefuelBase(
+        ship.position,
+        [behindBase, aheadBase],
+        [],
+        openMap,
+      ),
+    ).toEqual({ q: -2, r: 0 });
+
+    const reachable = findReachableRefuelBase(
+      ship,
+      [behindBase, aheadBase],
+      [],
+      openMap,
+      [],
+    );
+    expect(reachable).toEqual({ q: 6, r: 0 });
+  });
+
+  it('returns null when the planner cannot reach any candidate within fuel and horizon', () => {
+    // Ship is racing away from the only base with no fuel. Planner cannot
+    // close any distance within 3 turns of coasting, so the helper
+    // declines rather than committing to a target the ship will overshoot.
+    const ship = createTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 5, dr: 0 },
+      fuel: 0,
+    });
+    const onlyBase = asHexKey('-3,0');
+
+    expect(
+      findReachableRefuelBase(ship, [onlyBase], [], openMap, []),
+    ).toBeNull();
+  });
+
+  it('breaks ties on closest-by-plan when multiple bases are equally reachable', () => {
+    // Stationary ship with plenty of fuel — both bases are reachable.
+    // The helper should pick the geometrically closer one because its
+    // candidate ordering plus tie-break favours shorter
+    // `finalDistance` then lower `fuelSpent`.
+    const ship = createTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      fuel: 30,
+    });
+    const closerBase = asHexKey('1,0');
+    const fartherBase = asHexKey('3,0');
+
+    expect(
+      findReachableRefuelBase(ship, [fartherBase, closerBase], [], openMap, []),
+    ).toEqual({ q: 1, r: 0 });
   });
 });

@@ -79,6 +79,71 @@ export const findNearestRefuelBase = (
   return nearest ?? null;
 };
 
+// `findNearestRefuelBase` picks by raw hex distance, which lies when the
+// ship has momentum carrying it away from the "closest" base — the picker
+// commits to a target the ship physically cannot reach in a few turns
+// without burning more fuel than it owns. This variant runs the bounded
+// short-horizon planner (which threads through `computeCourse`, so it
+// honours velocity and gravity) against each candidate and returns the
+// closest base that has an actual reachable plan within the fuel the ship
+// already has. Returns null when no candidate is reachable; callers can
+// fall back to `findNearestRefuelBase` to keep moving rather than stall.
+export const findReachableRefuelBase = (
+  ship: Ship,
+  playerBases: HexKey[],
+  sharedBaseBodies: readonly string[],
+  map: SolarSystemMap,
+  destroyedBases: GameState['destroyedBases'],
+  maxTurns = 3,
+): {
+  q: number;
+  r: number;
+} | null => {
+  const candidateBases = [
+    ...playerBases.map((baseKey) => parseHexKey(baseKey)),
+    ...sharedBaseBodies.flatMap((bodyName) => findBaseHexes(map, bodyName)),
+  ];
+  if (candidateBases.length === 0) return null;
+
+  // Sort by hex distance first so we evaluate near-misses cheapest-first,
+  // and so a tie in plan quality favours the geometrically closer base.
+  const ordered = [...candidateBases].sort(
+    (a, b) => hexDistance(ship.position, a) - hexDistance(ship.position, b),
+  );
+
+  let best: {
+    base: { q: number; r: number };
+    finalDistance: number;
+    fuelSpent: number;
+  } | null = null;
+
+  for (const base of ordered) {
+    const plan = planShortHorizonMovementToHex(
+      ship,
+      base,
+      map,
+      destroyedBases,
+      maxTurns,
+    );
+    if (!plan) continue;
+    if (plan.fuelSpent > ship.fuel) continue;
+    if (
+      best === null ||
+      plan.finalDistance < best.finalDistance ||
+      (plan.finalDistance === best.finalDistance &&
+        plan.fuelSpent < best.fuelSpent)
+    ) {
+      best = {
+        base,
+        finalDistance: plan.finalDistance,
+        fuelSpent: plan.fuelSpent,
+      };
+    }
+  }
+
+  return best ? best.base : null;
+};
+
 export const estimateFuelForTravelDistance = (
   distance: number,
   currentSpeed = 0,
