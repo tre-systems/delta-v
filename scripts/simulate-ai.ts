@@ -133,6 +133,29 @@ export interface SimulationFailureCapture {
   message?: string;
 }
 
+export interface SimulationFailureCaptureManifestEntry {
+  path: string;
+  kind: SimulationFailureKind;
+  scenario: ScenarioKey;
+  seed: number;
+  gameIndex: number;
+  turnNumber: number;
+  phase: Phase;
+  activePlayer: PlayerId;
+  difficulty: AIDifficulty;
+  message?: string;
+  stalledShipIds?: string[];
+  passengerTransferMistakeCount?: number;
+}
+
+export interface SimulationFailureCaptureManifest {
+  schemaVersion: 1;
+  scenario: ScenarioKey;
+  captureLimit: number;
+  captured: number;
+  entries: SimulationFailureCaptureManifestEntry[];
+}
+
 type SimulationFailureRecorder = (
   capture: SimulationFailureCapture,
 ) => Promise<void>;
@@ -255,7 +278,7 @@ const writeFailureCapture = async (
   directory: string,
   ordinal: number,
   capture: SimulationFailureCapture,
-): Promise<void> => {
+): Promise<SimulationFailureCaptureManifestEntry> => {
   await mkdir(directory, { recursive: true });
   const filename = [
     String(ordinal).padStart(3, '0'),
@@ -268,6 +291,40 @@ const writeFailureCapture = async (
   const absolutePath = path.join(directory, `${filename}.json`);
 
   await writeFile(absolutePath, `${JSON.stringify(capture, null, 2)}\n`);
+  return buildFailureCaptureManifestEntry(`${filename}.json`, capture);
+};
+
+export const buildFailureCaptureManifestEntry = (
+  relativePath: string,
+  capture: SimulationFailureCapture,
+): SimulationFailureCaptureManifestEntry => ({
+  path: relativePath,
+  kind: capture.kind,
+  scenario: capture.scenario,
+  seed: capture.seed,
+  gameIndex: capture.gameIndex,
+  turnNumber: capture.turnNumber,
+  phase: capture.phase,
+  activePlayer: capture.activePlayer,
+  difficulty: capture.difficulty,
+  ...(capture.message ? { message: capture.message } : {}),
+  ...(capture.stalledShipIds ? { stalledShipIds: capture.stalledShipIds } : {}),
+  ...(capture.passengerTransferMistakes
+    ? {
+        passengerTransferMistakeCount: capture.passengerTransferMistakes.length,
+      }
+    : {}),
+});
+
+const writeFailureCaptureManifest = async (
+  directory: string,
+  manifest: SimulationFailureCaptureManifest,
+): Promise<void> => {
+  await mkdir(directory, { recursive: true });
+  await writeFile(
+    path.join(directory, 'capture-manifest.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+  );
 };
 
 class AIActionError extends Error {
@@ -1043,17 +1100,19 @@ export const runSimulation = async (
   let capturedFailureCount = 0;
   const captureFailuresDir = options.captureFailuresDir ?? null;
   const captureFailuresLimit = options.captureFailuresLimit ?? 5;
+  const capturedFailureEntries: SimulationFailureCaptureManifestEntry[] = [];
   const captureFailure: SimulationFailureRecorder | undefined =
     captureFailuresDir === null
       ? undefined
       : async (capture) => {
           if (capturedFailureCount >= captureFailuresLimit) return;
           capturedFailureCount++;
-          await writeFailureCapture(
+          const entry = await writeFailureCapture(
             captureFailuresDir,
             capturedFailureCount,
             capture,
           );
+          capturedFailureEntries.push(entry);
         };
 
   for (let i = 0; i < iterations; i++) {
@@ -1107,6 +1166,15 @@ export const runSimulation = async (
   }
 
   metrics.scorecard = buildScenarioScorecard(metrics);
+  if (captureFailuresDir !== null) {
+    await writeFailureCaptureManifest(captureFailuresDir, {
+      schemaVersion: 1,
+      scenario: scenarioName,
+      captureLimit: captureFailuresLimit,
+      captured: capturedFailureEntries.length,
+      entries: capturedFailureEntries,
+    });
+  }
 
   const duration = Date.now() - startTime;
 
@@ -1138,6 +1206,9 @@ export const runSimulation = async (
     if (captureFailuresDir !== null) {
       console.log(
         `Failure Captures: ${capturedFailureCount} written to ${captureFailuresDir}`,
+      );
+      console.log(
+        `Failure Capture Manifest: ${path.join(captureFailuresDir, 'capture-manifest.json')}`,
       );
     }
 
