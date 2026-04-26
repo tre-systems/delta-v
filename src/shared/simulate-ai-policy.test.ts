@@ -5,8 +5,10 @@ import {
   summarizeSeedSweepRows,
 } from '../../scripts/duel-seed-sweep';
 import {
+  buildFailureCaptureManifestEntry,
   buildScenarioScorecard,
   evaluateSimulationPolicies,
+  type SimulationFailureCapture,
   type SimulationMetrics,
 } from '../../scripts/simulate-ai';
 
@@ -351,5 +353,45 @@ describe('summarizeSeedSweepRows', () => {
     expect(comparison.meanPassengerTransferMistakesPerGameDelta).toBeCloseTo(
       -0.1,
     );
+  });
+});
+
+describe('buildFailureCaptureManifestEntry', () => {
+  it('summarizes captured failure files without embedding full GameState', () => {
+    const capture: SimulationFailureCapture = {
+      schemaVersion: 1,
+      kind: 'fuelStall',
+      scenario: 'grandTour',
+      seed: 123,
+      gameIndex: 4,
+      turnNumber: 12,
+      phase: 'astrogation',
+      activePlayer: 1,
+      difficulty: 'hard',
+      playerDifficulties: { p0: 'hard', p1: 'hard' },
+      state: {} as SimulationFailureCapture['state'],
+      action: { type: 'astrogation' },
+      stalledShipIds: ['ship-a', 'ship-b'],
+      message: 'stationary fueled ships coasted',
+    };
+
+    expect(
+      buildFailureCaptureManifestEntry(
+        '001-grandTour-123-fuelStall-turn-12-p1.json',
+        capture,
+      ),
+    ).toEqual({
+      path: '001-grandTour-123-fuelStall-turn-12-p1.json',
+      kind: 'fuelStall',
+      scenario: 'grandTour',
+      seed: 123,
+      gameIndex: 4,
+      turnNumber: 12,
+      phase: 'astrogation',
+      activePlayer: 1,
+      difficulty: 'hard',
+      message: 'stationary fueled ships coasted',
+      stalledShipIds: ['ship-a', 'ship-b'],
+    });
   });
 });
