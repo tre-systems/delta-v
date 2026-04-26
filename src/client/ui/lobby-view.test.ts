@@ -12,6 +12,16 @@ const installFixture = () => {
     <div id="menuOfflineBanner" hidden></div>
     <div class="menu-surface menu-surface-primary">
       <input id="playerNameInput" />
+      <div id="callsignStatus"></div>
+      <button id="quickMatchBtn">Quick Match</button>
+      <button id="singlePlayerBtn">Single Player</button>
+      <div class="difficulty-group">
+        <div id="difficultySelect" role="radiogroup">
+          <button class="btn-difficulty" data-difficulty="easy">Easy</button>
+          <button class="btn-difficulty active" data-difficulty="normal">Normal</button>
+          <button class="btn-difficulty" data-difficulty="hard">Hard</button>
+        </div>
+      </div>
       <button id="saveRecoveryCodeBtn">Save recovery code</button>
       <button id="restoreCallsignBtn">Restore callsign</button>
       <button id="forgetCallsignBtn">Forget my callsign</button>
@@ -23,16 +33,6 @@ const installFixture = () => {
         <div id="recoveryRestoreForm" hidden>
           <input id="recoveryCodeInput" />
           <button id="submitRecoveryCodeBtn">Restore</button>
-        </div>
-      </div>
-      <div id="callsignStatus"></div>
-      <button id="quickMatchBtn">Quick Match</button>
-      <button id="singlePlayerBtn">Single Player</button>
-      <div class="difficulty-group">
-        <div id="difficultySelect" role="radiogroup">
-          <button class="btn-difficulty" data-difficulty="easy">Easy</button>
-          <button class="btn-difficulty active" data-difficulty="normal">Normal</button>
-          <button class="btn-difficulty" data-difficulty="hard">Hard</button>
         </div>
       </div>
     </div>
