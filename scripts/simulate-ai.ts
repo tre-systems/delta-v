@@ -96,6 +96,7 @@ export interface SimulationOptions {
   json: boolean;
   captureFailuresDir?: string | null;
   captureFailuresLimit?: number;
+  captureFailureKinds?: SimulationFailureKind[] | null;
   /** When true, skip banner/progress/footer logs (errors still print). */
   quiet?: boolean;
 }
@@ -105,6 +106,13 @@ export type SimulationFailureKind =
   | 'invalidAction'
   | 'objectiveDrift'
   | 'passengerTransferMistake';
+
+const SIMULATION_FAILURE_KINDS: readonly SimulationFailureKind[] = [
+  'fuelStall',
+  'invalidAction',
+  'objectiveDrift',
+  'passengerTransferMistake',
+];
 
 export interface PassengerTransferMistake {
   sourceShipId: string;
@@ -152,6 +160,7 @@ export interface SimulationFailureCaptureManifest {
   schemaVersion: 1;
   scenario: ScenarioKey;
   captureLimit: number;
+  captureKinds: SimulationFailureKind[] | null;
   captured: number;
   entries: SimulationFailureCaptureManifestEntry[];
 }
@@ -268,6 +277,16 @@ const parseDifficulty = (value: string): AIDifficulty => {
   );
 };
 
+const parseFailureKind = (value: string): SimulationFailureKind => {
+  if ((SIMULATION_FAILURE_KINDS as readonly string[]).includes(value)) {
+    return value as SimulationFailureKind;
+  }
+
+  throw new Error(
+    `Invalid failure kind "${value}" (expected ${SIMULATION_FAILURE_KINDS.join(', ')})`,
+  );
+};
+
 const deriveGameSeed = (baseSeed: number, gameIndex: number): number =>
   (baseSeed + Math.imul(gameIndex + 1, 0x9e3779b9)) | 0;
 
@@ -315,6 +334,14 @@ export const buildFailureCaptureManifestEntry = (
       }
     : {}),
 });
+
+export const shouldCaptureFailureKind = (
+  kind: SimulationFailureKind,
+  allowedKinds: readonly SimulationFailureKind[] | null | undefined,
+): boolean =>
+  allowedKinds == null ||
+  allowedKinds.length === 0 ||
+  allowedKinds.includes(kind);
 
 const writeFailureCaptureManifest = async (
   directory: string,
@@ -1100,11 +1127,15 @@ export const runSimulation = async (
   let capturedFailureCount = 0;
   const captureFailuresDir = options.captureFailuresDir ?? null;
   const captureFailuresLimit = options.captureFailuresLimit ?? 5;
+  const captureFailureKinds = options.captureFailureKinds ?? null;
   const capturedFailureEntries: SimulationFailureCaptureManifestEntry[] = [];
   const captureFailure: SimulationFailureRecorder | undefined =
     captureFailuresDir === null
       ? undefined
       : async (capture) => {
+          if (!shouldCaptureFailureKind(capture.kind, captureFailureKinds)) {
+            return;
+          }
           if (capturedFailureCount >= captureFailuresLimit) return;
           capturedFailureCount++;
           const entry = await writeFailureCapture(
@@ -1171,6 +1202,7 @@ export const runSimulation = async (
       schemaVersion: 1,
       scenario: scenarioName,
       captureLimit: captureFailuresLimit,
+      captureKinds: captureFailureKinds,
       captured: capturedFailureEntries.length,
       entries: capturedFailureEntries,
     });
@@ -1273,6 +1305,7 @@ const main = async () => {
     json: false,
     captureFailuresDir: null,
     captureFailuresLimit: 5,
+    captureFailureKinds: null,
     quiet: false,
   };
   const positionals: string[] = [];
@@ -1320,6 +1353,23 @@ const main = async () => {
           Number.parseInt(args[++i] ?? '', 10) || 0,
         );
         break;
+      case '--capture-failure-kind': {
+        const raw = args[++i] ?? '';
+        const kinds = raw
+          .split(',')
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0)
+          .map(parseFailureKind);
+
+        if (kinds.length === 0) {
+          throw new Error('--capture-failure-kind requires at least one kind');
+        }
+        options.captureFailureKinds = [
+          ...(options.captureFailureKinds ?? []),
+          ...kinds,
+        ];
+        break;
+      }
       case '--quiet':
         options.quiet = true;
         break;

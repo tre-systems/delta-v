@@ -68,6 +68,9 @@ one trace.
 snapshots for invalid built-in AI actions, fuel stalls, passenger-transfer
 mistakes, and objective-scenario drift such as fleet-elimination resolutions.
 The default cap is 5 files; override it with `--capture-failures-limit N`.
+Use `--capture-failure-kind fuelStall` or a comma-separated list such as
+`--capture-failure-kind fuelStall,objectiveDrift` when building a focused
+fixture corpus for one recurring symptom.
 Captures include the seed, scenario, active player, proposed action when
 relevant, stalled ship ids or passenger-transfer diagnostics when relevant, and
 the full `GameState`. The capture directory also gets a

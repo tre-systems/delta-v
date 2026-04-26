@@ -15,6 +15,7 @@ import {
   runSimulation,
   type SimulationFailureCapture,
   type SimulationMetrics,
+  shouldCaptureFailureKind,
 } from '../../scripts/simulate-ai';
 
 const metrics = (
@@ -462,11 +463,21 @@ describe('buildFailureCaptureManifestEntry', () => {
         schemaVersion: 1,
         scenario: 'convoy',
         captureLimit: 0,
+        captureKinds: null,
         captured: 0,
         entries: [],
       });
     } finally {
       await rm(captureDir, { recursive: true, force: true });
     }
+  });
+
+  it('filters capture kinds before spending the capture limit', () => {
+    expect(shouldCaptureFailureKind('fuelStall', null)).toBe(true);
+    expect(shouldCaptureFailureKind('fuelStall', [])).toBe(true);
+    expect(shouldCaptureFailureKind('fuelStall', ['fuelStall'])).toBe(true);
+    expect(shouldCaptureFailureKind('fuelStall', ['objectiveDrift'])).toBe(
+      false,
+    );
   });
 });

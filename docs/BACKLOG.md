@@ -69,7 +69,8 @@ Action:
 
 **Files:** `scripts/simulate-ai.ts`, `scripts/duel-seed-sweep.ts`,
 `src/shared/simulate-ai-policy.test.ts`, `src/shared/ai/__fixtures__/`,
-`src/shared/ai.test.ts`, `docs/SIMULATION_TESTING.md`
+`docs/SIMULATION_TESTING.md`. Fixture-backed behavior assertions should land
+with the Stream 2 AI behavior change that fixes the captured decision class.
 
 ### Add a Bounded Engine Planner for Movement Objectives (P1)
 
