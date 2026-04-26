@@ -8,7 +8,9 @@
  *   npx tsx scripts/duel-seed-sweep.ts --iterations 60 --from 0 --to 31
  *   npx tsx scripts/duel-seed-sweep.ts --seeds 0,1,42 --json
  *   npx tsx scripts/duel-seed-sweep.ts --scenario convoy --iterations 30
+ *   npx tsx scripts/duel-seed-sweep.ts --scenario convoy --json --baseline-json before.json
  */
+import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { isValidScenario, type ScenarioKey } from '../src/shared/map-data';
 import { runSimulation, type SimulationMetrics } from './simulate-ai';
@@ -36,6 +38,28 @@ export type SeedSweepSummary = {
   meanInvalidActionShare: number;
   meanPassengerTransferMistakesPerGame: number;
   totalCrashes: number;
+};
+
+export type SeedSweepSummaryComparison = {
+  avgTurnsMeanDelta: number;
+  meanP0DecidedPctDelta: number | null;
+  meanObjectiveShareDelta: number;
+  meanFleetEliminationShareDelta: number;
+  meanTimeoutShareDelta: number;
+  meanFuelStallsPerGameDelta: number;
+  meanPassengerDeliveryShareDelta: number;
+  meanGrandTourCompletionShareDelta: number;
+  meanInvalidActionShareDelta: number;
+  meanPassengerTransferMistakesPerGameDelta: number;
+  totalCrashesDelta: number;
+};
+
+export type SeedSweepJsonReport = {
+  scenario: string;
+  iterations: number;
+  seeds: number[];
+  summary: SeedSweepSummary;
+  rows?: unknown[];
 };
 
 export const summarizeSeedSweepRows = (
@@ -80,6 +104,64 @@ export const summarizeSeedSweepRows = (
   };
 };
 
+export const compareSeedSweepSummaries = (
+  before: SeedSweepSummary,
+  after: SeedSweepSummary,
+): SeedSweepSummaryComparison => ({
+  avgTurnsMeanDelta: after.avgTurnsMean - before.avgTurnsMean,
+  meanP0DecidedPctDelta:
+    before.meanP0DecidedPct === null || after.meanP0DecidedPct === null
+      ? null
+      : after.meanP0DecidedPct - before.meanP0DecidedPct,
+  meanObjectiveShareDelta: after.meanObjectiveShare - before.meanObjectiveShare,
+  meanFleetEliminationShareDelta:
+    after.meanFleetEliminationShare - before.meanFleetEliminationShare,
+  meanTimeoutShareDelta: after.meanTimeoutShare - before.meanTimeoutShare,
+  meanFuelStallsPerGameDelta:
+    after.meanFuelStallsPerGame - before.meanFuelStallsPerGame,
+  meanPassengerDeliveryShareDelta:
+    after.meanPassengerDeliveryShare - before.meanPassengerDeliveryShare,
+  meanGrandTourCompletionShareDelta:
+    after.meanGrandTourCompletionShare - before.meanGrandTourCompletionShare,
+  meanInvalidActionShareDelta:
+    after.meanInvalidActionShare - before.meanInvalidActionShare,
+  meanPassengerTransferMistakesPerGameDelta:
+    after.meanPassengerTransferMistakesPerGame -
+    before.meanPassengerTransferMistakesPerGame,
+  totalCrashesDelta: after.totalCrashes - before.totalCrashes,
+});
+
+const parseSeedSweepJsonReport = (raw: string): SeedSweepJsonReport => {
+  let parsed: Partial<SeedSweepJsonReport>;
+
+  try {
+    parsed = JSON.parse(raw) as Partial<SeedSweepJsonReport>;
+  } catch {
+    const jsonStart = raw.indexOf('{');
+    const jsonEnd = raw.lastIndexOf('}');
+
+    if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+      throw new Error('Baseline JSON is not valid JSON.');
+    }
+
+    parsed = JSON.parse(
+      raw.slice(jsonStart, jsonEnd + 1),
+    ) as Partial<SeedSweepJsonReport>;
+  }
+
+  if (
+    typeof parsed.scenario !== 'string' ||
+    typeof parsed.iterations !== 'number' ||
+    !Array.isArray(parsed.seeds) ||
+    typeof parsed.summary !== 'object' ||
+    parsed.summary === null
+  ) {
+    throw new Error('Baseline JSON is not a seed-sweep JSON report.');
+  }
+
+  return parsed as SeedSweepJsonReport;
+};
+
 const parseSeeds = (raw: string | undefined): number[] => {
   if (!raw?.trim()) return [];
   return raw
@@ -96,6 +178,7 @@ const main = async () => {
   let seedsArg: string | undefined;
   let jsonOut = false;
   let scenario: ScenarioKey = 'duel';
+  let baselineJsonPath: string | null = null;
 
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -118,6 +201,12 @@ const main = async () => {
         break;
       case '--scenario':
         scenario = (args[++i] ?? 'duel') as ScenarioKey;
+        break;
+      case '--baseline-json':
+        baselineJsonPath = args[++i] ?? '';
+        if (baselineJsonPath.length === 0) {
+          throw new Error('--baseline-json requires a path');
+        }
         break;
       default:
         break;
@@ -173,6 +262,14 @@ const main = async () => {
 
   if (jsonOut) {
     const summary = summarizeSeedSweepRows(rows);
+    const baseline =
+      baselineJsonPath === null
+        ? null
+        : parseSeedSweepJsonReport(await readFile(baselineJsonPath, 'utf8'));
+    const comparison =
+      baseline === null
+        ? null
+        : compareSeedSweepSummaries(baseline.summary, summary);
 
     console.log(
       JSON.stringify(
@@ -181,6 +278,16 @@ const main = async () => {
           iterations,
           seeds,
           summary,
+          ...(baseline !== null
+            ? {
+                baseline: {
+                  scenario: baseline.scenario,
+                  iterations: baseline.iterations,
+                  seeds: baseline.seeds,
+                },
+                comparison,
+              }
+            : {}),
           rows: rows.map((r) => ({
             baseSeed: r.baseSeed,
             totalGames: r.totalGames,
@@ -236,6 +343,14 @@ const main = async () => {
   );
 
   const summary = summarizeSeedSweepRows(rows);
+  const baseline =
+    baselineJsonPath === null
+      ? null
+      : parseSeedSweepJsonReport(await readFile(baselineJsonPath, 'utf8'));
+  const comparison =
+    baseline === null
+      ? null
+      : compareSeedSweepSummaries(baseline.summary, summary);
 
   console.log(
     `\nAcross ${summary.seedCount} base seeds: avg turns mean ${summary.avgTurnsMean.toFixed(1)} (min ${summary.avgTurnsMin.toFixed(1)}, max ${summary.avgTurnsMax.toFixed(1)})` +
@@ -247,11 +362,29 @@ const main = async () => {
       `; mean stalls/game ${summary.meanFuelStallsPerGame.toFixed(1)}`,
   );
 
+  if (comparison !== null) {
+    console.log(
+      `Delta vs baseline: objective ${formatPctPointDelta(comparison.meanObjectiveShareDelta)}` +
+        `; elimination ${formatPctPointDelta(comparison.meanFleetEliminationShareDelta)}` +
+        `; timeout ${formatPctPointDelta(comparison.meanTimeoutShareDelta)}` +
+        `; stalls/game ${formatSignedFixed(comparison.meanFuelStallsPerGameDelta, 1)}` +
+        `; avg turns ${formatSignedFixed(comparison.avgTurnsMeanDelta, 1)}`,
+    );
+  }
+
   if (summary.totalCrashes > 0) {
     console.error(`\nEngine crashes (non-zero): ${summary.totalCrashes}`);
     process.exitCode = 1;
   }
 };
+
+const formatSignedFixed = (value: number, fractionDigits: number): string => {
+  const formatted = value.toFixed(fractionDigits);
+  return value > 0 ? `+${formatted}` : formatted;
+};
+
+const formatPctPointDelta = (value: number): string =>
+  `${formatSignedFixed(value * 100, 1)}pp`;
 
 const shouldRunCli = (): boolean => {
   const entry = process.argv[1];

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  compareSeedSweepSummaries,
   type SeedSweepRow,
   summarizeSeedSweepRows,
 } from '../../scripts/duel-seed-sweep';
@@ -279,5 +280,76 @@ describe('summarizeSeedSweepRows', () => {
       meanPassengerTransferMistakesPerGame: 0.2,
       totalCrashes: 0,
     });
+  });
+
+  it('computes summary deltas for before/after seed-sweep reports', () => {
+    const before = summarizeSeedSweepRows([
+      {
+        ...metrics({
+          scenario: 'convoy',
+          totalGames: 10,
+          player0Wins: 4,
+          player1Wins: 4,
+          draws: 2,
+          totalTurns: 120,
+          reasons: {
+            'Landed on Venus with colonists!': 3,
+            'Fleet eliminated!': 5,
+            timeout: 2,
+          },
+          failureCounters: {
+            invalidActions: 0,
+            invalidActionPhases: {},
+            fuelStalls: 20,
+            passengerTransferMistakes: 1,
+          },
+        }),
+        baseSeed: 0,
+        p0DecidedPct: 50,
+        avgTurns: 12,
+      },
+    ]);
+    const after = summarizeSeedSweepRows([
+      {
+        ...metrics({
+          scenario: 'convoy',
+          totalGames: 10,
+          player0Wins: 5,
+          player1Wins: 5,
+          draws: 0,
+          totalTurns: 100,
+          reasons: {
+            'Landed on Venus with colonists!': 6,
+            'Fleet eliminated!': 4,
+          },
+          failureCounters: {
+            invalidActions: 0,
+            invalidActionPhases: {},
+            fuelStalls: 12,
+            passengerTransferMistakes: 0,
+          },
+        }),
+        baseSeed: 0,
+        p0DecidedPct: 50,
+        avgTurns: 10,
+      },
+    ]);
+
+    const comparison = compareSeedSweepSummaries(before, after);
+
+    expect(comparison).toMatchObject({
+      avgTurnsMeanDelta: -2,
+      meanP0DecidedPctDelta: 0,
+      meanInvalidActionShareDelta: 0,
+      totalCrashesDelta: 0,
+    });
+    expect(comparison.meanObjectiveShareDelta).toBeCloseTo(0.3);
+    expect(comparison.meanFleetEliminationShareDelta).toBeCloseTo(-0.1);
+    expect(comparison.meanTimeoutShareDelta).toBeCloseTo(-0.2);
+    expect(comparison.meanFuelStallsPerGameDelta).toBeCloseTo(-0.8);
+    expect(comparison.meanPassengerDeliveryShareDelta).toBeCloseTo(0.3);
+    expect(comparison.meanPassengerTransferMistakesPerGameDelta).toBeCloseTo(
+      -0.1,
+    );
   });
 });
