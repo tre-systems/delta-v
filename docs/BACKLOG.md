@@ -148,75 +148,59 @@ changes:
 
 ## Gameplay UX & Matchmaking
 
-The remaining gameplay UX items group into digital-input parity and WebSocket
-protocol diagnostics.
+### First-Time Recovery-Code Nudge (P3)
 
-### Verify Same-Token WebSocket Replacement (P2)
+A new player picks a callsign, plays a few games, and then has to actively
+discover the **Save recovery code** button to keep their callsign across
+devices or browsers. The button is a small `menu-profile-clear`-styled
+text link sharing visual weight with **Restore callsign** and **Forget
+my callsign** ([static/index.html:99-101](../static/index.html), rendered
+in the lobby `menu-profile-actions` row). There is no proactive prompt —
+once the player clears localStorage, claims a new callsign, or switches
+device they lose their leaderboard identity silently.
 
-The 2026-04-24 multiplayer deep probe exercised `POST /create`,
-`GET /join/{CODE}`, `POST /quick-match`, the paired WebSocket flow, spectator
-attach, mid-match disconnect/reconnect, and rate limits. Core flows work —
-seat assignment, reconnect by stored `playerToken`, typed WebSocket rejection
-frames, rate-limit close (1008 with reason), matchmaker pairing, and idempotent
-same-player tickets. HTTP validation and URL diagnostics have shipped; the
-remaining gap is replacement behavior for duplicate same-seat sockets.
+The current copy assumes a player who *already knows* recovery codes
+exist; nothing on the home screen explains why they would matter.
+2026-04-26 live observation: the warning text "Anyone with this code
+can use your callsign" lives inside `#recoveryPanel`, which is `hidden`
+until *after* `Save recovery code` issues a code, so a new player only
+sees the bearer-secret framing as soon as the code is on screen — too
+late for a screenshot-then-think workflow.
 
-Concrete issues observed on the local dev server:
+Action: surface a one-time post-claim hint such as a status-line
+nudge ("Save a recovery code so you keep this callsign on a new
+device") that disappears once a code has been issued or explicitly
+dismissed. Optionally, render the bearer-secret warning *before*
+issuing instead of alongside the issued code.
 
-- **Same-seat WebSocket replacement close-handshake takes ~10s on prod
-  (P3).** Server code at
-  [game-do.ts:178-184](../src/server/game-do/game-do.ts) calls
-  `old.close(1000, 'Replaced by new connection')` when a same-seat
-  socket replaces an existing one. 2026-04-26 prod run of
-  [scripts/mp-connectivity.mjs](../scripts/mp-connectivity.mjs):
-  socket A *does* eventually close cleanly with code 1000 and the
-  expected reason — but only after **~10.2 s** in `readyState: CLOSING`
-  (2). The original "zombie socket" framing was overstated; the close
-  is correct, just slow. Practical impact: a client treating CLOSING
-  as transient sees a 10 s window where two sockets coexist on the
-  same `playerToken`. Tabs that aggressively re-open on hidden /
-  visible transitions hit this, and the user may briefly see one tab's
-  HUD freeze before the close. Worth tightening, not urgent.
+**Files:** [static/index.html](../static/index.html) (the
+`menu-profile-actions` row + `#recoveryPanel` warning),
+[src/client/ui/lobby-view.ts](../src/client/ui/lobby-view.ts) (the
+`createRecoveryCode` flow).
 
-**Files:** [src/server/game-do/fetch.ts](../src/server/game-do/fetch.ts),
-[src/server/game-do/http-handlers.ts](../src/server/game-do/http-handlers.ts),
-[src/server/protocol.ts](../src/server/protocol.ts),
-[src/server/game-do/actions.ts](../src/server/game-do/actions.ts),
-[src/shared/types/domain.ts](../src/shared/types/domain.ts) (ErrorCode enum)
+Found via R17 callsign recovery (2026-04-26 live exploratory pass).
 
-### Inconsistent JSON error response shape across public endpoints (P3)
+### Confirm Step Before "Forget My Callsign" (P3)
 
-Public endpoints return at least three different JSON error shapes
-plus one plain-text shape, and the `error` field oscillates between a
-machine-stable code and a human-readable message. An agent reading
-these programmatically can't generically detect "rate limited" or
-"invalid input" without per-endpoint parsing.
+`Forget my callsign` is a destructive action — it revokes any issued
+recovery code and clears the local `delta-v:player-profile`
+([src/client/ui/lobby-view.ts:610-632](../src/client/ui/lobby-view.ts)).
+It currently fires on a single click with no confirmation, sharing the
+exact same `menu-profile-clear` text-link styling as the adjacent
+**Save recovery code** and **Restore callsign** buttons. On mobile the
+three buttons sit on one wrapping row — fat-finger risk is real, and
+once the recovery is revoked there is no undo.
 
-| Endpoint | Shape on validation error |
-|---|---|
-| `/api/matches`, `/api/leaderboard` | `{error: "<code>", message: "<human>"}` |
-| `/create` | `{ok: false, error: "<code>", message: "<human>"}` |
-| `/api/agent-token`, `/api/claim-name`, `/api/player-recovery/issue` | `{ok: false, error: "<human message>"}` (no `message`, `error` is the human string) |
-| `/api/player-recovery/restore` | `{ok: false, error: "<code>"}` (no `message`) |
+Action: add a one-step inline confirmation (status-line "Tap again to
+confirm" / `aria-live` polite + a 3 s timeout) or a small modal. Keep
+the keyboard tab order so the destructive button stays *after* Save /
+Restore.
 
-(2026-04-26 update: the wrong-method paths previously returned
-plain-text `Method Not Allowed`; they now return JSON
-`{[ok: false,] error: "method_not_allowed", message: "Use <verb> on
-this endpoint."}` matching whichever shape the rest of the route uses.
-The 4xx-on-bad-input shapes still drift.)
+**Files:** [src/client/ui/lobby-view.ts](../src/client/ui/lobby-view.ts)
+(`forgetCallsign`), [static/index.html](../static/index.html)
+(`#forgetCallsignBtn`).
 
-Standardise on `{ok: false, error: "<code>", message: "<human>"}` (or
-the no-`ok` variant — pick one and migrate the other). Keep `error`
-as a stable enum (`invalid_query`, `invalid_payload`,
-`missing_scenario`, `invalid_recovery_code`, etc.) and let `message`
-carry the prose.
-
-Found via R2 validation probing (2026-04-26).
-
-**Files:** [src/server/index.ts](../src/server/index.ts) (response
-helpers around `tooManyRequests`, the create handler, the recovery
-handlers); [src/server/leaderboard/claim-route.ts](../src/server/leaderboard/claim-route.ts);
-[src/server/auth/agent-token.ts](../src/server/auth/agent-token.ts).
+Found via R17 (2026-04-26).
 
 ### Small Accessibility Polish (P3)
 
@@ -255,20 +239,6 @@ aggregate per WS lifecycle) are shipped. The remaining gaps are narrower:
 `static/matches.html`, `static/leaderboard.html`, `src/server/metrics-route.ts`
 
 ## Architecture & Correctness
-
-### Measure Long-Game Memory Growth (P3)
-
-Not done this pass — the 2026-04-24 review caught the bundle wins but
-did not measure client heap growth over a 20–30 min match. The event-
-source stream accumulates in replays and the renderer holds Canvas
-buffers per turn animation; if either leaks, the browser's tab process
-grows until a major GC or an OOM on mobile. One-hour action: start a
-duel against AI Hard, take Chrome DevTools heap snapshots at 0 / 5 /
-15 / 30 minutes, diff for growing retainers. Escalate only if the diff
-shows unbounded growth; don't chase it if heap stays flat.
-
-**Files:** first-hour measurement, no code changes unless findings
-surface.
 
 ### Optional Deduplication of Initial Publication Path (P3)
 

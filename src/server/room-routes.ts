@@ -3,6 +3,7 @@ import { SCENARIOS, type ScenarioKey } from '../shared/map-data';
 import type { Env } from './env';
 import { projectReplayTimeline } from './game-do/archive';
 import { fetchArchivedMatch } from './game-do/match-archive';
+import { jsonError } from './json-errors';
 import {
   generatePlayerToken,
   generateRoomCode,
@@ -121,15 +122,7 @@ export const handleCreate = async (
     status: number,
     error: string,
     message?: string,
-  ): Response =>
-    Response.json(
-      {
-        ok: false,
-        error,
-        ...(message ? { message } : {}),
-      },
-      { status },
-    );
+  ): Response => jsonError(status, error, message ?? error);
 
   const rawBody = await request.text();
   if (rawBody.length === 0) {

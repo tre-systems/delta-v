@@ -16,6 +16,7 @@
 import { OFFICIAL_QUICK_MATCH_BOT_USERNAME } from '../../shared/player';
 import { isProvisional } from '../../shared/rating/provisional';
 import type { Env } from '../env';
+import { type JsonErrorBody, jsonError, jsonErrorBody } from '../json-errors';
 
 interface PlayerRow {
   username: string;
@@ -46,10 +47,7 @@ export interface LeaderboardResponse {
 
 type LeaderboardQueryError = {
   status: 400;
-  body: {
-    error: 'invalid_query';
-    message: string;
-  };
+  body: JsonErrorBody;
 };
 
 const DEFAULT_LIMIT = 100;
@@ -58,10 +56,7 @@ const RESERVED_TEST_USERNAME_PREFIXES = ['bot_', 'probe_', 'qa_'];
 
 const error = (message: string): LeaderboardQueryError => ({
   status: 400,
-  body: {
-    error: 'invalid_query',
-    message,
-  },
+  body: jsonErrorBody('invalid_query', message),
 });
 
 const parseLimit = (raw: string | null): number | LeaderboardQueryError => {
@@ -200,13 +195,9 @@ export const handleLeaderboardQuery = async (
   ctx?: ExecutionContext,
 ): Promise<Response> => {
   if (request.method !== 'GET') {
-    return Response.json(
-      {
-        error: 'method_not_allowed',
-        message: 'Use GET on this endpoint.',
-      },
-      { status: 405, headers: { Allow: 'GET' } },
-    );
+    return jsonError(405, 'method_not_allowed', 'Use GET on this endpoint.', {
+      headers: { Allow: 'GET' },
+    });
   }
 
   const url = new URL(request.url);

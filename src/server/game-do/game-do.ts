@@ -13,7 +13,12 @@ import {
 } from '../../shared/map-data';
 import { hasOfficialQuickMatchBot } from '../../shared/player';
 import { deriveActionRng, mulberry32 } from '../../shared/prng';
-import type { GameState, PlayerId, Result } from '../../shared/types/domain';
+import {
+  ErrorCode,
+  type GameState,
+  type PlayerId,
+  type Result,
+} from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import {
   isValidPlayerToken,
@@ -182,6 +187,11 @@ export class GameDO extends DurableObject<Env> {
   private replacePlayerSockets(playerId: 0 | 1): void {
     for (const old of this.getWebSockets(`player:${playerId}`)) {
       try {
+        this.send(old, {
+          type: 'error',
+          code: ErrorCode.SESSION_REPLACED,
+          message: 'Connection replaced by a newer tab or device.',
+        });
         this.replacedSockets.add(old);
         old.close(1000, 'Replaced by new connection');
       } catch {}

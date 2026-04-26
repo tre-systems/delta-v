@@ -1,5 +1,6 @@
 import { isValidPlayerKey } from '../../shared/player';
 import type { Env } from '../env';
+import { jsonError } from '../json-errors';
 import {
   revokePlayerRecovery,
   selectPlayerRecoveryByHash,
@@ -29,14 +30,9 @@ const readJson = async <T>(request: Request): Promise<T | null> => {
 };
 
 const methodNotAllowed = (): Response =>
-  Response.json(
-    {
-      ok: false,
-      error: 'method_not_allowed',
-      message: 'Use POST on this endpoint.',
-    },
-    { status: 405, headers: { Allow: 'POST' } },
-  );
+  jsonError(405, 'method_not_allowed', 'Use POST on this endpoint.', {
+    headers: { Allow: 'POST' },
+  });
 
 const validateHumanPlayerKey = (
   playerKey: unknown,
@@ -44,12 +40,10 @@ const validateHumanPlayerKey = (
   if (!isValidPlayerKey(playerKey)) {
     return {
       ok: false,
-      response: Response.json(
-        {
-          ok: false,
-          error: 'playerKey must be 8-64 chars, alphanumeric plus _ or -',
-        },
-        { status: 400 },
+      response: jsonError(
+        400,
+        'invalid_player_key',
+        'playerKey must be 8-64 chars, alphanumeric plus _ or -.',
       ),
     };
   }
@@ -57,9 +51,10 @@ const validateHumanPlayerKey = (
   if (playerKey.startsWith('agent_')) {
     return {
       ok: false,
-      response: Response.json(
-        { ok: false, error: 'agent_recovery_not_supported' },
-        { status: 400 },
+      response: jsonError(
+        400,
+        'agent_recovery_not_supported',
+        'Agent callsigns do not support recovery codes.',
       ),
     };
   }
@@ -77,10 +72,7 @@ export const handlePlayerRecoveryIssue = async (
 
   const body = await readJson<IssueBody>(request);
   if (!body) {
-    return Response.json(
-      { ok: false, error: 'Invalid JSON body' },
-      { status: 400 },
-    );
+    return jsonError(400, 'invalid_json', 'Invalid JSON body.');
   }
 
   const validated = validateHumanPlayerKey(body.playerKey);
@@ -89,23 +81,22 @@ export const handlePlayerRecoveryIssue = async (
   }
 
   if (!env.DB) {
-    return Response.json(
-      { ok: false, error: 'leaderboard_unavailable' },
-      { status: 503 },
+    return jsonError(
+      503,
+      'leaderboard_unavailable',
+      'Leaderboard unavailable.',
     );
   }
 
   const player = await selectPlayerByKey(env.DB, validated.playerKey);
   if (!player) {
-    return Response.json(
-      { ok: false, error: 'player_not_claimed' },
-      { status: 404 },
-    );
+    return jsonError(404, 'player_not_claimed', 'Callsign is not claimed.');
   }
   if (player.isAgent) {
-    return Response.json(
-      { ok: false, error: 'agent_recovery_not_supported' },
-      { status: 400 },
+    return jsonError(
+      400,
+      'agent_recovery_not_supported',
+      'Agent callsigns do not support recovery codes.',
     );
   }
 
@@ -130,24 +121,19 @@ export const handlePlayerRecoveryRestore = async (
 
   const body = await readJson<RestoreBody>(request);
   if (!body) {
-    return Response.json(
-      { ok: false, error: 'Invalid JSON body' },
-      { status: 400 },
-    );
+    return jsonError(400, 'invalid_json', 'Invalid JSON body.');
   }
 
   const recoveryCode = normalizeRecoveryCode(body.recoveryCode);
   if (!recoveryCode) {
-    return Response.json(
-      { ok: false, error: 'invalid_recovery_code' },
-      { status: 400 },
-    );
+    return jsonError(400, 'invalid_recovery_code', 'Invalid recovery code.');
   }
 
   if (!env.DB) {
-    return Response.json(
-      { ok: false, error: 'leaderboard_unavailable' },
-      { status: 503 },
+    return jsonError(
+      503,
+      'leaderboard_unavailable',
+      'Leaderboard unavailable.',
     );
   }
 
@@ -156,18 +142,12 @@ export const handlePlayerRecoveryRestore = async (
     await hashRecoveryCode(recoveryCode),
   );
   if (!recovery) {
-    return Response.json(
-      { ok: false, error: 'recovery_not_found' },
-      { status: 404 },
-    );
+    return jsonError(404, 'recovery_not_found', 'Recovery code not found.');
   }
 
   const player = await selectPlayerByKey(env.DB, recovery.playerKey);
   if (!player || player.isAgent) {
-    return Response.json(
-      { ok: false, error: 'recovery_not_found' },
-      { status: 404 },
-    );
+    return jsonError(404, 'recovery_not_found', 'Recovery code not found.');
   }
 
   return Response.json(
@@ -192,10 +172,7 @@ export const handlePlayerRecoveryRevoke = async (
 
   const body = await readJson<IssueBody>(request);
   if (!body) {
-    return Response.json(
-      { ok: false, error: 'Invalid JSON body' },
-      { status: 400 },
-    );
+    return jsonError(400, 'invalid_json', 'Invalid JSON body.');
   }
 
   const validated = validateHumanPlayerKey(body.playerKey);
@@ -204,9 +181,10 @@ export const handlePlayerRecoveryRevoke = async (
   }
 
   if (!env.DB) {
-    return Response.json(
-      { ok: false, error: 'leaderboard_unavailable' },
-      { status: 503 },
+    return jsonError(
+      503,
+      'leaderboard_unavailable',
+      'Leaderboard unavailable.',
     );
   }
 

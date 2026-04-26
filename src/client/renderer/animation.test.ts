@@ -127,6 +127,35 @@ describe('movement animation manager', () => {
     );
   });
 
+  it('caps per-entity trail history during long sessions', () => {
+    const manager = createMovementAnimationManager({
+      isDocumentHidden: () => true,
+    });
+
+    for (let i = 0; i < 140; i++) {
+      manager.start(
+        [
+          {
+            ...shipMovement,
+            from: { q: i, r: 0 },
+            to: { q: i + 1, r: 0 },
+            path: [
+              { q: i, r: 0 },
+              { q: i + 1, r: 0 },
+            ],
+          },
+        ],
+        [],
+        () => {},
+      );
+    }
+
+    const trail = manager.getShipTrails().get('ship-1') ?? [];
+    expect(trail).toHaveLength(96);
+    expect(trail[0]).toEqual({ q: 45, r: 0 });
+    expect(trail[trail.length - 1]).toEqual({ q: 140, r: 0 });
+  });
+
   it('exposes progress and animated hex collection helpers', () => {
     const state: AnimationState = {
       movements: [shipMovement],

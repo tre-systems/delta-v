@@ -438,6 +438,10 @@ describe('GameDO', () => {
     expect(oldSocket.closed).toBe(true);
     expect(oldSocket.closeCode).toBe(1000);
     expect(oldSocket.closeReason).toBe('Replaced by new connection');
+    expect(JSON.parse(oldSocket.sent[0] ?? '{}')).toMatchObject({
+      type: 'error',
+      code: 'SESSION_REPLACED',
+    });
     expect(
       (
         game as unknown as { replacedSockets: WeakSet<WebSocket> }

@@ -17,6 +17,7 @@
 // pollute analytics with throwaway agent identities.
 
 import type { Env } from '../env';
+import { jsonError } from '../json-errors';
 import {
   claimPlayerName,
   type PlayerRecord,
@@ -32,14 +33,10 @@ import {
 import { MissingAgentTokenSecretError } from './secret';
 
 const missingSecretResponse = (): Response =>
-  Response.json(
-    {
-      ok: false,
-      error: 'server_misconfigured',
-      message:
-        'AGENT_TOKEN_SECRET is not set on this deployment. Contact the operator.',
-    },
-    { status: 500 },
+  jsonError(
+    500,
+    'server_misconfigured',
+    'AGENT_TOKEN_SECRET is not set on this deployment. Contact the operator.',
   );
 
 interface IssueBody {
@@ -73,14 +70,9 @@ export const handleAgentTokenIssue = async (
   env: Env,
 ): Promise<Response> => {
   if (request.method !== 'POST') {
-    return Response.json(
-      {
-        ok: false,
-        error: 'method_not_allowed',
-        message: 'Use POST on this endpoint.',
-      },
-      { status: 405, headers: { Allow: 'POST' } },
-    );
+    return jsonError(405, 'method_not_allowed', 'Use POST on this endpoint.', {
+      headers: { Allow: 'POST' },
+    });
   }
   // Fail closed when the HMAC secret is missing in production. The dev
   // fallback inside resolveAgentTokenSecret only kicks in under DEV_MODE,
@@ -93,19 +85,13 @@ export const handleAgentTokenIssue = async (
   try {
     body = (await request.json()) as IssueBody;
   } catch {
-    return Response.json(
-      { ok: false, error: 'Invalid JSON body' },
-      { status: 400 },
-    );
+    return jsonError(400, 'invalid_json', 'Invalid JSON body.');
   }
   if (!isValidAgentPlayerKey(body.playerKey)) {
-    return Response.json(
-      {
-        ok: false,
-        error:
-          'playerKey must match /^agent_[A-Za-z0-9_-]+$/ and be 8-64 chars',
-      },
-      { status: 400 },
+    return jsonError(
+      400,
+      'invalid_player_key',
+      'playerKey must match /^agent_[A-Za-z0-9_-]+$/ and be 8-64 chars.',
     );
   }
 
@@ -115,15 +101,17 @@ export const handleAgentTokenIssue = async (
     const check = validateUsername(rawUsername);
     if (!check.ok) {
       const status = check.error === 'reserved' ? 409 : 400;
-      return Response.json(
-        { ok: false, error: `username_${check.error}` },
-        { status },
+      return jsonError(
+        status,
+        `username_${check.error}`,
+        `Invalid username: ${check.error}.`,
       );
     }
     if (!env.DB) {
-      return Response.json(
-        { ok: false, error: 'leaderboard_unavailable' },
-        { status: 503 },
+      return jsonError(
+        503,
+        'leaderboard_unavailable',
+        'Leaderboard unavailable.',
       );
     }
     const outcome = await claimPlayerName({
@@ -134,7 +122,7 @@ export const handleAgentTokenIssue = async (
       now: Date.now(),
     });
     if (!outcome.ok) {
-      return Response.json({ ok: false, error: 'name_taken' }, { status: 409 });
+      return jsonError(409, 'name_taken', 'Callsign is already taken.');
     }
     player = outcome.player;
   }

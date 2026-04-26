@@ -90,6 +90,7 @@ describe('handleMatchesList', () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
+      ok: false,
       error: 'invalid_query',
       message: 'Invalid limit. Expected a positive integer.',
     });
@@ -104,6 +105,7 @@ describe('handleMatchesList', () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
+      ok: false,
       error: 'invalid_query',
       message: 'Invalid limit: 500. Maximum is 100.',
     });
@@ -173,6 +175,7 @@ describe('handleMatchesList', () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
+      ok: false,
       error: 'invalid_query',
       message: 'Invalid before cursor: garbage. Expected a positive integer.',
     });
@@ -187,6 +190,7 @@ describe('handleMatchesList', () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
+      ok: false,
       error: 'invalid_query',
       message: 'Invalid status filter: paused. Expected archived or live.',
     });
@@ -201,6 +205,7 @@ describe('handleMatchesList', () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
+      ok: false,
       error: 'invalid_query',
       message: 'Unknown scenario: nonexistent',
     });
@@ -215,6 +220,7 @@ describe('handleMatchesList', () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
+      ok: false,
       error: 'invalid_query',
       message: 'Invalid winner filter: banana. Expected 0, 1, or draw.',
     });
@@ -229,6 +235,7 @@ describe('handleMatchesList', () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
+      ok: false,
       error: 'invalid_query',
       message: 'Unsupported query parameter: offset. Use before pagination.',
     });
@@ -243,6 +250,7 @@ describe('handleMatchesList', () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
+      ok: false,
       error: 'invalid_query',
       message: 'Unsupported query parameter: foo.',
     });

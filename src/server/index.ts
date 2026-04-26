@@ -14,6 +14,7 @@ import {
   MATCH_ARCHIVE_RETENTION_MS,
   purgeExpiredMatchArchives,
 } from './game-do/match-archive';
+import { jsonError } from './json-errors';
 import { handleClaimName } from './leaderboard/claim-route';
 import { handlePlayerRank } from './leaderboard/player-rank';
 import { handleLeaderboardQuery } from './leaderboard/query-route';
@@ -122,9 +123,10 @@ const buildQuickMatchEnqueueHeaders = async (
       });
       return {
         ok: false,
-        response: Response.json(
-          { ok: false, error: 'server_misconfigured' },
-          { status: 500 },
+        response: jsonError(
+          500,
+          'server_misconfigured',
+          'AGENT_TOKEN_SECRET is not set on this deployment.',
         ),
       };
     }
@@ -139,9 +141,10 @@ const buildQuickMatchEnqueueHeaders = async (
     });
     return {
       ok: false,
-      response: Response.json(
-        { ok: false, error: 'agent_token_required' },
-        { status: 403 },
+      response: jsonError(
+        403,
+        'agent_token_required',
+        'Agent quick-match requests require a Bearer token.',
       ),
     };
   }
@@ -156,9 +159,10 @@ const buildQuickMatchEnqueueHeaders = async (
     });
     return {
       ok: false,
-      response: Response.json(
-        { ok: false, error: 'invalid_agent_token' },
-        { status: 401 },
+      response: jsonError(
+        401,
+        'invalid_agent_token',
+        'Agent token is invalid or expired.',
       ),
     };
   }
@@ -172,9 +176,10 @@ const buildQuickMatchEnqueueHeaders = async (
     });
     return {
       ok: false,
-      response: Response.json(
-        { ok: false, error: 'agent_token_player_key_mismatch' },
-        { status: 403 },
+      response: jsonError(
+        403,
+        'agent_token_player_key_mismatch',
+        'Agent token does not match the requested playerKey.',
       ),
     };
   }
@@ -640,10 +645,10 @@ const fetchHandler = async (
       const agentTokenResponse = await handleAgentTokenIssue(request, env);
       if (!agentTokenResponse.ok) {
         const error = await readResponseErrorCode(agentTokenResponse);
-        if (error === 'Invalid JSON body' || error === 'server_misconfigured') {
+        if (error === 'invalid_json' || error === 'server_misconfigured') {
           logSampledOperationalEvent('auth-failure', ipHash, {
             route: '/api/agent-token',
-            reason: error === 'Invalid JSON body' ? 'invalid_json' : error,
+            reason: error,
             status: agentTokenResponse.status,
           });
         }
@@ -679,9 +684,10 @@ const fetchHandler = async (
       if (url.pathname === '/api/player-recovery/revoke') {
         return handlePlayerRecoveryRevoke(request, env);
       }
-      return Response.json(
-        { ok: false, error: 'recovery_route_not_found' },
-        { status: 404 },
+      return jsonError(
+        404,
+        'recovery_route_not_found',
+        'Recovery route not found.',
       );
     }
 
