@@ -17,7 +17,7 @@ A pass typically takes 60-120 minutes of agent or human time and should produce 
 
 - [Toolkit](#toolkit)
 - [Lenses](#lenses-what-to-look-for)
-- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile layout sweep · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep · R17 callsign recovery
+- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile layout sweep · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep · R17 callsign recovery · R18 HTTP method conformance · R19 error-shape consistency
 - [Workflow: probe, finding, backlog](#workflow-probe-finding-backlog)
 - [Anti-patterns](#anti-patterns)
 - [Pass log](#pass-log)
@@ -498,6 +498,72 @@ The callsign recovery feature is deliberately "login-like" without becoming a lo
 - `wrangler tail` / sampled events / replay archives should not log recovery codes. If a code appears in a tail line, screenshot, or backlog entry, treat it as compromised: revoke it before continuing.
 - Confirm `docs/PRIVACY_TECHNICAL.md` still matches the client/server storage reality after any recovery-flow change.
 
+### R18. HTTP method conformance
+
+Public endpoints that handle GET should also handle HEAD (RFC 9110:
+HEAD MUST return the same headers as GET, just no body). CORS preflight
+on the same path advertises the supported method set via
+`Access-Control-Allow-Methods` — that header and the actual method
+handler can drift apart and stay broken indefinitely because nothing
+in the SPA itself uses HEAD.
+
+```bash
+for p in /api/matches /api/leaderboard /healthz /; do
+  g=$(curl -s -o /dev/null -w '%{http_code}' "https://delta-v.tre.systems$p")
+  h=$(curl -sI -o /dev/null -w '%{http_code}' "https://delta-v.tre.systems$p")
+  o=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS \
+        -H 'Origin: https://example.com' -H 'Access-Control-Request-Method: GET' \
+        "https://delta-v.tre.systems$p")
+  am=$(curl -sI -X OPTIONS -H 'Origin: https://example.com' \
+        -H 'Access-Control-Request-Method: GET' \
+        "https://delta-v.tre.systems$p" \
+        | grep -i access-control-allow-methods)
+  echo "$p  GET=$g  HEAD=$h  OPTIONS=$o  $am"
+done
+```
+
+A row where HEAD differs from GET (other than the body) is a finding;
+a row where the OPTIONS-advertised method set includes a method that
+the actual handler 404s is a contract bug worth filing. CDNs, uptime
+monitors, and any RFC-correct intermediary will assume the advertised
+methods work.
+
+### R19. Error-shape consistency
+
+Public JSON endpoints have a tendency to grow per-endpoint error
+shapes — `{error, message}` here, `{ok: false, error, message}` there,
+`{ok: false, error}` somewhere else, plain-text `Method Not Allowed`
+on a route that wasn't built for the verb. Agents reading these
+programmatically can't generically detect "rate limited" or "invalid
+input" if the field names and semantics drift between routes.
+
+```bash
+for line in \
+  'GET /api/matches?limit=99999' \
+  'GET /api/leaderboard?limit=99999' \
+  'POST /create empty' \
+  'POST /api/agent-token {"playerKey":"human_x"}' \
+  'POST /api/claim-name {}' \
+  'POST /api/player-recovery/issue {}' \
+  'POST /api/player-recovery/restore {}' \
+  'GET /api/claim-name'; do
+  m=${line%% *}; rest=${line#* }; path=${rest%% *}; body=${rest#* }
+  if [ "$m" = GET ]; then
+    out=$(curl -s --max-time 5 "https://delta-v.tre.systems$path")
+  else
+    [ "$body" = empty ] && body='{}'
+    out=$(curl -s --max-time 5 -X POST -H 'Content-Type: application/json' \
+            -d "$body" "https://delta-v.tre.systems$path")
+  fi
+  printf '%-60s %s\n' "$line" "${out:0:120}"
+done
+```
+
+Look for: presence/absence of `ok`, `error`, `message`; whether
+`error` is a stable enum or human prose; whether 405 paths return
+JSON or plain text. Findings filed under **Gameplay UX & Matchmaking**
+or **Architecture & Correctness** depending on the consumer impact.
+
 ---
 
 ## Workflow: probe, finding, backlog
@@ -564,3 +630,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | 2026-04-24 | Codex | Live-site exploratory pass: R1/R2 public API scan and validation (`/api/matches`, `/api/leaderboard`, `/api/metrics`, bad join/replay ids), R3 agent metadata consistency, R7 Play-vs-AI Duel launch, R10 compact live mobile matrix (320 × 568, 375 × 812, 812 × 375, 641 × 800, 759 × 900), and R14 client-state audit. Core public endpoints and local AI launch passed; filed a P3 tiny-phone utility-button overlap. | 1 |
 | 2026-04-24 | Codex | Live-site demo-readiness pass: R1/R2 endpoint and validation scan, rendered same-origin link sweep across home/agents/matches/leaderboard, representative R7 Play-vs-AI launches (Duel, Grand Tour, Lunar Evacuation, Convoy, Fleet Action), match-history replay smoke, R10 mobile overlap/click-reachability at 320/375/419/421/641/759/812 widths, and R14 client-state audit. Existing tiny-phone utility-button overlap reproduced; no new backlog entries. | 0 |
 | 2026-04-24 | agent (Opus 4.7) | Post-ship regression smoke after the 2026-04-24 fix train (minify on every build, salted `ip_hash`, game-over + reconnect focus traps, rulebook-constants lock): R7 full Bi-Planetary Play-vs-AI (4 turns, vector movement + gravity rendered cleanly), R9 mid-match reload (turn / phase / fuel / speed / velocity restored exactly from `delta-v:local-game`), R14 client-state audit (4 localStorage keys totalling ~1.9 KB, no IDB / caches / cookies), console scan (0 errors, 0 warnings), code-level confirmation of `trapTabFocus` wiring on both `#gameOver` and `#reconnectOverlay` in `overlay-view.ts`. No regressions surfaced; no new backlog entries. | 0 |
+| 2026-04-26 | agent (Opus 4.7) | Live-site pass: R1 surface scan (20 paths, all expected statuses), R2 validation across `/api/matches`, `/api/leaderboard`, `/api/agent-token`, `/api/claim-name`, `/api/player-recovery/*`, `/create` (all reject empty/oversize/invalid cleanly), R3 agent.json scenario list ↔ source descriptions (consistent), R9 prod run of `scripts/mp-connectivity.mjs` (close handshake completes cleanly with code 1000 + reason 'Replaced by new connection' but takes ~10.2 s), confirmed immutable cache-control on `/client.js` + `/style.css` after the 2026-04-25 deploy. New recipes: R18 HTTP method conformance and R19 error-shape consistency. Filed: WS replacement close-handshake P3 update, HEAD-method 404 P3, JSON error-shape consistency P3. | 3 |
