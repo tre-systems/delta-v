@@ -84,8 +84,10 @@ scorecard signals (`obj%`, `elim%`, `timeout%`, `stall/g`) so AI behavior PRs
 can compare objective progress and failure density across identical seed sets.
 Use `--json` when the review needs the full scorecard, including passenger
 delivery, Grand Tour completion, invalid-action, and transfer-mistake fields.
-Options: `--iterations N`, `--from` / `--to`, `--seeds 0,1,2`,
-`--scenario <key>`, `--json`.
+The JSON payload includes both per-seed `rows` and an aggregate `summary`, which
+is the preferred artifact to paste into AI behavior PRs before and after a
+planner or role-scoring change. Options: `--iterations N`, `--from` / `--to`,
+`--seeds 0,1,2`, `--scenario <key>`, `--json`.
 
 ---
 
