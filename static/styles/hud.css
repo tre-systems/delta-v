@@ -424,6 +424,12 @@
   line-height: 1.4;
 }
 
+/* Replay playback uses a compact bottom bar; lift the collapsed log pill
+ * above it so the two floating controls do not visually collide. */
+body.replay-bar-active .log-latest-bar {
+  bottom: calc(8.4rem + var(--safe-bottom));
+}
+
 .log-latest-text {
   pointer-events: none;
 }
