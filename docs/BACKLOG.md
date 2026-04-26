@@ -163,26 +163,80 @@ remaining gap is replacement behavior for duplicate same-seat sockets.
 
 Concrete issues observed on the local dev server:
 
-- **Verify behaviour of a second WebSocket with the same `playerToken`.**
-  Server code at [game-do.ts:178-184](../src/server/game-do/game-do.ts) calls
-  `old.close(1000, 'Replaced by new connection')` when a same-seat socket
-  replaces an existing one. The 2026-04-25 run of the new
-  [scripts/mp-connectivity.mjs](../scripts/mp-connectivity.mjs) harness
-  against `wrangler dev` reproduced the symptom: socket A reached
-  `readyState: CLOSING` (2) but never finished the close handshake within
-  the 8 s window, so any client treating CLOSING as a transient state would
-  perceive the socket as effectively zombie. Likely a `wrangler dev`
-  hibernation API quirk; the next step is to point the harness at
-  `wss://delta-v.tre.systems` to confirm whether prod actually closes the
-  socket cleanly. If prod also stalls, ship a fix in the DO replacement
-  path; if prod is clean, file this as a wrangler-dev caveat in
-  EXPLORATORY_TESTING.md and close.
+- **Same-seat WebSocket replacement close-handshake takes ~10s on prod
+  (P3).** Server code at
+  [game-do.ts:178-184](../src/server/game-do/game-do.ts) calls
+  `old.close(1000, 'Replaced by new connection')` when a same-seat
+  socket replaces an existing one. 2026-04-26 prod run of
+  [scripts/mp-connectivity.mjs](../scripts/mp-connectivity.mjs):
+  socket A *does* eventually close cleanly with code 1000 and the
+  expected reason — but only after **~10.2 s** in `readyState: CLOSING`
+  (2). The original "zombie socket" framing was overstated; the close
+  is correct, just slow. Practical impact: a client treating CLOSING
+  as transient sees a 10 s window where two sockets coexist on the
+  same `playerToken`. Tabs that aggressively re-open on hidden /
+  visible transitions hit this, and the user may briefly see one tab's
+  HUD freeze before the close. Worth tightening, not urgent.
 
 **Files:** [src/server/game-do/fetch.ts](../src/server/game-do/fetch.ts),
 [src/server/game-do/http-handlers.ts](../src/server/game-do/http-handlers.ts),
 [src/server/protocol.ts](../src/server/protocol.ts),
 [src/server/game-do/actions.ts](../src/server/game-do/actions.ts),
 [src/shared/types/domain.ts](../src/shared/types/domain.ts) (ErrorCode enum)
+
+### HEAD method 404s on JSON GET endpoints (P3)
+
+`HEAD /api/matches` and `HEAD /api/leaderboard` both return 404 even
+though `GET` returns 200 and the `OPTIONS` preflight on the same path
+advertises `Access-Control-Allow-Methods: GET, HEAD, OPTIONS`. Per
+RFC 9110, HEAD must be supported wherever GET is and must return the
+same headers without a body — the current state is a contract
+violation between the OPTIONS-advertised methods and the actual
+handler. CDNs, uptime monitors, and reverse proxies that probe with
+HEAD will mark the JSON endpoints as down. Cheap fix: route HEAD on
+the matches / leaderboard / metrics handlers through the same dispatch
+as GET, dropping the body in the response builder.
+
+Found via R1 surface scan (2026-04-26). Reproduce:
+```bash
+curl -sI https://delta-v.tre.systems/api/matches | head -1
+# HTTP/2 404
+curl -s -o /dev/null -w "%{http_code}\n" https://delta-v.tre.systems/api/matches
+# 200
+```
+
+**Files:** [src/server/index.ts](../src/server/index.ts) (route
+matchers around the `/api/matches` and `/api/leaderboard` handlers).
+
+### Inconsistent JSON error response shape across public endpoints (P3)
+
+Public endpoints return at least three different JSON error shapes
+plus one plain-text shape, and the `error` field oscillates between a
+machine-stable code and a human-readable message. An agent reading
+these programmatically can't generically detect "rate limited" or
+"invalid input" without per-endpoint parsing.
+
+| Endpoint | Shape on validation error |
+|---|---|
+| `/api/matches`, `/api/leaderboard` | `{error: "<code>", message: "<human>"}` |
+| `/create` | `{ok: false, error: "<code>", message: "<human>"}` |
+| `/api/agent-token`, `/api/claim-name`, `/api/player-recovery/issue` | `{ok: false, error: "<human message>"}` (no `message`, `error` is the human string) |
+| `/api/player-recovery/restore` | `{ok: false, error: "<code>"}` (no `message`) |
+| GET on POST-only routes (`/create` GET, `/api/claim-name` GET) | plain-text `Method Not Allowed` |
+
+Standardise on `{ok: false, error: "<code>", message: "<human>"}` (or
+the no-`ok` variant — pick one and migrate the other). Keep `error`
+as a stable enum (`invalid_query`, `invalid_payload`,
+`missing_scenario`, `invalid_recovery_code`, etc.) and let `message`
+carry the prose. Plain-text 405 should become a JSON
+`{ok: false, error: "method_not_allowed"}` for parity with the rest.
+
+Found via R2 validation probing (2026-04-26).
+
+**Files:** [src/server/index.ts](../src/server/index.ts) (response
+helpers around `tooManyRequests`, the create handler, the recovery
+handlers); [src/server/leaderboard/claim-route.ts](../src/server/leaderboard/claim-route.ts);
+[src/server/auth/agent-token.ts](../src/server/auth/agent-token.ts).
 
 ### Small Accessibility Polish (P3)
 
