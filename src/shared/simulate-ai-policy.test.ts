@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type SeedSweepRow,
+  summarizeSeedSweepRows,
+} from '../../scripts/duel-seed-sweep';
+import {
   buildScenarioScorecard,
   evaluateSimulationPolicies,
   type SimulationMetrics,
@@ -205,5 +209,75 @@ describe('evaluateSimulationPolicies', () => {
     ]);
 
     expect(evaluation.failed).toBe(true);
+  });
+});
+
+describe('summarizeSeedSweepRows', () => {
+  it('aggregates scorecard signals across paired seed rows', () => {
+    const rows: SeedSweepRow[] = [
+      {
+        ...metrics({
+          scenario: 'convoy',
+          totalGames: 10,
+          player0Wins: 4,
+          player1Wins: 4,
+          draws: 2,
+          totalTurns: 120,
+          reasons: {
+            'Landed on Venus with colonists!': 3,
+            'Fleet eliminated!': 5,
+            timeout: 2,
+          },
+          failureCounters: {
+            invalidActions: 0,
+            invalidActionPhases: {},
+            fuelStalls: 20,
+            passengerTransferMistakes: 1,
+          },
+        }),
+        baseSeed: 0,
+        p0DecidedPct: 50,
+        avgTurns: 12,
+      },
+      {
+        ...metrics({
+          scenario: 'convoy',
+          totalGames: 10,
+          player0Wins: 6,
+          player1Wins: 4,
+          draws: 0,
+          totalTurns: 80,
+          reasons: {
+            'Landed on Venus with colonists!': 7,
+            'Fleet eliminated!': 3,
+          },
+          failureCounters: {
+            invalidActions: 1,
+            invalidActionPhases: { astrogation: 1 },
+            fuelStalls: 10,
+            passengerTransferMistakes: 3,
+          },
+        }),
+        baseSeed: 1,
+        p0DecidedPct: 60,
+        avgTurns: 8,
+      },
+    ];
+
+    expect(summarizeSeedSweepRows(rows)).toMatchObject({
+      seedCount: 2,
+      avgTurnsMean: 10,
+      avgTurnsMin: 8,
+      avgTurnsMax: 12,
+      meanP0DecidedPct: 55,
+      meanObjectiveShare: 0.5,
+      meanFleetEliminationShare: 0.4,
+      meanTimeoutShare: 0.1,
+      meanFuelStallsPerGame: 1.5,
+      meanPassengerDeliveryShare: 0.5,
+      meanInvalidActionShare: 0.05,
+      meanPassengerTransferMistakesPerGame: 0.2,
+      totalCrashes: 0,
+    });
   });
 });

@@ -15,6 +15,71 @@ import { runSimulation, type SimulationMetrics } from './simulate-ai';
 
 const defaultIterations = 40;
 
+export type SeedSweepRow = SimulationMetrics & {
+  baseSeed: number;
+  p0DecidedPct: number | null;
+  avgTurns: number;
+};
+
+export type SeedSweepSummary = {
+  seedCount: number;
+  avgTurnsMean: number;
+  avgTurnsMin: number;
+  avgTurnsMax: number;
+  meanP0DecidedPct: number | null;
+  meanObjectiveShare: number;
+  meanFleetEliminationShare: number;
+  meanTimeoutShare: number;
+  meanFuelStallsPerGame: number;
+  meanPassengerDeliveryShare: number;
+  meanGrandTourCompletionShare: number;
+  meanInvalidActionShare: number;
+  meanPassengerTransferMistakesPerGame: number;
+  totalCrashes: number;
+};
+
+export const summarizeSeedSweepRows = (
+  rows: readonly SeedSweepRow[],
+): SeedSweepSummary => {
+  if (rows.length === 0) {
+    throw new Error('Cannot summarize an empty seed sweep.');
+  }
+
+  const avgTurns = rows.map((r) => r.avgTurns);
+  const decidedRates = rows
+    .map((r) => r.p0DecidedPct)
+    .filter((x): x is number => x !== null);
+  const mean = (values: readonly number[]): number =>
+    values.reduce((sum, value) => sum + value, 0) / values.length;
+
+  return {
+    seedCount: rows.length,
+    avgTurnsMean: mean(avgTurns),
+    avgTurnsMin: Math.min(...avgTurns),
+    avgTurnsMax: Math.max(...avgTurns),
+    meanP0DecidedPct: decidedRates.length > 0 ? mean(decidedRates) : null,
+    meanObjectiveShare: mean(rows.map((r) => r.scorecard.objectiveShare)),
+    meanFleetEliminationShare: mean(
+      rows.map((r) => r.scorecard.fleetEliminationShare),
+    ),
+    meanTimeoutShare: mean(rows.map((r) => r.scorecard.timeoutShare)),
+    meanFuelStallsPerGame: mean(rows.map((r) => r.scorecard.fuelStallsPerGame)),
+    meanPassengerDeliveryShare: mean(
+      rows.map((r) => r.scorecard.passengerDeliveryShare),
+    ),
+    meanGrandTourCompletionShare: mean(
+      rows.map((r) => r.scorecard.grandTourCompletionShare),
+    ),
+    meanInvalidActionShare: mean(
+      rows.map((r) => r.scorecard.invalidActionShare),
+    ),
+    meanPassengerTransferMistakesPerGame: mean(
+      rows.map((r) => r.scorecard.passengerTransferMistakesPerGame),
+    ),
+    totalCrashes: rows.reduce((sum, r) => sum + r.crashes, 0),
+  };
+};
+
 const parseSeeds = (raw: string | undefined): number[] => {
   if (!raw?.trim()) return [];
   return raw
@@ -80,13 +145,7 @@ const main = async () => {
     process.exit(1);
   }
 
-  const rows: Array<
-    SimulationMetrics & {
-      baseSeed: number;
-      p0DecidedPct: number | null;
-      avgTurns: number;
-    }
-  > = [];
+  const rows: SeedSweepRow[] = [];
 
   for (const baseSeed of seeds) {
     const metrics = await runSimulation(scenario, iterations, {
@@ -113,12 +172,15 @@ const main = async () => {
   }
 
   if (jsonOut) {
+    const summary = summarizeSeedSweepRows(rows);
+
     console.log(
       JSON.stringify(
         {
           scenario,
           iterations,
           seeds,
+          summary,
           rows: rows.map((r) => ({
             baseSeed: r.baseSeed,
             totalGames: r.totalGames,
@@ -173,39 +235,20 @@ const main = async () => {
     '`obj%`, `elim%`, `timeout%`, and `stall/g` come from the scenario scorecard.',
   );
 
-  const avgs = rows.map((r) => r.avgTurns);
-  const minTurn = Math.min(...avgs);
-  const maxTurn = Math.max(...avgs);
-  const meanTurn = avgs.reduce((a, b) => a + b, 0) / avgs.length;
-  const decidedRates = rows
-    .map((r) => r.p0DecidedPct)
-    .filter((x): x is number => x !== null);
-  const meanP0Decided =
-    decidedRates.length > 0
-      ? decidedRates.reduce((a, b) => a + b, 0) / decidedRates.length
-      : null;
-  const meanObjectiveShare =
-    rows.reduce((sum, r) => sum + r.scorecard.objectiveShare, 0) / rows.length;
-  const meanEliminationShare =
-    rows.reduce((sum, r) => sum + r.scorecard.fleetEliminationShare, 0) /
-    rows.length;
-  const meanFuelStallsPerGame =
-    rows.reduce((sum, r) => sum + r.scorecard.fuelStallsPerGame, 0) /
-    rows.length;
+  const summary = summarizeSeedSweepRows(rows);
 
   console.log(
-    `\nAcross ${rows.length} base seeds: avg turns mean ${meanTurn.toFixed(1)} (min ${minTurn.toFixed(1)}, max ${maxTurn.toFixed(1)})` +
-      (meanP0Decided !== null
-        ? `; mean P0/decided ${meanP0Decided.toFixed(1)}%`
+    `\nAcross ${summary.seedCount} base seeds: avg turns mean ${summary.avgTurnsMean.toFixed(1)} (min ${summary.avgTurnsMin.toFixed(1)}, max ${summary.avgTurnsMax.toFixed(1)})` +
+      (summary.meanP0DecidedPct !== null
+        ? `; mean P0/decided ${summary.meanP0DecidedPct.toFixed(1)}%`
         : '') +
-      `; mean objective ${(meanObjectiveShare * 100).toFixed(1)}%` +
-      `; mean elimination ${(meanEliminationShare * 100).toFixed(1)}%` +
-      `; mean stalls/game ${meanFuelStallsPerGame.toFixed(1)}`,
+      `; mean objective ${(summary.meanObjectiveShare * 100).toFixed(1)}%` +
+      `; mean elimination ${(summary.meanFleetEliminationShare * 100).toFixed(1)}%` +
+      `; mean stalls/game ${summary.meanFuelStallsPerGame.toFixed(1)}`,
   );
 
-  const totalCrashes = rows.reduce((s, r) => s + r.crashes, 0);
-  if (totalCrashes > 0) {
-    console.error(`\nEngine crashes (non-zero): ${totalCrashes}`);
+  if (summary.totalCrashes > 0) {
+    console.error(`\nEngine crashes (non-zero): ${summary.totalCrashes}`);
     process.exitCode = 1;
   }
 };
