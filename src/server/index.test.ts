@@ -431,6 +431,28 @@ describe('server index worker', () => {
     );
   });
 
+  it('answers HEAD on read endpoints with the GET status and no body (RFC 9110)', async () => {
+    // Pre-2026-04-26 the GET-only matchers fell through to the static
+    // asset 404 fallback for HEAD probes — even though OPTIONS preflight
+    // advertised `Access-Control-Allow-Methods: GET, HEAD, OPTIONS`.
+    // Uptime monitors and CDN intermediaries that probe with HEAD then
+    // marked the JSON endpoints down despite the route being healthy.
+    const { env } = createEnv();
+
+    const headHealthz = await worker.fetch(
+      new Request('https://delta-v.test/healthz', { method: 'HEAD' }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+    expect(headHealthz.status).toBe(200);
+    // HEAD body must be empty per RFC 9110.
+    expect(await headHealthz.text()).toBe('');
+    // ...but the headers should mirror GET's content-bearing response.
+    expect(headHealthz.headers.get('Content-Security-Policy')).toContain(
+      "default-src 'self'",
+    );
+  });
+
   it('does not add wildcard CORS to non-public write endpoints', async () => {
     const { env } = createEnv();
 
