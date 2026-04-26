@@ -199,6 +199,7 @@ describe('UIManager', () => {
   });
 
   afterEach(() => {
+    document.body.className = '';
     vi.restoreAllMocks();
   });
 
@@ -241,6 +242,7 @@ describe('UIManager', () => {
     expect(menu.hasAttribute('hidden')).toBe(false);
     expect(hud.hasAttribute('hidden')).toBe(true);
     expect(gameOver.hasAttribute('hidden')).toBe(true);
+    expect(document.body.classList.contains('ui-mode-menu')).toBe(true);
   });
 
   it('shows HUD when interaction mode is astrogation', () => {
@@ -256,6 +258,7 @@ describe('UIManager', () => {
     expect(menuPlaying.getAttribute('aria-hidden')).toBe('true');
     expect(shipList.style.display).toBe('flex');
     expect(shipList.hasAttribute('hidden')).toBe(false);
+    expect(document.body.classList.contains('ui-mode-menu')).toBe(false);
   });
 
   it('shows waiting screen when interaction mode is waiting', () => {

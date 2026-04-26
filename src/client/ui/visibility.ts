@@ -17,6 +17,8 @@ export const applyUIVisibility = (
 ): void => {
   const v = buildScreenVisibility(mode);
 
+  document.body.classList.toggle('ui-mode-menu', mode === 'menu');
+
   visible(elements.menuEl, v.menu !== 'none', v.menu);
   visible(elements.scenarioEl, v.scenario !== 'none', v.scenario);
   visible(elements.waitingEl, v.waiting !== 'none', v.waiting);

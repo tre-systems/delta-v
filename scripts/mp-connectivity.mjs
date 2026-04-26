@@ -17,11 +17,15 @@
 //   node scripts/mp-connectivity.mjs [base-url]
 //   node scripts/mp-connectivity.mjs https://delta-v.tre.systems
 //
-// Exit status: 0 if replacement closed the prior socket within the timeout,
-// 1 otherwise.
+// Exit status: 0 if replacement notifies and closes the prior socket within
+// the timeout, 1 otherwise.
+
+import WebSocket from 'ws';
 
 const DEFAULT_BASE = 'http://localhost:8787';
 const REPLACE_TIMEOUT_MS = 8000;
+const REPLACED_CODE = 'SESSION_REPLACED';
+const REPLACED_CLOSE_REASON = 'Replaced by new connection';
 
 const baseHttp = (process.argv[2] ?? DEFAULT_BASE).replace(/\/$/, '');
 const baseWs = baseHttp.replace(/^http/, 'ws');
@@ -29,6 +33,20 @@ const baseWs = baseHttp.replace(/^http/, 'ws');
 const log = (...parts) => console.log(`[mp-connectivity]`, ...parts);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const parseJsonFrame = (data) => {
+  const text =
+    typeof data === 'string'
+      ? data
+      : data instanceof Buffer
+        ? data.toString('utf8')
+        : String(data ?? '');
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
 
 const createRoom = async () => {
   const res = await fetch(`${baseHttp}/create`, {
@@ -53,12 +71,7 @@ const waitForWelcome = (ws) =>
       5000,
     );
     ws.addEventListener('message', (ev) => {
-      let parsed;
-      try {
-        parsed = JSON.parse(typeof ev.data === 'string' ? ev.data : '');
-      } catch {
-        return;
-      }
+      const parsed = parseJsonFrame(ev.data);
       if (parsed?.type === 'welcome' && typeof parsed.playerToken === 'string') {
         clearTimeout(timer);
         resolve(parsed.playerToken);
@@ -98,11 +111,30 @@ const openSocket = (code, playerToken) =>
     });
   });
 
-const watchClose = (ws) =>
+const watchReplacementOutcome = (ws) =>
   new Promise((resolve) => {
     const start = Date.now();
+    let replacementFrame = null;
+
+    ws.addEventListener('message', (ev) => {
+      const parsed = parseJsonFrame(ev.data);
+      if (parsed?.type === 'error' && parsed.code === REPLACED_CODE) {
+        replacementFrame = {
+          code: parsed.code,
+          message:
+            typeof parsed.message === 'string' ? parsed.message : undefined,
+          elapsedMs: Date.now() - start,
+        };
+      }
+    });
+
     ws.addEventListener('close', (ev) => {
-      resolve({ code: ev.code, reason: ev.reason, elapsedMs: Date.now() - start });
+      resolve({
+        replacementFrame,
+        closeCode: ev.code,
+        closeReason: ev.reason,
+        elapsedMs: Date.now() - start,
+      });
     });
   });
 
@@ -129,16 +161,16 @@ const main = async () => {
   log(`captured playerToken (len=${playerToken.length})`);
 
   // Now race a second socket reusing the same token. The DO is expected to
-  // close socket A with code 1000.
-  const closeWatcher = watchClose(initialWs);
+  // send an explicit SESSION_REPLACED frame, then close socket A with code 1000.
+  const replacementWatcher = watchReplacementOutcome(initialWs);
 
   const replacementWs = await openSocket(code, playerToken);
   log(`socket B opened with the same playerToken`);
 
   const closeOutcome = await Promise.race([
-    closeWatcher.then((info) => ({ kind: 'closed', ...info })),
+    replacementWatcher.then((info) => ({ kind: 'replaced', ...info })),
     sleep(REPLACE_TIMEOUT_MS).then(() => ({
-      kind: 'still_open',
+      kind: 'timed_out',
       readyState: initialWs.readyState,
     })),
   ]);
@@ -147,19 +179,34 @@ const main = async () => {
   try { replacementWs.close(); } catch {}
   try { initialWs.close(); } catch {}
 
-  if (closeOutcome.kind === 'closed') {
-    log(`PASS — socket A closed in ${closeOutcome.elapsedMs}ms`);
-    log(`      code=${closeOutcome.code} reason=${JSON.stringify(closeOutcome.reason)}`);
-    if (closeOutcome.code !== 1000) {
-      log(`      WARNING: expected code 1000, got ${closeOutcome.code}`);
+  if (closeOutcome.kind === 'replaced') {
+    log(`socket A replacement frame: ${JSON.stringify(closeOutcome.replacementFrame)}`);
+    log(`socket A closed in ${closeOutcome.elapsedMs}ms`);
+    log(
+      `      code=${closeOutcome.closeCode} reason=${JSON.stringify(closeOutcome.closeReason)}`,
+    );
+    if (closeOutcome.replacementFrame?.code !== REPLACED_CODE) {
+      log(`FAIL — expected ${REPLACED_CODE} frame before close`);
       process.exit(1);
     }
+    if (closeOutcome.closeCode !== 1000) {
+      log(`FAIL — expected close code 1000, got ${closeOutcome.closeCode}`);
+      process.exit(1);
+    }
+    if (closeOutcome.closeReason !== REPLACED_CLOSE_REASON) {
+      log(
+        `FAIL — expected close reason ${JSON.stringify(REPLACED_CLOSE_REASON)}, got ${JSON.stringify(closeOutcome.closeReason)}`,
+      );
+      process.exit(1);
+    }
+    log(`PASS — socket A was explicitly replaced`);
     process.exit(0);
   }
 
-  log(`FAIL — socket A still open after ${REPLACE_TIMEOUT_MS}ms (readyState=${closeOutcome.readyState})`);
-  log(`       Socket A should have been closed by the DO. This matches the`);
-  log(`       backlog symptom. Re-run against production to triangulate.`);
+  log(
+    `FAIL — socket A did not finish replacement after ${REPLACE_TIMEOUT_MS}ms (readyState=${closeOutcome.readyState})`,
+  );
+  log(`       Expected ${REPLACED_CODE} followed by close code 1000.`);
   process.exit(1);
 };
 
