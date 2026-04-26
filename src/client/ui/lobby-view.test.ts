@@ -12,7 +12,19 @@ const installFixture = () => {
     <div id="menuOfflineBanner" hidden></div>
     <div class="menu-surface menu-surface-primary">
       <input id="playerNameInput" />
+      <button id="saveRecoveryCodeBtn">Save recovery code</button>
+      <button id="restoreCallsignBtn">Restore callsign</button>
       <button id="forgetCallsignBtn">Forget my callsign</button>
+      <div id="recoveryPanel" hidden>
+        <div id="recoveryCodeBlock" hidden>
+          <div id="recoveryCodeText"></div>
+          <button id="copyRecoveryCodeBtn">Copy code</button>
+        </div>
+        <div id="recoveryRestoreForm" hidden>
+          <input id="recoveryCodeInput" />
+          <button id="submitRecoveryCodeBtn">Restore</button>
+        </div>
+      </div>
       <div id="callsignStatus"></div>
       <button id="quickMatchBtn">Quick Match</button>
       <button id="singlePlayerBtn">Single Player</button>
@@ -716,9 +728,130 @@ describe('LobbyView', () => {
     expect(emit).toHaveBeenCalledWith({ type: 'quickMatch' });
   });
 
-  it('forgets the local callsign and clears local status without hitting the network', () => {
+  it('creates and copies a recovery code after claiming the callsign', async () => {
+    const setPlayerName = vi.fn((name: string) => name.trim());
+    const postClaimName = vi.fn(async () => ({
+      ok: true as const,
+      player: {
+        username: 'Pilot 1',
+        isAgent: false,
+        rating: 1500,
+        rd: 350,
+        gamesPlayed: 0,
+      },
+      renamed: false,
+    }));
+    const issueRecoveryCode = vi.fn(async () => ({
+      ok: true as const,
+      recoveryCode: 'dv1-ABCD-EFGH-JKLM-NPQR-STUV-WXYZ',
+    }));
+    const copyText = vi.fn(async () => {});
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName,
+      getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
+      postClaimName,
+      issueRecoveryCode,
+      copyText,
+    });
+
+    const playerNameInput = document.getElementById(
+      'playerNameInput',
+    ) as HTMLInputElement;
+    playerNameInput.value = '  Pilot 1  ';
+    document.getElementById('saveRecoveryCodeBtn')?.click();
+
+    await expect
+      .poll(() => document.getElementById('recoveryCodeText')?.textContent)
+      .toBe('dv1-ABCD-EFGH-JKLM-NPQR-STUV-WXYZ');
+    expect(setPlayerName).toHaveBeenCalledWith('  Pilot 1  ');
+    expect(postClaimName).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerKey: 'humankey12345678',
+        username: 'Pilot 1',
+      }),
+    );
+    expect(issueRecoveryCode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerKey: 'humankey12345678',
+      }),
+    );
+
+    document.getElementById('copyRecoveryCodeBtn')?.click();
+    await expect.poll(() => copyText.mock.calls.length).toBe(1);
+    expect(copyText).toHaveBeenCalledWith('dv1-ABCD-EFGH-JKLM-NPQR-STUV-WXYZ');
+  });
+
+  it('restores a callsign from a recovery code', async () => {
+    let currentName = 'Pilot 1';
+    const restorePlayerIdentity = vi.fn((profile: { username: string }) => {
+      currentName = profile.username;
+      return { username: profile.username };
+    });
+    const restoreRecoveryCode = vi.fn(async () => ({
+      ok: true as const,
+      profile: {
+        playerKey: 'human_restored-v1',
+        username: 'Zephyr',
+      },
+    }));
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => currentName,
+      setPlayerName: (name) => name.trim(),
+      getPlayerKey: () => 'human_restored-v1',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
+      restorePlayerIdentity,
+      restoreRecoveryCode,
+      postClaimName: async () => ({ ok: false as const, error: 'network' }),
+      fetchPlayerRank: async () => ({
+        ok: false as const,
+        error: 'not_found',
+      }),
+    });
+
+    document.getElementById('restoreCallsignBtn')?.click();
+    const recoveryInput = document.getElementById(
+      'recoveryCodeInput',
+    ) as HTMLInputElement;
+    recoveryInput.value = 'dv1-ABCD-EFGH-JKLM-NPQR-STUV-WXYZ';
+    document.getElementById('submitRecoveryCodeBtn')?.click();
+
+    await expect
+      .poll(
+        () =>
+          (document.getElementById('playerNameInput') as HTMLInputElement)
+            .value,
+      )
+      .toBe('Zephyr');
+    expect(restoreRecoveryCode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recoveryCode: 'dv1-ABCD-EFGH-JKLM-NPQR-STUV-WXYZ',
+      }),
+    );
+    expect(restorePlayerIdentity).toHaveBeenCalledWith({
+      playerKey: 'human_restored-v1',
+      username: 'Zephyr',
+    });
+    expect(document.getElementById('callsignStatus')?.textContent).toContain(
+      'Restored as Zephyr',
+    );
+  });
+
+  it('forgets the local callsign after revoking recovery', async () => {
     const resetPlayerIdentity = vi.fn(() => ({ username: 'Pilot ABC' }));
     const postClaimName = vi.fn();
+    const revokeRecoveryCode = vi.fn(async () => ({ ok: true as const }));
     createLobbyView({
       emit: vi.fn(),
       showMenu: vi.fn(),
@@ -730,11 +863,17 @@ describe('LobbyView', () => {
       getPlayerKey: () => 'humankey12345678',
       resetPlayerIdentity,
       postClaimName,
+      revokeRecoveryCode,
     });
 
     document.getElementById('forgetCallsignBtn')?.click();
 
-    expect(resetPlayerIdentity).toHaveBeenCalledTimes(1);
+    await expect.poll(() => resetPlayerIdentity.mock.calls.length).toBe(1);
+    expect(revokeRecoveryCode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerKey: 'humankey12345678',
+      }),
+    );
     expect(postClaimName).not.toHaveBeenCalled();
     expect(
       (document.getElementById('playerNameInput') as HTMLInputElement).value,

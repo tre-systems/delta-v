@@ -1,5 +1,6 @@
 import {
   buildDefaultUsername,
+  normalizePlayerKey,
   normalizeUsername,
   type PublicPlayerProfile,
 } from '../../shared/player';
@@ -14,6 +15,7 @@ import {
 export interface PlayerProfileService {
   getProfile: () => PublicPlayerProfile;
   setUsername: (username: string) => PublicPlayerProfile;
+  restoreProfile: (profile: PublicPlayerProfile) => PublicPlayerProfile;
   resetProfile: () => PublicPlayerProfile;
 }
 
@@ -76,6 +78,28 @@ export const createPlayerProfileService = (
       const saved = persistProfile({
         ...profile,
         username: nextUsername,
+        updatedAt: now(),
+      });
+      return {
+        playerKey: saved.playerKey,
+        username: saved.username,
+      };
+    },
+    restoreProfile: (profile) => {
+      const playerKey = normalizePlayerKey(profile.playerKey);
+      if (!playerKey) {
+        const current = ensureProfile();
+        return {
+          playerKey: current.playerKey,
+          username: current.username,
+        };
+      }
+
+      const saved = persistProfile({
+        playerKey,
+        username:
+          normalizeUsername(profile.username) ??
+          buildDefaultUsername(playerKey),
         updatedAt: now(),
       });
       return {
