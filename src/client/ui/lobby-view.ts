@@ -1,12 +1,21 @@
 import { CODE_LENGTH } from '../../shared/constants';
 import { SCENARIOS } from '../../shared/map-data';
-import { buildDefaultUsername } from '../../shared/player';
+import {
+  buildDefaultUsername,
+  type PublicPlayerProfile,
+} from '../../shared/player';
 import { byId, cls, hide, listen, setTrustedHTML, show, text } from '../dom';
 import { isClientFeatureEnabled } from '../feature-flags';
 import {
   type ClaimNameResult,
   fetchPlayerRank,
+  type IssueRecoveryCodeResult,
+  issueRecoveryCode,
   postClaimName,
+  type RestoreRecoveryCodeResult,
+  type RevokeRecoveryCodeResult,
+  restoreRecoveryCode,
+  revokeRecoveryCode,
 } from '../leaderboard/api';
 import { TOAST, toastJoinInvalidCode } from '../messages/toasts';
 import {
@@ -36,11 +45,17 @@ export interface LobbyViewDeps {
   setPlayerName: (name: string) => string;
   getPlayerKey: () => string;
   resetPlayerIdentity: () => { username: string };
+  restorePlayerIdentity?: (profile: PublicPlayerProfile) => {
+    username: string;
+  };
   copyText?: (text: string) => Promise<void> | undefined;
   // Optional network boundary — tests pass a stub so the lobby doesn't
   // hit the real /api/claim-name route.
   postClaimName?: typeof postClaimName;
   fetchPlayerRank?: typeof fetchPlayerRank;
+  issueRecoveryCode?: typeof issueRecoveryCode;
+  restoreRecoveryCode?: typeof restoreRecoveryCode;
+  revokeRecoveryCode?: typeof revokeRecoveryCode;
   /**
    * Reactive online/offline state. When `false`, network-dependent CTAs
    * (Quick Match, Create Private, Join, Leaderboard, Recent Matches,
@@ -85,6 +100,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   });
   const copyButtonTextSignal = signal('Copy Link');
   const copySpectateTextSignal = signal('Copy Observer Link (view-only)');
+  const recoveryBusySignal = signal(false);
   const queueElapsedTick = signal(0);
   const defaultFetch = globalThis.fetch.bind(globalThis);
   const postClaimImpl = deps.postClaimName ?? postClaimName;
@@ -93,12 +109,41 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     username: string;
   }) => Promise<ClaimNameResult> = (opts) =>
     postClaimImpl({ ...opts, fetchImpl: defaultFetch });
+  const issueRecoveryImpl = deps.issueRecoveryCode ?? issueRecoveryCode;
+  const issueRecovery: (opts: {
+    playerKey: string;
+  }) => Promise<IssueRecoveryCodeResult> = (opts) =>
+    issueRecoveryImpl({ ...opts, fetchImpl: defaultFetch });
+  const restoreRecoveryImpl = deps.restoreRecoveryCode ?? restoreRecoveryCode;
+  const restoreRecovery: (opts: {
+    recoveryCode: string;
+  }) => Promise<RestoreRecoveryCodeResult> = (opts) =>
+    restoreRecoveryImpl({ ...opts, fetchImpl: defaultFetch });
+  const revokeRecoveryImpl = deps.revokeRecoveryCode ?? revokeRecoveryCode;
+  const revokeRecovery: (opts: {
+    playerKey: string;
+  }) => Promise<RevokeRecoveryCodeResult> = (opts) =>
+    revokeRecoveryImpl({ ...opts, fetchImpl: defaultFetch });
+  const restorePlayerIdentity =
+    deps.restorePlayerIdentity ??
+    ((profile: PublicPlayerProfile) => ({ username: profile.username }));
 
   const createBtn = byId<HTMLButtonElement>('createBtn');
   const quickMatchBtn = byId<HTMLButtonElement>('quickMatchBtn');
   const singlePlayerBtn = byId('singlePlayerBtn');
   const playerNameInput = byId<HTMLInputElement>('playerNameInput');
+  const saveRecoveryCodeBtn = byId<HTMLButtonElement>('saveRecoveryCodeBtn');
+  const restoreCallsignBtn = byId<HTMLButtonElement>('restoreCallsignBtn');
   const forgetCallsignBtn = byId<HTMLButtonElement>('forgetCallsignBtn');
+  const recoveryPanel = byId<HTMLElement>('recoveryPanel');
+  const recoveryCodeBlock = byId<HTMLElement>('recoveryCodeBlock');
+  const recoveryCodeText = byId<HTMLElement>('recoveryCodeText');
+  const copyRecoveryCodeBtn = byId<HTMLButtonElement>('copyRecoveryCodeBtn');
+  const recoveryRestoreForm = byId<HTMLElement>('recoveryRestoreForm');
+  const recoveryCodeInput = byId<HTMLInputElement>('recoveryCodeInput');
+  const submitRecoveryCodeBtn = byId<HTMLButtonElement>(
+    'submitRecoveryCodeBtn',
+  );
   const backBtn = byId('backBtn');
   const scenarioListEl = byId('scenarioList');
   const difficultyButtons = Array.from(
@@ -315,12 +360,6 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       deps.toggleHelpOverlay();
     });
 
-    listen(forgetCallsignBtn, 'click', () => {
-      const profile = deps.resetPlayerIdentity();
-      playerNameInput.value = profile.username;
-      setCallsignStatus('Local callsign cleared on this device.', 'info');
-    });
-
     listen(createBtn, 'click', () => {
       deps.showScenarioSelect();
     });
@@ -459,6 +498,139 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       }
     };
 
+    const hideRecoveryPanel = (): void => {
+      hide(recoveryPanel);
+      hide(recoveryCodeBlock);
+      hide(recoveryRestoreForm);
+    };
+
+    const showRecoveryCode = (recoveryCode: string): void => {
+      text(recoveryCodeText, recoveryCode);
+      show(recoveryPanel);
+      show(recoveryCodeBlock);
+      hide(recoveryRestoreForm);
+    };
+
+    const showRestoreForm = (): void => {
+      recoveryCodeInput.value = '';
+      show(recoveryPanel);
+      hide(recoveryCodeBlock);
+      show(recoveryRestoreForm);
+      recoveryCodeInput.focus();
+    };
+
+    const mapIssueRecoveryError = (
+      result: Exclude<IssueRecoveryCodeResult, { ok: true }>,
+    ): string => {
+      if (result.error === 'not_claimed') {
+        return 'Claim callsign before saving a recovery code.';
+      }
+      if (result.error === 'rate_limited') {
+        return 'Too many recovery attempts — try again in a minute.';
+      }
+      if (result.error === 'network' || result.error === 'unavailable') {
+        return 'Recovery service unavailable — try again online.';
+      }
+      return 'Could not create a recovery code.';
+    };
+
+    const mapRestoreRecoveryError = (
+      result: Exclude<RestoreRecoveryCodeResult, { ok: true }>,
+    ): string => {
+      if (result.error === 'invalid_code') {
+        return 'Invalid recovery code.';
+      }
+      if (result.error === 'not_found') {
+        return 'Recovery code not found.';
+      }
+      if (result.error === 'rate_limited') {
+        return 'Too many recovery attempts — try again in a minute.';
+      }
+      if (result.error === 'network' || result.error === 'unavailable') {
+        return 'Recovery service unavailable — try again online.';
+      }
+      return 'Could not restore callsign.';
+    };
+
+    const claimCurrentNameForRecovery = async (): Promise<boolean> => {
+      const normalised = deps.setPlayerName(playerNameInput.value);
+      playerNameInput.value = normalised;
+      const result = await requestClaim(postClaim);
+      if (result.ok) {
+        return true;
+      }
+      applyClaimResult(result);
+      return false;
+    };
+
+    const createRecoveryCode = async (): Promise<void> => {
+      recoveryBusySignal.value = true;
+      try {
+        const claimed = await claimCurrentNameForRecovery();
+        if (!claimed) {
+          return;
+        }
+
+        setCallsignStatus('Creating recovery code…', 'info');
+        const result = await issueRecovery({ playerKey: deps.getPlayerKey() });
+        if (result.ok) {
+          showRecoveryCode(result.recoveryCode);
+          setCallsignStatus('Recovery code ready. Save it now.', 'success');
+        } else {
+          setCallsignStatus(mapIssueRecoveryError(result), 'error');
+        }
+      } finally {
+        recoveryBusySignal.value = false;
+      }
+    };
+
+    const restoreCallsign = async (): Promise<void> => {
+      recoveryBusySignal.value = true;
+      try {
+        setCallsignStatus('Restoring callsign…', 'info');
+        const result = await restoreRecovery({
+          recoveryCode: recoveryCodeInput.value,
+        });
+        if (!result.ok) {
+          setCallsignStatus(mapRestoreRecoveryError(result), 'error');
+          return;
+        }
+
+        const profile = restorePlayerIdentity(result.profile);
+        playerNameInput.value = profile.username;
+        recoveryCodeInput.value = '';
+        hideRecoveryPanel();
+        setCallsignStatus(`Restored as ${profile.username}`, 'success');
+        refreshRank();
+      } finally {
+        recoveryBusySignal.value = false;
+      }
+    };
+
+    const forgetCallsign = async (): Promise<void> => {
+      recoveryBusySignal.value = true;
+      const playerKey = deps.getPlayerKey();
+      let revokeFailed = false;
+      try {
+        setCallsignStatus('Forgetting callsign…', 'info');
+        const result = await revokeRecovery({ playerKey });
+        revokeFailed = !result.ok;
+      } catch {
+        revokeFailed = true;
+      } finally {
+        const profile = deps.resetPlayerIdentity();
+        playerNameInput.value = profile.username;
+        hideRecoveryPanel();
+        recoveryBusySignal.value = false;
+        setCallsignStatus(
+          revokeFailed
+            ? 'Local callsign cleared. Recovery revoke could not be confirmed.'
+            : 'Local callsign cleared on this device.',
+          revokeFailed ? 'error' : 'info',
+        );
+      }
+    };
+
     const runClaim = (
       postClaim: (opts: {
         playerKey: string;
@@ -506,6 +678,40 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         playerNameInput.blur();
       }
     });
+
+    listen(saveRecoveryCodeBtn, 'click', () => {
+      void createRecoveryCode();
+    });
+
+    listen(restoreCallsignBtn, 'click', () => {
+      showRestoreForm();
+    });
+
+    listen(submitRecoveryCodeBtn, 'click', () => {
+      void restoreCallsign();
+    });
+
+    listen(recoveryCodeInput, 'keydown', (event) => {
+      if ((event as KeyboardEvent).key === 'Enter') {
+        void restoreCallsign();
+      }
+    });
+
+    listen(copyRecoveryCodeBtn, 'click', () => {
+      const code = recoveryCodeText.textContent ?? '';
+      const copyText =
+        deps.copyText ??
+        ((text: string) => navigator.clipboard?.writeText(text));
+      void copyText(code)
+        ?.then(() => setCallsignStatus('Recovery code copied.', 'success'))
+        .catch(() => {});
+    });
+
+    listen(forgetCallsignBtn, 'click', () => {
+      void forgetCallsign();
+    });
+
+    hideRecoveryPanel();
 
     updateJoinButtonState();
 
@@ -556,11 +762,18 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       const loadingKind = loadingSignal.value;
       const loading = loadingKind !== null;
       const online = deps.onlineSignal?.value ?? true;
+      const recoveryBusy = recoveryBusySignal.value;
       createBtn.disabled = loading || !online;
       quickMatchBtn.disabled = loading || !online;
       codeInputEl.disabled = loading || !online;
       joinBtn.disabled =
         loading || !online || !isJoinInputValid(codeInputEl.value);
+      saveRecoveryCodeBtn.disabled = loading || !online || recoveryBusy;
+      restoreCallsignBtn.disabled = loading || !online || recoveryBusy;
+      forgetCallsignBtn.disabled = loading || !online || recoveryBusy;
+      recoveryCodeInput.disabled = loading || !online || recoveryBusy;
+      submitRecoveryCodeBtn.disabled = loading || !online || recoveryBusy;
+      copyRecoveryCodeBtn.disabled = loading || !online || recoveryBusy;
       text(
         createBtn,
         loadingKind === 'create' ? 'CREATING...' : 'Create Private Match',

@@ -17,6 +17,11 @@ import {
 import { handleClaimName } from './leaderboard/claim-route';
 import { handlePlayerRank } from './leaderboard/player-rank';
 import { handleLeaderboardQuery } from './leaderboard/query-route';
+import {
+  handlePlayerRecoveryIssue,
+  handlePlayerRecoveryRestore,
+  handlePlayerRecoveryRevoke,
+} from './leaderboard/recovery-route';
 import { handleLiveMatchesList } from './live-matches-list';
 import { LiveRegistryDO } from './live-registry-do';
 import { handleMatchesList } from './matches-list';
@@ -643,6 +648,29 @@ export default {
           }
         }
         return handleClaimName(request, env);
+      }
+
+      if (url.pathname.startsWith('/api/player-recovery/')) {
+        if (!shouldBypassIpRateLimits(request, env)) {
+          const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+          const ipHash = await hashIp(ip, env);
+          if (await isCreateRateLimited(env, ipHash)) {
+            return tooManyRequests();
+          }
+        }
+        if (url.pathname === '/api/player-recovery/issue') {
+          return handlePlayerRecoveryIssue(request, env);
+        }
+        if (url.pathname === '/api/player-recovery/restore') {
+          return handlePlayerRecoveryRestore(request, env);
+        }
+        if (url.pathname === '/api/player-recovery/revoke') {
+          return handlePlayerRecoveryRevoke(request, env);
+        }
+        return Response.json(
+          { ok: false, error: 'recovery_route_not_found' },
+          { status: 404 },
+        );
       }
 
       if (url.pathname === '/api/leaderboard' && request.method === 'GET') {

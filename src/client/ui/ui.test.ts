@@ -103,7 +103,20 @@ const installFixture = () => {
     <button id="createBtn"></button>
     <button id="singlePlayerBtn"></button>
     <input id="playerNameInput" />
+    <button id="saveRecoveryCodeBtn"></button>
+    <button id="restoreCallsignBtn"></button>
     <button id="forgetCallsignBtn"></button>
+    <div id="recoveryPanel" hidden>
+      <div id="recoveryCodeBlock" hidden>
+        <div id="recoveryCodeText"></div>
+        <button id="copyRecoveryCodeBtn"></button>
+      </div>
+      <div id="recoveryRestoreForm" hidden>
+        <input id="recoveryCodeInput" />
+        <button id="submitRecoveryCodeBtn"></button>
+      </div>
+    </div>
+    <div id="callsignStatus"></div>
     <button id="backBtn"></button>
     <button id="joinBtn"></button>
     <input id="codeInput" />
@@ -173,6 +186,7 @@ const createTestUIManager = () =>
         playerKey: 'playerkey2',
         username: 'Pilot ABC',
       }),
+      restoreProfile: (profile) => profile,
     },
     sessionTokens: {
       clearAllStoredPlayerTokens: vi.fn(),
