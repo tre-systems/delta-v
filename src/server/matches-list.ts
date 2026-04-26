@@ -15,6 +15,7 @@
 
 import { isValidScenario, type ScenarioKey } from '../shared/map-data';
 import type { Env } from './env';
+import { type JsonErrorBody, jsonErrorBody } from './json-errors';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -49,10 +50,7 @@ type MatchWinnerFilter = 0 | 1 | 'draw';
 type MatchStatusFilter = 'archived';
 type MatchesQueryError = {
   status: 400;
-  body: {
-    error: 'invalid_query';
-    message: string;
-  };
+  body: JsonErrorBody;
 };
 
 const isQueryError = (
@@ -88,19 +86,19 @@ const parseLimit = (raw: string | null): number | MatchesQueryError => {
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return {
       status: 400,
-      body: {
-        error: 'invalid_query',
-        message: 'Invalid limit. Expected a positive integer.',
-      },
+      body: jsonErrorBody(
+        'invalid_query',
+        'Invalid limit. Expected a positive integer.',
+      ),
     };
   }
   if (parsed > MAX_LIMIT) {
     return {
       status: 400,
-      body: {
-        error: 'invalid_query',
-        message: `Invalid limit: ${raw}. Maximum is ${MAX_LIMIT}.`,
-      },
+      body: jsonErrorBody(
+        'invalid_query',
+        `Invalid limit: ${raw}. Maximum is ${MAX_LIMIT}.`,
+      ),
     };
   }
   return parsed;
@@ -112,10 +110,10 @@ const parseBefore = (raw: string | null): number | null | MatchesQueryError => {
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return {
       status: 400,
-      body: {
-        error: 'invalid_query',
-        message: `Invalid before cursor: ${raw}. Expected a positive integer.`,
-      },
+      body: jsonErrorBody(
+        'invalid_query',
+        `Invalid before cursor: ${raw}. Expected a positive integer.`,
+      ),
     };
   }
   return parsed;
@@ -128,10 +126,10 @@ const parseStatus = (
   if (raw === 'archived') return 'archived';
   return {
     status: 400,
-    body: {
-      error: 'invalid_query',
-      message: `Invalid status filter: ${raw}. Expected archived or live.`,
-    },
+    body: jsonErrorBody(
+      'invalid_query',
+      `Invalid status filter: ${raw}. Expected archived or live.`,
+    ),
   };
 };
 
@@ -142,10 +140,7 @@ const parseScenario = (
   if (!isValidScenario(raw)) {
     return {
       status: 400,
-      body: {
-        error: 'invalid_query',
-        message: `Unknown scenario: ${raw}`,
-      },
+      body: jsonErrorBody('invalid_query', `Unknown scenario: ${raw}`),
     };
   }
   return raw;
@@ -160,10 +155,10 @@ const parseWinner = (
   if (raw === 'draw') return 'draw';
   return {
     status: 400,
-    body: {
-      error: 'invalid_query',
-      message: `Invalid winner filter: ${raw}. Expected 0, 1, or draw.`,
-    },
+    body: jsonErrorBody(
+      'invalid_query',
+      `Invalid winner filter: ${raw}. Expected 0, 1, or draw.`,
+    ),
   };
 };
 
@@ -190,10 +185,10 @@ const parseFilters = (
     if (!allowedParams.has(key)) {
       return {
         status: 400,
-        body: {
-          error: 'invalid_query',
-          message: `Unsupported query parameter: ${key}.`,
-        },
+        body: jsonErrorBody(
+          'invalid_query',
+          `Unsupported query parameter: ${key}.`,
+        ),
       };
     }
   }
@@ -201,10 +196,10 @@ const parseFilters = (
   if (url.searchParams.has('offset')) {
     return {
       status: 400,
-      body: {
-        error: 'invalid_query',
-        message: 'Unsupported query parameter: offset. Use before pagination.',
-      },
+      body: jsonErrorBody(
+        'invalid_query',
+        'Unsupported query parameter: offset. Use before pagination.',
+      ),
     };
   }
 

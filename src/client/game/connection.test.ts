@@ -8,6 +8,7 @@ import {
   findBaseHex,
   SCENARIOS,
 } from '../../shared/map-data';
+import { ErrorCode } from '../../shared/types/domain';
 import { TOAST } from '../messages/toasts';
 import { type ConnectionDeps, createConnectionManager } from './connection';
 
@@ -19,7 +20,7 @@ type FakeWebSocketInstance = {
   onerror: (() => void) | null;
   sent: string[];
   send: (payload: string) => void;
-  close: (ev?: Partial<CloseEvent>) => void;
+  close: (evOrCode?: Partial<CloseEvent> | number, reason?: string) => void;
 };
 
 type FakeWebSocketCtor = {
@@ -57,8 +58,13 @@ const createFakeWebSocketCtor = (): FakeWebSocketCtor => {
   };
   FakeWebSocket.prototype.close = function close(
     this: FakeWebSocketInstance,
-    ev?: Partial<CloseEvent>,
+    evOrCode?: Partial<CloseEvent> | number,
+    reason?: string,
   ) {
+    const ev =
+      typeof evOrCode === 'number'
+        ? { code: evOrCode, reason, wasClean: true }
+        : evOrCode;
     this.readyState = 3;
     const event = {
       code: ev?.code ?? 1000,
@@ -248,6 +254,56 @@ describe('game-client-connection', () => {
     expect(spies.setReconnectOverlayState).not.toHaveBeenCalled();
     expect(spies.showToast).not.toHaveBeenCalled();
     expect(spies.exitToMenu).not.toHaveBeenCalled();
+  });
+
+  it('closes locally without reconnecting when another tab replaces the session', () => {
+    const { deps, spies } = createDeps();
+    const manager = createConnectionManager(deps);
+
+    manager.connect('ABCDE');
+    manager.recordLatencySample(50);
+    const ws = FakeWebSocket.instances[0];
+
+    ws.onmessage?.({
+      data: JSON.stringify({
+        type: 'error',
+        code: ErrorCode.SESSION_REPLACED,
+        message: 'Connection replaced by a newer tab or device.',
+      }),
+    });
+
+    expect(manager.getWs()).toBeNull();
+    expect(ws.readyState).toBe(3);
+    expect(spies.handleMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'error',
+        code: ErrorCode.SESSION_REPLACED,
+      }),
+    );
+    expect(spies.trackEvent).toHaveBeenCalledWith('ws_session_replaced');
+    expect(spies.trackEvent).toHaveBeenCalledWith(
+      'ws_session_quality',
+      expect.objectContaining({ closeCode: 1000 }),
+    );
+    expect(spies.setReconnectAttempts).not.toHaveBeenCalled();
+    expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reconnect when the server close reason marks a replaced session', () => {
+    const { deps, spies } = createDeps();
+    const manager = createConnectionManager(deps);
+
+    manager.connect('ABCDE');
+    const ws = FakeWebSocket.instances[0];
+    ws.close({
+      code: 1000,
+      reason: 'Replaced by new connection',
+      wasClean: true,
+    });
+
+    expect(spies.trackEvent).toHaveBeenCalledWith('ws_session_replaced');
+    expect(spies.setReconnectAttempts).not.toHaveBeenCalled();
+    expect(spies.exitToMenu).toHaveBeenCalledTimes(1);
   });
 
   it('restarts ping without leaving duplicate intervals behind', () => {

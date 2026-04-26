@@ -2,6 +2,8 @@ import { MOVEMENT_ANIM_DURATION } from '../../shared/constants';
 import type { HexCoord } from '../../shared/hex';
 import type { OrdnanceMovement, ShipMovement } from '../../shared/types/domain';
 
+const MAX_TRAIL_POINTS_PER_ENTITY = 96;
+
 export interface AnimationState {
   movements: ShipMovement[];
   ordnanceMovements: OrdnanceMovement[];
@@ -44,7 +46,7 @@ const appendTrailPath = (
   const existing = trails.get(id);
 
   if (!existing) {
-    trails.set(id, [...path]);
+    trails.set(id, path.slice(-MAX_TRAIL_POINTS_PER_ENTITY));
     return;
   }
 
@@ -58,6 +60,10 @@ const appendTrailPath = (
 
   for (let i = start; i < path.length; i++) {
     existing.push(path[i]);
+  }
+
+  if (existing.length > MAX_TRAIL_POINTS_PER_ENTITY) {
+    existing.splice(0, existing.length - MAX_TRAIL_POINTS_PER_ENTITY);
   }
 };
 

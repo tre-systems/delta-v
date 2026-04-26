@@ -16,6 +16,7 @@
 
 import { isValidPlayerKey } from '../../shared/player';
 import type { Env } from '../env';
+import { jsonError } from '../json-errors';
 import { claimPlayerName, type PlayerRecord } from './player-store';
 import { validateUsername } from './username';
 
@@ -45,24 +46,16 @@ export const handleClaimName = async (
   env: Env,
 ): Promise<Response> => {
   if (request.method !== 'POST') {
-    return Response.json(
-      {
-        ok: false,
-        error: 'method_not_allowed',
-        message: 'Use POST on this endpoint.',
-      },
-      { status: 405, headers: { Allow: 'POST' } },
-    );
+    return jsonError(405, 'method_not_allowed', 'Use POST on this endpoint.', {
+      headers: { Allow: 'POST' },
+    });
   }
 
   let body: ClaimBody;
   try {
     body = (await request.json()) as ClaimBody;
   } catch {
-    return Response.json(
-      { ok: false, error: 'Invalid JSON body' },
-      { status: 400 },
-    );
+    return jsonError(400, 'invalid_json', 'Invalid JSON body.');
   }
 
   // Human keys use the shared playerKey format but must NOT claim the
@@ -70,38 +63,35 @@ export const handleClaimName = async (
   // flow, which writes is_agent=1. Keeping the split at the route
   // level guarantees the is_agent column matches the identity flow.
   if (!isValidPlayerKey(body.playerKey)) {
-    return Response.json(
-      {
-        ok: false,
-        error: 'playerKey must be 8-64 chars, alphanumeric plus _ or -',
-      },
-      { status: 400 },
+    return jsonError(
+      400,
+      'invalid_player_key',
+      'playerKey must be 8-64 chars, alphanumeric plus _ or -.',
     );
   }
   if (body.playerKey.startsWith('agent_')) {
-    return Response.json(
-      {
-        ok: false,
-        error:
-          'agent_-prefixed playerKeys claim names via POST /api/agent-token',
-      },
-      { status: 400 },
+    return jsonError(
+      400,
+      'agent_player_key_not_allowed',
+      'agent_-prefixed playerKeys claim names via POST /api/agent-token.',
     );
   }
 
   const check = validateUsername(body.username);
   if (!check.ok) {
     const status = check.error === 'reserved' ? 409 : 400;
-    return Response.json(
-      { ok: false, error: `username_${check.error}` },
-      { status },
+    return jsonError(
+      status,
+      `username_${check.error}`,
+      `Invalid username: ${check.error}.`,
     );
   }
 
   if (!env.DB) {
-    return Response.json(
-      { ok: false, error: 'leaderboard_unavailable' },
-      { status: 503 },
+    return jsonError(
+      503,
+      'leaderboard_unavailable',
+      'Leaderboard unavailable.',
     );
   }
 
@@ -113,7 +103,7 @@ export const handleClaimName = async (
     now: Date.now(),
   });
   if (!outcome.ok) {
-    return Response.json({ ok: false, error: 'name_taken' }, { status: 409 });
+    return jsonError(409, 'name_taken', 'Callsign is already taken.');
   }
 
   return Response.json(

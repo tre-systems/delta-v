@@ -431,6 +431,7 @@ const mapEngineErrorToActionRejectedReason = (
     case ErrorCode.ROOM_NOT_FOUND:
     case ErrorCode.ROOM_FULL:
     case ErrorCode.GAME_IN_PROGRESS:
+    case ErrorCode.SESSION_REPLACED:
       return null;
   }
 };
