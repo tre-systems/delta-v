@@ -25,15 +25,52 @@
     radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.06), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 22%);
   opacity: 0.9;
+  /* Gentle nebula breathing — different period from the dot drift below
+   * so the two layers never resync. Pure transform on a fixed element,
+   * no layout / paint cost. */
+  animation: menu-nebula-drift 96s ease-in-out infinite alternate;
+  will-change: transform;
 }
 
 #menu::after {
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.22) 0.7px, transparent 0.9px);
-  background-size: 24px 24px;
-  opacity: 0.08;
+    radial-gradient(circle, rgba(255, 255, 255, 0.22) 0.7px, transparent 0.9px),
+    radial-gradient(circle, rgba(122, 215, 255, 0.32) 0.9px, transparent 1.1px);
+  background-size: 24px 24px, 96px 96px;
+  background-position: 0 0, 12px 36px;
+  opacity: 0.16;
   -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.92), transparent 82%);
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.92), transparent 82%);
+  /* Two-layer parallax: the fine dust grid drifts slowly, the bigger
+   * cyan accent stars drift the opposite way at half the speed. The
+   * 192 s period is well below the threshold where periodic motion
+   * starts to feel like a flicker, so it reads as steady drift. */
+  animation: menu-star-drift 192s linear infinite;
+}
+
+@keyframes menu-nebula-drift {
+  0% {
+    transform: translate3d(-1.4%, -0.6%, 0) scale(1.02);
+  }
+  100% {
+    transform: translate3d(1.4%, 0.6%, 0) scale(1.04);
+  }
+}
+
+@keyframes menu-star-drift {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  100% {
+    background-position: 24px 24px, -96px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #menu::before,
+  #menu::after {
+    animation: none;
+  }
 }
 
 #menu .menu-content {
