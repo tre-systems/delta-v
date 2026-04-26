@@ -193,7 +193,9 @@
 
 .menu-profile-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0.55rem 0.75rem;
 }
 
 .menu-profile-clear {
@@ -217,6 +219,73 @@
   outline: 2px solid rgba(122, 215, 255, 0.35);
   outline-offset: 3px;
   border-radius: 6px;
+}
+
+.menu-profile-clear:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.menu-recovery {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.65rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.menu-recovery-block,
+.menu-recovery-form {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.menu-recovery-block {
+  flex-wrap: wrap;
+}
+
+.menu-recovery-code {
+  flex: 1 1 100%;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(122, 215, 255, 0.2);
+  background: rgba(5, 12, 23, 0.58);
+  color: #f2f7ff;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.menu-recovery-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(142, 176, 235, 0.18);
+  background: rgba(8, 16, 30, 0.84);
+  color: #f2f7ff;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  box-sizing: border-box;
+}
+
+.menu-recovery-input:focus-visible {
+  outline: none;
+  border-color: rgba(122, 215, 255, 0.52);
+  box-shadow: 0 0 0 3px rgba(122, 215, 255, 0.14);
+}
+
+.menu-recovery-warning {
+  flex: 1 1 100%;
+  margin: 0;
+  color: rgba(255, 197, 106, 0.9);
+  font-size: 0.74rem;
+  line-height: 1.35;
 }
 
 .menu-profile-status {
