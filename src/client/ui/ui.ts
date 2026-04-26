@@ -41,7 +41,7 @@ const isHudMode = (mode: InteractionMode): boolean => HUD_MODES.has(mode);
 export interface UIManagerDeps {
   playerProfile: Pick<
     PlayerProfileService,
-    'getProfile' | 'setUsername' | 'resetProfile'
+    'getProfile' | 'setUsername' | 'restoreProfile' | 'resetProfile'
   >;
   sessionTokens: Pick<SessionTokenService, 'clearAllStoredPlayerTokens'>;
   /** Reactive online/offline signal; when omitted the lobby treats the session as always-online. */
@@ -131,6 +131,11 @@ export const createUIManager = (deps: UIManagerDeps) => {
       deps.sessionTokens.clearAllStoredPlayerTokens();
       rotateAnonId();
       return deps.playerProfile.resetProfile();
+    },
+    restorePlayerIdentity: (profile) => {
+      deps.sessionTokens.clearAllStoredPlayerTokens();
+      rotateAnonId();
+      return deps.playerProfile.restoreProfile(profile);
     },
     onlineSignal: deps.onlineSignal,
   });

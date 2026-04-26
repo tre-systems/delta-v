@@ -96,7 +96,20 @@
           <label class="menu-profile-label" for="playerNameInput">Callsign</label>
           <input id="playerNameInput" class="menu-profile-input" maxlength="20" placeholder="Pilot" autocapitalize="words" spellcheck="false" aria-label="Callsign">
           <div class="menu-profile-actions">
-            <button id="forgetCallsignBtn" type="button" class="menu-profile-clear" hidden>Forget my callsign</button>
+            <button id="saveRecoveryCodeBtn" type="button" class="menu-profile-clear">Save recovery code</button>
+            <button id="restoreCallsignBtn" type="button" class="menu-profile-clear">Restore callsign</button>
+            <button id="forgetCallsignBtn" type="button" class="menu-profile-clear">Forget my callsign</button>
+          </div>
+          <div id="recoveryPanel" class="menu-recovery" hidden>
+            <div id="recoveryCodeBlock" class="menu-recovery-block" hidden>
+              <div id="recoveryCodeText" class="menu-recovery-code" aria-live="polite" aria-atomic="true"></div>
+              <button id="copyRecoveryCodeBtn" type="button" class="menu-profile-clear">Copy code</button>
+              <p class="menu-recovery-warning">Anyone with this code can use your callsign.</p>
+            </div>
+            <div id="recoveryRestoreForm" class="menu-recovery-form" hidden>
+              <input id="recoveryCodeInput" class="menu-recovery-input" placeholder="dv1-..." autocapitalize="characters" spellcheck="false" aria-label="Recovery code">
+              <button id="submitRecoveryCodeBtn" type="button" class="menu-profile-clear">Restore</button>
+            </div>
           </div>
           <div id="callsignStatus" class="menu-profile-status" role="status" aria-live="polite"></div>
         </div>
