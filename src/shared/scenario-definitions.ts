@@ -10,6 +10,7 @@ const SCENARIOS_INTERNAL = {
     description: '1v1 corvettes race to land on the ' + "opponent's world",
     lobbyMeta: {
       beginnerFriendly: true,
+      hook: 'Land on the enemy world first.',
       length: 'short',
       complexity: 'low',
       mechanics: ['1v1', 'Corvette start'],
@@ -50,6 +51,7 @@ const SCENARIOS_INTERNAL = {
     description:
       '3 pilgrim transports flee Terra ' + '— enforcers must stop them',
     lobbyMeta: {
+      hook: 'Hide the pilgrims and break north.',
       length: 'medium',
       complexity: 'high',
       mechanics: ['Asymmetric', 'Hidden cargo', 'Escape edge'],
@@ -115,6 +117,7 @@ const SCENARIOS_INTERNAL = {
       'A crowded transport flees Luna for Terra with corvette and frigate escorts ' +
       '— win only by landing survivors; a corsair tries to cut you off',
     lobbyMeta: {
+      hook: 'Get survivors from Luna to Terra.',
       length: 'medium',
       complexity: 'high',
       mechanics: ['Escort', 'Passengers', 'Asymmetric'],
@@ -174,6 +177,7 @@ const SCENARIOS_INTERNAL = {
       'Escort a liner with colonists (and tanker) from Mars to Venus ' +
       '— transfer passengers to safety; pirates intercept',
     lobbyMeta: {
+      hook: 'Move colonists through pirate interceptors.',
       length: 'medium',
       complexity: 'high',
       mechanics: ['Escort', 'Passengers', 'Logistics'],
@@ -242,6 +246,7 @@ const SCENARIOS_INTERNAL = {
       'Frigates face off across Mercury ' +
       '— use gravity to outmaneuver your opponent',
     lobbyMeta: {
+      hook: 'Outfly one frigate around Mercury.',
       length: 'short',
       complexity: 'medium',
       mechanics: ['1v1', 'Combat-heavy'],
@@ -297,6 +302,7 @@ const SCENARIOS_INTERNAL = {
     tags: ['Speed'],
     description: 'Packet ship races past a corvette ' + 'to reach Mars',
     lobbyMeta: {
+      hook: 'Slip a packet ship through the screen.',
       length: 'short',
       complexity: 'medium',
       mechanics: ['Asymmetric', 'Landing race'],
@@ -339,6 +345,7 @@ const SCENARIOS_INTERNAL = {
       'Build your fleet with MegaCredits ' +
       '— total war across the solar system',
     lobbyMeta: {
+      hook: 'Build an empire-scale fleet war.',
       length: 'long',
       complexity: 'high',
       mechanics: ['Fleet build', 'Logistics', 'Campaign-scale'],
@@ -378,6 +385,7 @@ const SCENARIOS_INTERNAL = {
     tags: ['Fleet'],
     description: 'Build your fleet and clash ' + '— Mars vs Venus',
     lobbyMeta: {
+      hook: 'Buy a battle line and force a decision.',
       length: 'long',
       complexity: 'high',
       mechanics: ['Fleet build', 'Combat-heavy'],
@@ -420,6 +428,7 @@ const SCENARIOS_INTERNAL = {
     description:
       'Race past every major body in the solar ' + 'system and return home',
     lobbyMeta: {
+      hook: 'Race every planet, then get home.',
       length: 'medium',
       complexity: 'medium',
       mechanics: ['No combat', 'Navigation race', 'Shared bases'],

@@ -162,38 +162,6 @@ The journey from "someone shared the URL" to "first burn plotted" is where
 players form their lasting impression. The items below are gaps surfaced by
 a 2026-04-26 deep-review pass.
 
-### Surface the Six Underplayed Scenarios (P2)
-
-The 2026-04-27 D1 audit (R20) showed six of nine scenarios are
-essentially undiscovered in real traffic. Distribution of decided
-matches across all of `match_archive`:
-
-| Scenario | matches | share |
-|---|---:|---:|
-| duel | 41 | 46 % |
-| biplanetary | 29 | 32 % |
-| blockade | 15 | 17 % |
-| convoy / escape / fleetAction / interplanetaryWar | 1 each | 1 % each |
-| **evacuation, grandTour** | **0** | **0 %** |
-
-So Evacuation and Grand Tour have *never* been played by a real
-player to completion, and four more have been tried once. Either the
-scenario picker doesn't show them prominently, the descriptions don't
-sell them, or players don't realise there are more options past Duel.
-
-Action: rework the scenario-select surface so every scenario gets an
-equally legible card with a one-line "what's the hook" tagline (e.g.
-"Race past every planet — Grand Tour", "Run colonists to Mars under
-fire — Convoy"). Optionally add a "Try a new scenario" nudge on the
-home screen for players whose `match_archive` plays are dominated by
-Duel + Biplanetary.
-
-**Files:** [static/index.html](../static/index.html) (scenario list
-markup), [src/client/ui/lobby-view.ts](../src/client/ui/lobby-view.ts)
-(scenario card rendering),
-[src/shared/scenario-definitions.ts](../src/shared/scenario-definitions.ts)
-(taglines).
-
 ### Prompt PWA Install After a Match (P3, triggered)
 
 The site already serves a manifest, icons, and a service worker, so
