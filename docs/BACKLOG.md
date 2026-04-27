@@ -63,29 +63,22 @@ named plans and ordered evaluation vectors so objective safety, carrier
 survival, fuel margin, landing setup, and combat posture are compared
 explicitly instead of fighting through unrelated bonuses.
 
-Concrete steps:
+Remaining concrete steps:
 
-1. Add `src/shared/ai/plans/` with small shared types:
-   `PlanIntent`, `PlanCandidate`, `PlanEvaluation`, and a deterministic
-   `comparePlanEvaluations` helper.
-2. Start with passenger scenarios only. Generate named candidates for
-   `deliverPassengers`, `preserveLandingLine`, `escortCarrier`,
-   `interceptPassengerCarrier`, `refuelAtReachableBase`, and
-   `postCarrierLossPursuit`.
-3. Evaluate candidates with the existing forward model first:
+1. Continue extracting passenger-specific astrogation branches into named
+   candidates, prioritizing `escortCarrier`, `interceptPassengerCarrier`, and
+   `refuelAtReachableBase`.
+2. Evaluate each new candidate with the existing forward model first:
    `computeCourse`, `planShortHorizonMovementToHex`,
    `estimateTurnsToTargetLanding`, and one-to-two-turn lookahead where the
    fixture proves it matters.
-4. Return the chosen intent and short rejection diagnostics from planning so
-   failure captures can record "why this plan won" and the top rejected
-   alternatives.
-5. Move passenger-specific branches out of `aiAstrogation` and `aiCombat`
-   behind the plan generator incrementally. Do not rewrite Grand Tour or fleet
-   combat until passenger fixtures show the pattern is stable.
-6. Update fixture assertions to prefer doctrine-level checks such as "chooses
-   preserveLandingLine" or "keeps escort with carrier" over exact burn
-   directions, except where a rules edge requires an exact order.
-7. Compare paired seed sweeps before and after each extraction. The first
+3. Keep moving passenger-specific branches out of `aiAstrogation` and
+   `aiCombat` behind plan generators incrementally. Do not rewrite Grand Tour
+   or fleet combat until passenger fixtures show the pattern is stable.
+4. Update fixture assertions to prefer doctrine-level checks such as "chooses
+   escortCarrier" or "keeps screen with carrier" over exact burn directions,
+   except where a rules edge requires an exact order.
+5. Compare paired seed sweeps before and after each extraction. The first
    target is to improve convoy / evacuation objective share or reduce
    fleet-elimination share without increasing invalid actions, fuel stalls, or
    timeout-heavy stalemates.
