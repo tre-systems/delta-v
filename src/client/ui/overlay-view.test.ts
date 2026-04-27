@@ -21,6 +21,7 @@ const installFixture = () => {
         <span id="replayMatchLabel"></span>
         <button id="replayMatchNextBtn"></button>
         <button id="replayToggleBtn"></button>
+        <button id="shareReplayBtn"></button>
         <div id="replayNav" hidden>
           <button id="replayStartBtn"></button>
           <button id="replayPrevBtn"></button>
@@ -256,6 +257,7 @@ describe('OverlayView', () => {
       playing: false,
       statusText: 'ABCDE-m1 • Turn 2',
       selectedGameId: 'ABCDE-m1',
+      shareUrl: 'http://localhost/?code=ABCDE&archivedReplay=ABCDE-m1',
       canSelectPrevMatch: false,
       canSelectNextMatch: true,
       canStart: false,

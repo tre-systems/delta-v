@@ -132,6 +132,7 @@ const createLocalGameDeps = (): LocalGameSessionDeps & {
       track('applyGameState')(gameState);
     },
     logScenarioBriefing: track('logScenarioBriefing'),
+    showScenarioBriefing: track('showScenarioBriefing'),
     setState: (clientState) => {
       track('setState')(clientState);
     },

@@ -118,14 +118,14 @@ const renderGameOverStats = (
     const scoreboard = el('div', { class: 'game-over-scoreboard' });
 
     for (const item of summaryItems) {
-      scoreboard.appendChild(
-        el(
-          'div',
-          { class: 'go-stat-pill' },
-          el('span', { class: 'go-stat-label', text: item.label }),
-          el('span', { class: 'go-stat-value', text: item.value }),
-        ),
+      const pill = el(
+        'div',
+        { class: 'go-stat-pill' },
+        el('span', { class: 'go-stat-label', text: item.label }),
+        el('span', { class: 'go-stat-value', text: item.value }),
       );
+      pill.dataset.tone = item.tone;
+      scoreboard.appendChild(pill);
     }
 
     container.appendChild(scoreboard);
@@ -204,6 +204,7 @@ export const createOverlayView = (
   const replayMatchPrevBtn = byId<HTMLButtonElement>('replayMatchPrevBtn');
   const replayMatchNextBtn = byId<HTMLButtonElement>('replayMatchNextBtn');
   const replayToggleBtn = byId<HTMLButtonElement>('replayToggleBtn');
+  const shareReplayBtn = byId<HTMLButtonElement>('shareReplayBtn');
   const replayNavEl = byId('replayNav');
   const replayStartBtn = byId<HTMLButtonElement>('replayStartBtn');
   const replayPrevBtn = byId<HTMLButtonElement>('replayPrevBtn');
@@ -242,6 +243,7 @@ export const createOverlayView = (
 
   let phaseAlertTimer: ReturnType<typeof setTimeout> | null = null;
   let opponentDisconnectTimer: ReturnType<typeof setInterval> | null = null;
+  let replayShareResetTimer: ReturnType<typeof setTimeout> | null = null;
   let gameOverShellWasVisible = false;
   const toastTimers = new Set<ReturnType<typeof setTimeout>>();
   let nextToastId = 0;
@@ -256,6 +258,7 @@ export const createOverlayView = (
     visible: false,
     countdownText: '',
   });
+  const replayShareButtonTextSignal = signal('Copy Replay Link');
   type ToastRow = {
     id: number;
     message: string;
@@ -334,6 +337,15 @@ export const createOverlayView = (
     opponentDisconnectTimer = null;
   };
 
+  const clearReplayShareResetTimer = () => {
+    if (replayShareResetTimer === null) {
+      return;
+    }
+
+    clearTimeout(replayShareResetTimer);
+    replayShareResetTimer = null;
+  };
+
   const gameOverStatsEl = byId('gameOverStats');
   const toastDedupe = createToastDedupeGate();
 
@@ -393,6 +405,7 @@ export const createOverlayView = (
   const dispose = (): void => {
     clearOpponentDisconnectTimer();
     clearPhaseAlertTimer();
+    clearReplayShareResetTimer();
     for (const timer of toastTimers) {
       clearTimeout(timer);
     }
@@ -550,6 +563,7 @@ export const createOverlayView = (
             ? 'Exit Replay'
             : 'View Replay',
       );
+      text(shareReplayBtn, replayShareButtonTextSignal.value);
       replayMatchPrevBtn.disabled =
         replayView.loading ||
         replayView.active ||
@@ -559,6 +573,7 @@ export const createOverlayView = (
         replayView.active ||
         !replayView.canSelectNextMatch;
       replayToggleBtn.disabled = replayView.loading;
+      shareReplayBtn.disabled = replayView.loading || !replayView.shareUrl;
       replayStartBtn.disabled = !replayView.canStart;
       replayPrevBtn.disabled = !replayView.canPrev;
       replayNextBtn.disabled = !replayView.canNext;
@@ -676,6 +691,33 @@ export const createOverlayView = (
 
     listen(reconnectCancelBtn, 'click', () => {
       state.cancelReconnect();
+    });
+
+    listen(shareReplayBtn, 'click', () => {
+      const replayUrl = state.replayControlsSignal.value.shareUrl;
+      if (!replayUrl) {
+        return;
+      }
+
+      const copyPromise = navigator.clipboard?.writeText(replayUrl);
+      if (!copyPromise) {
+        showToast('Replay link copy is unavailable in this browser.', 'error');
+        return;
+      }
+
+      void copyPromise
+        .then(() => {
+          replayShareButtonTextSignal.value = 'Copied!';
+          showToast('Replay link copied.', 'success');
+          clearReplayShareResetTimer();
+          replayShareResetTimer = setTimeout(() => {
+            replayShareButtonTextSignal.value = 'Copy Replay Link';
+            replayShareResetTimer = null;
+          }, 1800);
+        })
+        .catch(() => {
+          showToast('Could not copy replay link.', 'error');
+        });
     });
 
     listen(document, 'keydown', (event) => {

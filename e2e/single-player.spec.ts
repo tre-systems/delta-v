@@ -8,7 +8,7 @@ test.describe('single-player smoke tests', () => {
   }) => {
     await launchSinglePlayerScenario(page, 'biplanetary');
 
-    await expect(page).toHaveTitle('Delta-V');
+    await expect(page).toHaveTitle('Delta-V — Real-time tactical space combat');
     await expect(page.locator('[data-testid="objective"]')).toContainText(
       'Land on',
     );
