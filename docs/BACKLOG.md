@@ -135,7 +135,56 @@ Add `leaderboard_row_clicked` once leaderboard rows become interactive.
 **Files:** `src/client/leaderboard/*.ts`, `static/leaderboard.html`,
 `src/server/metrics-route.ts`
 
+### Instrument the Official-Bot Offer Visibility (P2)
+
+The 2026-04-27 R20 audit found zero `quick_match_official_bot_accepted`
+and zero `matchmaker_official_bot_filled` events in the past 65 hours
+despite ~25 Quick Match attempts in the same window. One observed
+session waited 133 s in queue (well past the 20 s offer-availability
+threshold defined by `OFFICIAL_QUICK_MATCH_BOT_WAIT_MS`) and let the
+ticket expire instead of accepting the bot.
+
+We can't tell from current telemetry whether the offer banner is being
+*shown but ignored* or *never shown at all*. The lobby code in
+[src/client/ui/lobby-view.ts:983-1002](../src/client/ui/lobby-view.ts)
+toggles `#officialBotOffer` visible based on
+`state.officialBotOfferAvailable`, but emits no event when the toggle
+flips. Without that signal, we can't separate "offer-discoverability
+bug" from "users genuinely prefer to wait for a human".
+
+Action: emit `quick_match_official_bot_offered` once per queue ticket
+the first time the offer becomes visible to the user, with `{waitedMs,
+scenario}`. Then a future R20 sweep can compute
+`offered − accepted = silently rejected` and decide whether the bug
+is in the UX or just product-strategy.
+
+Found via R20 D1/R2 storage audit (2026-04-27 pass).
+
+**Files:** `src/client/ui/lobby-view.ts`,
+`src/client/game/session-api.ts`
+
 ## Architecture & Correctness
+
+### Distinguish "Missing Scenario" from "Extras Present" on `POST /create` (P3)
+
+`parseCreatePayload` in [src/server/protocol.ts:69-78](../src/server/protocol.ts)
+returns `'Create payload only supports scenario'` for both `{}` (no
+scenario at all) and `{scenario, foo}` (extras present), classifying
+both as `invalid_payload`. Meanwhile a request with no body at all
+gets `missing_scenario` from the route layer with a different
+`error` code. Three input shapes, two error codes, all expressing
+the same root cause from an agent's perspective.
+
+The asymmetry breaks programmatic discrimination: an agent that
+checks `error === 'missing_scenario'` to decide whether to retry
+with a default scenario will mishandle the `{}` case. Change the
+strict-keys check so `keys.length === 0` returns `missing_scenario`
+("Create payload must include a scenario.") to match the no-body
+path; reserve `invalid_payload` for the genuine extras case.
+
+Found via R19 error-shape consistency probing (2026-04-27 pass).
+
+**Files:** `src/server/protocol.ts`, `src/server/protocol.test.ts`
 
 ### Optional Deduplication of Initial Publication Path (P3)
 
