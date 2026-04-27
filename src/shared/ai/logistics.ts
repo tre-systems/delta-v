@@ -182,6 +182,19 @@ export const getPrimaryPassengerCarrier = (
 ): Ship | null => selectPrimaryPassengerCarrier(state, playerId, map);
 
 export type PassengerShipRole = 'carrier' | 'escort' | 'screen' | 'refuel';
+export type ShipRole = PassengerShipRole | 'interceptor' | 'race';
+
+const isActiveOwnShip = (ship: Ship, playerId: PlayerId): boolean =>
+  ship.owner === playerId &&
+  ship.lifecycle === 'active' &&
+  ship.baseStatus !== 'emplaced' &&
+  ship.damage.disabledTurns === 0 &&
+  ship.control === 'own';
+
+const sameFlightPath = (a: Ship, b: Ship): boolean =>
+  hexEqual(a.position, b.position) &&
+  a.velocity.dq === b.velocity.dq &&
+  a.velocity.dr === b.velocity.dr;
 
 export const assignPassengerShipRoles = (
   state: GameState,
@@ -226,12 +239,7 @@ export const assignPassengerShipRoles = (
       continue;
     }
 
-    if (
-      ship.type === 'tanker' &&
-      hexEqual(ship.position, primaryCarrier.position) &&
-      ship.velocity.dq === primaryCarrier.velocity.dq &&
-      ship.velocity.dr === primaryCarrier.velocity.dr
-    ) {
+    if (ship.type === 'tanker' && sameFlightPath(ship, primaryCarrier)) {
       roles.set(ship.id, 'refuel');
       continue;
     }
@@ -243,6 +251,81 @@ export const assignPassengerShipRoles = (
     const shipStrength = getCombatStrength([ship]);
 
     roles.set(ship.id, shipStrength >= threatStrength ? 'escort' : 'screen');
+  }
+
+  return roles;
+};
+
+const scoreObjectiveRaceCandidate = (
+  ship: Ship,
+  targetHex: { q: number; r: number } | null,
+): number => {
+  const stats = SHIP_STATS[ship.type];
+  const targetScore =
+    targetHex == null ? 0 : -hexDistance(ship.position, targetHex) * 24;
+
+  return (
+    targetScore +
+    ship.fuel * 3 -
+    hexVecLength(ship.velocity) * 6 +
+    (stats?.canOverload ? 20 : 0) +
+    (canAttack(ship) ? 8 : 0) -
+    (ship.type === 'tanker' ? 180 : 0)
+  );
+};
+
+export const assignTurnShipRoles = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+): Map<string, ShipRole> => {
+  const passengerRoles = assignPassengerShipRoles(state, playerId, map);
+
+  if (passengerRoles.size > 0) {
+    return new Map(passengerRoles);
+  }
+
+  const roles = new Map<string, ShipRole>();
+  const caps = deriveCapabilities(state.scenarioRules);
+  const player = state.players[playerId];
+  const targetHex = getPlayerTargetHex(state, playerId, map);
+  const hasMovementObjective =
+    caps.isCheckpointRace || !!player.targetBody || player.escapeWins;
+  const activeShips = state.ships.filter((ship) =>
+    isActiveOwnShip(ship, playerId),
+  );
+  const raceShip = hasMovementObjective
+    ? (maxBy(activeShips, (ship) =>
+        scoreObjectiveRaceCandidate(ship, targetHex),
+      ) ?? null)
+    : null;
+
+  if (raceShip) {
+    roles.set(raceShip.id, 'race');
+  }
+
+  for (const ship of activeShips) {
+    if (roles.has(ship.id)) {
+      continue;
+    }
+
+    if (
+      raceShip &&
+      ship.type === 'tanker' &&
+      sameFlightPath(ship, raceShip) &&
+      raceShip.fuel <=
+        Math.max(4, estimateDesiredFuel(raceShip, playerId, state, map))
+    ) {
+      roles.set(ship.id, 'refuel');
+      continue;
+    }
+
+    if (canAttack(ship)) {
+      roles.set(ship.id, hasMovementObjective ? 'escort' : 'interceptor');
+      continue;
+    }
+
+    roles.set(ship.id, hasMovementObjective ? 'screen' : 'refuel');
   }
 
   return roles;
