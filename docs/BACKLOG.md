@@ -107,16 +107,6 @@ changes:
 
 ## Gameplay UX & Matchmaking
 
-### Leaderboard Rank-Trend Indicator (P3)
-
-`/leaderboard` shows the current `rating` only. A `▲ 14` / `▼ 7`
-badge per row — change since the player's previous appearance — would
-create return-engagement pull. The data exists in `match_rating`
-rows; the leaderboard endpoint just needs to project it.
-
-**Files:** [src/server/leaderboard/query-route.ts](../src/server/leaderboard/query-route.ts),
-[static/leaderboard.html](../static/leaderboard.html).
-
 ### Small Accessibility Polish (P3)
 
 The 2026-04-24 a11y re-audit (axe 8/8, manual sweep at 375 × 812) passed
