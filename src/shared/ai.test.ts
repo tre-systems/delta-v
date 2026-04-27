@@ -2606,6 +2606,29 @@ describe('aiAstrogation — pure combat positioning', () => {
       findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
     ).toEqual([]);
   });
+  it('convoy: raiders holding attack range on landed survivors are not fuel stalls', () => {
+    const fixture = loadAIFailureFixture('convoy-close-engagement-hold.json');
+    const capturedOrders = (fixture.action as { orders: AstrogationOrder[] })
+      .orders;
+    const heldShipIds = fixture.stalledShipIds ?? [];
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(heldShipIds).toContain('p1s2');
+    expect(
+      heldShipIds.every((shipId) =>
+        capturedOrders.some(
+          (order) =>
+            order.shipId === shipId &&
+            order.burn === null &&
+            (order.overload ?? null) === null &&
+            order.land !== true,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
+    ).toEqual([]);
+  });
   it('fleetAction: does not hold station beside disabled decoys while enabled enemies are distant', () => {
     const fixture = loadAIFailureFixture(
       'fleet-action-disabled-decoy-stall.json',
