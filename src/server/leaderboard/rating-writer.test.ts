@@ -4,6 +4,7 @@ import type { GameId, PlayerToken, RoomCode } from '../../shared/ids';
 import type { RoomConfig } from '../protocol';
 import {
   scheduleMatchRatingUpdate,
+  writeAndReportMatchRatingIfEligible,
   writeMatchRatingIfEligible,
 } from './rating-writer';
 
@@ -14,6 +15,7 @@ const buildMockDb = (seedPlayers: Record<string, Record<string, unknown>>) => {
     Object.entries(seedPlayers),
   );
   const matchRatings = new Map<string, Record<string, unknown>>();
+  const events: Array<{ event: string; props: Record<string, unknown> }> = [];
 
   const makeStatement = (sql: string, args: unknown[]) => {
     const lowered = sql.toLowerCase().trim();
@@ -38,6 +40,21 @@ const buildMockDb = (seedPlayers: Record<string, Record<string, unknown>>) => {
         throw new Error(`unexpected first() sql: ${sql}`);
       },
       run: async () => {
+        if (lowered.startsWith('insert into events')) {
+          const [, , event, props] = args as [
+            number,
+            null,
+            string,
+            string,
+            string,
+            null,
+          ];
+          events.push({
+            event,
+            props: JSON.parse(props) as Record<string, unknown>,
+          });
+          return { success: true };
+        }
         if (lowered.startsWith('insert or ignore into match_rating')) {
           const [
             gameId,
@@ -109,6 +126,7 @@ const buildMockDb = (seedPlayers: Record<string, Record<string, unknown>>) => {
   return {
     db: { prepare, batch } as unknown as D1Database,
     byKey,
+    events,
     matchRatings,
   };
 };
@@ -256,6 +274,41 @@ describe('writeMatchRatingIfEligible', () => {
     if (!result.ok) return;
     expect(result.wrote).toBe(true);
     expect(result.applied?.officialBotMatch).toBe(true);
+  });
+
+  it('emits official-bot segmentation on rating_applied telemetry', async () => {
+    const { db, events } = buildMockDb({
+      human_aaa12345: seedPlayer('human_aaa12345', 'A', false),
+      agent_official_quickmatch_normal: seedPlayer(
+        'agent_official_quickmatch_normal',
+        'Official Bot',
+        true,
+      ),
+    });
+    const waitUntil = vi.fn((promise: Promise<unknown>) => void promise);
+
+    const result = await writeAndReportMatchRatingIfEligible(
+      { db, waitUntil },
+      {
+        gameId,
+        scenario: 'duel',
+        outcome: { winner: 0, reason: 'Fleet eliminated!' },
+      } as unknown as import('../../shared/types/domain').GameState,
+      makeRoom(['human_aaa12345', 'agent_official_quickmatch_normal'], true),
+      now,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        event: 'rating_applied',
+        props: expect.objectContaining({
+          gameId,
+          scenario: 'duel',
+          officialBotMatch: true,
+        }),
+      }),
+    );
   });
 
   it('does not bump distinct_opponents on a rematch', async () => {

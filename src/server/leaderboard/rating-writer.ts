@@ -164,6 +164,7 @@ const reportMatchRatingResult = (
     rdAfterA: Math.round(a.rdAfterA),
     rdAfterB: Math.round(a.rdAfterB),
     newOpponent: a.newOpponent,
+    officialBotMatch: a.officialBotMatch,
   });
 };
 
