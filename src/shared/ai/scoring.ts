@@ -377,6 +377,10 @@ export const scoreCombatPositioning = (
         score -= Math.max(0, 50 - dist) * cfg.interceptAssignedPenalty * mult;
       }
     } else if (noPrimaryObjective) {
+      if (enemyStr <= 0) {
+        continue;
+      }
+
       // Pure combat mode
       score += Math.max(0, 50 - dist) * cfg.combatClosingWeight * mult;
 

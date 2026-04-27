@@ -2546,6 +2546,51 @@ describe('aiAstrogation — pure combat positioning', () => {
     const order = must(orders.find((o) => o.shipId === aiShip.id));
     expect(order.burn).not.toBeNull();
   });
+  it('fleetAction: close engagement station-keeping is not classified as a fuel stall', () => {
+    const fixture = loadAIFailureFixture(
+      'fleet-action-close-engagement-hold.json',
+    );
+    const capturedOrders = (fixture.action as { orders: AstrogationOrder[] })
+      .orders;
+    const heldShipIds = fixture.stalledShipIds ?? [];
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(
+      heldShipIds.every((shipId) =>
+        capturedOrders.some(
+          (order) =>
+            order.shipId === shipId &&
+            order.burn === null &&
+            (order.overload ?? null) === null &&
+            order.land !== true,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
+    ).toEqual([]);
+  });
+  it('fleetAction: does not hold station beside disabled decoys while enabled enemies are distant', () => {
+    const fixture = loadAIFailureFixture(
+      'fleet-action-disabled-decoy-stall.json',
+    );
+    const stalledShipId = must(fixture.stalledShipIds?.[0]);
+    const orders = aiAstrogation(
+      fixture.state,
+      fixture.activePlayer,
+      map,
+      fixture.difficulty,
+    );
+    const order = must(
+      orders.find((candidate) => candidate.shipId === stalledShipId),
+    );
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(order.burn).not.toBeNull();
+    expect(
+      findFuelStallShipIds(fixture.state, fixture.activePlayer, orders),
+    ).toEqual([]);
+  });
   it('AI penalizes staying landed in pure combat', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,

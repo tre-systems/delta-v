@@ -55,7 +55,8 @@ scorecard as the first stop for AI tuning reviews:
 - `invalidActionShare` — built-in AI action rejections per game; any non-zero
   value fails `--ci`.
 - `fuelStallsPerGame` — active, fueled, stationary ships that coast instead of
-  burning or landing. Gated per scenario at 30 stalls/game in
+  burning or landing, excluding pure-combat station keeping within two hexes of
+  an enabled enemy. Gated per scenario at 30 stalls/game in
   `OBJECTIVE_WARNING_POLICIES`; the gate fires for an order-of-magnitude
   regression like the 2026-04-24 fleetAction (72.1) and interplanetaryWar
   (110.3) sweeps without flapping on convoy's healthy 19.3 baseline.
