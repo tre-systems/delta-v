@@ -58,6 +58,7 @@ import {
 import { AI_CONFIG } from './ai/config';
 import {
   assignPassengerShipRoles,
+  assignTurnShipRoles,
   getPrimaryPassengerCarrier,
   scorePassengerArrivalOdds,
   scorePassengerEscortCourse,
@@ -1067,6 +1068,52 @@ describe('aiLogistics', () => {
     expect(roles.get(liner.id)).toBe('carrier');
     expect(roles.get(tanker.id)).toBe('refuel');
     expect(roles.get(frigate.id)).toBe('escort');
+  });
+
+  it('assigns objective race and support roles before tactical scoring', () => {
+    const racer = createTestShip({
+      id: asShipId('role-racer'),
+      type: 'packet',
+      owner: 0,
+      originalOwner: 0,
+      position: { q: -6, r: 5 },
+      velocity: { dq: 0, dr: 0 },
+      fuel: 3,
+    });
+    const tanker = createTestShip({
+      id: asShipId('role-tanker'),
+      type: 'tanker',
+      owner: 0,
+      originalOwner: 0,
+      position: racer.position,
+      velocity: racer.velocity,
+      fuel: 40,
+    });
+    const escort = createTestShip({
+      id: asShipId('role-escort'),
+      type: 'frigate',
+      owner: 0,
+      originalOwner: 0,
+      position: { q: 2, r: -2 },
+      velocity: { dq: 0, dr: 0 },
+      fuel: 18,
+    });
+    const state = createTestState({
+      scenario: 'biplanetary',
+      phase: 'astrogation',
+      activePlayer: 0,
+      players: [
+        { targetBody: 'Venus', homeBody: 'Mars', escapeWins: false },
+        { targetBody: '', homeBody: 'Venus', escapeWins: false },
+      ],
+      ships: [racer, tanker, escort],
+    });
+
+    const roles = assignTurnShipRoles(state, 0, map);
+
+    expect(roles.get(racer.id)).toBe('race');
+    expect(roles.get(tanker.id)).toBe('refuel');
+    expect(roles.get(escort.id)).toBe('escort');
   });
 
   it('prefers the passenger carrier with the better arrival line on equal load', () => {

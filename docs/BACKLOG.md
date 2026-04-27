@@ -81,17 +81,17 @@ Avoid another scalar-only course score unless the fixture proves it generalizes.
 **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`, `src/shared/ai.test.ts`
 
-### Separate Ship Roles Before Tactical Scoring (P1)
+### Consume Turn Roles in Tactical Scoring (P1)
 
 Generic combat, objective, fuel, and landing scores still fight each other in
-escort scenarios. A cheap role pass would make the scoring simpler and more
-stable: assign each ship a turn-local role such as `carrier`, `escort`,
-`interceptor`, `refuel`, `race`, or `screen`, then let the role choose a smaller
-set of priorities.
+escort scenarios. The AI now has a shared turn-local role map with `carrier`,
+`escort`, `interceptor`, `refuel`, `race`, and `screen` roles, but most
+non-passenger tactical scoring still ignores it.
 
-Action: expand the lightweight role assignment step for AI phases that need
-coordination. Reuse the same idea for Grand Tour race/refuel decisions if it
-proves useful.
+Action: consume the non-passenger roles inside astrogation, ordnance, and
+combat scoring so race ships, interceptors, escorts, and screens evaluate a
+smaller set of priorities. Reuse the same role map for Grand Tour race/refuel
+decisions if it proves useful.
 
 **Files:** `src/shared/ai/logistics.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`
