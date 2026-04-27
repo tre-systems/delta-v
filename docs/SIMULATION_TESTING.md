@@ -34,6 +34,10 @@ npm run simulate -- grandTour 20 --seed 1 --capture-failures tmp/ai-failures
 - `--ci` fails on engine crashes or rejected built-in AI actions; balance and objective warnings print but are non-fatal.
 - `--randomize-start` forces per-game seat randomization. Duel, interplanetaryWar, and fleetAction auto-randomize seat anyway so seat-order bias doesn't dominate short batches.
 - CI balance warnings use per-scenario decided-game win-rate bands. Cooperative / race scenarios (like Grand Tour) skip the normal balance gate, but objective policies can still emit non-fatal seat-skew warnings when a race resolves correctly yet remains grossly one-sided.
+- Quick-match seat assignment is outside the headless engine harness. Use
+  `npm run test -- src/server/matchmaker-do.test.ts` for the server-side
+  Duel queue regression that cycles stable player keys through both seat
+  assignments and verifies token-to-seat mapping.
 
 **Scenario scorecards.** Every simulation result now includes a `scorecard`
 object in JSON output and prints a compact scorecard in text mode. Treat that

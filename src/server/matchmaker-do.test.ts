@@ -907,4 +907,92 @@ describe('MatchmakerDO', () => {
     };
     expect(matchedPayload.playerToken).toBe(initBody.playerToken);
   });
+
+  it('cycles Duel quick-match seats across stable-key pairings and maps tokens to assigned seats', async () => {
+    const now = vi.spyOn(Date, 'now');
+    const random = vi.spyOn(Math, 'random');
+    const { matchmaker, initFetch } = createMatchmaker();
+    const pairCount = 8;
+    const leftSeatCounts = [0, 0];
+    const rightSeatCounts = [0, 0];
+
+    for (let i = 0; i < pairCount; i++) {
+      now.mockReturnValue(1_000 + i * 100);
+      random.mockReturnValue(i % 2 === 0 ? 0.25 : 0.75);
+
+      const leftKey = `stableleft${i}`;
+      const rightKey = `stableright${i}`;
+
+      const leftResponse = await matchmaker.fetch(
+        new Request('https://matchmaker.internal/enqueue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scenario: 'duel',
+            player: {
+              playerKey: leftKey,
+              username: `Left ${i}`,
+            },
+          }),
+        }),
+      );
+      const leftQueued = (await leftResponse.json()) as { ticket: string };
+
+      const rightResponse = await matchmaker.fetch(
+        new Request('https://matchmaker.internal/enqueue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scenario: 'duel',
+            player: {
+              playerKey: rightKey,
+              username: `Right ${i}`,
+            },
+          }),
+        }),
+      );
+      const rightMatched = (await rightResponse.json()) as {
+        playerToken: string;
+        status: string;
+      };
+
+      expect(rightMatched.status).toBe('matched');
+      const initRequest = initFetch.mock.calls[i]?.[0];
+      if (!initRequest) {
+        throw new Error(`Expected init request ${i}`);
+      }
+      const initBody = (await initRequest.json()) as {
+        scenario: string;
+        playerToken: string;
+        guestPlayerToken: string;
+        players: [{ playerKey: string }, { playerKey: string }];
+      };
+      expect(initBody.scenario).toBe('duel');
+
+      const leftSeat = initBody.players.findIndex(
+        (player) => player.playerKey === leftKey,
+      );
+      const rightSeat = initBody.players.findIndex(
+        (player) => player.playerKey === rightKey,
+      );
+      expect(leftSeat).not.toBe(-1);
+      expect(rightSeat).not.toBe(-1);
+      leftSeatCounts[leftSeat] += 1;
+      rightSeatCounts[rightSeat] += 1;
+
+      const leftStatus = await matchmaker.fetch(
+        new Request(`https://matchmaker.internal/ticket/${leftQueued.ticket}`, {
+          method: 'GET',
+        }),
+      );
+      const leftMatched = (await leftStatus.json()) as { playerToken: string };
+      const seatTokens = [initBody.playerToken, initBody.guestPlayerToken];
+      expect(leftMatched.playerToken).toBe(seatTokens[leftSeat]);
+      expect(rightMatched.playerToken).toBe(seatTokens[rightSeat]);
+    }
+
+    expect(initFetch).toHaveBeenCalledTimes(pairCount);
+    expect(leftSeatCounts).toEqual([pairCount / 2, pairCount / 2]);
+    expect(rightSeatCounts).toEqual([pairCount / 2, pairCount / 2]);
+  });
 });
