@@ -770,58 +770,6 @@ export const getPassengerTransferFormationOrders = (
   return sharedOrders;
 };
 
-export const maybeCreatePassengerFuelSupportOrder = (
-  ship: Ship,
-  state: GameState,
-  playerId: PlayerId,
-  plannedOrders: readonly AstrogationOrder[],
-  map: SolarSystemMap,
-): AstrogationOrder | null => {
-  if (
-    !isPassengerEscortMission(state, playerId) ||
-    ship.type !== 'tanker' ||
-    ship.lifecycle === 'destroyed' ||
-    ship.damage.disabledTurns > 0
-  ) {
-    return null;
-  }
-
-  const primaryCarrier = getPrimaryPassengerCarrier(state, playerId);
-
-  if (
-    primaryCarrier == null ||
-    primaryCarrier.id === ship.id ||
-    primaryCarrier.lifecycle === 'destroyed' ||
-    !hexEqual(primaryCarrier.position, ship.position) ||
-    primaryCarrier.velocity.dq !== ship.velocity.dq ||
-    primaryCarrier.velocity.dr !== ship.velocity.dr
-  ) {
-    return null;
-  }
-
-  const carrierOrder = plannedOrders.find(
-    (order) => order.shipId === primaryCarrier.id,
-  );
-
-  if (!carrierOrder) {
-    return null;
-  }
-
-  const mirroredCourse = computeCourse(ship, carrierOrder.burn, map, {
-    destroyedBases: state.destroyedBases,
-  });
-
-  if (mirroredCourse.outcome === 'crash') {
-    return null;
-  }
-
-  return {
-    shipId: ship.id,
-    burn: carrierOrder.burn,
-    overload: null,
-  };
-};
-
 export const aiLogistics = (
   state: GameState,
   playerId: PlayerId,
