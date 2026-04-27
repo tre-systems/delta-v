@@ -1297,6 +1297,13 @@ export const aiAstrogation = (
               : []),
           ])
         : []),
+      ...(canBurnFuel && shipTargetBody
+        ? directions.map((direction) => ({
+            burn: direction,
+            overload: null,
+            land: true,
+          }))
+        : []),
       // Add a single landing option when in orbit.
       // Burn direction is irrelevant for landing, so
       // one candidate suffices.
@@ -1313,6 +1320,7 @@ export const aiAstrogation = (
       const course = computeCourse(ship, opt.burn, map, courseOpts);
 
       if (course.outcome === 'crash') continue;
+      if (opt.land && course.outcome !== 'landing') continue;
 
       let gravityRiskPenalty = 0;
       const fuelAfterCourse = ship.fuel - course.fuelSpent;

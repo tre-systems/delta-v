@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "scenario": "biplanetary",
+  "seed": 1013904243,
+  "gameIndex": 1,
+  "playerDifficulties": {
+    "p0": "hard",
+    "p1": "hard"
+  },
+  "kind": "objectiveDrift",
+  "turnNumber": 8,
+  "phase": "astrogation",
+  "activePlayer": 1,
+  "difficulty": "hard",
+  "state": {
+    "schemaVersion": 1,
+    "gameId": "BIP-BURN-LAND-FIXTURE",
+    "scenario": "biplanetary",
+    "scenarioRules": {
+      "planetaryDefenseEnabled": true,
+      "hiddenIdentityInspection": false,
+      "escapeEdge": "any"
+    },
+    "escapeMoralVictoryAchieved": false,
+    "turnNumber": 8,
+    "phase": "astrogation",
+    "activePlayer": 1,
+    "ships": [
+      {
+        "id": "p0s0",
+        "type": "corvette",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": -7,
+          "r": 5
+        },
+        "lastMovementPath": [
+          {
+            "q": -8,
+            "r": 5
+          },
+          {
+            "q": -7,
+            "r": 5
+          }
+        ],
+        "velocity": {
+          "dq": 1,
+          "dr": 0
+        },
+        "fuel": 13,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": false,
+        "detected": true,
+        "pendingGravityEffects": [
+          {
+            "hex": {
+              "q": -7,
+              "r": 5
+            },
+            "direction": 5,
+            "bodyName": "Venus",
+            "strength": "full",
+            "ignored": false
+          }
+        ],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "lastBurnDirection": 1
+      },
+      {
+        "id": "p1s0",
+        "type": "corvette",
+        "owner": 1,
+        "originalOwner": 1,
+        "position": {
+          "q": -8,
+          "r": -4
+        },
+        "lastMovementPath": [
+          {
+            "q": -8,
+            "r": -3
+          },
+          {
+            "q": -8,
+            "r": -4
+          }
+        ],
+        "velocity": {
+          "dq": 0,
+          "dr": -1
+        },
+        "fuel": 12,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": true,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "lastBurnDirection": 5
+      }
+    ],
+    "ordnance": [],
+    "pendingAstrogationOrders": null,
+    "pendingAsteroidHazards": [],
+    "destroyedAsteroids": [],
+    "destroyedBases": [],
+    "players": [
+      {
+        "connected": true,
+        "ready": true,
+        "targetBody": "Venus",
+        "homeBody": "Mars",
+        "bases": [
+          "-8,-6",
+          "-10,-4",
+          "-8,-5",
+          "-9,-6",
+          "-10,-5",
+          "-9,-4"
+        ],
+        "escapeWins": false
+      },
+      {
+        "connected": true,
+        "ready": true,
+        "targetBody": "Mars",
+        "homeBody": "Venus",
+        "bases": [
+          "-5,7",
+          "-5,5",
+          "-7,5",
+          "-9,7",
+          "-9,9",
+          "-7,9"
+        ],
+        "escapeWins": false
+      }
+    ],
+    "outcome": null
+  },
+  "message": "Burn-to-land line was available before fleet elimination."
+}
