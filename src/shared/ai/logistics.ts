@@ -354,7 +354,7 @@ export const scorePassengerCarrierEvasion = (
 
   const currentDist = hexDistance(ship.position, nearestThreat.position);
 
-  if (currentDist > 2) {
+  if (currentDist > 6) {
     return 0;
   }
 
@@ -366,7 +366,7 @@ export const scorePassengerCarrierEvasion = (
     },
     nearestThreat.position,
   );
-  let score = (newDist - currentDist) * 55;
+  let score = (newDist - currentDist) * 70;
 
   if (newDist <= 1) {
     score -= 220;
@@ -376,7 +376,16 @@ export const scorePassengerCarrierEvasion = (
     score -= 30;
   }
 
-  score += (nextDriftDist - newDist) * 20;
+  score += (nextDriftDist - newDist) * 45;
+
+  if (nextDriftDist <= 1) {
+    score -= 180;
+  } else if (nextDriftDist === 2) {
+    score -= 120;
+  } else if (nextDriftDist === 3) {
+    score -= 45;
+  }
+
   return score;
 };
 
@@ -689,7 +698,7 @@ export const getPassengerTransferFormationOrders = (
       Math.min(
         hexDistance(pair.source.position, nearestThreatDist.position),
         hexDistance(pair.target.position, nearestThreatDist.position),
-      ) <= 5
+      ) <= 6
     ) {
       continue;
     }

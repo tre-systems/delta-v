@@ -107,16 +107,13 @@ These are still real player-facing AI issues, but they should be handled through
 the scorecard / fixture / planner workflow above rather than one-off weight
 changes:
 
-- **Passenger scenarios:** the 2026-04-27 evacuation setup pass removed the
-  one-turn Terra landing, but hard-vs-hard samples still skew toward the
-  passenger side. Convoy still has too many attrition endings, though the
-  2026-04-27 attrition-finish skip moved the seed-21 120-game scorecard from
-  47.5% objective / 47.5% fleet elimination to 50.8% objective / 45.0% fleet
-  elimination without invalid actions. Continue from captured
-  fleet-elimination states: passenger-carrier doctrine should rank arrival odds
-  and survival of a viable destination runner above hull quality or generic
-  combat value, while defender/interceptor doctrine should contest carriers
-  without creating timeout-heavy stalemates.
+- **Passenger scenarios:** evacuation now avoids the worst early carrier-stack
+  wipeouts, but hard-vs-hard samples are too escort-favored: the next pass
+  should improve the corsair/interceptor's ability to contest a viable
+  transport line without returning to fleet-elimination-heavy outcomes or
+  timeout-heavy stalemates. Convoy still has too many attrition endings; keep
+  using captured fleet-elimination states to rank arrival odds and survival of
+  viable destination runners above hull quality or generic combat value.
 - **Duel live seat imbalance:** the 2026-04-27 D1 audit (R20) measured
   Duel at **27/35 = 77% P0** across decided archived matches. A
   follow-up audit of `MatchmakerDO` found the quick-match layer already
