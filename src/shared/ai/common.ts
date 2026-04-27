@@ -4,6 +4,7 @@ import {
   type HexKey,
   hexAdd,
   hexDistance,
+  hexVecLength,
   parseHexKey,
 } from '../hex';
 import { findBaseHexes } from '../map-data';
@@ -153,7 +154,20 @@ export interface ShortHorizonMovementPlan {
   firstBurn: number | null;
   turns: number;
   finalDistance: number;
+  finalSpeed: number;
   fuelSpent: number;
+}
+
+export interface MovementCostToHex {
+  firstBurn: number | null;
+  planned: boolean;
+  turns: number;
+  finalDistance: number;
+  finalSpeed: number;
+  fuelSpent: number;
+  estimatedFuelCost: number;
+  score: number;
+  reachableWithinFuel: boolean;
 }
 
 export const planShortHorizonMovementToHex = (
@@ -203,6 +217,7 @@ export const planShortHorizonMovementToHex = (
           firstBurn,
           turns,
           finalDistance,
+          finalSpeed: speed,
           fuelSpent,
         };
       }
@@ -226,6 +241,68 @@ export const planShortHorizonMovementToHex = (
   }
 
   return bestPlan;
+};
+
+export const estimateMovementCostToHex = (
+  ship: Ship,
+  targetHex: { q: number; r: number },
+  map: SolarSystemMap,
+  destroyedBases: GameState['destroyedBases'],
+  maxTurns = 4,
+): MovementCostToHex => {
+  const directDistance = hexDistance(ship.position, targetHex);
+  const directSpeed = hexVecLength(ship.velocity);
+  const heuristicFuelCost = estimateFuelForTravelDistance(
+    directDistance,
+    directSpeed,
+  );
+  const fallback: MovementCostToHex = {
+    firstBurn: null,
+    planned: false,
+    turns: Math.max(
+      1,
+      Math.ceil(directDistance / Math.max(1, directSpeed + 1)),
+    ),
+    finalDistance: directDistance,
+    finalSpeed: directSpeed,
+    fuelSpent: 0,
+    estimatedFuelCost: heuristicFuelCost,
+    score: directDistance * 85 + directSpeed * 16 + heuristicFuelCost * 45,
+    reachableWithinFuel: heuristicFuelCost <= ship.fuel,
+  };
+  const plan = planShortHorizonMovementToHex(
+    ship,
+    targetHex,
+    map,
+    destroyedBases,
+    maxTurns,
+  );
+
+  if (plan == null) {
+    return fallback;
+  }
+
+  const remainingFuelCost =
+    plan.finalDistance === 0 && plan.finalSpeed === 0
+      ? 0
+      : estimateFuelForTravelDistance(plan.finalDistance, plan.finalSpeed);
+  const estimatedFuelCost = plan.fuelSpent + remainingFuelCost;
+
+  return {
+    firstBurn: plan.firstBurn,
+    planned: true,
+    turns: plan.turns,
+    finalDistance: plan.finalDistance,
+    finalSpeed: plan.finalSpeed,
+    fuelSpent: plan.fuelSpent,
+    estimatedFuelCost,
+    score:
+      plan.turns * 35 +
+      plan.finalDistance * 85 +
+      plan.finalSpeed * 16 +
+      estimatedFuelCost * 45,
+    reachableWithinFuel: estimatedFuelCost <= ship.fuel,
+  };
 };
 
 const GRAND_TOUR_CHECKPOINT_SET = new Set([

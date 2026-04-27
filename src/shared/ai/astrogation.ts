@@ -25,6 +25,7 @@ import { maxBy, minBy } from '../util';
 import { aiCombat } from './combat';
 import {
   estimateFuelForTravelDistance,
+  estimateMovementCostToHex,
   estimateRemainingCheckpointTourCost,
   estimateTurnsToTargetLanding,
   findNearestRefuelBase,
@@ -238,6 +239,7 @@ const pickFuelAwareCheckpointTarget = (
   ship: Ship,
   map: SolarSystemMap,
   sharedBases: readonly string[],
+  destroyedBases: GameState['destroyedBases'],
 ): string | null => {
   const nextBody = pickNextCheckpoint(player, checkpoints, map, ship.position);
 
@@ -254,11 +256,14 @@ const pickFuelAwareCheckpointTarget = (
     return nextBody;
   }
 
-  const speed = hexVecLength(ship.velocity);
-  const fuelForTrip = estimateFuelForTravelDistance(
-    hexDistance(ship.position, nextCenter),
-    speed,
+  const nextCheckpointCost = estimateMovementCostToHex(
+    ship,
+    nextCenter,
+    map,
+    destroyedBases,
+    4,
   );
+  const fuelForTrip = nextCheckpointCost.estimatedFuelCost;
   const continuationBase = findNearestRefuelBase(
     nextCenter,
     player.bases,
@@ -296,12 +301,15 @@ const pickFuelAwareCheckpointTarget = (
       return Number.POSITIVE_INFINITY;
     }
 
-    const directFuel = estimateFuelForTravelDistance(
-      hexDistance(ship.position, center),
-      speed,
+    const directCost = estimateMovementCostToHex(
+      ship,
+      center,
+      map,
+      destroyedBases,
+      4,
     );
 
-    if (directFuel > ship.fuel) {
+    if (!directCost.reachableWithinFuel) {
       return Number.POSITIVE_INFINITY;
     }
 
@@ -315,7 +323,7 @@ const pickFuelAwareCheckpointTarget = (
       center,
     );
 
-    return hexDistance(ship.position, center) + remainingTourCost;
+    return directCost.score + remainingTourCost * 40;
   });
 
   return bestFuelCandidate ?? nextBody;
@@ -893,6 +901,7 @@ export const aiAstrogation = (
           ship,
           map,
           caps.sharedBases,
+          state.destroyedBases,
         ) ?? '';
       shipTargetBody = nextBody;
       shipTargetHex = nextBody
