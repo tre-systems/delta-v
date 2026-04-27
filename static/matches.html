@@ -773,7 +773,7 @@
 
   $loadMore.addEventListener('click', loadMore);
 
-  $tbody.addEventListener('click', async (event) => {
+  $body.addEventListener('click', async (event) => {
     const button = event.target.closest('.replay-copy-btn');
     if (!button) return;
     const replayUrl = button.dataset.replayUrl;
