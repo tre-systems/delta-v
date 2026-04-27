@@ -16,12 +16,14 @@ export {
   comparePlanEvaluations,
 } from './plans';
 export type {
+  PassengerCarrierEscortTargetAction,
   PassengerCombatPlanAction,
   PassengerDeliveryApproachAction,
   PassengerFuelSupportAction,
   PostCarrierLossPursuitAction,
 } from './plans/passenger';
 export {
+  choosePassengerCarrierEscortTargetPlan,
   choosePassengerCombatPlan,
   choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,

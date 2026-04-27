@@ -9,6 +9,7 @@ import {
   aiCombat,
   aiLogistics,
   buildAIFleetPurchases,
+  choosePassengerCarrierEscortTargetPlan,
   choosePassengerCombatPlan,
   choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
@@ -863,6 +864,51 @@ describe('aiAstrogation', () => {
         distantThreat,
       ]),
     );
+  });
+
+  it('chooses carrier escort targeting when a passenger carrier is threatened', () => {
+    const carrier = createTestShip({
+      id: asShipId('carrier-target'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'transport',
+      passengersAboard: 2,
+      position: { q: 0, r: 0 },
+    });
+    const escort = createTestShip({
+      id: asShipId('escort-target'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'frigate',
+      position: { q: 4, r: 0 },
+    });
+    const threat = createTestShip({
+      id: asShipId('threat-target'),
+      owner: 1,
+      originalOwner: 1,
+      position: { q: 0, r: 5 },
+    });
+    const state = createTestState({
+      scenarioRules: { targetWinRequiresPassengers: true },
+      ships: [carrier, escort, threat],
+      players: [{ targetBody: 'Mars' }, { targetBody: 'Venus' }],
+    });
+
+    expect(
+      choosePassengerCarrierEscortTargetPlan(state, 0, escort, carrier, [
+        threat,
+      ])?.chosen,
+    ).toMatchObject({
+      intent: 'escortCarrier',
+      action: {
+        type: 'navigationTargetOverride',
+        shipId: escort.id,
+        carrierShipId: carrier.id,
+        threatShipId: threat.id,
+        targetHex: null,
+        targetBody: '',
+      },
+    });
   });
 
   it('allows corrective-burn objective lines outside the emergency search case', () => {

@@ -53,6 +53,7 @@ import {
 } from './logistics';
 import { aiOrdnance } from './ordnance';
 import {
+  choosePassengerCarrierEscortTargetPlan,
   choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
   choosePostCarrierLossPursuitPlan,
@@ -1114,16 +1115,19 @@ export const aiAstrogation = (
       shipTargetBody = '';
     }
 
-    if (
-      passengerEscortMission &&
-      primaryPassengerCarrier != null &&
-      primaryPassengerThreatDist <= 5 &&
-      ship.id !== primaryPassengerCarrier.id &&
-      canAttack(ship) &&
-      (ship.passengersAboard ?? 0) === 0
-    ) {
-      shipTargetHex = null;
-      shipTargetBody = '';
+    const carrierEscortTargetPlan = passengerEscortMission
+      ? choosePassengerCarrierEscortTargetPlan(
+          state,
+          playerId,
+          ship,
+          primaryPassengerCarrier,
+          enemyShips,
+        )
+      : null;
+
+    if (carrierEscortTargetPlan) {
+      shipTargetHex = carrierEscortTargetPlan.chosen.action.targetHex;
+      shipTargetBody = carrierEscortTargetPlan.chosen.action.targetBody;
     }
 
     if (checkpoints && player.visitedBodies) {
