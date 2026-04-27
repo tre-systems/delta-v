@@ -17,11 +17,13 @@ export {
 } from './plans';
 export type {
   PassengerCombatPlanAction,
+  PassengerDeliveryApproachAction,
   PassengerFuelSupportAction,
   PostCarrierLossPursuitAction,
 } from './plans/passenger';
 export {
   choosePassengerCombatPlan,
+  choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
   choosePostCarrierLossPursuitPlan,
 } from './plans/passenger';

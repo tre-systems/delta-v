@@ -39,6 +39,14 @@ export interface PassengerFuelSupportAction {
   overload: null;
 }
 
+export interface PassengerDeliveryApproachAction {
+  type: 'astrogationOrder';
+  shipId: Ship['id'];
+  targetHex: { q: number; r: number };
+  burn: number;
+  overload: null;
+}
+
 export const choosePassengerCombatPlan = (
   state: GameState,
   playerId: PlayerId,
@@ -204,6 +212,80 @@ export const choosePassengerFuelSupportPlan = (
         {
           reason: 'tanker mirrors passenger carrier for fuel support',
           detail: `${ship.id} follows ${primaryCarrier.id}`,
+        },
+      ],
+    },
+  ]);
+};
+
+export const choosePassengerDeliveryApproachPlan = (
+  state: GameState,
+  ship: Ship,
+  primaryCarrier: Ship | null,
+  targetHex: { q: number; r: number } | null,
+  map: SolarSystemMap,
+): PlanDecision<PassengerDeliveryApproachAction> | null => {
+  if (
+    primaryCarrier == null ||
+    targetHex == null ||
+    ship.id !== primaryCarrier.id ||
+    ship.lifecycle !== 'active' ||
+    ship.fuel <= 0 ||
+    hexVecLength(ship.velocity) !== 0
+  ) {
+    return null;
+  }
+
+  const plan = planShortHorizonMovementToHex(
+    ship,
+    targetHex,
+    map,
+    state.destroyedBases,
+  );
+
+  if (plan?.firstBurn === null || plan?.firstBurn === undefined) {
+    return null;
+  }
+
+  const course = computeCourse(ship, plan.firstBurn, map, {
+    destroyedBases: state.destroyedBases,
+  });
+
+  if (course.outcome === 'crash') {
+    return null;
+  }
+
+  return chooseBestPlan([
+    {
+      id: `passenger-delivery-approach:${ship.id}`,
+      intent: 'deliverPassengers',
+      action: {
+        type: 'astrogationOrder',
+        shipId: ship.id,
+        targetHex,
+        burn: plan.firstBurn,
+        overload: null,
+      },
+      evaluation: {
+        feasible: true,
+        objective: 80,
+        survival: 0,
+        landing: Math.max(
+          0,
+          hexDistance(ship.position, targetHex) -
+            hexDistance(course.destination, targetHex),
+        ),
+        fuel: ship.fuel - course.fuelSpent,
+        combat: 0,
+        formation: 0,
+        tempo: 1,
+        risk: course.outcome === 'landing' ? 1 : 0,
+        effort: course.fuelSpent,
+      },
+      diagnostics: [
+        {
+          reason: 'stationary passenger carrier starts target approach',
+          detail: `${ship.id} burns toward ${targetHex.q},${targetHex.r}`,
         },
       ],
     },
