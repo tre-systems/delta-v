@@ -1586,7 +1586,7 @@ export const aiAstrogation = (
       }
 
       if (
-        checkpoints &&
+        shipTargetBody &&
         course.outcome === 'landing' &&
         course.landedAt !== shipTargetBody &&
         !seekingFuel
