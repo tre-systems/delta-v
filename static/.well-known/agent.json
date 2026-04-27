@@ -11,14 +11,14 @@
 
   "scenarios": [
     { "id": "biplanetary",      "name": "Bi-Planetary",        "tags": ["Beginner"],   "description": "1v1 corvettes race to land on the opponent's world" },
+    { "id": "duel",             "name": "Duel",                "tags": ["Combat"],     "description": "Frigates face off across Mercury — use gravity to outmaneuver your opponent" },
+    { "id": "blockade",         "name": "Blockade Runner",     "tags": ["Speed"],      "description": "Packet ship races past a corvette to reach Mars" },
+    { "id": "grandTour",        "name": "Grand Tour",          "tags": ["Race"],       "description": "Race past every major body in the solar system and return home" },
     { "id": "escape",           "name": "Escape",              "tags": ["Asymmetric"], "description": "3 pilgrim transports flee Terra — enforcers must stop them" },
     { "id": "evacuation",       "name": "Lunar Evacuation",    "tags": ["Escort"],     "description": "A crowded transport flees Luna for Terra with corvette and frigate escorts — win only by landing survivors; a corsair tries to cut you off" },
     { "id": "convoy",           "name": "Convoy",              "tags": ["Escort"],     "description": "Escort a liner with colonists (and tanker) from Mars to Venus — transfer passengers to safety; pirates intercept" },
-    { "id": "duel",             "name": "Duel",                "tags": ["Combat"],     "description": "Frigates face off across Mercury — use gravity to outmaneuver your opponent" },
-    { "id": "blockade",         "name": "Blockade Runner",     "tags": ["Speed"],      "description": "Packet ship races past a corvette to reach Mars" },
-    { "id": "interplanetaryWar","name": "Interplanetary War",  "tags": ["Epic"],       "description": "Build your fleet with MegaCredits — total war across the solar system" },
     { "id": "fleetAction",      "name": "Fleet Action",        "tags": ["Fleet"],      "description": "Build your fleet and clash — Mars vs Venus" },
-    { "id": "grandTour",        "name": "Grand Tour",          "tags": ["Race"],       "description": "Race past every major body in the solar system and return home" }
+    { "id": "interplanetaryWar","name": "Interplanetary War",  "tags": ["Epic"],       "description": "Build your fleet with MegaCredits — total war across the solar system" }
   ],
 
   "endpoints": [

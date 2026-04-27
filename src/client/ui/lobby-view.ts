@@ -1,5 +1,5 @@
 import { CODE_LENGTH } from '../../shared/constants';
-import { SCENARIOS } from '../../shared/map-data';
+import { SCENARIO_DISPLAY_ORDER, SCENARIOS } from '../../shared/map-data';
 import {
   buildDefaultUsername,
   type PublicPlayerProfile,
@@ -219,7 +219,8 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   };
 
   const bindScenarioList = () => {
-    for (const [key, def] of Object.entries(SCENARIOS)) {
+    for (const key of SCENARIO_DISPLAY_ORDER) {
+      const def = SCENARIOS[key];
       const btn = document.createElement('button');
       btn.className = 'btn btn-scenario';
       btn.dataset.scenario = key;
