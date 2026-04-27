@@ -17,7 +17,7 @@ A pass typically takes 60-120 minutes of agent or human time and should produce 
 
 - [Toolkit](#toolkit)
 - [Lenses](#lenses-what-to-look-for)
-- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile layout sweep · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep · R17 callsign recovery · R18 HTTP method conformance · R19 error-shape consistency
+- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile layout sweep · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep · R17 callsign recovery · R18 HTTP method conformance · R19 error-shape consistency · R20 D1/R2 storage audit
 - [Workflow: probe, finding, backlog](#workflow-probe-finding-backlog)
 - [Anti-patterns](#anti-patterns)
 - [Pass log](#pass-log)
@@ -564,6 +564,109 @@ Look for: presence/absence of `ok`, `error`, `message`; whether
 JSON or plain text. Findings filed under **Gameplay UX & Matchmaking**
 or **Architecture & Correctness** depending on the consumer impact.
 
+### R20. D1 / R2 storage audit
+
+The single highest-yield probe in the 2026-04-27 pass — a one-off
+read across every persistence layer to confirm health *and* extract
+product insights from a week's worth of real traffic. Run quarterly
+or after any significant deploy to a persistence path.
+
+**Health checks** — run these and expect each to return cleanly:
+
+```bash
+# Schema present, all six application tables reachable
+npx wrangler d1 execute delta-v-telemetry --remote --command \
+  "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+
+# Per-table row counts + freshness windows
+npx wrangler d1 execute delta-v-telemetry --remote --json --command "
+  SELECT 'events' AS t, COUNT(*) AS n, MAX(ts) AS max_ts, MIN(ts) AS min_ts FROM events
+  UNION ALL SELECT 'match_archive', COUNT(*), MAX(completed_at), MIN(completed_at) FROM match_archive
+  UNION ALL SELECT 'match_rating', COUNT(*), MAX(created_at), MIN(created_at) FROM match_rating
+  UNION ALL SELECT 'player', COUNT(*), MAX(last_match_at), MIN(created_at) FROM player
+  UNION ALL SELECT 'player_recovery', COUNT(*), MAX(issued_at), MIN(issued_at) FROM player_recovery;"
+
+# Retention: nothing older than the configured horizon
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT COUNT(*) AS n FROM events WHERE ts < (strftime('%s','now','-30 days')*1000);"
+
+# D1 ↔ R2 archive parity on a sample of recent matches
+GIDS=$(npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT game_id FROM match_archive ORDER BY completed_at DESC LIMIT 3;" \
+  | python3 -c "import json,sys; d=json.load(sys.stdin); print(' '.join(r['game_id'] for r in d[0]['results']))")
+for gid in $GIDS; do
+  size=$(npx wrangler r2 object get "delta-v-match-archive/matches/$gid.json" --pipe --remote 2>/dev/null | wc -c)
+  echo "  $gid -> $size bytes"
+done
+```
+
+A row count that hasn't moved in days (when the live site is being
+used) is a write-path break. An R2 size of 1 byte means the GET was
+empty — the JSON is missing. Both are P1 findings.
+
+**Insight queries** — quarterly trend questions worth running:
+
+```bash
+# What scenarios do players actually pick? (Discovery gap detector)
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT scenario, COUNT(*) AS n FROM match_archive GROUP BY scenario ORDER BY n DESC;"
+
+# Host-seat (P0) vs joiner-seat (P1) win rate, per scenario
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT scenario, winner, COUNT(*) AS n FROM match_archive
+   WHERE winner IS NOT NULL GROUP BY scenario, winner ORDER BY scenario, winner;"
+
+# Win-reason mix: are scenarios resolving by objective or by elimination?
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT scenario, win_reason, COUNT(*) AS n FROM match_archive
+   WHERE win_reason IS NOT NULL GROUP BY scenario, win_reason
+   ORDER BY scenario, n DESC;"
+
+# Tutorial funnel — drop-off across the steps
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT event, COUNT(*) AS n FROM events
+   WHERE event IN ('tutorial_started','tutorial_step_shown','tutorial_completed','tutorial_skipped','tutorial_open_help')
+   GROUP BY event ORDER BY n DESC;"
+
+# Top error / quality events
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT event, COUNT(*) AS n FROM events
+   WHERE event LIKE 'projection_%' OR event LIKE 'ws_%'
+      OR event LIKE '%error%' OR event LIKE '%failed%' OR event LIKE '%rejected%'
+   GROUP BY event ORDER BY n DESC LIMIT 20;"
+
+# Connection quality: avg / max latency per WS lifecycle
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT
+     COUNT(*) AS sessions,
+     AVG(CAST(json_extract(props,'\$.latencyAvgMs') AS INT)) AS avg_avg_ms,
+     MAX(CAST(json_extract(props,'\$.latencyMaxMs') AS INT)) AS worst_max_ms,
+     AVG(CAST(json_extract(props,'\$.durationMs') AS INT)/60000.0) AS avg_session_minutes
+   FROM events WHERE event='ws_session_quality';"
+
+# Same payload pattern repeating in `projection_parity_mismatch` is the
+# tell-tale of a missing engine event — which path is drifting?
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT props FROM events WHERE event='projection_parity_mismatch'
+   ORDER BY ts DESC LIMIT 5;"
+```
+
+The 2026-04-27 pass surfaced four real bugs with these exact queries:
+
+1. `pendingAsteroidHazards` projection drift (43 silent
+   `projection_parity_mismatch` events with the same diff path) →
+   shipped as a parity-normaliser strip.
+2. Tutorial funnel had `tutorial_started: 116` but `tutorial_completed: 0`
+   because completion only fired on a click-through that few players
+   complete → shipped as a per-step `tutorial_step_shown` event.
+3. Six of nine scenarios had ≤1 play in real traffic → filed under
+   **Discovery & Onboarding**.
+4. Duel host-seat win rate of 27/35 (77 %) with no other obvious
+   asymmetry → filed under **Gameplay UX & Matchmaking**.
+
+`tail` (R13) tells you what *just* broke. R20 tells you what's been
+quietly broken for a week.
+
 ---
 
 ## Workflow: probe, finding, backlog
@@ -637,3 +740,4 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | 2026-04-26 | Codex | Follow-up fix pass: moved the menu sound control to the safe top-right chrome layer and rechecked `320 x 568`, `390 x 844`, and `812 x 375`; updated `scripts/mp-connectivity.mjs` to use the stable `ws` client and require the `SESSION_REPLACED` frame plus code 1000 close. Backlog entries from the prior pass were removed after verification. | 0 |
 | 2026-04-26 | Codex | Post-`d13b219` live deep pass after CI/deploy: GitHub run 24954316368 passed; deployed `version.json` hash `bbced061` matched the pushed build. Covered R1/R2 public surface and validation, R9 `scripts/mp-connectivity.mjs` production duplicate-session replacement, R17 callsign recovery restore + confirmed forget, hosted MCP initialize/tools/list/Accept rejection, all nine Play-vs-AI scenario launches, public page/link smoke for home/agents/matches/leaderboard, archived replay bar/log-pill spacing at `320 x 568`, `390 x 844`, `812 x 375`, and responsive overlap sweeps across menu/scenario/HUD/fleet/replay. Filed: sound control still unclickable behind scenario/fleet overlays. | 1 |
 | 2026-04-26 | Codex | Follow-up fix pass: extended overlay chrome positioning to scenario select, waiting, and fleet builder so `#soundBtn` remains top-right and clickable on menu-like overlays. Rechecked home menu, scenario select, fleet builder, waiting, and HUD at compact live-style viewports; removed the completed backlog entry. | 0 |
+| 2026-04-27 | agent (Opus 4.7) | New R20 D1/R2 storage-audit recipe + first run against prod. Storage health: all 6 application tables fresh (events writes minutes-old, retention purge clean, R2 archives 1:1 with `match_archive` rows at 10–17 KB each). Surfaced four real bugs: (1) 43 silent `projection_parity_mismatch` events all on `pendingAsteroidHazards[0]` — engine pushes the queue but emits no event, so projection can't reproduce → fixed by stripping the field from `normalizeStateForParity`; (2) `tutorial_started: 116` vs `tutorial_completed: 0` because completion only fires on click-through → added per-step `tutorial_step_shown` event so the funnel becomes measurable; (3) 6 of 9 scenarios have ≤1 real-world play (Evacuation, Grand Tour: 0); (4) Duel P0 win rate 27/35 (77 %) outside the seat-balance band. (1) and (2) shipped; (3) and (4) filed under Discovery & Onboarding / Gameplay UX. | 2 |

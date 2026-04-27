@@ -146,6 +146,15 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
       tutorialStartTime = Date.now();
       emitTelemetry('tutorial_started', { step: step.id });
     }
+    // Per-step display telemetry. The 2026-04-27 D1 audit found 116
+    // `tutorial_started` events vs 0 `tutorial_completed` — `advance()`
+    // (a "Got it" click) was the only completion signal, so a player
+    // who reads a tip and just keeps playing produced no funnel data.
+    // This event exposes per-step display drop-off so we can see which
+    // steps players actually reach without depending on click-through.
+    if (activeStepId !== step.id) {
+      emitTelemetry('tutorial_step_shown', { step: step.id });
+    }
 
     activeStepId = step.id;
     openHelpTargetSection = helpSectionForTutorialStep(step);

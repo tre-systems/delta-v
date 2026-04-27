@@ -162,6 +162,38 @@ The journey from "someone shared the URL" to "first burn plotted" is where
 players form their lasting impression. The items below are gaps surfaced by
 a 2026-04-26 deep-review pass.
 
+### Surface the Six Underplayed Scenarios (P2)
+
+The 2026-04-27 D1 audit (R20) showed six of nine scenarios are
+essentially undiscovered in real traffic. Distribution of decided
+matches across all of `match_archive`:
+
+| Scenario | matches | share |
+|---|---:|---:|
+| duel | 41 | 46 % |
+| biplanetary | 29 | 32 % |
+| blockade | 15 | 17 % |
+| convoy / escape / fleetAction / interplanetaryWar | 1 each | 1 % each |
+| **evacuation, grandTour** | **0** | **0 %** |
+
+So Evacuation and Grand Tour have *never* been played by a real
+player to completion, and four more have been tried once. Either the
+scenario picker doesn't show them prominently, the descriptions don't
+sell them, or players don't realise there are more options past Duel.
+
+Action: rework the scenario-select surface so every scenario gets an
+equally legible card with a one-line "what's the hook" tagline (e.g.
+"Race past every planet — Grand Tour", "Run colonists to Mars under
+fire — Convoy"). Optionally add a "Try a new scenario" nudge on the
+home screen for players whose `match_archive` plays are dominated by
+Duel + Biplanetary.
+
+**Files:** [static/index.html](../static/index.html) (scenario list
+markup), [src/client/ui/lobby-view.ts](../src/client/ui/lobby-view.ts)
+(scenario card rendering),
+[src/shared/scenario-definitions.ts](../src/shared/scenario-definitions.ts)
+(taglines).
+
 ### Prompt PWA Install After a Match (P3, triggered)
 
 The site already serves a manifest, icons, and a service worker, so
@@ -176,6 +208,33 @@ single dismissable prompt in the lobby on a subsequent visit.
 `src/client/pwa-install.ts` that owns the deferred prompt.
 
 ## Gameplay UX & Matchmaking
+
+### Investigate Duel Host-Seat Win Rate (P2)
+
+The 2026-04-27 D1 audit (R20) measured host-seat (P0) wins per
+scenario across the full match archive:
+
+- Duel: **27/35 = 77 % P0** (and 8 P1)
+- Biplanetary: 17/29 = 59 % P0
+- Across all decided matches: 55/82 = 67 % P0
+
+Duel is the most-played scenario and the seat balance is well outside
+the AI-sweep tolerance band of [30 %, 70 %]. Either the seat-shuffle
+isn't actually firing for Quick Match Duel, or the seat itself
+carries a real first-mover edge in the way real humans play it.
+
+Action: instrument or read the seat-assignment path in
+[matchmaker](../src/server/quick-match.ts) and confirm the shuffle
+fires for every Duel pairing; add a Glicko-aware test that cycles
+seat assignments across N back-to-back matches and asserts P0/P1
+parity. If the shuffle is correct, the imbalance is in the engine
+(first-attacker turn order in Duel) and belongs to the AI doctrine
+backlog.
+
+**Files:** `src/server/quick-match.ts`,
+[src/shared/engine/](../src/shared/engine/) (Duel turn-order rules),
+`docs/SIMULATION_TESTING.md` (add a duel-seat-balance check at the
+fixture level).
 
 ### Polish the Menu First-Impression Layer (P3)
 
