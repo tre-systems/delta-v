@@ -5,6 +5,7 @@ import { createConnectivityController } from '../connectivity';
 import { byId, clearHTML } from '../dom';
 import { createInputHandler } from '../input';
 import { TOAST } from '../messages/toasts';
+import { recordLocalAiMatchCompleted } from '../pwa-install';
 import type { Dispose } from '../reactive';
 import { createRenderer } from '../renderer/renderer';
 import { track } from '../telemetry';
@@ -211,6 +212,9 @@ export const createGameClient = () => {
       mode: ctx.isLocalGame ? 'local' : 'multiplayer',
       turn: ctx.gameStateSignal.peek()?.turnNumber,
     });
+    if (ctx.isLocalGame) {
+      recordLocalAiMatchCompleted();
+    }
     presentGameOver(presentationDeps, won, reason);
   };
 

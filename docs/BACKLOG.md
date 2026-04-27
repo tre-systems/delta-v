@@ -162,19 +162,6 @@ The journey from "someone shared the URL" to "first burn plotted" is where
 players form their lasting impression. The items below are gaps surfaced by
 a 2026-04-26 deep-review pass.
 
-### Prompt PWA Install After a Match (P3, triggered)
-
-The site already serves a manifest, icons, and a service worker, so
-mobile Safari + Android Chrome will offer "Add to Home Screen". But we
-never *prompt* the player. After a player's first or second completed
-match against AI is the right moment — they've demonstrated intent.
-Capture the `beforeinstallprompt` event, stash it, and surface a
-single dismissable prompt in the lobby on a subsequent visit.
-
-**Files:** [static/index.html](../static/index.html),
-[src/client/main.ts](../src/client/main.ts), and a new lightweight
-`src/client/pwa-install.ts` that owns the deferred prompt.
-
 ## Gameplay UX & Matchmaking
 
 ### Investigate Duel Host-Seat Win Rate (P2)
