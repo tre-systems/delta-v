@@ -47,6 +47,15 @@ export interface PassengerDeliveryApproachAction {
   overload: null;
 }
 
+export interface PassengerCarrierEscortTargetAction {
+  type: 'navigationTargetOverride';
+  shipId: Ship['id'];
+  carrierShipId: Ship['id'];
+  threatShipId: Ship['id'];
+  targetHex: null;
+  targetBody: '';
+}
+
 export const choosePassengerCombatPlan = (
   state: GameState,
   playerId: PlayerId,
@@ -286,6 +295,78 @@ export const choosePassengerDeliveryApproachPlan = (
         {
           reason: 'stationary passenger carrier starts target approach',
           detail: `${ship.id} burns toward ${targetHex.q},${targetHex.r}`,
+        },
+      ],
+    },
+  ]);
+};
+
+export const choosePassengerCarrierEscortTargetPlan = (
+  state: GameState,
+  playerId: PlayerId,
+  ship: Ship,
+  primaryCarrier: Ship | null,
+  enemyShips: readonly Ship[],
+): PlanDecision<PassengerCarrierEscortTargetAction> | null => {
+  const player = state.players[playerId];
+
+  if (
+    !state.scenarioRules.targetWinRequiresPassengers ||
+    !player?.targetBody ||
+    primaryCarrier == null ||
+    ship.owner !== playerId ||
+    ship.id === primaryCarrier.id ||
+    !canAttack(ship) ||
+    (ship.passengersAboard ?? 0) > 0
+  ) {
+    return null;
+  }
+
+  const nearestThreat = minBy(enemyShips.filter(canAttack), (enemy) =>
+    hexDistance(primaryCarrier.position, enemy.position),
+  );
+
+  if (
+    nearestThreat == null ||
+    hexDistance(primaryCarrier.position, nearestThreat.position) > 5
+  ) {
+    return null;
+  }
+
+  return chooseBestPlan([
+    {
+      id: `passenger-carrier-escort-target:${ship.id}:${primaryCarrier.id}`,
+      intent: 'escortCarrier',
+      action: {
+        type: 'navigationTargetOverride',
+        shipId: ship.id,
+        carrierShipId: primaryCarrier.id,
+        threatShipId: nearestThreat.id,
+        targetHex: null,
+        targetBody: '',
+      },
+      evaluation: {
+        feasible: true,
+        objective: 45,
+        survival: 35,
+        landing: 0,
+        fuel: ship.fuel,
+        combat: 20,
+        formation: Math.max(
+          0,
+          10 - hexDistance(ship.position, primaryCarrier.position),
+        ),
+        tempo: Math.max(
+          0,
+          5 - hexDistance(primaryCarrier.position, nearestThreat.position),
+        ),
+        risk: hexDistance(primaryCarrier.position, nearestThreat.position),
+        effort: 0,
+      },
+      diagnostics: [
+        {
+          reason: 'escort drops objective navigation to protect carrier',
+          detail: `${ship.id} screens ${primaryCarrier.id} from ${nearestThreat.id}`,
         },
       ],
     },
