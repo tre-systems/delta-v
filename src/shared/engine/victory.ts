@@ -46,6 +46,10 @@ export const applyCheckpoints = (
 
     const bodyName = mapHex.gravity?.bodyName ?? mapHex.body?.name;
 
+    if (bodyName === state.players[playerId].homeBody && visited.length === 0) {
+      continue;
+    }
+
     if (
       bodyName &&
       checkpoints.includes(bodyName) &&

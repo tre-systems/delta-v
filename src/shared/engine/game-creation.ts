@@ -62,28 +62,6 @@ const getScenarioStartingCredits = (
     : scenario.startingCredits;
 };
 
-const getStartingVisitedBodies = (
-  ships: Ship[],
-  playerId: PlayerId,
-  map: SolarSystemMap,
-): string[] => {
-  const visited = ships
-    .filter((ship) => ship.owner === playerId)
-    .reduce((acc, ship) => {
-      const hex = map.hexes.get(hexKey(ship.position));
-
-      if (hex?.gravity?.bodyName) {
-        acc.add(hex.gravity.bodyName);
-      }
-
-      if (hex?.body?.name) {
-        acc.add(hex.body.name);
-      }
-      return acc;
-    }, new Set<string>());
-  return [...visited];
-};
-
 const validateScenarioPlayerCount = (
   scenario: ScenarioDefinition,
 ): EngineError | null => {
@@ -637,7 +615,7 @@ export const createGame = (
           credits: getScenarioStartingCredits(scenario, 0),
           ...(scenario.rules?.checkpointBodies
             ? {
-                visitedBodies: getStartingVisitedBodies(ships, 0, map),
+                visitedBodies: [],
                 totalFuelSpent: 0,
               }
             : {}),
@@ -652,7 +630,7 @@ export const createGame = (
           credits: getScenarioStartingCredits(scenario, 1),
           ...(scenario.rules?.checkpointBodies
             ? {
-                visitedBodies: getStartingVisitedBodies(ships, 1, map),
+                visitedBodies: [],
                 totalFuelSpent: 0,
               }
             : {}),
