@@ -418,6 +418,27 @@ const scoreCheckpointBoundaryContinuation = (
     : -cfg.navTargetLandingBonus * cfg.multiplier * 3;
 };
 
+const scoreCheckpointRammingAvoidance = (
+  course: ReturnType<typeof computeCourse>,
+  enemyShips: Ship[],
+  cfg: ReturnType<typeof resolveAIConfig>,
+): number => {
+  if (course.outcome === 'landing') {
+    return 0;
+  }
+
+  const activeEnemyAtDestination = enemyShips.some(
+    (enemy) =>
+      enemy.lifecycle === 'active' &&
+      enemy.position.q === course.destination.q &&
+      enemy.position.r === course.destination.r,
+  );
+
+  return activeEnemyAtDestination
+    ? -cfg.navTargetLandingBonus * cfg.multiplier * 3
+    : 0;
+};
+
 const pickFuelAwareCheckpointTarget = (
   player: GameState['players'][PlayerId],
   checkpoints: readonly string[],
@@ -1508,6 +1529,7 @@ export const aiAstrogation = (
           state.destroyedBases,
           cfg,
         );
+        score += scoreCheckpointRammingAvoidance(course, enemyShips, cfg);
       }
 
       if (
