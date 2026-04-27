@@ -97,9 +97,11 @@ From `migrations/0001_create_events.sql`:
   - `first_turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
   - `scenario_browsed` with no additional props
   - `scenario_selected` with `{ scenario, from: 'ai' | 'private', difficulty? }` (fires when the player commits to a scenario from the menu, before the round-trip — captures intent even when the user bails out of the waiting room)
-  - `tutorial_started` with no additional props
-  - `tutorial_completed` with no additional props
-  - `tutorial_skipped` with no additional props
+  - `tutorial_started` with `{ step }` (id of the first step shown — typically `welcome`)
+  - `tutorial_step_shown` with `{ step }` (per-step display; lets the funnel be measured even when the player doesn't click "Got it" — added 2026-04-27 after a D1 audit found 116 starts vs 0 completes with no per-step signal)
+  - `tutorial_completed` with `{ totalTimeMs }` (fires only when "Got it" clicked on all 6 steps; rare in practice — use `tutorial_step_shown` for funnel)
+  - `tutorial_skipped` with `{ step }` (id of the step active when skipped)
+  - `tutorial_open_help` with `{ step, section }` (the player tapped "Help" from a tip)
   - `fleet_ready_submitted`, `surrender_submitted` (see `main-interactions.ts`)
   - `ai_game_started` with `{ scenario, difficulty }` (local AI path)
 - From client **`/error`**: `client_error` with `{ error, url, ua, ...context }`; current global handlers add either `{ source, line, col }` or `{ type: 'unhandledrejection' }`.
