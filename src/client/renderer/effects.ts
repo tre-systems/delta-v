@@ -4,7 +4,8 @@
 import type { PixelCoord } from '../../shared/hex';
 
 export interface CombatEffect {
-  type: 'beam' | 'explosion' | 'gameOverExplosion';
+  type: 'beam' | 'explosion' | 'gameOverExplosion' | 'screenFlash';
+  style?: 'standard' | 'shipDestruction' | 'mine' | 'torpedo' | 'nuke';
   from: PixelCoord;
   to: PixelCoord;
   startTime: number;
@@ -40,11 +41,16 @@ export const drawCombatEffects = (
       drawExplosionEffect(ctx, effect, progress);
     } else if (effect.type === 'gameOverExplosion') {
       drawGameOverExplosionEffect(ctx, effect, progress);
+    } else if (effect.type === 'screenFlash') {
+      drawScreenFlashEffect(ctx, effect, progress);
     }
   }
 
   return live;
 };
+
+const reducedMotion = (): boolean =>
+  globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 const drawBeamEffect = (
   ctx: CanvasRenderingContext2D,
@@ -86,27 +92,122 @@ const drawExplosionEffect = (
   effect: CombatEffect,
   progress: number,
 ): void => {
-  const maxRadius = 20;
+  const reduce = reducedMotion();
+  const style = effect.style ?? 'standard';
+  const maxRadius =
+    style === 'nuke'
+      ? reduce
+        ? 34
+        : 72
+      : style === 'shipDestruction'
+        ? reduce
+          ? 26
+          : 42
+        : style === 'mine'
+          ? reduce
+            ? 16
+            : 24
+          : style === 'torpedo'
+            ? reduce
+              ? 20
+              : 30
+            : 20;
   const radius = maxRadius * progress;
   const alpha = 1 - progress;
 
   ctx.strokeStyle = effect.color;
-  ctx.lineWidth = 3 * (1 - progress);
-  ctx.globalAlpha = alpha * 0.8;
+  ctx.lineWidth =
+    (style === 'nuke' ? 5 : style === 'shipDestruction' ? 4 : 3) *
+    (1 - progress);
+  ctx.globalAlpha = alpha * (style === 'nuke' ? 0.95 : 0.8);
 
   ctx.beginPath();
   ctx.arc(effect.from.x, effect.from.y, radius, 0, Math.PI * 2);
   ctx.stroke();
 
-  if (progress < 0.3) {
-    ctx.fillStyle = effect.color;
-    ctx.globalAlpha = (1 - progress / 0.3) * 0.6;
+  if (style === 'nuke' && progress > 0.12) {
+    const innerProgress = Math.min((progress - 0.12) / 0.88, 1);
+    ctx.strokeStyle = '#ffe6aa';
+    ctx.lineWidth = 3 * (1 - innerProgress);
+    ctx.globalAlpha = (1 - innerProgress) * (reduce ? 0.28 : 0.5);
+    ctx.beginPath();
+    ctx.arc(
+      effect.from.x,
+      effect.from.y,
+      maxRadius * 0.58 * innerProgress,
+      0,
+      Math.PI * 2,
+    );
+    ctx.stroke();
+  }
+
+  const flashWindow = style === 'nuke' ? 0.42 : style === 'mine' ? 0.22 : 0.3;
+  if (progress < flashWindow) {
+    ctx.fillStyle = style === 'nuke' ? '#fff8dd' : effect.color;
+    ctx.globalAlpha =
+      (1 - progress / flashWindow) * (style === 'nuke' ? 0.85 : 0.6);
 
     ctx.beginPath();
-    ctx.arc(effect.from.x, effect.from.y, radius * 0.5, 0, Math.PI * 2);
+    ctx.arc(
+      effect.from.x,
+      effect.from.y,
+      Math.max(
+        radius * (style === 'nuke' ? 0.6 : 0.5),
+        style === 'nuke' ? 10 : 0,
+      ),
+      0,
+      Math.PI * 2,
+    );
     ctx.fill();
   }
 
+  if (!reduce && (style === 'nuke' || style === 'shipDestruction')) {
+    const debrisAlpha =
+      progress < 0.22
+        ? progress / 0.22
+        : progress < 0.78
+          ? (0.78 - progress) / 0.56
+          : 0;
+    if (debrisAlpha > 0) {
+      const debrisCount = style === 'nuke' ? 14 : 9;
+      const seed = (effect.from.x * 11 + effect.from.y * 17) | 0;
+      ctx.strokeStyle = effect.color;
+      ctx.globalAlpha = debrisAlpha * (style === 'nuke' ? 0.72 : 0.5);
+      ctx.lineWidth = style === 'nuke' ? 1.7 : 1.25;
+      for (let d = 0; d < debrisCount; d++) {
+        const angle =
+          (seed + d * ((Math.PI * 2) / debrisCount)) % (Math.PI * 2);
+        const innerR = maxRadius * progress * 0.18;
+        const outerR = maxRadius * progress * (style === 'nuke' ? 0.92 : 0.68);
+        ctx.beginPath();
+        ctx.moveTo(
+          effect.from.x + Math.cos(angle) * innerR,
+          effect.from.y + Math.sin(angle) * innerR,
+        );
+        ctx.lineTo(
+          effect.from.x + Math.cos(angle) * outerR,
+          effect.from.y + Math.sin(angle) * outerR,
+        );
+        ctx.stroke();
+      }
+    }
+  }
+
+  ctx.globalAlpha = 1;
+};
+
+const drawScreenFlashEffect = (
+  ctx: CanvasRenderingContext2D,
+  effect: CombatEffect,
+  progress: number,
+): void => {
+  const alpha = (1 - progress) * (reducedMotion() ? 0.06 : 0.14);
+  const canvas = ctx.canvas;
+  if (!canvas) return;
+
+  ctx.fillStyle = effect.color;
+  ctx.globalAlpha = alpha;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.globalAlpha = 1;
 };
 

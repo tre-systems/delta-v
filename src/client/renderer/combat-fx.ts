@@ -7,6 +7,7 @@ import {
 import type {
   CombatResult,
   GameState,
+  Ordnance,
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { getCombatTargetEntity } from './combat';
@@ -74,16 +75,47 @@ const pushDamageExplosion = (
   targetPos: PixelCoord,
   now: number,
   damageType: CombatResult['damageType'],
+  style: CombatEffect['style'] = 'standard',
 ): void => {
   if (damageType === 'none') return;
   out.push({
     type: 'explosion',
+    style,
     from: targetPos,
     to: targetPos,
     startTime: now + 300,
-    duration: 800,
-    color: damageType === 'eliminated' ? '#ff4444' : '#ffaa00',
+    duration:
+      style === 'nuke' ? 1300 : style === 'shipDestruction' ? 1000 : 800,
+    color:
+      style === 'nuke'
+        ? '#ff8a22'
+        : damageType === 'eliminated'
+          ? '#ff4444'
+          : '#ffaa00',
   });
+  if (style === 'nuke') {
+    out.push({
+      type: 'screenFlash',
+      style: 'nuke',
+      from: targetPos,
+      to: targetPos,
+      startTime: now + 300,
+      duration: 520,
+      color: '#fff2bf',
+    });
+  }
+};
+
+const explosionStyleForTarget = (
+  r: CombatResult,
+  target: ReturnType<typeof getCombatTargetEntity>,
+): CombatEffect['style'] => {
+  if (r.attackType === 'antiNuke') return 'nuke';
+  if (r.targetType === 'ordnance' && (target as Ordnance | null)?.type) {
+    return (target as Ordnance).type;
+  }
+  if (r.damageType === 'eliminated') return 'shipDestruction';
+  return 'standard';
 };
 
 const pushCounterattackEffects = (
@@ -116,6 +148,7 @@ const pushCounterattackEffects = (
   if (ca.damageType !== 'none') {
     out.push({
       type: 'explosion',
+      style: ca.attackType === 'antiNuke' ? 'nuke' : 'standard',
       from: counterPos,
       to: counterPos,
       startTime: now + 800,
@@ -144,7 +177,13 @@ const effectsForOneResult = (
       pushAttackerBeamEffects(local, r, targetPos, attackerPos, now);
     }
   }
-  pushDamageExplosion(local, targetPos, now, r.damageType);
+  pushDamageExplosion(
+    local,
+    targetPos,
+    now,
+    r.damageType,
+    explosionStyleForTarget(r, target),
+  );
   pushCounterattackEffects(local, r, targetPos, gameState, now, hexSize);
   return local;
 };

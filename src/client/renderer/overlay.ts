@@ -217,7 +217,10 @@ export const renderOrdnance = ({
     for (const om of animState.ordnanceMovements) {
       if (!om.detonated) continue;
 
-      const overlay = getDetonatedOrdnanceOverlay(animationProgress ?? 1);
+      const overlay = getDetonatedOrdnanceOverlay(
+        animationProgress ?? 1,
+        om.ordnanceType,
+      );
 
       if (!overlay) continue;
 
@@ -234,7 +237,7 @@ export const renderOrdnance = ({
         ctx.closePath();
         ctx.fill();
         ctx.globalAlpha = 1;
-      } else {
+      } else if (overlay.kind === 'flash') {
         const detP = hexToPixel(om.to, hexSize);
 
         ctx.fillStyle = overlay.color;
@@ -242,6 +245,40 @@ export const renderOrdnance = ({
         ctx.beginPath();
         ctx.arc(detP.x, detP.y, overlay.size, 0, Math.PI * 2);
         ctx.fill();
+        ctx.globalAlpha = 1;
+      } else if (overlay.kind === 'ring') {
+        const detP = hexToPixel(om.to, hexSize);
+
+        ctx.strokeStyle = overlay.color;
+        ctx.lineWidth = overlay.lineWidth ?? 2;
+        ctx.globalAlpha = overlay.alpha;
+        ctx.beginPath();
+        ctx.arc(detP.x, detP.y, overlay.size, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else {
+        const detP = hexToPixel(om.to, hexSize);
+        const count = overlay.count ?? 8;
+        const seed = (detP.x * 5 + detP.y * 7) | 0;
+
+        ctx.strokeStyle = overlay.color;
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = overlay.alpha;
+        for (let d = 0; d < count; d++) {
+          const angle = (seed + d * ((Math.PI * 2) / count)) % (Math.PI * 2);
+          const innerR = overlay.size * 0.2;
+          const outerR = overlay.size;
+          ctx.beginPath();
+          ctx.moveTo(
+            detP.x + Math.cos(angle) * innerR,
+            detP.y + Math.sin(angle) * innerR,
+          );
+          ctx.lineTo(
+            detP.x + Math.cos(angle) * outerR,
+            detP.y + Math.sin(angle) * outerR,
+          );
+          ctx.stroke();
+        }
         ctx.globalAlpha = 1;
       }
     }
