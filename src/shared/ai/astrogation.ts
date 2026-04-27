@@ -334,6 +334,90 @@ const scoreRaceEscortRoleCourse = (
   return score;
 };
 
+const CHECKPOINT_BOUNDARY_CONTINUATION_DEPTH = 2;
+
+const isInsideMapBounds = (
+  position: { q: number; r: number },
+  map: SolarSystemMap,
+): boolean => {
+  const { minQ, maxQ, minR, maxR } = map.bounds;
+
+  return (
+    position.q >= minQ &&
+    position.q <= maxQ &&
+    position.r >= minR &&
+    position.r <= maxR
+  );
+};
+
+const hasInMapContinuation = (
+  ship: Ship,
+  map: SolarSystemMap,
+  destroyedBases: GameState['destroyedBases'],
+  depth: number,
+): boolean => {
+  if (depth <= 0) {
+    return true;
+  }
+
+  const directions = [null, 0, 1, 2, 3, 4, 5] as const;
+
+  for (const burn of directions) {
+    if (burn !== null && ship.fuel <= 0) {
+      continue;
+    }
+
+    const course = computeCourse(ship, burn, map, { destroyedBases });
+
+    if (course.outcome === 'crash') {
+      continue;
+    }
+
+    if (course.outcome === 'landing') {
+      return true;
+    }
+
+    if (!isInsideMapBounds(course.destination, map)) {
+      continue;
+    }
+
+    const projectedShip = projectShipAfterCourse(ship, course);
+
+    if (hasInMapContinuation(projectedShip, map, destroyedBases, depth - 1)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const scoreCheckpointBoundaryContinuation = (
+  ship: Ship,
+  course: ReturnType<typeof computeCourse>,
+  map: SolarSystemMap,
+  destroyedBases: GameState['destroyedBases'],
+  cfg: ReturnType<typeof resolveAIConfig>,
+): number => {
+  if (course.outcome === 'landing') {
+    return 0;
+  }
+
+  if (!isInsideMapBounds(course.destination, map)) {
+    return -cfg.navTargetLandingBonus * cfg.multiplier * 4;
+  }
+
+  const projectedShip = projectShipAfterCourse(ship, course);
+
+  return hasInMapContinuation(
+    projectedShip,
+    map,
+    destroyedBases,
+    CHECKPOINT_BOUNDARY_CONTINUATION_DEPTH,
+  )
+    ? 0
+    : -cfg.navTargetLandingBonus * cfg.multiplier * 3;
+};
+
 const pickFuelAwareCheckpointTarget = (
   player: GameState['players'][PlayerId],
   checkpoints: readonly string[],
@@ -1414,6 +1498,16 @@ export const aiAstrogation = (
         if (currentDist <= 2 && newDist < currentDist && newSpeed <= 1) {
           score += cfg.navImminentLandingBonus * cfg.multiplier;
         }
+      }
+
+      if (checkpoints && !escapeWins && !seekingFuel) {
+        score += scoreCheckpointBoundaryContinuation(
+          ship,
+          course,
+          map,
+          state.destroyedBases,
+          cfg,
+        );
       }
 
       if (
