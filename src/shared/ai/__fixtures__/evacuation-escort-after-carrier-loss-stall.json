@@ -1,0 +1,283 @@
+{
+  "schemaVersion": 1,
+  "scenario": "evacuation",
+  "seed": 2471588375,
+  "gameIndex": 42,
+  "playerDifficulties": {
+    "p0": "hard",
+    "p1": "hard"
+  },
+  "kind": "fuelStall",
+  "turnNumber": 5,
+  "phase": "astrogation",
+  "activePlayer": 0,
+  "difficulty": "hard",
+  "state": {
+    "schemaVersion": 1,
+    "gameId": "sim-evacuation-2471588375",
+    "scenario": "evacuation",
+    "scenarioRules": {
+      "planetaryDefenseEnabled": true,
+      "hiddenIdentityInspection": false,
+      "escapeEdge": "any",
+      "logisticsEnabled": true,
+      "passengerRescueEnabled": true,
+      "targetWinRequiresPassengers": true
+    },
+    "escapeMoralVictoryAchieved": false,
+    "turnNumber": 5,
+    "phase": "astrogation",
+    "activePlayer": 0,
+    "ships": [
+      {
+        "id": "p0s0",
+        "type": "transport",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": 7,
+          "r": -7
+        },
+        "lastMovementPath": [
+          {
+            "q": 9,
+            "r": -8
+          },
+          {
+            "q": 8,
+            "r": -7
+          },
+          {
+            "q": 7,
+            "r": -7
+          }
+        ],
+        "velocity": {
+          "dq": 0,
+          "dr": 0
+        },
+        "fuel": 10,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "destroyed",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": false,
+        "detected": true,
+        "pendingGravityEffects": [
+          {
+            "hex": {
+              "q": 7,
+              "r": -7
+            },
+            "direction": 4,
+            "bodyName": "Terra",
+            "strength": "full",
+            "ignored": false
+          }
+        ],
+        "damage": {
+          "disabledTurns": 7
+        },
+        "passengersAboard": 40,
+        "deathCause": "baseDefense",
+        "killedBy": "base:7,-7"
+      },
+      {
+        "id": "p0s1",
+        "type": "corvette",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": 4,
+          "r": -5
+        },
+        "lastMovementPath": [
+          {
+            "q": 7,
+            "r": -7
+          },
+          {
+            "q": 6,
+            "r": -6
+          },
+          {
+            "q": 5,
+            "r": -6
+          },
+          {
+            "q": 4,
+            "r": -5
+          }
+        ],
+        "velocity": {
+          "dq": 0,
+          "dr": 0
+        },
+        "fuel": 20,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "destroyed",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": false,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 2
+        },
+        "deathCause": "crash"
+      },
+      {
+        "id": "p0s2",
+        "type": "frigate",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": 8,
+          "r": -8
+        },
+        "lastMovementPath": [
+          {
+            "q": 8,
+            "r": -8
+          }
+        ],
+        "velocity": {
+          "dq": 0,
+          "dr": 0
+        },
+        "fuel": 17,
+        "cargoUsed": 40,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": true,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "lastBurnDirection": 0
+      },
+      {
+        "id": "p1s0",
+        "type": "corsair",
+        "owner": 1,
+        "originalOwner": 1,
+        "position": {
+          "q": 5,
+          "r": -3
+        },
+        "lastMovementPath": [
+          {
+            "q": 7,
+            "r": -5
+          },
+          {
+            "q": 6,
+            "r": -4
+          },
+          {
+            "q": 5,
+            "r": -3
+          }
+        ],
+        "velocity": {
+          "dq": -2,
+          "dr": 2
+        },
+        "fuel": 17,
+        "cargoUsed": 10,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": true,
+        "detected": true,
+        "pendingGravityEffects": [
+          {
+            "hex": {
+              "q": 6,
+              "r": -4
+            },
+            "direction": 3,
+            "bodyName": "Terra",
+            "strength": "full",
+            "ignored": false
+          },
+          {
+            "hex": {
+              "q": 5,
+              "r": -3
+            },
+            "direction": 2,
+            "bodyName": "Terra",
+            "strength": "full",
+            "ignored": false
+          }
+        ],
+        "damage": {
+          "disabledTurns": 2
+        },
+        "lastBurnDirection": 2
+      }
+    ],
+    "ordnance": [],
+    "pendingAstrogationOrders": null,
+    "pendingAsteroidHazards": [],
+    "destroyedAsteroids": [],
+    "destroyedBases": [],
+    "players": [
+      {
+        "connected": true,
+        "ready": true,
+        "targetBody": "Terra",
+        "homeBody": "Luna",
+        "bases": [
+          "10,-7",
+          "10,-8",
+          "9,-8",
+          "8,-7",
+          "8,-6",
+          "9,-6"
+        ],
+        "escapeWins": false
+      },
+      {
+        "connected": true,
+        "ready": true,
+        "targetBody": "",
+        "homeBody": "Terra",
+        "bases": [
+          "7,-7",
+          "3,-3",
+          "7,-5",
+          "5,-7",
+          "3,-5",
+          "5,-3"
+        ],
+        "escapeWins": false
+      }
+    ],
+    "outcome": null
+  },
+  "action": {
+    "type": "astrogation",
+    "orders": [
+      {
+        "shipId": "p0s2",
+        "burn": null,
+        "overload": null
+      }
+    ]
+  },
+  "stalledShipIds": [
+    "p0s2"
+  ]
+}
