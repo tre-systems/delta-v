@@ -700,6 +700,38 @@ describe('aiAstrogation', () => {
     expect(tankerOrder.burn).toBe(linerOrder.burn);
   });
 
+  it('convoy: passenger carrier near Venus starts the landing approach instead of coasting', () => {
+    const fixture = loadAIFailureFixture(
+      'convoy-carrier-near-target-stall.json',
+    );
+    const carrier = must(
+      fixture.state.ships.find((ship) => ship.id === 'p0s0'),
+    );
+    const orders = aiAstrogation(
+      fixture.state,
+      fixture.activePlayer,
+      map,
+      fixture.difficulty,
+    );
+    const carrierOrder = must(
+      orders.find((order) => order.shipId === carrier.id),
+    );
+    const course = computeCourse(carrier, carrierOrder.burn ?? null, map, {
+      land: carrierOrder.land,
+      overload: carrierOrder.overload ?? null,
+      destroyedBases: fixture.state.destroyedBases,
+      weakGravityChoices: carrierOrder.weakGravityChoices,
+    });
+    const venus = must(map.bodies.find((body) => body.name === 'Venus'));
+
+    expect(fixture.kind).toBe('objectiveDrift');
+    expect(carrier.passengersAboard).toBeGreaterThan(0);
+    expect(carrierOrder.burn).not.toBeNull();
+    expect(hexDistance(course.destination, venus.center)).toBeLessThan(
+      hexDistance(carrier.position, venus.center),
+    );
+  });
+
   it('keeps escort scoring tethered to the passenger carrier outside immediate threat range', () => {
     const carrier = createTestShip({
       id: asShipId('carrier'),

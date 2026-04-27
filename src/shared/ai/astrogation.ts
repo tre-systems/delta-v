@@ -1782,6 +1782,31 @@ export const aiAstrogation = (
     }
 
     if (
+      passengerEscortMission &&
+      primaryPassengerCarrier != null &&
+      ship.id === primaryPassengerCarrier.id &&
+      ship.lifecycle === 'active' &&
+      hexVecLength(ship.velocity) === 0 &&
+      canBurnFuel &&
+      bestBurn === null &&
+      !bestLand &&
+      shipTargetHex != null
+    ) {
+      const plan = planShortHorizonMovementToHex(
+        ship,
+        shipTargetHex,
+        map,
+        state.destroyedBases,
+      );
+
+      if (plan?.firstBurn !== null && plan?.firstBurn !== undefined) {
+        bestBurn = plan.firstBurn;
+        bestOverload = null;
+        bestWeakGrav = undefined;
+      }
+    }
+
+    if (
       checkpoints &&
       ship.lifecycle === 'active' &&
       hexVecLength(ship.velocity) === 0 &&
