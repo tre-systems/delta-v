@@ -5,4 +5,5 @@ export {
   aiLogistics,
   aiOrdnance,
   buildAIFleetPurchases,
+  choosePassengerCombatPlan,
 } from './ai/index';

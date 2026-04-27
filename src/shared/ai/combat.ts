@@ -22,6 +22,7 @@ import { minBy, sumBy } from '../util';
 import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
 import { assignTurnShipRoles } from './logistics';
+import { choosePassengerCombatPlan } from './plans/passenger';
 import type { AIDifficulty } from './types';
 
 interface ScoredTarget {
@@ -113,40 +114,22 @@ export const aiCombat = (
   );
   const shouldPreserveLandingLine =
     singleShipObjectiveDuel && myLandingTurns === 1 && enemyLandingTurns !== 0;
-  const passengerCarrierLandingLine =
-    caps.targetWinRequiresPassengers && player.targetBody
-      ? (state.ships
-          .filter(
-            (ship) =>
-              ship.owner === playerId &&
-              ship.lifecycle === 'active' &&
-              (ship.passengersAboard ?? 0) > 0,
-          )
-          .some((ship) => {
-            const landingTurns = estimateTurnsToTargetLanding(
-              ship,
-              player.targetBody,
-              map,
-              state.destroyedBases,
-            );
-            const carrierUnderImmediateThreat = enemyShips.some(
-              (enemy) => canAttack(enemy) && hasLineOfSight(enemy, ship, map),
-            );
-
-            return (
-              landingTurns !== null &&
-              landingTurns <= 2 &&
-              !carrierUnderImmediateThreat
-            );
-          }) ?? false)
-      : false;
+  const passengerCombatPlan = choosePassengerCombatPlan(
+    state,
+    playerId,
+    map,
+    enemyShips,
+  );
   const shipRoles = assignTurnShipRoles(state, playerId, map);
 
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
     return [];
   }
 
-  if (shouldPreserveLandingLine || passengerCarrierLandingLine) {
+  if (
+    shouldPreserveLandingLine ||
+    passengerCombatPlan?.chosen.action.type === 'skipCombat'
+  ) {
     return [];
   }
 
