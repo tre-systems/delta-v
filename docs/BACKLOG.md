@@ -63,25 +63,24 @@ named plans and ordered evaluation vectors so objective safety, carrier
 survival, fuel margin, landing setup, and combat posture are compared
 explicitly instead of fighting through unrelated bonuses.
 
+The foundation is now in place: passenger and fuel-support decisions have named
+plans for `deliverPassengers`, `preserveLandingLine`, `escortCarrier`,
+`interceptPassengerCarrier`, `supportPassengerCarrier`,
+`postCarrierLossPursuit`, and `refuelAtReachableBase`.
+
 Remaining concrete steps:
 
-1. Continue extracting passenger-specific astrogation branches into named
-   candidates, prioritizing `escortCarrier`, `interceptPassengerCarrier`, and
-   `refuelAtReachableBase`.
-2. Evaluate each new candidate with the existing forward model first:
-   `computeCourse`, `planShortHorizonMovementToHex`,
-   `estimateTurnsToTargetLanding`, and one-to-two-turn lookahead where the
-   fixture proves it matters.
-3. Keep moving passenger-specific branches out of `aiAstrogation` and
-   `aiCombat` behind plan generators incrementally. Do not rewrite Grand Tour
-   or fleet combat until passenger fixtures show the pattern is stable.
-4. Update fixture assertions to prefer doctrine-level checks such as "chooses
-   escortCarrier" or "keeps screen with carrier" over exact burn directions,
-   except where a rules edge requires an exact order.
-5. Compare paired seed sweeps before and after each extraction. The first
-   target is to improve convoy / evacuation objective share or reduce
-   fleet-elimination share without increasing invalid actions, fuel stalls, or
-   timeout-heavy stalemates.
+1. Use paired seed sweeps and promoted fixtures to decide which doctrine should
+   change next. The first target is to improve convoy / evacuation objective
+   share or reduce fleet-elimination share without increasing invalid actions,
+   fuel stalls, or timeout-heavy stalemates.
+2. Keep adding named plans only when they support a concrete fixture or tuning
+   change. Avoid further extraction-only work unless it removes a blocker from
+   a measured behavior fix.
+3. Return chosen intents and short rejection diagnostics from more planning
+   paths when failure captures need better "why this plan won" context.
+4. Do not rewrite Grand Tour or fleet combat until passenger fixtures show the
+   pattern is stable.
 
 **Files:** new `src/shared/ai/plans/`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/combat.ts`, `src/shared/ai/logistics.ts`,
@@ -110,11 +109,14 @@ changes:
 
 - **Passenger scenarios:** the 2026-04-27 evacuation setup pass removed the
   one-turn Terra landing, but hard-vs-hard samples still skew toward the
-  passenger side; convoy also still resolves too often through attrition.
-  Continue from captured fleet-elimination states: passenger-carrier doctrine
-  should rank arrival odds and survival of a viable destination runner above
-  hull quality or generic combat value, while defender/interceptor doctrine
-  should contest carriers without creating timeout-heavy stalemates.
+  passenger side. Convoy still has too many attrition endings, though the
+  2026-04-27 attrition-finish skip moved the seed-21 120-game scorecard from
+  47.5% objective / 47.5% fleet elimination to 50.8% objective / 45.0% fleet
+  elimination without invalid actions. Continue from captured
+  fleet-elimination states: passenger-carrier doctrine should rank arrival odds
+  and survival of a viable destination runner above hull quality or generic
+  combat value, while defender/interceptor doctrine should contest carriers
+  without creating timeout-heavy stalemates.
 - **Duel live seat imbalance:** the 2026-04-27 D1 audit (R20) measured
   Duel at **27/35 = 77% P0** across decided archived matches. A
   follow-up audit of `MatchmakerDO` found the quick-match layer already
