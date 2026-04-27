@@ -132,34 +132,6 @@ Add `leaderboard_row_clicked` once leaderboard rows become interactive.
 **Files:** `src/client/leaderboard/*.ts`, `static/leaderboard.html`,
 `src/server/metrics-route.ts`
 
-### Instrument the Official-Bot Offer Visibility (P2)
-
-The lobby code in
-[src/client/ui/lobby-view.ts:983-1002](../src/client/ui/lobby-view.ts)
-toggles `#officialBotOffer` visible based on
-`state.officialBotOfferAvailable`, but emits no event when the toggle
-flips. We have `quick_match_official_bot_accepted` (user clicked
-Accept) but no signal for *offer was shown to the user*.
-
-Without the show-side event, post-launch we won't be able to separate
-"offer-discoverability bug" from "users genuinely prefer to wait for
-a human" — both produce the same telemetry shape (queue tickets that
-expire or cancel without acceptance). Fixing this before real traffic
-arrives makes the first batch of post-launch data interpretable.
-
-Action: emit `quick_match_official_bot_offered` once per queue ticket
-the first time the offer becomes visible, with `{waitedMs, scenario}`.
-Then `offered − accepted = silently rejected` becomes a simple R20
-query.
-
-Found via R20 D1/R2 storage audit (2026-04-27 pass) — the original
-"zero accepts in 65 h" observation turned out to be an artefact of
-pre-launch zero-traffic, but the missing instrumentation it surfaced
-is real.
-
-**Files:** `src/client/ui/lobby-view.ts`,
-`src/client/game/session-api.ts`
-
 ## Architecture & Correctness
 
 ### Optional Deduplication of Initial Publication Path (P3)

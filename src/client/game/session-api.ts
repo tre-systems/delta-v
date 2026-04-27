@@ -165,6 +165,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
   let quickMatchTicket: string | null = null;
   let quickMatchPlayerKey: string | null = null;
   let quickMatchQueuedAtMs: number | null = null;
+  let quickMatchOfficialBotOfferedTicket: string | null = null;
   const quickMatchLock =
     deps.quickMatchLock ??
     (() => {
@@ -185,7 +186,29 @@ export const createSessionApi = (deps: SessionApiDeps) => {
     quickMatchTicket = null;
     quickMatchPlayerKey = null;
     quickMatchQueuedAtMs = null;
+    quickMatchOfficialBotOfferedTicket = null;
     quickMatchLock?.release();
+  };
+
+  const trackOfficialBotOfferShown = (
+    payload: Extract<QuickMatchResponse, { status: 'queued' }>,
+  ): void => {
+    if (!payload.officialBotOfferAvailable) {
+      return;
+    }
+
+    if (quickMatchOfficialBotOfferedTicket === payload.ticket) {
+      return;
+    }
+
+    quickMatchOfficialBotOfferedTicket = payload.ticket;
+    deps.track('quick_match_official_bot_offered', {
+      scenario: payload.scenario,
+      waitedMs:
+        quickMatchQueuedAtMs == null
+          ? 0
+          : Math.max(0, Date.now() - quickMatchQueuedAtMs),
+    });
   };
 
   const connectQuickMatch = (
@@ -256,6 +279,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           officialBotOfferAvailable: payload.officialBotOfferAvailable,
           officialBotWaitMsRemaining: payload.officialBotWaitMsRemaining,
         });
+        trackOfficialBotOfferShown(payload);
       } catch (err) {
         releaseQuickMatch();
         const failureKind = classifySessionRequestFailure(err);
@@ -407,6 +431,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
       deps.track('quick_match_queued', {
         scenario: payload.scenario,
       });
+      trackOfficialBotOfferShown(payload);
       deps.setState('waitingForOpponent');
       void pollQuickMatch(payload.ticket);
     } catch (err) {
@@ -659,6 +684,7 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           officialBotOfferAvailable: payload.officialBotOfferAvailable,
           officialBotWaitMsRemaining: payload.officialBotWaitMsRemaining,
         });
+        trackOfficialBotOfferShown(payload);
       }
     } catch (err) {
       const failureKind = classifySessionRequestFailure(err);
