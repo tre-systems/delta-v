@@ -162,27 +162,6 @@ is real.
 
 ## Architecture & Correctness
 
-### Distinguish "Missing Scenario" from "Extras Present" on `POST /create` (P3)
-
-`parseCreatePayload` in [src/server/protocol.ts:69-78](../src/server/protocol.ts)
-returns `'Create payload only supports scenario'` for both `{}` (no
-scenario at all) and `{scenario, foo}` (extras present), classifying
-both as `invalid_payload`. Meanwhile a request with no body at all
-gets `missing_scenario` from the route layer with a different
-`error` code. Three input shapes, two error codes, all expressing
-the same root cause from an agent's perspective.
-
-The asymmetry breaks programmatic discrimination: an agent that
-checks `error === 'missing_scenario'` to decide whether to retry
-with a default scenario will mishandle the `{}` case. Change the
-strict-keys check so `keys.length === 0` returns `missing_scenario`
-("Create payload must include a scenario.") to match the no-body
-path; reserve `invalid_payload` for the genuine extras case.
-
-Found via R19 error-shape consistency probing (2026-04-27 pass).
-
-**Files:** `src/server/protocol.ts`, `src/server/protocol.test.ts`
-
 ### Optional Deduplication of Initial Publication Path (P3)
 
 `initGameSession` already publishes via the same `GameDO.publishStateChange` to

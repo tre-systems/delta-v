@@ -101,43 +101,74 @@ describe('parseCreatePayload', () => {
   it('rejects unknown scenarios', () => {
     expect(parseCreatePayload({ scenario: 'fake' }, keys)).toEqual({
       ok: false,
-      error: 'Invalid scenario',
+      error: {
+        code: 'invalid_payload',
+        message: 'Invalid scenario',
+      },
     });
   });
 
   it('rejects non-object payloads', () => {
     expect(parseCreatePayload(null, keys)).toEqual({
       ok: false,
-      error: 'Invalid create payload',
+      error: {
+        code: 'invalid_payload',
+        message: 'Invalid create payload',
+      },
     });
 
     expect(parseCreatePayload(undefined, keys)).toEqual({
       ok: false,
-      error: 'Invalid create payload',
+      error: {
+        code: 'invalid_payload',
+        message: 'Invalid create payload',
+      },
     });
 
     expect(parseCreatePayload('string', keys)).toEqual({
       ok: false,
-      error: 'Invalid create payload',
+      error: {
+        code: 'invalid_payload',
+        message: 'Invalid create payload',
+      },
     });
 
     expect(parseCreatePayload(42, keys)).toEqual({
       ok: false,
-      error: 'Invalid create payload',
+      error: {
+        code: 'invalid_payload',
+        message: 'Invalid create payload',
+      },
+    });
+  });
+
+  it('classifies empty objects as missing scenario', () => {
+    expect(parseCreatePayload({}, keys)).toEqual({
+      ok: false,
+      error: {
+        code: 'missing_scenario',
+        message: 'Create payload must include a scenario.',
+      },
     });
   });
 
   it('rejects arrays and extra fields', () => {
     expect(parseCreatePayload([], keys)).toEqual({
       ok: false,
-      error: 'Invalid create payload',
+      error: {
+        code: 'invalid_payload',
+        message: 'Invalid create payload',
+      },
     });
 
     expect(
       parseCreatePayload({ scenario: 'escape', extra: true }, keys),
     ).toEqual({
       ok: false,
-      error: 'Create payload only supports scenario',
+      error: {
+        code: 'invalid_payload',
+        message: 'Create payload only supports scenario',
+      },
     });
   });
 });
