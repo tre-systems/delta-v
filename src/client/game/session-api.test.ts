@@ -73,6 +73,7 @@ const createDeps = () => {
 describe('session-api telemetry', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it('tracks create-game attempts and server failures', async () => {
@@ -296,5 +297,35 @@ describe('session-api telemetry', () => {
     expect(deps.setState).toHaveBeenCalledWith('menu');
     expect(deps.setMenuLoading).toHaveBeenNthCalledWith(1, true, 'quickMatch');
     expect(deps.setMenuLoading).toHaveBeenLastCalledWith(false);
+  });
+
+  it('tracks when the Official Bot offer first becomes visible for a quick-match ticket', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_700_000_000_000);
+    const { deps, fetchImpl, track } = createDeps();
+    fetchImpl.mockResolvedValue(
+      Response.json({
+        status: 'queued',
+        ticket: 'ticket-1',
+        scenario: 'duel',
+        officialBotOfferAvailable: true,
+        officialBotWaitMsRemaining: 0,
+      }),
+    );
+
+    const api = createSessionApi(deps);
+
+    await api.startQuickMatch();
+    api.cancelQuickMatch();
+
+    expect(track).toHaveBeenCalledWith('quick_match_official_bot_offered', {
+      scenario: 'duel',
+      waitedMs: 0,
+    });
+    expect(
+      track.mock.calls.filter(
+        ([event]) => event === 'quick_match_official_bot_offered',
+      ),
+    ).toHaveLength(1);
   });
 });
