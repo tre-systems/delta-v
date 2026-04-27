@@ -16,8 +16,19 @@ A pass typically takes 60-120 minutes of agent or human time and should produce 
 ## Contents
 
 - [Toolkit](#toolkit)
-- [Lenses](#lenses-what-to-look-for)
-- [Probe recipes](#probe-recipes) — R1 surface scan · R2 validation · R3 doc consistency · R4 D1/R2 cross-check · R5 MCP edges · R6 safe pairing · R7 scenario sweep · R8 live observation · R9 reconnect · R10 mobile layout sweep · R11 fresh-start wipe · R12 doc-link sweep · R13 tail exception triage · R14 client-state audit · R15 post-game pipeline cross-check · R16 simulation-harness balance sweep · R17 callsign recovery · R18 HTTP method conformance · R19 error-shape consistency · R20 D1/R2 storage audit
+- [Pass templates](#pass-templates) — chained recipes for common goals (smoke · post-deploy · pre-release)
+- [Lenses](#lenses-what-to-look-for) — questions to keep mentally active
+- [Probe recipes](#probe-recipes) — concrete techniques (R1–R20):
+
+  | Theme | Recipes |
+  |---|---|
+  | **Public API & contracts** | [R1 surface scan](#r1-public-api-surface-scan) · [R2 validation](#r2-endpoint-filter-validation-probing) · [R5 MCP edges](#r5-mcp-edge-cases) · [R18 HTTP method conformance](#r18-http-method-conformance) · [R19 error-shape consistency](#r19-error-shape-consistency) |
+  | **Persistence & data** | [R4 D1/R2 cross-check](#r4-d1-r2-cross-check-during-a-session) · [R15 post-game pipeline](#r15-post-game-pipeline-cross-check) · [R20 D1/R2 storage audit](#r20-d1-r2-storage-audit) |
+  | **Live observation** | [R8 paired-match watch](#r8-live-observation-during-a-paired-match) · [R13 tail exception triage](#r13-worker-tail-exception-triage) |
+  | **User & flow** | [R6 safe pairing](#r6-mcp-vs-browser-pairing-without-disturbing-real-users) · [R7 scenario sweep](#r7-browser-scenario-sweep-via-play-vs-ai) · [R9 reconnect](#r9-reconnect-disconnect-surface) · [R10 mobile layout sweep](#r10-mobile-layout-sweep-overlap-obscuration-safe-area) · [R14 client-state audit](#r14-client-side-state-audit-localstorage-sessionstorage-idb-caches-sw) · [R17 callsign recovery](#r17-callsign-recovery-flow) |
+  | **Documentation** | [R3 doc-consistency sweep](#r3-doc-consistency-sweep) · [R12 doc-link fetch](#r12-doc-link-fetch-sweep) |
+  | **Engine balance** | [R16 simulation balance sweep](#r16-simulation-harness-balance-and-scorecard-sweep) |
+  | **Operations** (use with care) | [R11 fresh-start wipe](#r11-fresh-start-wipe-persisted-data-between-runs) |
 - [Workflow: probe, finding, backlog](#workflow-probe-finding-backlog)
 - [Anti-patterns](#anti-patterns)
 - [Pass log](#pass-log)
@@ -42,6 +53,32 @@ Each row is a separate vantage point on the running system. Use multiple per pas
 | **R2 object inspection** | Replay JSON, archive payloads | `wrangler r2 object get delta-v-match-archive/matches/{gameId}.json --remote`. Bulk listing isn't a CLI primitive — use the dashboard or a throwaway Worker route. |
 
 Tooling is layered: confirm something looks wrong from one vantage, then triangulate with another. A bug confirmed by browser observation **and** agent MCP observation **and** a `wrangler tail` line is dramatically less likely to be a misread than any single source.
+
+---
+
+## Pass templates
+
+A pass is a *chain* of recipes, not a single recipe. These templates are the chains that have paid off most often. Pick one based on time budget and what just happened.
+
+### Smoke pass (≈10 min) — "did the deploy break anything visible?"
+
+After a deploy, before considering it stable: **R1** (surface scan, expect documented status codes) → **R13** (tail filter, expect zero new exception classes during a 1-minute paired match) → **R7** with a single scenario (Duel — does Play vs AI launch and step one turn cleanly?). One backlog entry tops in a healthy week.
+
+### Post-deploy verification (≈30 min) — "did this deploy break a contract?"
+
+Run after any change to public API, projection, persistence, or scenario rules. **R1** + **R2** (surface + validation, all params reject cleanly) → **R3** (doc-consistency for any field touched by the deploy) → **R18** + **R19** (method/error parity if HTTP routes were touched) → **R13** during a 5-minute paired session → **R20** lightweight (just the row-count + freshness query, not the full insight set). Expect 0–2 backlog entries.
+
+### Pre-release sweep (≈90 min) — "would I ship this if my reputation were on the line?"
+
+Run before a launch/announcement. Combine the post-deploy chain above with: **R7** all 9 scenarios → **R10** full mobile matrix → **R17** callsign recovery happy path + at least three security edges → **R15** end-to-end pipeline on one paired match → **R16** simulation balance with `--ci`. Expect 5–15 backlog entries the first time, fewer once recurring issues are fixed.
+
+### Persistence-trend pass (≈60 min, run quarterly) — "what's been quietly broken for a week?"
+
+Independent of any specific deploy. **R20** insight queries (the four trend questions: scenario discovery gap, host-seat win rate per scenario, win-reason mix, tutorial funnel) → **R14** client-state on a fresh profile → **R12** doc-link sweep. Findings here are usually slow-burn product issues, not crashes.
+
+### Probe-without-a-plan (≈30 min) — "I have time, what should I look at?"
+
+If nothing specific prompted the pass, scan the **Lenses** below for one that hasn't been exercised this month. Pick the lens, pick one recipe whose recipe table cell mentions the relevant aspect, run it, and stop after 30 minutes regardless of findings.
 
 ---
 
@@ -183,7 +220,7 @@ Run against a connected session OR with a fabricated `sessionId` to exercise rej
 The public Quick Match queue contains real humans. Two intended pair-mates can be split across other players. Two safer options:
 
 - **Less popular scenario** — pair MCP and browser on `grandTour` or `interplanetaryWar`, where the queue is usually empty. Still not guaranteed.
-- **Private match by code** — better, but **not currently exposed by local MCP** (see `BACKLOG.md` "Match-isolation flag"). Until then, prefer **Play vs AI** for any test that doesn't strictly require a second human-driven seat.
+- **Private match by code** — better, but **not currently exposed by local MCP**. Until then, prefer **Play vs AI** for any test that doesn't strictly require a second human-driven seat.
 
 When you must use the public queue, time-box it (one match), surrender immediately if you accidentally pair with a real user, and never run automated turn loops against unknown opponents.
 
@@ -667,6 +704,18 @@ The 2026-04-27 pass surfaced four real bugs with these exact queries:
 `tail` (R13) tells you what *just* broke. R20 tells you what's been
 quietly broken for a week.
 
+### Adding a new recipe
+
+If a pass surfaces a probe technique that doesn't fit any existing recipe and would help future passes, append it as the next R-number in this section. The number is just the order added — don't renumber existing recipes; pass-log entries reference them by number, so renumbering breaks history.
+
+A recipe earns its keep when:
+
+1. It surfaces a class of finding (not just a one-off) that other recipes wouldn't have caught — say so in the opening sentence.
+2. It comes with a runnable command, query, or script. "Read the code carefully" is a lens, not a recipe.
+3. It's worth running again in some future scenario. If it's only useful for this exact deploy, fix the bug, mention the technique in the commit message, and don't add it here.
+
+After adding the recipe, link it from the thematic table in [Contents](#contents) and reference it from any [Pass templates](#pass-templates) it belongs in.
+
 ---
 
 ## Workflow: probe, finding, backlog
@@ -690,27 +739,49 @@ For high-stakes findings (security, data loss, public PII leak), surface to the 
 
 Things that have wasted exploratory time in past passes — don't repeat them.
 
-- **Running on the public Quick Match queue without time-boxing.** You will pair with real users and disturb their match.
-- **Using `wrangler tail` output verbatim in commits or chat.** It contains real client IPs, geo, and TLS fingerprints. Sanitise or summarise.
+### Tool misuse
+
 - **Trusting a single tool's observation.** Browser shows X, agent MCP shows Y → confirm via `wrangler tail` or D1 before deciding which is wrong.
 - **Letting the play skill drive a session you're observing.** The skill is the system under test. If it makes a decision that masks a bug, you'll miss it. For probing, use raw `delta_v_send_action` calls.
 - **Long blocking `wait_for_turn` calls when the other seat may be slow.** Local MCP sessions can be sensitive to timeouts; prefer short timeouts (≤ 30 s) and explicit retries, and check current behaviour against `BACKLOG.md` before committing to a long block.
-- **Speculative `git commit` after exploratory edits.** Exploratory passes usually shouldn't change source — only docs (`BACKLOG.md`, this doc, and occasionally a recipe-driven inline fix). If you found yourself editing engine code mid-pass, you switched modes; commit those changes separately, ideally on a dedicated branch.
-- **Mass-purging production data without a paired check on `?status=live`.** R11 destroys real matches if any are in flight. Always verify zero live matches first, and confirm scope with the operator.
-- **Adding "interesting but not actionable" entries to the backlog.** They drown out real items. If you can't write a fix, you don't have a finding yet — keep probing.
-- **Forgetting that exploratory identities still persist in D1.** Use the reserved non-public prefixes (`QA_*`, `Bot_*`, `Probe_*`) for test callsigns; the leaderboard now filters them, but they remain queryable in operator tables and logs.
+- **Filing mobile-layout findings from Chrome MCP.** Covered under R10, but bears repeating: the OS window cannot shrink below the display's minimum, so `@media (max-width: 760px)` never fires and the responsive breakpoints in [static/styles/responsive.css](../static/styles/responsive.css) stay inert. Switch to the Playwright preview MCP (`preview_resize`) or hand off to DevTools device emulation before filing.
+- **Filing bugs from programmatic clicks on hidden elements.** `element.click()` fires handlers regardless of `display: none` / `hidden` / `offsetWidth === 0`. Buttons a real user can never reach can still execute their handler from a test harness. Confirm the element is actually visible (`offsetWidth > 0` and a valid `getBoundingClientRect`) in the state you're probing before filing. A hidden button with the "wrong" behaviour may still be a latent bug — but classify it as such rather than as a user-visible regression.
+- **Only testing at one "mobile" viewport (typically 375 × 812).** Delta-V has breakpoints at 760 / 640 / 420 px widths and a 560 px short-height rule, with an extra narrow-and-short combo. 375 × 812 only exercises a subset. R10's matrix includes 1-px boundary viewports (419, 421, 639, 641, 759, 761) specifically because overlap bugs hide in the single-pixel band between `@media` rules.
+- **Treating `100vh` as screen height.** iOS Safari and Android Chrome include the collapsible URL bar in `100vh`, so elements sized with it overflow on initial load and re-lay-out when the bar hides. If you see a one-time HUD jump on first scroll, expect `100vh` somewhere — prefer `100dvh` or computed offsets anchored to `env(safe-area-inset-*)`. Cheap to catch during R10 by scrolling once after load and re-running the overlap script.
+
+### Data hygiene & PII
+
+- **Using `wrangler tail` output verbatim in commits or chat.** It contains real client IPs, geo, and TLS fingerprints. Sanitise or summarise.
+- **Forgetting that exploratory identities still persist in D1.** Use the reserved non-public prefixes (`QA_*`, `Bot_*`, `Probe_*`) for test callsigns; the leaderboard filters them, but they remain queryable in operator tables and logs.
 - **Treating recovery codes like ordinary test output.** Recovery codes are bearer secrets. Do not paste live codes into chat, test logs, screenshots, commits, traces, or backlog entries. Redact or immediately revoke any code that escapes the browser.
+
+### Production safety
+
+- **Running on the public Quick Match queue without time-boxing.** You will pair with real users and disturb their match.
+- **Mass-purging production data without a paired check on `?status=live`.** R11 destroys real matches if any are in flight. Always verify zero live matches first, and confirm scope with the operator.
+
+### Scope & workflow
+
+- **Speculative `git commit` after exploratory edits.** Exploratory passes usually shouldn't change source — only docs (`BACKLOG.md`, this doc, and occasionally a recipe-driven inline fix). If you found yourself editing engine code mid-pass, you switched modes; commit those changes separately, ideally on a dedicated branch.
+- **Adding "interesting but not actionable" entries to the backlog.** They drown out real items. If you can't write a fix, you don't have a finding yet — keep probing.
 - **Letting secondary menu utilities take over the primary tab path.** The home-screen tab order is part of the accessibility contract: Callsign → Quick Match → Play vs AI → difficulty. Recovery, privacy, support, and other utility actions must remain keyboard-accessible without jumping ahead of the primary play flow.
-- **Filing bugs from programmatic clicks on hidden elements.** `element.click()` in Chrome MCP fires the handler regardless of `display: none` / `hidden` / `offsetWidth === 0`. Buttons a real user can never reach can still execute their handler from a test harness. Before filing a finding triggered by a DOM click, confirm the element is actually visible (`offsetWidth > 0` and a valid `getBoundingClientRect`) in the state you're probing. A hidden button with the "wrong" behaviour may still be a latent bug worth fixing (if CSS ever changes the button is suddenly reachable), but classify it as such rather than as a user-visible regression.
-- **Filing mobile-layout findings from Chrome MCP.** Covered under R10, but bears repeating as an anti-pattern: the OS window cannot shrink below the display's minimum, so `@media (max-width: 760px)` never fires and the responsive breakpoints in [static/styles/responsive.css](../static/styles/responsive.css) stay inert. Switch to the Playwright preview MCP (`preview_resize`) or hand off to DevTools device emulation before filing.
-- **Only testing at one "mobile" viewport (typically 375 × 812).** Delta-V has breakpoints at 760 / 640 / 420 px widths and a 560 px short-height rule, with an extra narrow-and-short combo. 375 × 812 only exercises a subset. R10's matrix includes 1-px boundary viewports (419, 421, 639, 641, 759, 761) specifically because overlap bugs hide in the single-pixel band between `@media` rules. Skipping the boundary means shipping the band.
-- **Treating `100vh` as screen height.** iOS Safari and Android Chrome include the collapsible URL bar in `100vh`, so elements sized with `100vh` overflow on initial load and re-lay-out when the bar hides. If you see a one-time HUD jump on first scroll, expect `100vh` somewhere — prefer `100dvh` or computed offsets anchored to `env(safe-area-inset-*)`. This is cheap to catch during R10 by scrolling once after load and re-running the overlap script.
 
 ---
 
 ## Pass log
 
 Append a one-line entry per pass: date, agent or human, scope, count of new backlog entries.
+
+### Recent passes
+
+| Date | Operator | Scope | Backlog entries filed |
+|------|----------|-------|----------------------|
+| 2026-04-26 | Codex | Post-`d13b219` live deep pass after CI/deploy: GitHub run 24954316368 passed; deployed `version.json` hash `bbced061` matched the pushed build. Covered R1/R2 public surface and validation, R9 `scripts/mp-connectivity.mjs` production duplicate-session replacement, R17 callsign recovery restore + confirmed forget, hosted MCP initialize/tools/list/Accept rejection, all nine Play-vs-AI scenario launches, public page/link smoke for home/agents/matches/leaderboard, archived replay bar/log-pill spacing at `320 x 568`, `390 x 844`, `812 x 375`, and responsive overlap sweeps across menu/scenario/HUD/fleet/replay. Filed: sound control still unclickable behind scenario/fleet overlays. | 1 |
+| 2026-04-26 | Codex | Follow-up fix pass: extended overlay chrome positioning to scenario select, waiting, and fleet builder so `#soundBtn` remains top-right and clickable on menu-like overlays. Rechecked home menu, scenario select, fleet builder, waiting, and HUD at compact live-style viewports; removed the completed backlog entry. | 0 |
+| 2026-04-27 | agent (Opus 4.7) | New R20 D1/R2 storage-audit recipe + first run against prod. Storage health: all 6 application tables fresh (events writes minutes-old, retention purge clean, R2 archives 1:1 with `match_archive` rows at 10–17 KB each). Surfaced four real bugs: (1) 43 silent `projection_parity_mismatch` events all on `pendingAsteroidHazards[0]` — engine pushes the queue but emits no event, so projection can't reproduce → fixed by stripping the field from `normalizeStateForParity`; (2) `tutorial_started: 116` vs `tutorial_completed: 0` because completion only fires on click-through → added per-step `tutorial_step_shown` event so the funnel becomes measurable; (3) 6 of 9 scenarios have ≤1 real-world play (Evacuation, Grand Tour: 0); (4) Duel P0 win rate 27/35 (77 %) outside the seat-balance band. (1) and (2) shipped; (3) and (4) filed under Discovery & Onboarding / Gameplay UX. | 2 |
+
+<details>
+<summary>Earlier passes (2026-04-18 → 2026-04-26)</summary>
 
 | Date | Operator | Scope | Backlog entries filed |
 |------|----------|-------|----------------------|
@@ -738,6 +809,5 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 | 2026-04-26 | agent (Opus 4.7) | Post-deploy verification pass: R18 HEAD parity (`/api/matches`, `/api/leaderboard`, `/healthz`, `/api/leaderboard/me` all `GET == HEAD`), R19 405 shape (`/api/claim-name`, `/api/agent-token`, all 3 recovery routes now JSON `{ok:false, error:'method_not_allowed', message}` instead of plain text). R17 callsign recovery probe: server-side normalise correctly handles whitespace/case (well-formed but unknown code → 404 `recovery_not_found`; ambiguous chars `0/1/I/O` → 400 `invalid_recovery_code`). R17 UX read of [lobby-view.ts](../src/client/ui/lobby-view.ts) `forgetCallsign` / `createRecoveryCode` / `restoreCallsign` flows + the rendered home menu — surfaced no first-time recovery-code nudge and a fire-on-single-click destructive **Forget my callsign**. Filed: 2 P3 callsign-recovery UX entries. | 2 |
 | 2026-04-26 | Codex | Live-site post-recovery regression pass: deployed `version.json` hash matched the current build, R1 public surface and self-hosted font checks passed, R19 JSON error-shape and HEAD parity checks passed for listing and recovery endpoints, R17 browser recovery happy path restored a callsign after localStorage wipe and revoked on confirmed forget, axe serious/critical scan passed at `320 x 568`, `390 x 844`, and `812 x 375`. R9 manual `ws` duplicate-session probe confirmed `SESSION_REPLACED` + code 1000 close, while `scripts/mp-connectivity.mjs` still false-fails on production; R10 found the floating sound control colliding with lobby content on tiny portrait screens. | 2 |
 | 2026-04-26 | Codex | Follow-up fix pass: moved the menu sound control to the safe top-right chrome layer and rechecked `320 x 568`, `390 x 844`, and `812 x 375`; updated `scripts/mp-connectivity.mjs` to use the stable `ws` client and require the `SESSION_REPLACED` frame plus code 1000 close. Backlog entries from the prior pass were removed after verification. | 0 |
-| 2026-04-26 | Codex | Post-`d13b219` live deep pass after CI/deploy: GitHub run 24954316368 passed; deployed `version.json` hash `bbced061` matched the pushed build. Covered R1/R2 public surface and validation, R9 `scripts/mp-connectivity.mjs` production duplicate-session replacement, R17 callsign recovery restore + confirmed forget, hosted MCP initialize/tools/list/Accept rejection, all nine Play-vs-AI scenario launches, public page/link smoke for home/agents/matches/leaderboard, archived replay bar/log-pill spacing at `320 x 568`, `390 x 844`, `812 x 375`, and responsive overlap sweeps across menu/scenario/HUD/fleet/replay. Filed: sound control still unclickable behind scenario/fleet overlays. | 1 |
-| 2026-04-26 | Codex | Follow-up fix pass: extended overlay chrome positioning to scenario select, waiting, and fleet builder so `#soundBtn` remains top-right and clickable on menu-like overlays. Rechecked home menu, scenario select, fleet builder, waiting, and HUD at compact live-style viewports; removed the completed backlog entry. | 0 |
-| 2026-04-27 | agent (Opus 4.7) | New R20 D1/R2 storage-audit recipe + first run against prod. Storage health: all 6 application tables fresh (events writes minutes-old, retention purge clean, R2 archives 1:1 with `match_archive` rows at 10–17 KB each). Surfaced four real bugs: (1) 43 silent `projection_parity_mismatch` events all on `pendingAsteroidHazards[0]` — engine pushes the queue but emits no event, so projection can't reproduce → fixed by stripping the field from `normalizeStateForParity`; (2) `tutorial_started: 116` vs `tutorial_completed: 0` because completion only fires on click-through → added per-step `tutorial_step_shown` event so the funnel becomes measurable; (3) 6 of 9 scenarios have ≤1 real-world play (Evacuation, Grand Tour: 0); (4) Duel P0 win rate 27/35 (77 %) outside the seat-balance band. (1) and (2) shipped; (3) and (4) filed under Discovery & Onboarding / Gameplay UX. | 2 |
+
+</details>
