@@ -11,6 +11,7 @@ import {
 } from '../src/shared/ai';
 import { estimateRemainingCheckpointTourCost } from '../src/shared/ai/common';
 import { scorePassengerArrivalOdds } from '../src/shared/ai/logistics';
+import { canAttack } from '../src/shared/combat';
 import {
   beginCombatPhase,
   createGame,
@@ -40,6 +41,7 @@ import type {
   Phase,
   PlayerId,
   ScenarioDefinition,
+  Ship,
   TransferOrder,
 } from '../src/shared/types';
 
@@ -485,19 +487,21 @@ export const findFuelStallShipIds = (
   orders: readonly AstrogationOrder[],
 ): string[] => {
   const ordersByShip = new Map(orders.map((order) => [order.shipId, order]));
-  const pureCombatState =
-    !state.players.some((player) => player.escapeWins || player.targetBody) &&
-    (state.scenarioRules.checkpointBodies?.length ?? 0) === 0;
-  const isCloseCombatStationKeeping = (ship: {
-    owner: PlayerId;
-    position: { q: number; r: number };
-  }): boolean =>
-    pureCombatState &&
+  const hasPlayerMovementObjective = (playerId: PlayerId): boolean => {
+    const player = state.players[playerId];
+    return (
+      player.escapeWins ||
+      !!player.targetBody ||
+      (state.scenarioRules.checkpointBodies?.length ?? 0) > 0
+    );
+  };
+  const isCloseCombatStationKeeping = (ship: Ship): boolean =>
+    !hasPlayerMovementObjective(ship.owner) &&
+    canAttack(ship) &&
     state.ships.some(
       (enemy) =>
         enemy.owner !== ship.owner &&
-        enemy.lifecycle === 'active' &&
-        enemy.damage.disabledTurns === 0 &&
+        enemy.lifecycle !== 'destroyed' &&
         hexDistance(ship.position, enemy.position) <= 2,
     );
 
