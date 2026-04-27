@@ -15,6 +15,12 @@ export {
   comparePlanCandidates,
   comparePlanEvaluations,
 } from './plans';
-export type { PassengerCombatPlanAction } from './plans/passenger';
-export { choosePassengerCombatPlan } from './plans/passenger';
+export type {
+  PassengerCombatPlanAction,
+  PostCarrierLossPursuitAction,
+} from './plans/passenger';
+export {
+  choosePassengerCombatPlan,
+  choosePostCarrierLossPursuitPlan,
+} from './plans/passenger';
 export type { AIDifficulty } from './types';
