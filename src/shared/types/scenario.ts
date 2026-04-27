@@ -13,6 +13,7 @@ export type { ScenarioKey } from '../scenario-definitions';
 /** Optional lobby card metadata (not authoritative rules text). */
 export interface ScenarioLobbyMeta {
   beginnerFriendly?: boolean;
+  hook?: string;
   length?: 'short' | 'medium' | 'long';
   complexity?: 'low' | 'medium' | 'high';
   mechanics?: string[];

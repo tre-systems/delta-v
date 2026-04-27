@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SCENARIO_DISPLAY_ORDER } from '../../shared/map-data';
+import { SCENARIO_DISPLAY_ORDER, SCENARIOS } from '../../shared/map-data';
 import { TOAST, toastJoinInvalidCode } from '../messages/toasts';
 import { signal } from '../reactive';
 import { createLobbyView } from './lobby-view';
@@ -253,6 +253,13 @@ describe('LobbyView', () => {
     expect(scenarioButtons.map((button) => button.dataset.scenario)).toEqual([
       ...SCENARIO_DISPLAY_ORDER,
     ]);
+    expect(
+      scenarioButtons.map((button) =>
+        button.querySelector('.scenario-hook')?.textContent?.trim(),
+      ),
+    ).toEqual(
+      SCENARIO_DISPLAY_ORDER.map((key) => SCENARIOS[key].lobbyMeta?.hook),
+    );
     scenarioButtons[0]?.click();
     expect(emit).toHaveBeenCalledWith({
       type: 'selectScenario',
