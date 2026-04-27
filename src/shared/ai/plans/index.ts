@@ -3,6 +3,7 @@ export type PlanIntent =
   | 'preserveLandingLine'
   | 'escortCarrier'
   | 'interceptPassengerCarrier'
+  | 'supportPassengerCarrier'
   | 'refuelAtReachableBase'
   | 'postCarrierLossPursuit'
   | 'completeCheckpointRoute'

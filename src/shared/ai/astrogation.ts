@@ -48,12 +48,14 @@ import {
   getPrimaryPassengerCarrier,
   getThreateningEnemies,
   isPassengerEscortMission,
-  maybeCreatePassengerFuelSupportOrder,
   scorePassengerCarrierEvasion,
   scorePassengerEscortCourse,
 } from './logistics';
 import { aiOrdnance } from './ordnance';
-import { choosePostCarrierLossPursuitPlan } from './plans/passenger';
+import {
+  choosePassengerFuelSupportPlan,
+  choosePostCarrierLossPursuitPlan,
+} from './plans/passenger';
 import { scoreCourse } from './scoring';
 import type { AIDifficulty } from './types';
 
@@ -1069,16 +1071,21 @@ export const aiAstrogation = (
       continue;
     }
 
-    const fuelSupportOrder = maybeCreatePassengerFuelSupportOrder(
-      ship,
+    const fuelSupportPlan = choosePassengerFuelSupportPlan(
       state,
       playerId,
+      ship,
       orders,
       map,
     );
 
-    if (fuelSupportOrder) {
-      orders.push(fuelSupportOrder);
+    if (fuelSupportPlan) {
+      const action = fuelSupportPlan.chosen.action;
+      orders.push({
+        shipId: action.shipId,
+        burn: action.burn,
+        overload: action.overload,
+      });
       shipIdx++;
       continue;
     }

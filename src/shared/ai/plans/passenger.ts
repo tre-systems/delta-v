@@ -1,8 +1,14 @@
 import { canAttack, hasLineOfSight } from '../../combat';
-import { hexAdd, hexDistance, hexVecLength } from '../../hex';
+import { hexAdd, hexDistance, hexEqual, hexVecLength } from '../../hex';
 import { computeCourse } from '../../movement';
-import type { GameState, PlayerId, Ship, SolarSystemMap } from '../../types';
-import { minBy } from '../../util';
+import type {
+  AstrogationOrder,
+  GameState,
+  PlayerId,
+  Ship,
+  SolarSystemMap,
+} from '../../types';
+import { maxBy, minBy } from '../../util';
 import {
   estimateTurnsToTargetLanding,
   findDirectionToward,
@@ -18,10 +24,18 @@ export interface PassengerCombatPlanAction {
 
 export interface PostCarrierLossPursuitAction {
   type: 'astrogationOrder';
-  shipId: string;
-  targetShipId: string;
+  shipId: Ship['id'];
+  targetShipId: Ship['id'];
   interceptHex: { q: number; r: number };
   burn: number;
+  overload: null;
+}
+
+export interface PassengerFuelSupportAction {
+  type: 'astrogationOrder';
+  shipId: Ship['id'];
+  carrierShipId: Ship['id'];
+  burn: number | null;
   overload: null;
 }
 
@@ -101,6 +115,100 @@ const hasLivePassengerCarrier = (state: GameState): boolean =>
   state.ships.some(
     (ship) => ship.lifecycle === 'active' && (ship.passengersAboard ?? 0) > 0,
   );
+
+const findPrimaryPassengerCarrier = (
+  state: GameState,
+  playerId: PlayerId,
+): Ship | null =>
+  maxBy(
+    state.ships.filter(
+      (candidate) =>
+        candidate.owner === playerId &&
+        candidate.lifecycle !== 'destroyed' &&
+        (candidate.passengersAboard ?? 0) > 0,
+    ),
+    (candidate) => (candidate.passengersAboard ?? 0) * 1000,
+  ) ?? null;
+
+export const choosePassengerFuelSupportPlan = (
+  state: GameState,
+  playerId: PlayerId,
+  ship: Ship,
+  plannedOrders: readonly AstrogationOrder[],
+  map: SolarSystemMap,
+): PlanDecision<PassengerFuelSupportAction> | null => {
+  const player = state.players[playerId];
+
+  if (
+    !state.scenarioRules.targetWinRequiresPassengers ||
+    !player?.targetBody ||
+    ship.type !== 'tanker' ||
+    ship.lifecycle === 'destroyed' ||
+    ship.damage.disabledTurns > 0
+  ) {
+    return null;
+  }
+
+  const primaryCarrier = findPrimaryPassengerCarrier(state, playerId);
+
+  if (
+    primaryCarrier == null ||
+    primaryCarrier.id === ship.id ||
+    !hexEqual(primaryCarrier.position, ship.position) ||
+    primaryCarrier.velocity.dq !== ship.velocity.dq ||
+    primaryCarrier.velocity.dr !== ship.velocity.dr
+  ) {
+    return null;
+  }
+
+  const carrierOrder = plannedOrders.find(
+    (order) => order.shipId === primaryCarrier.id,
+  );
+
+  if (!carrierOrder) {
+    return null;
+  }
+
+  const mirroredCourse = computeCourse(ship, carrierOrder.burn, map, {
+    destroyedBases: state.destroyedBases,
+  });
+
+  if (mirroredCourse.outcome === 'crash') {
+    return null;
+  }
+
+  return chooseBestPlan([
+    {
+      id: `passenger-fuel-support:${ship.id}:${primaryCarrier.id}`,
+      intent: 'supportPassengerCarrier',
+      action: {
+        type: 'astrogationOrder',
+        shipId: ship.id,
+        carrierShipId: primaryCarrier.id,
+        burn: carrierOrder.burn,
+        overload: null,
+      },
+      evaluation: {
+        feasible: true,
+        objective: 40,
+        survival: mirroredCourse.outcome === 'landing' ? -5 : 0,
+        landing: 0,
+        fuel: ship.fuel - mirroredCourse.fuelSpent,
+        combat: 0,
+        formation: 50,
+        tempo: 0,
+        risk: mirroredCourse.outcome === 'landing' ? 1 : 0,
+        effort: mirroredCourse.fuelSpent,
+      },
+      diagnostics: [
+        {
+          reason: 'tanker mirrors passenger carrier for fuel support',
+          detail: `${ship.id} follows ${primaryCarrier.id}`,
+        },
+      ],
+    },
+  ]);
+};
 
 export const choosePostCarrierLossPursuitPlan = (
   state: GameState,
