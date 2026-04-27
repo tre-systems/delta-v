@@ -8,6 +8,7 @@ import {
   findBaseHexes,
   SCENARIOS,
 } from './map-data';
+import { getBodyOffset } from './map-layout';
 import type { SolarSystemMap } from './types';
 
 let map: SolarSystemMap;
@@ -234,10 +235,14 @@ describe('SCENARIOS', () => {
     expect(s.rules?.targetWinRequiresPassengers).toBe(true);
     const t = s.players[0].ships.find((sh) => sh.type === 'transport');
     expect(t?.initialPassengers).toBeGreaterThan(0);
+    expect(t?.position).toEqual(getBodyOffset('Luna', 0, -1));
     expect(
       s.players[0].ships.filter((sh) => sh.type === 'corvette'),
     ).toHaveLength(1);
     expect(s.players[0].ships.some((sh) => sh.type === 'frigate')).toBe(true);
     expect(s.players[1].ships[0]?.type).toBe('corsair');
+    expect(s.players[1].ships[0]?.position).toEqual(
+      getBodyOffset('Terra', -2, -2),
+    );
   });
 });

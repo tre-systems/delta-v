@@ -665,7 +665,7 @@ describe('aiAstrogation', () => {
     }
   });
 
-  it('uses a coordinated escape line for immediate passenger threats', () => {
+  it('uses a coordinated evacuation line without a turn-one landing', () => {
     const state = createGameOrThrow(
       SCENARIOS.evacuation,
       map,
@@ -677,11 +677,26 @@ describe('aiAstrogation', () => {
       orders.find((order) => order.shipId === 'p0s0'),
     );
     const corvetteOrder = must(orders.find((order) => order.shipId === 'p0s1'));
+    const transport = must(state.ships.find((ship) => ship.id === 'p0s0'));
+    const transportCourse = computeCourse(
+      transport,
+      transportOrder.burn ?? null,
+      map,
+      {
+        land: transportOrder.land,
+        overload: transportOrder.overload ?? null,
+        destroyedBases: state.destroyedBases,
+        weakGravityChoices: transportOrder.weakGravityChoices,
+      },
+    );
+    const terra = must(map.bodies.find((body) => body.name === 'Terra'));
 
     expect(transportOrder.overload).toBeNull();
-    expect(transportOrder.burn).not.toBeNull();
-    expect(corvetteOrder.burn).not.toBeNull();
     expect(corvetteOrder.burn).toBe(transportOrder.burn);
+    expect(transportCourse.outcome).not.toBe('landing');
+    expect(hexDistance(transportCourse.destination, terra.center)).toBeLessThan(
+      hexDistance(transport.position, terra.center),
+    );
   });
 
   it('keeps a convoy tanker stacked with the passenger carrier for fuel support', () => {
@@ -804,8 +819,18 @@ describe('aiAstrogation', () => {
     const transportOrder = must(
       orders.find((order) => order.shipId === 'p0s0'),
     );
+    const transport = must(state.ships.find((ship) => ship.id === 'p0s0'));
+    const course = computeCourse(transport, transportOrder.burn ?? null, map, {
+      land: transportOrder.land,
+      overload: transportOrder.overload ?? null,
+      destroyedBases: state.destroyedBases,
+      weakGravityChoices: transportOrder.weakGravityChoices,
+    });
+    const terra = must(map.bodies.find((body) => body.name === 'Terra'));
 
-    expect(transportOrder.burn).not.toBeNull();
+    expect(hexDistance(course.destination, terra.center)).toBeLessThan(
+      hexDistance(transport.position, terra.center),
+    );
   });
 });
 describe('aiOrdnance', () => {

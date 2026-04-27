@@ -132,20 +132,20 @@ const SCENARIOS_INTERNAL = {
         ships: [
           {
             type: 'transport',
-            position: getBodyOffset('Luna', -1, 0),
+            position: getBodyOffset('Luna', 0, -1),
             velocity: { dq: -2, dr: 1 },
             startLanded: false,
             initialPassengers: 40,
           },
           {
             type: 'corvette',
-            position: getBodyOffset('Luna', -1, 0),
+            position: getBodyOffset('Luna', 0, -1),
             velocity: { dq: -2, dr: 1 },
             startLanded: false,
           },
           {
             type: 'frigate',
-            position: getBodyOffset('Luna', 1, -2),
+            position: getBodyOffset('Luna', 1, -3),
             velocity: { dq: -1, dr: 1 },
             startLanded: false,
           },
@@ -158,7 +158,7 @@ const SCENARIOS_INTERNAL = {
         ships: [
           {
             type: 'corsair',
-            position: getBodyOffset('Terra', -1, -1),
+            position: getBodyOffset('Terra', -2, -2),
             velocity: { dq: 0, dr: 0 },
             startLanded: false,
           },
