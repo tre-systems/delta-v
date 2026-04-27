@@ -38,6 +38,7 @@ import {
   scoreObjectiveHomeDefenseCourse,
 } from './common';
 import { resolveAIConfig } from './config';
+import type { ShipRole } from './logistics';
 import {
   aiLogistics,
   assignPassengerShipRoles,
@@ -229,6 +230,105 @@ const scoreObjectiveRaceLine = (
     nextLandingTurns > 1
   ) {
     score -= cfg.navImminentLandingBonus * 0.3;
+  }
+
+  return score;
+};
+
+const scoreRaceRoleCourse = (
+  ship: Ship,
+  course: ReturnType<typeof computeCourse>,
+  targetHex: { q: number; r: number } | null,
+  targetBody: string,
+  enemyShips: Ship[],
+  cfg: ReturnType<typeof resolveAIConfig>,
+): number => {
+  if (targetHex == null) {
+    return 0;
+  }
+
+  const currentDist = hexDistance(ship.position, targetHex);
+  const newDist = hexDistance(course.destination, targetHex);
+  const nextDist = hexDistance(
+    {
+      q: course.destination.q + course.newVelocity.dq,
+      r: course.destination.r + course.newVelocity.dr,
+    },
+    targetHex,
+  );
+  const speed = hexVecLength(course.newVelocity);
+  let score =
+    (currentDist - newDist) * cfg.navDistWeight * cfg.multiplier * 0.75 +
+    (currentDist - nextDist) * cfg.navFinalApproachWeight * cfg.multiplier;
+
+  if (course.outcome === 'landing' && course.landedAt === targetBody) {
+    score += cfg.navTargetLandingBonus * 0.4;
+  }
+
+  if (newDist <= 3 && speed > 1) {
+    score -= (speed - 1) * cfg.navTargetLandingBonus * 0.12;
+  }
+
+  const nearestEnemyDist = Math.min(
+    ...enemyShips
+      .filter(canAttack)
+      .map((enemy) => hexDistance(course.destination, enemy.position)),
+    Number.POSITIVE_INFINITY,
+  );
+
+  if (nearestEnemyDist <= 2 && course.outcome !== 'landing') {
+    score -= (3 - nearestEnemyDist) * 45;
+  }
+
+  return score;
+};
+
+const scoreRaceEscortRoleCourse = (
+  ship: Ship,
+  course: ReturnType<typeof computeCourse>,
+  raceShip: Ship | null,
+  enemyShips: Ship[],
+  role: ShipRole | undefined,
+): number => {
+  if (
+    raceShip == null ||
+    ship.id === raceShip.id ||
+    (role !== 'escort' && role !== 'screen') ||
+    !canAttack(ship)
+  ) {
+    return 0;
+  }
+
+  const currentRaceDist = hexDistance(ship.position, raceShip.position);
+  const newRaceDist = hexDistance(course.destination, raceShip.position);
+  const threateningEnemies = getThreateningEnemies(enemyShips);
+  const primaryThreat = minBy(threateningEnemies, (enemy) =>
+    hexDistance(raceShip.position, enemy.position),
+  );
+  let score =
+    (currentRaceDist - newRaceDist) * 18 -
+    Math.max(0, newRaceDist - 3) * 24 +
+    (newRaceDist <= 2 ? 28 : 0);
+
+  if (primaryThreat == null) {
+    return score;
+  }
+
+  const threatToRaceDist = hexDistance(
+    primaryThreat.position,
+    raceShip.position,
+  );
+  const currentThreatDist = hexDistance(ship.position, primaryThreat.position);
+  const newThreatDist = hexDistance(course.destination, primaryThreat.position);
+
+  if (threatToRaceDist <= 7) {
+    score += (currentThreatDist - newThreatDist) * 26;
+
+    if (newThreatDist <= 2) {
+      score += 48;
+    }
+  } else if (role === 'screen' && newThreatDist <= 2) {
+    score -= 60;
   }
 
   return score;
@@ -777,6 +877,14 @@ export const aiAstrogation = (
     ? getPrimaryPassengerCarrier(state, playerId, map)
     : null;
   const turnShipRoles = assignTurnShipRoles(state, playerId, map);
+  const raceRoleShipId = [...turnShipRoles.entries()].find(
+    ([, role]) => role === 'race',
+  )?.[0];
+  const raceRoleShip =
+    raceRoleShipId != null
+      ? (state.ships.find((candidate) => candidate.id === raceRoleShipId) ??
+        null)
+      : null;
   const primaryPassengerThreatDist =
     passengerEscortMission && primaryPassengerCarrier != null
       ? Math.min(
@@ -871,6 +979,7 @@ export const aiAstrogation = (
     let shipTargetHex = defaultTargetHex;
     let shipTargetBody = targetBody;
     let seekingFuel = false;
+    const shipRole = turnShipRoles.get(ship.id);
 
     if (shipTargetBody) {
       shipTargetHex = resolvePreferredLandingTarget(
@@ -1228,9 +1337,8 @@ export const aiAstrogation = (
       let comparisonCourse = course;
 
       if (passengerEscortMission) {
-        const passengerRole = turnShipRoles.get(ship.id);
         score += scorePassengerCarrierEvasion(ship, course, enemyShips);
-        if (passengerRole === 'escort' || passengerRole === 'screen') {
+        if (shipRole === 'escort' || shipRole === 'screen') {
           score += scorePassengerEscortCourse(
             ship,
             course,
@@ -1238,6 +1346,23 @@ export const aiAstrogation = (
             enemyShips,
           );
         }
+      } else if (shipRole === 'race' && !checkpoints) {
+        score += scoreRaceRoleCourse(
+          ship,
+          course,
+          shipTargetHex,
+          shipTargetBody,
+          enemyShips,
+          cfg,
+        );
+      } else {
+        score += scoreRaceEscortRoleCourse(
+          ship,
+          course,
+          raceRoleShip,
+          enemyShips,
+          shipRole,
+        );
       }
 
       if (seekingFuel && course.outcome === 'landing') {
