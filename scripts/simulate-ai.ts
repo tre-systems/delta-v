@@ -515,6 +515,8 @@ export const findFuelStallShipIds = (
         enemy.lifecycle !== 'destroyed' &&
         hexDistance(ship.position, enemy.position) <= 2,
     );
+  const isSupportShipWithoutMovementObjective = (ship: Ship): boolean =>
+    !hasPlayerMovementObjective(ship.owner) && !canAttack(ship);
 
   return getOrderableShipsForPlayer(state, playerId)
     .filter((ship) => {
@@ -529,6 +531,7 @@ export const findFuelStallShipIds = (
         order.burn === null &&
         (order.overload ?? null) === null &&
         order.land !== true &&
+        !isSupportShipWithoutMovementObjective(ship) &&
         !isCloseCombatStationKeeping(ship)
       );
     })

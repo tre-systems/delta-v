@@ -1635,7 +1635,8 @@ export const aiAstrogation = (
           const hasPursuitTargets =
             passengerEscortMission && primaryPassengerCarrier == null
               ? enemyShips.length > 0
-              : enemyCombatShips.length > 0;
+              : enemyCombatShips.length > 0 ||
+                (shipTargetHex == null && enemyShips.length > 0);
           const nothingToDo = shipTargetHex == null && !hasPursuitTargets;
           const stationary =
             hexVecLength(ship.velocity) === 0 &&
@@ -1856,7 +1857,9 @@ export const aiAstrogation = (
       const pursuitTargets =
         passengerEscortMission && primaryPassengerCarrier == null
           ? enemyShips
-          : enemyCombatShips;
+          : enemyCombatShips.length > 0
+            ? enemyCombatShips
+            : enemyShips;
       const nearestCombatEnemy = minBy(pursuitTargets, (enemy) =>
         hexDistance(ship.position, enemy.position),
       );
@@ -1885,6 +1888,30 @@ export const aiAstrogation = (
           bestBurn = correctiveBurn;
           bestOverload = null;
           bestWeakGrav = undefined;
+        } else {
+          const currentDistance = hexDistance(ship.position, interceptHex);
+          const fallbackCourse = minBy(
+            directions
+              .map((direction) => ({
+                direction,
+                course: computeCourse(ship, direction, map, {
+                  destroyedBases: state.destroyedBases,
+                }),
+              }))
+              .filter(
+                ({ course }) =>
+                  course.outcome !== 'crash' &&
+                  hexDistance(course.destination, interceptHex) <
+                    currentDistance,
+              ),
+            ({ course }) => hexDistance(course.destination, interceptHex),
+          );
+
+          if (fallbackCourse) {
+            bestBurn = fallbackCourse.direction;
+            bestOverload = null;
+            bestWeakGrav = undefined;
+          }
         }
       }
     }
