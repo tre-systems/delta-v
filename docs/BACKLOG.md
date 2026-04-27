@@ -79,10 +79,6 @@ changes:
   convoy still resolves too often through attrition. Passenger-carrier
   doctrine should rank arrival odds and survival of a viable destination
   runner above hull quality or generic combat value.
-- **Biplanetary balance:** the burn-to-land objective fix moved focused
-  `biplanetary 30 --ci --seed 1` from 0% objective resolutions to 100%, but
-  it also exposed a first-player pacing skew. Tune start/route/turn-order
-  balance without giving back objective completions.
 - **Duel live seat imbalance:** the 2026-04-27 D1 audit (R20) measured
   Duel at **27/35 = 77% P0** across decided archived matches. A
   follow-up audit of `MatchmakerDO` found the quick-match layer already
