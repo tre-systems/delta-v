@@ -747,6 +747,28 @@ describe('aiAstrogation', () => {
     );
   });
 
+  it('evacuation: remaining escort pursues raiders after the carrier is lost', () => {
+    const fixture = loadAIFailureFixture(
+      'evacuation-escort-after-carrier-loss-stall.json',
+    );
+    const stalledShipId = must(fixture.stalledShipIds?.[0]);
+    const orders = aiAstrogation(
+      fixture.state,
+      fixture.activePlayer,
+      map,
+      fixture.difficulty,
+    );
+    const escortOrder = must(
+      orders.find((order) => order.shipId === stalledShipId),
+    );
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(escortOrder.burn).not.toBeNull();
+    expect(
+      findFuelStallShipIds(fixture.state, fixture.activePlayer, orders),
+    ).not.toContain(stalledShipId);
+  });
+
   it('keeps escort scoring tethered to the passenger carrier outside immediate threat range', () => {
     const carrier = createTestShip({
       id: asShipId('carrier'),
