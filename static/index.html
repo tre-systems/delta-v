@@ -119,6 +119,16 @@
       <div id="menuOfflineBanner" class="menu-offline-banner" role="status" aria-live="polite" hidden>
         <strong>You're offline.</strong> Online matches, leaderboard and match history are unavailable — Play vs AI still works.
       </div>
+      <div id="pwaInstallPrompt" class="menu-install-prompt" role="status" aria-live="polite" hidden>
+        <div class="menu-install-copy">
+          <strong>Install Delta-V</strong>
+          <span>Launch from your home screen after your next burn.</span>
+        </div>
+        <div class="menu-install-actions">
+          <button id="pwaInstallBtn" type="button" class="menu-profile-clear">Install</button>
+          <button id="pwaInstallDismissBtn" type="button" class="menu-profile-clear">Not now</button>
+        </div>
+      </div>
       <div class="menu-surface menu-surface-primary">
         <div class="menu-profile">
           <label class="menu-profile-label" for="playerNameInput">Callsign</label>

@@ -5,6 +5,7 @@ import {
   setupVersionCheck,
 } from './game/client-runtime';
 import { installHudScaleShortcuts } from './hud-scale';
+import { installPwaInstallPrompt } from './pwa-install';
 import {
   configureTelemetryRuntime,
   installGlobalErrorHandlers,
@@ -35,6 +36,7 @@ try {
   });
   installGlobalErrorHandlers();
   installViewportSizing();
+  installPwaInstallPrompt({ storage: ls });
   setupServiceWorkerReload();
   setupVersionCheck();
   const game = createGameClient();
