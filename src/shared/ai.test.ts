@@ -1651,6 +1651,26 @@ describe('aiCombat', () => {
 
     expect(aiCombat(state, 1, map, 'hard')).toEqual([]);
   });
+  it('convoy: preserves a passenger carrier one-turn landing line over attrition combat', () => {
+    const fixture = loadAIFailureFixture(
+      'convoy-preserve-passenger-landing-combat.json',
+    );
+
+    expect(fixture.kind).toBe('objectiveDrift');
+    expect(fixture.action).toMatchObject({
+      type: 'combat',
+      attacks: [
+        {
+          attackerIds: ['p0s2'],
+          targetId: 'p1s0',
+          targetType: 'ship',
+        },
+      ],
+    });
+    expect(
+      aiCombat(fixture.state, fixture.activePlayer, map, fixture.difficulty),
+    ).toEqual([]);
+  });
   it('keeps race-role ships out of opportunistic gun attacks when cover can fire', () => {
     const racer = createTestShip({
       id: asShipId('combat-racer'),
@@ -2704,6 +2724,19 @@ describe('aiAstrogation — pure combat positioning', () => {
         ),
       ),
     ).toBe(true);
+    expect(
+      findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
+    ).toEqual([]);
+  });
+  it('convoy: escorts holding close range after carrier loss are not fuel stalls', () => {
+    const fixture = loadAIFailureFixture(
+      'convoy-escort-after-carrier-loss-close-hold.json',
+    );
+    const capturedOrders = (fixture.action as { orders: AstrogationOrder[] })
+      .orders;
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(fixture.stalledShipIds).toContain('p0s2');
     expect(
       findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
     ).toEqual([]);
