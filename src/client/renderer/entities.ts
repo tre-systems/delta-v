@@ -8,7 +8,12 @@ import {
   hexToPixel,
   hexVecLength,
 } from '../../shared/hex';
-import type { GameState, PlayerId, Ship } from '../../shared/types/domain';
+import type {
+  GameState,
+  OrdnanceType,
+  PlayerId,
+  Ship,
+} from '../../shared/types/domain';
 import { isOwnShipForViewer, SPECTATOR_PLAYER_ID } from './colours';
 
 const isShipDetectedForViewer = (
@@ -44,10 +49,12 @@ export interface OrdnanceLifetimeView {
 }
 
 export interface DetonatedOrdnanceOverlay {
-  kind: 'diamond' | 'flash';
+  kind: 'diamond' | 'flash' | 'ring' | 'debris';
   size: number;
   color: string;
   alpha: number;
+  lineWidth?: number;
+  count?: number;
 }
 
 export const getVisibleShips = (
@@ -250,22 +257,54 @@ export const getOrdnanceLifetimeView = (
 
 export const getDetonatedOrdnanceOverlay = (
   progress: number,
+  ordnanceType: OrdnanceType = 'mine',
 ): DetonatedOrdnanceOverlay | null => {
-  if (progress < 0.9) {
+  if (progress < 0.86) {
     return {
       kind: 'diamond',
-      size: 4,
-      color: '#ff4444',
-      alpha: 0.7,
+      size: ordnanceType === 'nuke' ? 6 : 4,
+      color: ordnanceType === 'nuke' ? '#ffb347' : '#ff4444',
+      alpha: ordnanceType === 'nuke' ? 0.9 : 0.7,
+    };
+  }
+
+  if (ordnanceType === 'nuke') {
+    const blastProgress = Math.min((progress - 0.86) / 0.14, 1);
+    if (blastProgress < 0.36) {
+      return {
+        kind: 'flash',
+        size: 34 * (1 - blastProgress * 0.45),
+        color: '#fff5bf',
+        alpha: 0.88,
+      };
+    }
+    if (blastProgress < 0.72) {
+      return {
+        kind: 'ring',
+        size: 72 * blastProgress,
+        color: '#ff8a22',
+        alpha: (1 - blastProgress) * 0.9,
+        lineWidth: 5 * (1 - blastProgress),
+      };
+    }
+    return {
+      kind: 'debris',
+      size: 52 * blastProgress,
+      color: '#ffd166',
+      alpha: (1 - blastProgress) * 0.7,
+      count: 12,
     };
   }
 
   if (progress <= 1) {
+    const blastProgress = (progress - 0.86) / 0.14;
+    const isMine = ordnanceType === 'mine';
     return {
-      kind: 'flash',
-      size: 12 * (1 - (progress - 0.9) / 0.1),
-      color: '#ffaa00',
-      alpha: 0.8,
+      kind: isMine ? 'flash' : 'ring',
+      size: (isMine ? 14 : 24) * (1 - blastProgress * 0.55),
+      color: isMine ? '#ffaa00' : '#66d9ff',
+      alpha: isMine ? 0.82 : 0.7,
+      lineWidth: isMine ? undefined : 3 * (1 - blastProgress),
     };
   }
 

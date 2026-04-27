@@ -210,7 +210,17 @@ describe('renderer entity helpers', () => {
     expect(getDetonatedOrdnanceOverlay(0.95)).toMatchObject({
       kind: 'flash',
       color: '#ffaa00',
-      alpha: 0.8,
+      alpha: 0.82,
+    });
+
+    expect(getDetonatedOrdnanceOverlay(0.93, 'nuke')).toMatchObject({
+      kind: 'ring',
+      color: '#ff8a22',
+    });
+
+    expect(getDetonatedOrdnanceOverlay(0.95, 'torpedo')).toMatchObject({
+      kind: 'ring',
+      color: '#66d9ff',
     });
   });
 });
