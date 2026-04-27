@@ -423,13 +423,46 @@
         <h3>Movement &amp; Fuel</h3>
         <div class="help-section">
           <div class="help-row">Ships maintain <strong>velocity</strong> — they drift in the same direction every turn unless you burn.</div>
-          <div class="help-row">A <strong>burn</strong> costs 1 fuel and shifts velocity by 1 hex in any of 6 directions. Click/tap the arrow around your ship to set it.</div>
+          <div class="help-row">A <strong>burn</strong> costs 1 fuel and shifts velocity by 1 hex. Click/tap an arrow around your drift hex (or press 1–6) to choose.</div>
           <div class="help-row">Warships can <strong>overload</strong>: spend 2 fuel total for a 2-hex velocity change in one turn (once per stopover).</div>
           <div class="help-row">Out of fuel? You still drift — you just can't change course.</div>
           <div class="help-row">Ships that drift off the map are <strong>eliminated</strong>.</div>
         </div>
-        <figure class="help-screenshot">
-          <img src="/help/movement.png" alt="Ship with cyan velocity vector and numbered burn directions around it.">
+        <figure class="help-screenshot" aria-label="Diagram: ship drifts along velocity, burn keys 1–6 shift the drift hex">
+          <svg viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg" role="img">
+            <title>Velocity carries you to your drift hex. Press 1–6 (or click) to nudge that hex one step.</title>
+            <defs>
+              <pattern id="hexgrid-mov" x="-22" y="0" width="33" height="38.105" patternUnits="userSpaceOnUse">
+                <path d="M22 0 L11 -19.05 L-11 -19.05 L-22 0 L-11 19.05 L11 19.05 Z" fill="none" stroke="rgba(142,176,235,0.10)" stroke-width="0.6"/>
+              </pattern>
+              <marker id="mv-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#7ad7ff"/></marker>
+              <marker id="mv-arr-sm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#7ad7ff"/></marker>
+            </defs>
+            <rect x="0" y="0" width="520" height="220" fill="url(#hexgrid-mov)" opacity="0.7"/>
+            <path d="M152,110 L130.95,121 L130.95,99 L130,110 L130.95,121 L130.95,99 Z" fill="none"/>
+            <path d="M130,110 m22,0 L141,90.95 L119,90.95 L108,110 L119,129.05 L141,129.05 Z" fill="rgba(122,215,255,0.10)" stroke="rgba(122,215,255,0.45)" stroke-width="1"/>
+            <path d="M120,98 L143,110 L120,122 Z" fill="#7ad7ff"/>
+            <text x="130" y="158" text-anchor="middle" fill="#90a0ba" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="0.12em">SHIP</text>
+            <line x1="158" y1="110" x2="305" y2="110" stroke="#7ad7ff" stroke-width="2" marker-end="url(#mv-arr)"/>
+            <text x="232" y="100" text-anchor="middle" fill="#7ad7ff" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="500" letter-spacing="0.08em">VELOCITY</text>
+            <path d="M340,110 m22,0 L351,90.95 L329,90.95 L318,110 L329,129.05 L351,129.05 Z" fill="rgba(122,215,255,0.05)" stroke="rgba(122,215,255,0.6)" stroke-width="1.2" stroke-dasharray="3 3"/>
+            <text x="340" y="113" text-anchor="middle" fill="#7ad7ff" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="0.12em" opacity="0.9">DRIFT</text>
+            <g font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600">
+              <line x1="362" y1="123" x2="378" y2="132" stroke="#7ad7ff" stroke-width="1.4" marker-end="url(#mv-arr-sm)" opacity="0.75"/>
+              <circle cx="395" cy="142" r="10" fill="rgba(4,9,18,0.9)" stroke="#7ad7ff" stroke-width="1"/><text x="395" y="146" text-anchor="middle" fill="#7ad7ff">1</text>
+              <line x1="362" y1="97" x2="378" y2="88" stroke="#7ad7ff" stroke-width="1.4" marker-end="url(#mv-arr-sm)" opacity="0.75"/>
+              <circle cx="395" cy="78" r="10" fill="rgba(4,9,18,0.9)" stroke="#7ad7ff" stroke-width="1"/><text x="395" y="82" text-anchor="middle" fill="#7ad7ff">2</text>
+              <line x1="340" y1="90" x2="340" y2="68" stroke="#7ad7ff" stroke-width="1.4" marker-end="url(#mv-arr-sm)" opacity="0.75"/>
+              <circle cx="340" cy="55" r="10" fill="rgba(4,9,18,0.9)" stroke="#7ad7ff" stroke-width="1"/><text x="340" y="59" text-anchor="middle" fill="#7ad7ff">3</text>
+              <line x1="318" y1="97" x2="302" y2="88" stroke="#7ad7ff" stroke-width="1.4" marker-end="url(#mv-arr-sm)" opacity="0.75"/>
+              <circle cx="285" cy="78" r="10" fill="rgba(4,9,18,0.9)" stroke="#7ad7ff" stroke-width="1"/><text x="285" y="82" text-anchor="middle" fill="#7ad7ff">4</text>
+              <line x1="318" y1="123" x2="302" y2="132" stroke="#7ad7ff" stroke-width="1.4" marker-end="url(#mv-arr-sm)" opacity="0.75"/>
+              <circle cx="285" cy="142" r="10" fill="rgba(4,9,18,0.9)" stroke="#7ad7ff" stroke-width="1"/><text x="285" y="146" text-anchor="middle" fill="#7ad7ff">5</text>
+              <line x1="340" y1="130" x2="340" y2="152" stroke="#7ad7ff" stroke-width="1.4" marker-end="url(#mv-arr-sm)" opacity="0.75"/>
+              <circle cx="340" cy="165" r="10" fill="rgba(4,9,18,0.9)" stroke="#7ad7ff" stroke-width="1"/><text x="340" y="169" text-anchor="middle" fill="#7ad7ff">6</text>
+            </g>
+            <text x="260" y="205" text-anchor="middle" fill="#b4c0d7" font-family="Space Grotesk, sans-serif" font-size="11">Each burn shifts the drift hex 1 step. No burn = coast.</text>
+          </svg>
         </figure>
       </div>
 
@@ -444,8 +477,32 @@
           <div class="help-row">Resupply only happens at a <strong>friendly-controlled</strong> base: fuel restored, ordnance reloaded, damage cleared. Neutral or enemy bases accept a landing but do not resupply.</div>
           <div class="help-row">Any other contact with a planet or moon is a <strong>crash</strong> (eliminated).</div>
         </div>
-        <figure class="help-screenshot">
-          <img src="/help/gravity.png" alt="Planet gravity well with arrows bending a ship course into orbit.">
+        <figure class="help-screenshot" aria-label="Diagram: a ship entering a gravity hex has its velocity bent one step on the next turn">
+          <svg viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg" role="img">
+            <title>Gravity bends a ship's velocity by one hex on the turn after it enters a gravity hex.</title>
+            <defs>
+              <radialGradient id="grav-planet" cx="38%" cy="34%" r="68%">
+                <stop offset="0%" stop-color="#ffe1ad"/>
+                <stop offset="55%" stop-color="#e89954"/>
+                <stop offset="100%" stop-color="#6a3315"/>
+              </radialGradient>
+              <marker id="grav-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#7ad7ff"/></marker>
+              <marker id="grav-arr-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#ffc56a"/></marker>
+              <marker id="grav-arr-ghost" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="rgba(122,215,255,0.4)"/></marker>
+            </defs>
+            <circle cx="385" cy="115" r="34" fill="url(#grav-planet)"/>
+            <circle cx="385" cy="115" r="76" fill="rgba(255,197,106,0.04)" stroke="#ffc56a" stroke-width="1" stroke-dasharray="3 4" opacity="0.55"/>
+            <text x="385" y="35" text-anchor="middle" fill="#ffc56a" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="0.18em" opacity="0.85">GRAVITY RING</text>
+            <line x1="100" y1="115" x2="290" y2="115" stroke="#7ad7ff" stroke-width="2" marker-end="url(#grav-arr)"/>
+            <text x="190" y="105" text-anchor="middle" fill="#7ad7ff" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="0.12em">TURN N — VELOCITY</text>
+            <path d="M298,103 L320,115 L298,127 Z" fill="#7ad7ff"/>
+            <text x="307" y="143" text-anchor="middle" fill="#7ad7ff" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="0.1em">ENTER GRAVITY</text>
+            <line x1="320" y1="115" x2="356" y2="115" stroke="rgba(122,215,255,0.32)" stroke-width="1.4" stroke-dasharray="3 3" marker-end="url(#grav-arr-ghost)"/>
+            <text x="338" y="108" text-anchor="middle" fill="rgba(122,215,255,0.5)" font-family="IBM Plex Mono, monospace" font-size="8" letter-spacing="0.08em">would crash</text>
+            <path d="M320,115 Q345,108 360,82" stroke="#ffc56a" stroke-width="2.2" fill="none" marker-end="url(#grav-arr-warn)"/>
+            <text x="380" y="76" fill="#ffc56a" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="0.12em">TURN N+1: BENT +1</text>
+            <text x="260" y="205" text-anchor="middle" fill="#b4c0d7" font-family="Space Grotesk, sans-serif" font-size="11">Speed-1 around the ring becomes orbit. Land or you crash.</text>
+          </svg>
         </figure>
       </div>
 
@@ -484,9 +541,6 @@
           <div class="help-row">Each ship repairs 1 disabled turn at the end of each of its own turns.</div>
           <div class="help-row"><strong>Dreadnaughts</strong> may still fire even when fully disabled. <strong>Orbital Bases</strong> may fire at D1 damage only.</div>
         </div>
-        <figure class="help-screenshot">
-          <img src="/help/combat.png" alt="Combat result card showing attack odds, modifiers, die roll, and D3 damage.">
-        </figure>
       </div>
 
       <div class="help-group" id="help-group-ships">
@@ -511,9 +565,6 @@
           </table>
         </div>
         <div class="help-note-row"><strong>D suffix</strong> = defensive only, cannot attack or counterattack · Cost in MC (MegaCredits) · Warships may overload and launch torpedoes</div>
-        <figure class="help-screenshot">
-          <img src="/help/fleet.png" alt="Fleet build screen with ship shop, credits, cart, and ready button.">
-        </figure>
       </div>
 
       <div class="help-group" id="help-group-ordnance">
@@ -530,8 +581,40 @@
           <h4>Nukes <span class="help-tag">mass 20</span></h4>
           <div class="help-row">Inherit launch ship's velocity. Destroy <em>everything</em> in the detonated hex automatically. Guns and planetary defense may intercept at 2:1 odds — any disabling result destroys the nuke. Active for 5 turns.</div>
         </div>
-        <figure class="help-screenshot">
-          <img src="/help/ordnance.png" alt="Mine and torpedo paths on the map with an enemy ship approaching.">
+        <figure class="help-screenshot" aria-label="Diagram comparing the three ordnance types">
+          <svg viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg" role="img">
+            <title>Mines drift on velocity, torpedoes accelerate to a target, nukes destroy a whole hex.</title>
+            <line x1="173" y1="22" x2="173" y2="200" stroke="rgba(142,176,235,0.14)" stroke-width="1"/>
+            <line x1="346" y1="22" x2="346" y2="200" stroke="rgba(142,176,235,0.14)" stroke-width="1"/>
+            <text x="87" y="32" text-anchor="middle" fill="#7ad7ff" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="0.18em">MINE</text>
+            <text x="260" y="32" text-anchor="middle" fill="#7ad7ff" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="0.18em">TORPEDO</text>
+            <text x="433" y="32" text-anchor="middle" fill="#7ad7ff" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="0.18em">NUKE</text>
+            <defs>
+              <marker id="ord-arr-cy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#7ad7ff"/></marker>
+              <marker id="ord-arr-rd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#ff8a8a"/></marker>
+            </defs>
+            <circle cx="87" cy="115" r="36" fill="rgba(255,197,106,0.06)" stroke="rgba(255,197,106,0.40)" stroke-width="1" stroke-dasharray="2 3"/>
+            <circle cx="87" cy="115" r="13" fill="none" stroke="#ffc56a" stroke-width="1" opacity="0.55"/>
+            <circle cx="87" cy="115" r="6" fill="#ffc56a"/>
+            <line x1="87" y1="115" x2="115" y2="100" stroke="rgba(255,197,106,0.45)" stroke-width="1" stroke-dasharray="2 2"/>
+            <text x="87" y="174" text-anchor="middle" fill="#b4c0d7" font-family="Space Grotesk, sans-serif" font-size="10">drifts on velocity</text>
+            <text x="87" y="190" text-anchor="middle" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="10">touch = boom · 5 turns</text>
+            <path d="M198,115 L218,123 L198,131 Z" fill="#7ad7ff"/>
+            <line x1="222" y1="125" x2="298" y2="98" stroke="#7ad7ff" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#ord-arr-cy)"/>
+            <text x="262" y="92" text-anchor="middle" fill="#7ad7ff" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="0.1em">+1 / +2 BOOST</text>
+            <circle cx="312" cy="92" r="10" fill="none" stroke="#ff8a8a" stroke-width="1.3" opacity="0.85"/>
+            <line x1="306" y1="86" x2="318" y2="98" stroke="#ff8a8a" stroke-width="1.3"/>
+            <line x1="318" y1="86" x2="306" y2="98" stroke="#ff8a8a" stroke-width="1.3"/>
+            <text x="260" y="174" text-anchor="middle" fill="#b4c0d7" font-family="Space Grotesk, sans-serif" font-size="10">warships only</text>
+            <text x="260" y="190" text-anchor="middle" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="10">first hit, then drifts</text>
+            <path d="M376,115 L396,123 L376,131 Z" fill="#7ad7ff"/>
+            <line x1="400" y1="125" x2="438" y2="118" stroke="#ff8a8a" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#ord-arr-rd)"/>
+            <circle cx="466" cy="115" r="24" fill="rgba(255, 138, 138, 0.20)" stroke="#ff8a8a" stroke-width="1.4"/>
+            <circle cx="466" cy="115" r="14" fill="rgba(255, 197, 106, 0.32)" stroke="#ffc56a" stroke-width="1"/>
+            <circle cx="466" cy="115" r="5" fill="#fff3d4"/>
+            <text x="433" y="174" text-anchor="middle" fill="#b4c0d7" font-family="Space Grotesk, sans-serif" font-size="10">whole hex destroyed</text>
+            <text x="433" y="190" text-anchor="middle" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="10">guns intercept at 2:1</text>
+          </svg>
         </figure>
       </div>
 
@@ -597,8 +680,35 @@
 
       <div class="help-group" id="help-group-controls">
         <h3>Controls</h3>
-        <figure class="help-screenshot">
-          <img src="/help/hud.png" alt="In-game HUD showing turn, phase, fuel, objective, ship list, and confirm button.">
+        <figure class="help-screenshot" aria-label="Annotated diagram of the in-game HUD layout">
+          <svg viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg" role="img">
+            <title>HUD layout: top status bar, ship list at left, objective and confirm at right.</title>
+            <rect x="40" y="22" width="440" height="32" rx="6" fill="rgba(4,9,18,0.85)" stroke="rgba(122,215,255,0.32)" stroke-width="1"/>
+            <text x="58" y="43" fill="#7ad7ff" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="0.14em">TURN 4</text>
+            <text x="260" y="43" text-anchor="middle" fill="#7ad7ff" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="0.14em">ASTROGATION</text>
+            <text x="462" y="43" text-anchor="end" fill="#7ad7ff" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="0.14em">FUEL 18 / 20</text>
+            <line x1="78" y1="55" x2="78" y2="74" stroke="#7ad7ff" stroke-width="0.8" opacity="0.55"/>
+            <text x="78" y="86" text-anchor="middle" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="9" letter-spacing="0.06em">turn</text>
+            <line x1="260" y1="55" x2="260" y2="74" stroke="#7ad7ff" stroke-width="0.8" opacity="0.55"/>
+            <text x="260" y="86" text-anchor="middle" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="9" letter-spacing="0.06em">current phase</text>
+            <line x1="442" y1="55" x2="442" y2="74" stroke="#7ad7ff" stroke-width="0.8" opacity="0.55"/>
+            <text x="442" y="86" text-anchor="middle" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="9" letter-spacing="0.06em">selected ship fuel</text>
+            <rect x="40" y="108" width="180" height="86" rx="6" fill="rgba(4,9,18,0.85)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+            <rect x="48" y="116" width="164" height="20" rx="4" fill="rgba(122,215,255,0.10)"/>
+            <text x="56" y="131" fill="#eef4ff" font-family="Space Grotesk, sans-serif" font-size="11">Corvette · ready</text>
+            <text x="56" y="153" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="11">Tanker · drifting</text>
+            <text x="56" y="171" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="11">Frigate · D2</text>
+            <text x="56" y="189" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="11">Corsair · ready</text>
+            <text x="44" y="103" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="9" letter-spacing="0.06em">your ships (selected highlighted)</text>
+            <rect x="270" y="108" width="170" height="32" rx="6" fill="rgba(255,197,106,0.08)" stroke="rgba(255,197,106,0.55)" stroke-width="1"/>
+            <text x="355" y="129" text-anchor="middle" fill="#ffc56a" font-family="Space Grotesk, sans-serif" font-size="11">◇ Land on Mars</text>
+            <line x1="445" y1="124" x2="465" y2="124" stroke="#7ad7ff" stroke-width="0.8" opacity="0.55"/>
+            <text x="473" y="127" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="9" letter-spacing="0.06em">objective</text>
+            <rect x="290" y="156" width="130" height="38" rx="19" fill="#7ad7ff"/>
+            <text x="355" y="181" text-anchor="middle" fill="#040b16" font-family="Space Grotesk, sans-serif" font-size="13" font-weight="700" letter-spacing="0.18em">CONFIRM</text>
+            <line x1="425" y1="175" x2="445" y2="175" stroke="#7ad7ff" stroke-width="0.8" opacity="0.55"/>
+            <text x="453" y="178" fill="#90a0ba" font-family="Space Grotesk, sans-serif" font-size="9" letter-spacing="0.06em">end your turn</text>
+          </svg>
         </figure>
         <div class="help-section">
           <h4>Navigation</h4>
