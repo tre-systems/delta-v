@@ -2230,6 +2230,63 @@ describe('aiAstrogation — checkpoint race', () => {
 
     expect(course.outcome).not.toBe('landing');
   });
+  it('grandTour: avoids checkpoint lines that strand the racer at the map edge', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-EDGE-CONTINUATION'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+
+    state.activePlayer = 1;
+    state.turnNumber = 30;
+    state.players[1].visitedBodies = [
+      'Mars',
+      'Jupiter',
+      'Callisto',
+      'Io',
+      'Terra',
+      'Sol',
+    ];
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: -6, r: 4 };
+    aiShip.velocity = { dq: -2, dr: 3 };
+    aiShip.fuel = 12;
+    aiShip.pendingGravityEffects = [
+      {
+        hex: { q: -5, r: 2 },
+        direction: 0,
+        bodyName: 'Sol',
+        strength: 'full',
+        ignored: false,
+      },
+      {
+        hex: { q: -5, r: 3 },
+        direction: 0,
+        bodyName: 'Sol',
+        strength: 'full',
+        ignored: false,
+      },
+      {
+        hex: { q: -6, r: 4 },
+        direction: 0,
+        bodyName: 'Sol',
+        strength: 'full',
+        ignored: false,
+      },
+    ];
+
+    const [order] = aiAstrogation(state, 1, map, 'hard');
+    const course = computeCourse(aiShip, order.burn ?? null, map, {
+      land: order.land,
+      overload: order.overload ?? null,
+      destroyedBases: state.destroyedBases,
+    });
+
+    expect(order.burn).toBe(1);
+    expect(course.destination).toEqual({ q: -4, r: 6 });
+  });
   it('grandTour: does not use overloads since combatDisabled', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,

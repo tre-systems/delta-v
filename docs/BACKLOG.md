@@ -68,15 +68,15 @@ existing counters.
 Grand Tour, evacuation, convoy, and blockade all depend on movement planning
 under fuel, velocity, gravity, and landing constraints. The planner now has
 short-horizon cost-to-go signals for refuel, passenger arrival, and Grand Tour
-checkpoint targeting. The next open problem is converting those signals into
-landing-safe objective doctrine: ships should not win the fuel math only to
-die by over-fast approaches, repeated gravity traps, or poor abort/refuel
-timing.
+checkpoint targeting, and checkpoint racers avoid lines that leave no in-map
+continuation after a near-edge move. The next open problem is final approach
+doctrine: ships should not complete the checkpoint set only to die before
+landing at home.
 
-Action: promote the remaining Grand Tour fleet-elimination states into
+Action: promote the remaining Grand Tour turn-38 fleet-elimination states into
 fixtures, then teach the race/refuel branch to prefer plans that preserve a
-safe landing or abort line rather than only the cheapest next checkpoint.
-Avoid another scalar-only course score unless the fixture proves it generalizes.
+safe home landing or abort/refuel line after the last checkpoint. Avoid another
+scalar-only course score unless the fixture proves it generalizes.
 
 **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`, `src/shared/ai.test.ts`
@@ -122,9 +122,13 @@ changes:
   outside the rare seed where one side commits.
 - **Grand Tour:** the 2026-04-27 cost-to-go checkpoint targeting pass moved
   focused `grandTour 60 --ci --seed 1` to a passing 55% P0 decided rate
-  with no invalid actions or fuel stalls, but the same sample still resolves
-  55% by fleet elimination. Next work should capture those elimination states
-  and improve landing/abort safety, not rebalance the seat rate.
+  with no invalid actions or fuel stalls, but 55% still resolved by fleet
+  elimination. The follow-up checkpoint edge-continuation pass removed the
+  repeated turn-32 north-edge loss and moved the same sample to 75% Grand Tour
+  completions / 25% fleet eliminations, but it exposed a non-fatal P0 decided
+  rate warning at 25%. The remaining captured failures are turn-38 P1 states
+  near Mars after all eight bodies are already visited; next work should fix
+  that final home-landing/abort doctrine before tuning seat balance.
 - **Evacuation:** the scenario is still too short — average 2.3 turns at
   30 games — but objective share has crossed back above 50% on the
   focused seed. Continue to track on broader sweeps.
