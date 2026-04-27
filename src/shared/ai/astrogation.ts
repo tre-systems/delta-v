@@ -41,6 +41,7 @@ import { resolveAIConfig } from './config';
 import {
   aiLogistics,
   assignPassengerShipRoles,
+  assignTurnShipRoles,
   getPassengerTransferFormationOrders,
   getPrimaryPassengerCarrier,
   getThreateningEnemies,
@@ -775,9 +776,7 @@ export const aiAstrogation = (
   const primaryPassengerCarrier = passengerEscortMission
     ? getPrimaryPassengerCarrier(state, playerId, map)
     : null;
-  const passengerShipRoles = passengerEscortMission
-    ? assignPassengerShipRoles(state, playerId, map)
-    : new Map();
+  const turnShipRoles = assignTurnShipRoles(state, playerId, map);
   const primaryPassengerThreatDist =
     passengerEscortMission && primaryPassengerCarrier != null
       ? Math.min(
@@ -1229,7 +1228,7 @@ export const aiAstrogation = (
       let comparisonCourse = course;
 
       if (passengerEscortMission) {
-        const passengerRole = passengerShipRoles.get(ship.id);
+        const passengerRole = turnShipRoles.get(ship.id);
         score += scorePassengerCarrierEvasion(ship, course, enemyShips);
         if (passengerRole === 'escort' || passengerRole === 'screen') {
           score += scorePassengerEscortCourse(
