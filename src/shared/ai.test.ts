@@ -46,6 +46,7 @@ const aiOrdnance = (
 ): OrdnanceLaunch[] => rawAiOrdnance(state, playerId, map, difficulty, rng);
 
 import {
+  estimateMovementCostToHex,
   estimateRemainingCheckpointTourCost,
   findDirectionToward,
   findNearestRefuelBase,
@@ -2137,6 +2138,43 @@ describe('aiAstrogation — checkpoint race', () => {
     );
 
     expect(after).toBeLessThan(before);
+  });
+  it('grandTour: checkpoint cost-to-go charges velocity correction fuel', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-COST-VELOCITY'),
+      findBaseHex,
+    );
+    const ship = must(state.ships.find((s) => s.owner === 0));
+    const mercury = must(map.bodies.find((body) => body.name === 'Mercury'));
+    const baseShip = {
+      ...ship,
+      lifecycle: 'active' as const,
+      position: { q: -1, r: 3 },
+      fuel: 5,
+      pendingGravityEffects: [],
+    };
+    const stableApproach = estimateMovementCostToHex(
+      { ...baseShip, velocity: { dq: 0, dr: 0 } },
+      mercury.center,
+      map,
+      state.destroyedBases,
+      4,
+    );
+    const fastApproach = estimateMovementCostToHex(
+      { ...baseShip, velocity: { dq: 3, dr: 0 } },
+      mercury.center,
+      map,
+      state.destroyedBases,
+      4,
+    );
+
+    expect(stableApproach.estimatedFuelCost).toBeLessThan(
+      fastApproach.estimatedFuelCost,
+    );
+    expect(stableApproach.reachableWithinFuel).toBe(true);
+    expect(fastApproach.reachableWithinFuel).toBe(false);
   });
 });
 describe('aiAstrogation — easy AI randomization', () => {
