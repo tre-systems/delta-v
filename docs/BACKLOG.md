@@ -79,9 +79,10 @@ changes:
   convoy still resolves too often through attrition. Passenger-carrier
   doctrine should rank arrival odds and survival of a viable destination
   runner above hull quality or generic combat value.
-- **Biplanetary:** the landing objective is still rare under current AI
-  doctrine. Promote terminal-approach failures into fixtures and tune for
-  objective pursuit rather than fleet elimination.
+- **Biplanetary balance:** the burn-to-land objective fix moved focused
+  `biplanetary 30 --ci --seed 1` from 0% objective resolutions to 100%, but
+  it also exposed a first-player pacing skew. Tune start/route/turn-order
+  balance without giving back objective completions.
 - **Duel live seat imbalance:** the 2026-04-27 D1 audit (R20) measured
   Duel at **27/35 = 77% P0** across decided archived matches. A
   follow-up audit of `MatchmakerDO` found the quick-match layer already
@@ -137,28 +138,28 @@ Add `leaderboard_row_clicked` once leaderboard rows become interactive.
 
 ### Instrument the Official-Bot Offer Visibility (P2)
 
-The 2026-04-27 R20 audit found zero `quick_match_official_bot_accepted`
-and zero `matchmaker_official_bot_filled` events in the past 65 hours
-despite ~25 Quick Match attempts in the same window. One observed
-session waited 133 s in queue (well past the 20 s offer-availability
-threshold defined by `OFFICIAL_QUICK_MATCH_BOT_WAIT_MS`) and let the
-ticket expire instead of accepting the bot.
-
-We can't tell from current telemetry whether the offer banner is being
-*shown but ignored* or *never shown at all*. The lobby code in
+The lobby code in
 [src/client/ui/lobby-view.ts:983-1002](../src/client/ui/lobby-view.ts)
 toggles `#officialBotOffer` visible based on
 `state.officialBotOfferAvailable`, but emits no event when the toggle
-flips. Without that signal, we can't separate "offer-discoverability
-bug" from "users genuinely prefer to wait for a human".
+flips. We have `quick_match_official_bot_accepted` (user clicked
+Accept) but no signal for *offer was shown to the user*.
+
+Without the show-side event, post-launch we won't be able to separate
+"offer-discoverability bug" from "users genuinely prefer to wait for
+a human" — both produce the same telemetry shape (queue tickets that
+expire or cancel without acceptance). Fixing this before real traffic
+arrives makes the first batch of post-launch data interpretable.
 
 Action: emit `quick_match_official_bot_offered` once per queue ticket
-the first time the offer becomes visible to the user, with `{waitedMs,
-scenario}`. Then a future R20 sweep can compute
-`offered − accepted = silently rejected` and decide whether the bug
-is in the UX or just product-strategy.
+the first time the offer becomes visible, with `{waitedMs, scenario}`.
+Then `offered − accepted = silently rejected` becomes a simple R20
+query.
 
-Found via R20 D1/R2 storage audit (2026-04-27 pass).
+Found via R20 D1/R2 storage audit (2026-04-27 pass) — the original
+"zero accepts in 65 h" observation turned out to be an artefact of
+pre-launch zero-traffic, but the missing instrumentation it surfaced
+is real.
 
 **Files:** `src/client/ui/lobby-view.ts`,
 `src/client/game/session-api.ts`
