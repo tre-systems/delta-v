@@ -53,6 +53,7 @@ import {
   scorePassengerEscortCourse,
 } from './logistics';
 import { aiOrdnance } from './ordnance';
+import { choosePostCarrierLossPursuitPlan } from './plans/passenger';
 import { scoreCourse } from './scoring';
 import type { AIDifficulty } from './types';
 
@@ -1854,8 +1855,15 @@ export const aiAstrogation = (
       bestBurn === null &&
       !bestLand
     ) {
-      const pursuitTargets =
-        passengerEscortMission && primaryPassengerCarrier == null
+      const postCarrierLossPursuit = choosePostCarrierLossPursuitPlan(
+        state,
+        ship,
+        map,
+        enemyShips,
+      );
+      const pursuitTargets = postCarrierLossPursuit
+        ? []
+        : passengerEscortMission && primaryPassengerCarrier == null
           ? enemyShips
           : enemyCombatShips.length > 0
             ? enemyCombatShips
@@ -1864,7 +1872,11 @@ export const aiAstrogation = (
         hexDistance(ship.position, enemy.position),
       );
 
-      if (
+      if (postCarrierLossPursuit) {
+        bestBurn = postCarrierLossPursuit.chosen.action.burn;
+        bestOverload = postCarrierLossPursuit.chosen.action.overload;
+        bestWeakGrav = undefined;
+      } else if (
         nearestCombatEnemy != null &&
         hexDistance(ship.position, nearestCombatEnemy.position) > 2
       ) {

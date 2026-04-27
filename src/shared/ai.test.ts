@@ -10,6 +10,7 @@ import {
   aiLogistics,
   buildAIFleetPurchases,
   choosePassengerCombatPlan,
+  choosePostCarrierLossPursuitPlan,
   aiAstrogation as rawAiAstrogation,
   aiOrdnance as rawAiOrdnance,
 } from './ai';
@@ -2824,6 +2825,25 @@ describe('aiAstrogation — pure combat positioning', () => {
     );
 
     expect(fixture.kind).toBe('fuelStall');
+    expect(
+      choosePostCarrierLossPursuitPlan(
+        fixture.state,
+        must(fixture.state.ships.find((ship) => ship.id === stalledShipId)),
+        map,
+        fixture.state.ships.filter(
+          (ship) =>
+            ship.owner !== fixture.activePlayer &&
+            ship.lifecycle !== 'destroyed',
+        ),
+      )?.chosen,
+    ).toMatchObject({
+      intent: 'postCarrierLossPursuit',
+      action: {
+        type: 'astrogationOrder',
+        shipId: stalledShipId,
+        targetShipId: 'p0s1',
+      },
+    });
     expect(order.burn).not.toBeNull();
     expect(
       findFuelStallShipIds(fixture.state, fixture.activePlayer, orders),
