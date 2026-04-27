@@ -9,6 +9,7 @@ import {
   aiCombat,
   aiLogistics,
   buildAIFleetPurchases,
+  choosePassengerCombatPlan,
   aiAstrogation as rawAiAstrogation,
   aiOrdnance as rawAiOrdnance,
 } from './ai';
@@ -1670,6 +1671,19 @@ describe('aiCombat', () => {
     expect(
       aiCombat(fixture.state, fixture.activePlayer, map, fixture.difficulty),
     ).toEqual([]);
+    expect(
+      choosePassengerCombatPlan(
+        fixture.state,
+        fixture.activePlayer,
+        map,
+        fixture.state.ships.filter(
+          (ship) =>
+            ship.owner !== fixture.activePlayer &&
+            ship.lifecycle !== 'destroyed' &&
+            ship.detected,
+        ),
+      )?.chosen.intent,
+    ).toBe('preserveLandingLine');
   });
   it('convoy: preserves a passenger carrier two-turn landing line over attrition combat', () => {
     const fixture = loadAIFailureFixture(
@@ -1690,6 +1704,26 @@ describe('aiCombat', () => {
     expect(
       aiCombat(fixture.state, fixture.activePlayer, map, fixture.difficulty),
     ).toEqual([]);
+    expect(
+      choosePassengerCombatPlan(
+        fixture.state,
+        fixture.activePlayer,
+        map,
+        fixture.state.ships.filter(
+          (ship) =>
+            ship.owner !== fixture.activePlayer &&
+            ship.lifecycle !== 'destroyed' &&
+            ship.detected,
+        ),
+      )?.chosen,
+    ).toMatchObject({
+      intent: 'preserveLandingLine',
+      action: {
+        type: 'skipCombat',
+        carrierShipId: 'p0s0',
+        landingTurns: 2,
+      },
+    });
   });
   it('keeps race-role ships out of opportunistic gun attacks when cover can fire', () => {
     const racer = createTestShip({
