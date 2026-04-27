@@ -56,6 +56,13 @@ export interface PassengerCarrierEscortTargetAction {
   targetBody: '';
 }
 
+export interface PassengerPostCarrierLossTargetAction {
+  type: 'navigationTargetOverride';
+  shipId: Ship['id'];
+  targetHex: null;
+  targetBody: '';
+}
+
 export const choosePassengerCombatPlan = (
   state: GameState,
   playerId: PlayerId,
@@ -367,6 +374,57 @@ export const choosePassengerCarrierEscortTargetPlan = (
         {
           reason: 'escort drops objective navigation to protect carrier',
           detail: `${ship.id} screens ${primaryCarrier.id} from ${nearestThreat.id}`,
+        },
+      ],
+    },
+  ]);
+};
+
+export const choosePassengerPostCarrierLossTargetPlan = (
+  state: GameState,
+  playerId: PlayerId,
+  ship: Ship,
+  primaryCarrier: Ship | null,
+): PlanDecision<PassengerPostCarrierLossTargetAction> | null => {
+  const player = state.players[playerId];
+
+  if (
+    !state.scenarioRules.targetWinRequiresPassengers ||
+    !player?.targetBody ||
+    primaryCarrier != null ||
+    ship.owner !== playerId ||
+    !canAttack(ship) ||
+    (ship.passengersAboard ?? 0) > 0
+  ) {
+    return null;
+  }
+
+  return chooseBestPlan([
+    {
+      id: `passenger-post-carrier-loss-target:${ship.id}`,
+      intent: 'postCarrierLossPursuit',
+      action: {
+        type: 'navigationTargetOverride',
+        shipId: ship.id,
+        targetHex: null,
+        targetBody: '',
+      },
+      evaluation: {
+        feasible: true,
+        objective: 0,
+        survival: 0,
+        landing: 0,
+        fuel: ship.fuel,
+        combat: 20,
+        formation: 0,
+        tempo: 1,
+        risk: 0,
+        effort: 0,
+      },
+      diagnostics: [
+        {
+          reason: 'passenger carrier is gone; release ship to pursue',
+          detail: `${ship.id} drops passenger objective navigation`,
         },
       ],
     },
