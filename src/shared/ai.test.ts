@@ -10,6 +10,7 @@ import {
   aiLogistics,
   buildAIFleetPurchases,
   choosePassengerCombatPlan,
+  choosePassengerFuelSupportPlan,
   choosePostCarrierLossPursuitPlan,
   aiAstrogation as rawAiAstrogation,
   aiOrdnance as rawAiOrdnance,
@@ -711,8 +712,26 @@ describe('aiAstrogation', () => {
     const orders = aiAstrogation(state, 0, map, 'hard');
     const linerOrder = must(orders.find((order) => order.shipId === 'p0s0'));
     const tankerOrder = must(orders.find((order) => order.shipId === 'p0s1'));
+    const tanker = must(state.ships.find((ship) => ship.id === 'p0s1'));
+    const fuelSupportPlan = choosePassengerFuelSupportPlan(
+      state,
+      0,
+      tanker,
+      [linerOrder],
+      map,
+    );
 
     expect(linerOrder.burn).not.toBeNull();
+    expect(fuelSupportPlan?.chosen).toMatchObject({
+      intent: 'supportPassengerCarrier',
+      action: {
+        type: 'astrogationOrder',
+        shipId: 'p0s1',
+        carrierShipId: 'p0s0',
+        burn: linerOrder.burn,
+        overload: null,
+      },
+    });
     expect(tankerOrder.overload).toBeNull();
     expect(tankerOrder.burn).toBe(linerOrder.burn);
   });
