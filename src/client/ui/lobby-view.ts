@@ -230,6 +230,9 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         .join('');
 
       const lobbyMeta = def.lobbyMeta;
+      const hookHtml = lobbyMeta?.hook
+        ? `<div class="scenario-hook">${lobbyMeta.hook}</div>`
+        : '';
       const metaBits: string[] = [];
       if (lobbyMeta?.beginnerFriendly) {
         metaBits.push('Beginner-friendly');
@@ -262,8 +265,12 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
       setTrustedHTML(
         btn,
-        `<div class="scenario-name">${def.name}${tags}</div>` +
+        `<div class="scenario-name">${def.name}${tags}</div>${hookHtml}` +
           `<div class="scenario-desc">${def.description}</div>${metaHtml}`,
+      );
+      btn.setAttribute(
+        'aria-label',
+        lobbyMeta?.hook ? `${def.name}: ${lobbyMeta.hook}` : def.name,
       );
 
       scenarioListEl.appendChild(btn);
