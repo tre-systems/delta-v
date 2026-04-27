@@ -74,6 +74,21 @@ focused decision-class regression ("land to refuel", "preserve passenger
 carrier", "do not coast while stalled") over adding another global weight from
 one trace.
 
+**Intent-first AI plan reporting.** Passenger and refuel doctrine now has named
+plans documented in [ARCHITECTURE.md#intent-first-ai-plans](./ARCHITECTURE.md#intent-first-ai-plans).
+For behavior changes in those areas, report both:
+
+- the fixture or capture that motivated the change, including the chosen intent
+  when available; and
+- paired scorecard deltas on the affected scenario(s), especially
+  `objectiveShare`, `fleetEliminationShare`, `player0DecidedRate`,
+  `invalidActionShare`, and `fuelStallsPerGame`.
+
+For example, the 2026-04-27 passenger attrition-finish change moved the
+seed-21 120-game convoy scorecard from 47.5% objective / 47.5% fleet
+elimination to 50.8% objective / 45.0% fleet elimination with no invalid
+actions. That is the expected reporting shape for future AI doctrine work.
+
 **Failure captures.** Use `--capture-failures <dir>` to write bounded JSON
 snapshots for invalid built-in AI actions, fuel stalls, passenger-transfer
 mistakes, and objective-scenario drift such as fleet-elimination resolutions.
