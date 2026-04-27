@@ -86,9 +86,14 @@ changes:
   Duel at **27/35 = 77% P0** across decided archived matches. A
   follow-up audit of `MatchmakerDO` found the quick-match layer already
   shuffles seats and now has a repeated stable-key regression covering
-  both shuffle directions and token-to-seat mapping. Treat the remaining
-  imbalance as Duel turn-order, doctrine, or scenario-balance work rather
-  than a matchmaking assignment bug.
+  both shuffle directions and token-to-seat mapping. A local hard-vs-hard
+  check on 2026-04-27 did **not** reproduce the live skew: `duel 200
+  --seed 10` measured 45% P0, forced P0 start measured 41% P0, forced P1
+  start measured 55% P0, and a 16-seed x 80-game sweep averaged 45.3% P0.
+  Treat the remaining imbalance as a production-segmentation question first:
+  re-run the D1 audit after `rating_applied` carries `officialBotMatch`, and
+  split by official bot, human-vs-human, rematches, and winner seat before
+  changing Duel rules or doctrine.
 - **Grand Tour:** the 2026-04-27 cost-to-go checkpoint targeting pass moved
   focused `grandTour 60 --ci --seed 1` to a passing 55% P0 decided rate
   with no invalid actions or fuel stalls, but route pacing remains
