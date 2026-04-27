@@ -1,7 +1,11 @@
 import { must } from '../../shared/assert';
 import type { MovementResult } from '../../shared/engine/game-engine';
 import type { RoomCode } from '../../shared/ids';
-import type { CombatResult, GameState } from '../../shared/types/domain';
+import type {
+  CombatResult,
+  GameState,
+  PlayerId,
+} from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import { playPhaseChange } from '../audio';
 import { getServerErrorToastMessage } from '../messages/server-error-presentation';
@@ -41,7 +45,12 @@ export interface MessageHandlerDeps {
     results: CombatResult[],
     resetCombat?: boolean,
   ) => void;
-  showGameOverOutcome: (won: boolean, reason: string) => void;
+  showGameOverOutcome: (
+    won: boolean,
+    reason: string,
+    ratingDelta?: number,
+  ) => void;
+  showScenarioBriefing: (state: GameState, playerId: PlayerId) => void;
   advanceToNextAttacker: () => void;
   storePlayerToken: (code: RoomCode, token: string) => void;
   resetTurnTelemetry: () => void;
@@ -112,6 +121,11 @@ const applyGameStartPlan = (
   deps: MessageHandlerDeps,
   plan: Extract<ClientMessagePlan, { kind: 'gameStart' }>,
 ): void => {
+  const state = deps.deserializeState(plan.state);
+  const shouldShowBriefing =
+    deps.ctx.state !== 'gameOver' &&
+    deps.ctx.playerId >= 0 &&
+    plan.nextState !== 'playing_fleetBuilding';
   deps.ui.overlay.hideGameOver();
   deps.resetTurnTelemetry();
   deps.renderer.clearTrails();
@@ -124,9 +138,12 @@ const applyGameStartPlan = (
   // after both values are set.  Without this, the renderer would briefly
   // show the game board before the fleet-building overlay appears.
   batch(() => {
-    deps.applyGameState(deps.deserializeState(plan.state));
+    deps.applyGameState(state);
     deps.setState(plan.nextState);
   });
+  if (shouldShowBriefing) {
+    deps.showScenarioBriefing(state, deps.ctx.playerId as PlayerId);
+  }
 };
 
 const applyErrorPlan = (
@@ -236,6 +253,9 @@ const toAuthoritativeUpdate = (
         kind: 'gameOver',
         won: plan.won,
         reason: plan.reason,
+        ...(plan.ratingDelta !== undefined
+          ? { ratingDelta: plan.ratingDelta }
+          : {}),
       };
   }
 };

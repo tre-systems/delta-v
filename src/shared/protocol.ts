@@ -617,7 +617,13 @@ export const validateServerMessage = (raw: unknown): Result<S2C> => {
       return ok(msg as unknown as S2C);
 
     case 'gameOver':
-      if (!isPlayerId(msg.winner) || !isString(msg.reason)) {
+      if (
+        !isPlayerId(msg.winner) ||
+        !isString(msg.reason) ||
+        (msg.ratingDelta !== undefined &&
+          (typeof msg.ratingDelta !== 'number' ||
+            !Number.isFinite(msg.ratingDelta)))
+      ) {
         return invalid('Invalid gameOver payload');
       }
       return ok(msg as unknown as S2C);

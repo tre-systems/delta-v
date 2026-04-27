@@ -461,23 +461,21 @@
   font-size: 0.68rem;
 }
 
-/* ── How to Play: screenshot placeholders ── */
+/* ── How to Play: screenshots ── */
 
 .help-screenshot {
   margin-top: 0.75rem;
-  padding: 1rem;
+  padding: 0;
   border-radius: var(--radius-sm);
-  border: 1px dashed rgba(122, 215, 255, 0.2);
-  background: rgba(122, 215, 255, 0.03);
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  line-height: 1.5;
-  text-align: center;
-  min-height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border: 1px solid rgba(122, 215, 255, 0.2);
+  background: rgba(122, 215, 255, 0.04);
+  overflow: hidden;
+}
+
+.help-screenshot img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 /* ── Menu: How to Play link-button ── */
@@ -922,6 +920,18 @@ h2.game-over-neutral {
   white-space: nowrap;
 }
 
+.go-stat-pill[data-tone="accent"] .go-stat-value {
+  color: var(--accent);
+}
+
+.go-stat-pill[data-tone="success"] .go-stat-value {
+  color: var(--success);
+}
+
+.go-stat-pill[data-tone="warning"] .go-stat-value {
+  color: var(--warning);
+}
+
 /* ── Game over: ship fate cards ── */
 
 .game-over-ship-groups {
@@ -1130,6 +1140,74 @@ h2.game-over-neutral {
 
 #gameOver.game-over-enter .game-over-actions {
   animation: goFadeUp 0.4s ease-out 1000ms both;
+}
+
+/* ── Scenario briefing ── */
+
+.scenario-briefing {
+  z-index: 35;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(122, 215, 255, 0.16), transparent 18rem),
+    rgba(4, 9, 18, 0.7);
+}
+
+.scenario-briefing-content {
+  width: min(31rem, 100%);
+  margin: auto;
+  padding: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  text-align: left;
+}
+
+.scenario-briefing-kicker {
+  align-self: flex-start;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.scenario-briefing-title {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.8rem, 6vw, 3rem);
+  line-height: 1;
+}
+
+.scenario-briefing-description {
+  margin: 0;
+  color: rgba(212, 224, 244, 0.82);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.scenario-briefing-objective {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(122, 215, 255, 0.22);
+  border-radius: var(--radius-sm);
+  background: rgba(122, 215, 255, 0.08);
+}
+
+.scenario-briefing-objective span {
+  color: var(--muted-strong);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.scenario-briefing-objective strong {
+  color: var(--accent);
+  font-size: 1rem;
+  line-height: 1.35;
 }
 
 .replay-bar {

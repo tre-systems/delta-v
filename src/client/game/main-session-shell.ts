@@ -77,7 +77,11 @@ export interface MainSessionShellActionDeps {
     results: CombatResult[],
     resetCombatFlag?: boolean,
   ) => void;
-  showGameOverOutcome: (won: boolean, reason: string) => void;
+  showGameOverOutcome: (
+    won: boolean,
+    reason: string,
+    ratingDelta?: number,
+  ) => void;
 }
 
 export interface MainSessionShellDeps {
@@ -352,6 +356,8 @@ export const createMainSessionShell = (
     presentMovementResult: args.actionDeps.presentMovementResult,
     presentCombatResults: args.actionDeps.presentCombatResults,
     showGameOverOutcome: args.actionDeps.showGameOverOutcome,
+    showScenarioBriefing: (state, playerId) =>
+      args.ui.showScenarioBriefing(state, playerId),
     advanceToNextAttacker: () =>
       advanceToNextAttacker(args.actionDeps.combatDeps),
     storePlayerToken: (code, token) =>

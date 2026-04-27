@@ -19,6 +19,14 @@ import {
 const SNAP_DWELL_MS_AT_1X = 800;
 const ALLOWED_SPEEDS: readonly ReplaySpeed[] = [0.5, 1, 2, 4];
 
+const buildReplayShareUrl = (code: string, gameId: string): string => {
+  const origin =
+    typeof window !== 'undefined' && window.location
+      ? window.location.origin
+      : '';
+  return `${origin}/?code=${encodeURIComponent(code)}&archivedReplay=${encodeURIComponent(gameId)}`;
+};
+
 interface ReplayControllerDeps {
   getClientContext: () => {
     state: ClientState;
@@ -175,6 +183,10 @@ export const createReplayController = (
     }
 
     if (replayTimeline === null || replayIndex === null) {
+      const shareUrl = buildReplayShareUrl(
+        replaySelection.roomCode,
+        replaySelection.selectedGameId,
+      );
       controlsSignal.value = {
         available: true,
         active: false,
@@ -185,6 +197,7 @@ export const createReplayController = (
             ? `Selected ${replaySelection.selectedGameId} for replay`
             : `Ready to replay ${gameState.gameId}`,
         selectedGameId: replaySelection.selectedGameId,
+        shareUrl,
         canSelectPrevMatch: replaySelection.selectedMatchNumber > 1,
         canSelectNextMatch:
           replaySelection.selectedMatchNumber <
@@ -205,6 +218,10 @@ export const createReplayController = (
     const canAdvance = index < timeline.entries.length - 1;
     const totalEntries = timeline.entries.length;
     const progress = totalEntries > 1 ? index / (totalEntries - 1) : 1;
+    const shareUrl = buildReplayShareUrl(
+      replaySelection.roomCode,
+      replaySelection.selectedGameId,
+    );
 
     controlsSignal.value = {
       available: true,
@@ -216,6 +233,7 @@ export const createReplayController = (
         timeline,
       ),
       selectedGameId: replaySelection.selectedGameId,
+      shareUrl,
       canSelectPrevMatch: replaySelection.selectedMatchNumber > 1,
       canSelectNextMatch:
         replaySelection.selectedMatchNumber < replaySelection.latestMatchNumber,
@@ -473,6 +491,10 @@ export const createReplayController = (
         playing: false,
         statusText: `Loading ${replaySelection.selectedGameId}...`,
         selectedGameId: replaySelection.selectedGameId,
+        shareUrl: buildReplayShareUrl(
+          replaySelection.roomCode,
+          replaySelection.selectedGameId,
+        ),
         canSelectPrevMatch: replaySelection.selectedMatchNumber > 1,
         canSelectNextMatch:
           replaySelection.selectedMatchNumber <

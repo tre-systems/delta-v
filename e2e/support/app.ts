@@ -67,6 +67,16 @@ export const skipTutorialIfPresent = async (page: Page): Promise<void> => {
   }
 };
 
+export const dismissScenarioBriefingIfPresent = async (
+  page: Page,
+): Promise<void> => {
+  const start = page.locator('[data-testid="scenarioBriefingStartBtn"]');
+
+  if (await start.isVisible().catch(() => false)) {
+    await start.click();
+  }
+};
+
 export const launchSinglePlayerScenario = async (
   page: Page,
   scenario: string,
@@ -81,6 +91,7 @@ export const launchSinglePlayerScenario = async (
   await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
   await page.click(`[data-scenario="${scenario}"]`);
   await waitForDisplay(page, '[data-testid="hud"]', 'block', timeout);
+  await dismissScenarioBriefingIfPresent(page);
 
   if (skipTutorial) {
     await skipTutorialIfPresent(page);
@@ -100,6 +111,7 @@ export const launchFleetActionScenario = async (page: Page): Promise<void> => {
     .click();
   await page.click('[data-testid="fleetReadyBtn"]');
   await waitForDisplay(page, '[data-testid="hud"]', 'block', 30_000);
+  await dismissScenarioBriefingIfPresent(page);
   await skipTutorialIfPresent(page);
 };
 
@@ -123,6 +135,7 @@ export const createRoom = async (
 export const joinRoom = async (page: Page, roomCode: string): Promise<void> => {
   await submitRoomJoin(page, roomCode);
   await waitForDisplay(page, '[data-testid="hud"]', 'block');
+  await dismissScenarioBriefingIfPresent(page);
 };
 
 export const submitRoomJoin = async (
@@ -153,6 +166,7 @@ export const createMultiplayerSession = async (
     joinRoom(guest, roomCode),
     waitForDisplay(host, '[data-testid="hud"]', 'block'),
   ]);
+  await dismissScenarioBriefingIfPresent(host);
 
   return {
     host,
