@@ -81,18 +81,21 @@ Avoid another scalar-only course score unless the fixture proves it generalizes.
 **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`, `src/shared/ai.test.ts`
 
-### Consume Turn Roles in Tactical Scoring (P1)
+### Tighten Role-Aware Tactical Doctrine (P1)
 
 Generic combat, objective, fuel, and landing scores still fight each other in
 escort scenarios. The AI now has a shared turn-local role map with `carrier`,
 `escort`, `interceptor`, `refuel`, `race`, and `screen` roles, and astrogation
-has begun consuming it for non-checkpoint race/escort course overlays. Most
-ordnance and combat scoring still ignores the role map.
+has begun consuming it for non-checkpoint race/escort course overlays. Ordnance
+and combat now preserve race-role ships from opportunistic attacks when cover is
+available.
 
-Action: consume the non-passenger roles inside ordnance and combat scoring so
-race ships, interceptors, escorts, and screens evaluate a smaller set of
-priorities. Grand Tour should stay on the separate landing-safe checkpoint
-doctrine item; the generic race overlay skewed seat balance there.
+Action: use promoted fixtures and paired scorecards to tune the role-specific
+priorities instead of adding broad weights. Interceptors should commit harder to
+enemy objective runners, escorts/screens should value formation and blocking
+over attrition, and race ships should only break objective posture for direct
+threats. Grand Tour should stay on the separate landing-safe checkpoint doctrine
+item; the generic race overlay skewed seat balance there.
 
 **Files:** `src/shared/ai/logistics.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`
