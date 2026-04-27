@@ -489,9 +489,20 @@ export const findFuelStallShipIds = (
   const ordersByShip = new Map(orders.map((order) => [order.shipId, order]));
   const hasPlayerMovementObjective = (playerId: PlayerId): boolean => {
     const player = state.players[playerId];
+    const hasLivePassengerCarrier =
+      state.scenarioRules.targetWinRequiresPassengers &&
+      state.ships.some(
+        (ship) =>
+          ship.owner === playerId &&
+          ship.lifecycle === 'active' &&
+          (ship.passengersAboard ?? 0) > 0,
+      );
+
     return (
       player.escapeWins ||
-      !!player.targetBody ||
+      (!!player.targetBody &&
+        (!state.scenarioRules.targetWinRequiresPassengers ||
+          hasLivePassengerCarrier)) ||
       (state.scenarioRules.checkpointBodies?.length ?? 0) > 0
     );
   };
@@ -820,6 +831,10 @@ const runSingleGame = async (
   }
 
   let state: GameState = createResult.value;
+  let lastActionableCapture: Omit<
+    SimulationFailureCapture,
+    'schemaVersion' | 'scenario' | 'seed' | 'gameIndex' | 'playerDifficulties'
+  > | null = null;
 
   // Randomize starting player to cancel out first-mover bias
   // across many games. Reveals true faction/position balance.
@@ -901,11 +916,14 @@ const runSingleGame = async (
 
     await recordFailure({
       kind: 'objectiveDrift',
-      turnNumber: state.turnNumber,
-      phase: state.phase,
-      activePlayer: state.activePlayer,
-      difficulty: state.activePlayer === 0 ? p0Diff : p1Diff,
-      state,
+      turnNumber: lastActionableCapture?.turnNumber ?? state.turnNumber,
+      phase: lastActionableCapture?.phase ?? state.phase,
+      activePlayer: lastActionableCapture?.activePlayer ?? state.activePlayer,
+      difficulty:
+        lastActionableCapture?.difficulty ??
+        (state.activePlayer === 0 ? p0Diff : p1Diff),
+      state: lastActionableCapture?.state ?? state,
+      action: lastActionableCapture?.action,
       message: reason,
     });
   };
@@ -917,6 +935,15 @@ const runSingleGame = async (
     try {
       if (state.phase === 'astrogation') {
         const orders = aiAstrogation(state, activePlayer, map, difficulty, rng);
+        lastActionableCapture = {
+          kind: 'objectiveDrift',
+          turnNumber: state.turnNumber,
+          phase: state.phase,
+          activePlayer,
+          difficulty,
+          state,
+          action: { type: 'astrogation', orders },
+        };
         const stalledShipIds = findFuelStallShipIds(
           state,
           activePlayer,
@@ -955,6 +982,18 @@ const runSingleGame = async (
         }
       } else if (state.phase === 'ordnance') {
         const launches = aiOrdnance(state, activePlayer, map, difficulty, rng);
+        lastActionableCapture = {
+          kind: 'objectiveDrift',
+          turnNumber: state.turnNumber,
+          phase: state.phase,
+          activePlayer,
+          difficulty,
+          state,
+          action:
+            launches.length > 0
+              ? { type: 'ordnance', launches }
+              : { type: 'skipOrdnance' },
+        };
 
         if (launches.length > 0) {
           const result = processOrdnance(
@@ -991,6 +1030,18 @@ const runSingleGame = async (
         }
       } else if (state.phase === 'logistics') {
         const transfers = aiLogistics(state, activePlayer, map, difficulty);
+        lastActionableCapture = {
+          kind: 'objectiveDrift',
+          turnNumber: state.turnNumber,
+          phase: state.phase,
+          activePlayer,
+          difficulty,
+          state,
+          action:
+            transfers.length > 0
+              ? { type: 'logistics', transfers }
+              : { type: 'skipLogistics' },
+        };
         const passengerTransferMistakes = findPassengerTransferMistakes(
           state,
           activePlayer,
@@ -1048,6 +1099,18 @@ const runSingleGame = async (
 
         if (state.phase === 'combat') {
           const attacks = aiCombat(state, activePlayer, map, difficulty);
+          lastActionableCapture = {
+            kind: 'objectiveDrift',
+            turnNumber: state.turnNumber,
+            phase: state.phase,
+            activePlayer,
+            difficulty,
+            state,
+            action:
+              attacks.length > 0
+                ? { type: 'combat', attacks }
+                : { type: 'skipCombat' },
+          };
 
           if (attacks.length > 0) {
             const result = processCombat(

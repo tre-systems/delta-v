@@ -37,7 +37,9 @@ export const aiCombat = (
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
 ): CombatAttack[] => {
-  if (!deriveCapabilities(state.scenarioRules).combatEnabled) return [];
+  const caps = deriveCapabilities(state.scenarioRules);
+
+  if (!caps.combatEnabled) return [];
 
   const cfg = resolveAIConfig(
     difficulty,
@@ -71,8 +73,8 @@ export const aiCombat = (
     ? (map.bodies.find((body) => body.name === player.homeBody)?.center ?? null)
     : null;
   const singleShipObjectiveDuel =
-    !deriveCapabilities(state.scenarioRules).isCheckpointRace &&
-    !deriveCapabilities(state.scenarioRules).targetWinRequiresPassengers &&
+    !caps.isCheckpointRace &&
+    !caps.targetWinRequiresPassengers &&
     targetHex != null &&
     homeHex != null &&
     myShips.length === 1 &&
@@ -111,13 +113,36 @@ export const aiCombat = (
   );
   const shouldPreserveLandingLine =
     singleShipObjectiveDuel && myLandingTurns === 1 && enemyLandingTurns !== 0;
+  const passengerCarrierLandingLine =
+    caps.targetWinRequiresPassengers && player.targetBody
+      ? (state.ships
+          .filter(
+            (ship) =>
+              ship.owner === playerId &&
+              ship.lifecycle === 'active' &&
+              (ship.passengersAboard ?? 0) > 0,
+          )
+          .some((ship) => {
+            const landingTurns = estimateTurnsToTargetLanding(
+              ship,
+              player.targetBody,
+              map,
+              state.destroyedBases,
+            );
+            const carrierUnderImmediateThreat = enemyShips.some(
+              (enemy) => canAttack(enemy) && hasLineOfSight(enemy, ship, map),
+            );
+
+            return landingTurns === 1 && !carrierUnderImmediateThreat;
+          }) ?? false)
+      : false;
   const shipRoles = assignTurnShipRoles(state, playerId, map);
 
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
     return [];
   }
 
-  if (shouldPreserveLandingLine) {
+  if (shouldPreserveLandingLine || passengerCarrierLandingLine) {
     return [];
   }
 
