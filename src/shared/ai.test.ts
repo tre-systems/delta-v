@@ -2287,6 +2287,63 @@ describe('aiAstrogation — checkpoint race', () => {
     expect(order.burn).toBe(1);
     expect(course.destination).toEqual({ q: -4, r: 6 });
   });
+  it('grandTour: avoids ramming an active enemy on the final checkpoint approach', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('GT-RAMMING-CONTINUATION'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemyShip = must(state.ships.find((s) => s.owner === 0));
+
+    state.activePlayer = 1;
+    state.turnNumber = 37;
+    state.players[1].visitedBodies = [
+      'Mars',
+      'Jupiter',
+      'Callisto',
+      'Io',
+      'Terra',
+      'Sol',
+      'Mercury',
+    ];
+    aiShip.lifecycle = 'active';
+    aiShip.position = { q: -4, r: 5 };
+    aiShip.velocity = { dq: -1, dr: 0 };
+    aiShip.fuel = 10;
+    aiShip.pendingGravityEffects = [
+      {
+        hex: { q: -4, r: 5 },
+        direction: 1,
+        bodyName: 'Sol',
+        strength: 'full',
+        ignored: false,
+      },
+    ];
+    enemyShip.lifecycle = 'active';
+    enemyShip.position = { q: -5, r: 5 };
+    enemyShip.velocity = { dq: 1, dr: 0 };
+    enemyShip.pendingGravityEffects = [
+      {
+        hex: { q: -5, r: 5 },
+        direction: 4,
+        bodyName: 'Venus',
+        strength: 'full',
+        ignored: false,
+      },
+    ];
+
+    const [order] = aiAstrogation(state, 1, map, 'hard');
+    const course = computeCourse(aiShip, order.burn ?? null, map, {
+      land: order.land,
+      overload: order.overload ?? null,
+      destroyedBases: state.destroyedBases,
+    });
+
+    expect(order.burn).toBe(5);
+    expect(course.destination).toEqual({ q: -4, r: 5 });
+  });
   it('grandTour: does not use overloads since combatDisabled', () => {
     const state = createGameOrThrow(
       SCENARIOS.grandTour,
