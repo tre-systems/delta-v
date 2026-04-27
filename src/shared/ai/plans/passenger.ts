@@ -63,6 +63,15 @@ export interface PassengerPostCarrierLossTargetAction {
   targetBody: '';
 }
 
+export interface PassengerCarrierInterceptAction {
+  type: 'astrogationOrder';
+  shipId: Ship['id'];
+  targetShipId: Ship['id'];
+  interceptHex: { q: number; r: number };
+  burn: number;
+  overload: null;
+}
+
 export const choosePassengerCombatPlan = (
   state: GameState,
   playerId: PlayerId,
@@ -425,6 +434,94 @@ export const choosePassengerPostCarrierLossTargetPlan = (
         {
           reason: 'passenger carrier is gone; release ship to pursue',
           detail: `${ship.id} drops passenger objective navigation`,
+        },
+      ],
+    },
+  ]);
+};
+
+export const choosePassengerCarrierInterceptPlan = (
+  state: GameState,
+  ship: Ship,
+  targetCarrier: Ship,
+  map: SolarSystemMap,
+): PlanDecision<PassengerCarrierInterceptAction> | null => {
+  if (!state.scenarioRules.targetWinRequiresPassengers) return null;
+  if (ship.lifecycle !== 'active') return null;
+  if (ship.fuel <= 0 || hexVecLength(ship.velocity) !== 0) return null;
+  if ((targetCarrier.passengersAboard ?? 0) <= 0) return null;
+  if (hexDistance(ship.position, targetCarrier.position) <= 2) return null;
+
+  const interceptHex = hexAdd(targetCarrier.position, targetCarrier.velocity);
+  const plan = planShortHorizonMovementToHex(
+    ship,
+    interceptHex,
+    map,
+    state.destroyedBases,
+  );
+  const fallbackBurn = findDirectionToward(ship.position, interceptHex);
+  const correctiveBurn = plan?.firstBurn ?? fallbackBurn;
+  const correctiveCourse = computeCourse(ship, correctiveBurn, map, {
+    destroyedBases: state.destroyedBases,
+  });
+  const selected =
+    correctiveCourse.outcome !== 'crash'
+      ? { direction: correctiveBurn, course: correctiveCourse }
+      : (() => {
+          const currentDistance = hexDistance(ship.position, interceptHex);
+          const directions = [0, 1, 2, 3, 4, 5] as const;
+
+          return minBy(
+            directions
+              .map((direction) => ({
+                direction,
+                course: computeCourse(ship, direction, map, {
+                  destroyedBases: state.destroyedBases,
+                }),
+              }))
+              .filter(
+                ({ course }) =>
+                  course.outcome !== 'crash' &&
+                  hexDistance(course.destination, interceptHex) <
+                    currentDistance,
+              ),
+            ({ course }) => hexDistance(course.destination, interceptHex),
+          );
+        })();
+
+  if (!selected) return null;
+
+  const currentDistance = hexDistance(ship.position, interceptHex);
+  const nextDistance = hexDistance(selected.course.destination, interceptHex);
+
+  return chooseBestPlan([
+    {
+      id: `intercept-passenger-carrier:${ship.id}:${targetCarrier.id}`,
+      intent: 'interceptPassengerCarrier',
+      action: {
+        type: 'astrogationOrder',
+        shipId: ship.id,
+        targetShipId: targetCarrier.id,
+        interceptHex,
+        burn: selected.direction,
+        overload: null,
+      },
+      evaluation: {
+        feasible: true,
+        objective: 35,
+        survival: 0,
+        landing: 0,
+        fuel: ship.fuel - selected.course.fuelSpent,
+        combat: Math.max(0, 14 - nextDistance),
+        formation: 0,
+        tempo: currentDistance - nextDistance,
+        risk: selected.course.outcome === 'landing' ? 1 : 0,
+        effort: selected.course.fuelSpent,
+      },
+      diagnostics: [
+        {
+          reason: 'intercept enemy passenger carrier',
+          detail: `${ship.id} closes on ${targetCarrier.id}`,
         },
       ],
     },

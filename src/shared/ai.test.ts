@@ -10,6 +10,7 @@ import {
   aiLogistics,
   buildAIFleetPurchases,
   choosePassengerCarrierEscortTargetPlan,
+  choosePassengerCarrierInterceptPlan,
   choosePassengerCombatPlan,
   choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
@@ -928,6 +929,53 @@ describe('aiAstrogation', () => {
         threatShipId: threat.id,
         targetHex: null,
         targetBody: '',
+      },
+    });
+  });
+
+  it('chooses passenger carrier interception when the nearest pursuit target carries passengers', () => {
+    const interceptor = createTestShip({
+      id: asShipId('carrier-interceptor'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'frigate',
+      position: { q: 0, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+    });
+    const carrier = createTestShip({
+      id: asShipId('enemy-passenger-carrier'),
+      owner: 1,
+      originalOwner: 1,
+      type: 'transport',
+      passengersAboard: 4,
+      position: { q: 5, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+    });
+    const state = createTestState({
+      scenarioRules: { targetWinRequiresPassengers: true },
+      ships: [interceptor, carrier],
+      players: [{ targetBody: '' }, { targetBody: 'Venus' }],
+    });
+    const interceptPlan = choosePassengerCarrierInterceptPlan(
+      state,
+      interceptor,
+      carrier,
+      openMap,
+    );
+    const orders = aiAstrogation(state, 0, openMap, 'hard');
+    const order = must(
+      orders.find((candidate) => candidate.shipId === interceptor.id),
+    );
+
+    expect(interceptPlan?.chosen).toMatchObject({
+      intent: 'interceptPassengerCarrier',
+      action: {
+        type: 'astrogationOrder',
+        shipId: interceptor.id,
+        targetShipId: carrier.id,
+        interceptHex: carrier.position,
+        burn: order.burn,
+        overload: null,
       },
     });
   });
