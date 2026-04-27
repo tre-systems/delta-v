@@ -133,7 +133,11 @@ export const aiCombat = (
               (enemy) => canAttack(enemy) && hasLineOfSight(enemy, ship, map),
             );
 
-            return landingTurns === 1 && !carrierUnderImmediateThreat;
+            return (
+              landingTurns !== null &&
+              landingTurns <= 2 &&
+              !carrierUnderImmediateThreat
+            );
           }) ?? false)
       : false;
   const shipRoles = assignTurnShipRoles(state, playerId, map);

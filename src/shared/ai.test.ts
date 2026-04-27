@@ -1671,6 +1671,26 @@ describe('aiCombat', () => {
       aiCombat(fixture.state, fixture.activePlayer, map, fixture.difficulty),
     ).toEqual([]);
   });
+  it('convoy: preserves a passenger carrier two-turn landing line over attrition combat', () => {
+    const fixture = loadAIFailureFixture(
+      'convoy-preserve-passenger-two-turn-landing-combat.json',
+    );
+
+    expect(fixture.kind).toBe('objectiveDrift');
+    expect(fixture.action).toMatchObject({
+      type: 'combat',
+      attacks: [
+        {
+          attackerIds: ['p0s2'],
+          targetId: 'p1s2',
+          targetType: 'ship',
+        },
+      ],
+    });
+    expect(
+      aiCombat(fixture.state, fixture.activePlayer, map, fixture.difficulty),
+    ).toEqual([]);
+  });
   it('keeps race-role ships out of opportunistic gun attacks when cover can fire', () => {
     const racer = createTestShip({
       id: asShipId('combat-racer'),
@@ -2739,6 +2759,40 @@ describe('aiAstrogation — pure combat positioning', () => {
     expect(fixture.stalledShipIds).toContain('p0s2');
     expect(
       findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
+    ).toEqual([]);
+  });
+  it('convoy: tankers without a surviving carrier are not fuel stalls', () => {
+    const fixture = loadAIFailureFixture(
+      'convoy-tanker-after-carrier-loss-hold.json',
+    );
+    const capturedOrders = (fixture.action as { orders: AstrogationOrder[] })
+      .orders;
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(fixture.stalledShipIds).toContain('p0s1');
+    expect(
+      findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
+    ).toEqual([]);
+  });
+  it('convoy: raiders keep pursuing support ships after the carrier is lost', () => {
+    const fixture = loadAIFailureFixture(
+      'convoy-raider-after-carrier-loss-stall.json',
+    );
+    const stalledShipId = must(fixture.stalledShipIds?.[0]);
+    const orders = aiAstrogation(
+      fixture.state,
+      fixture.activePlayer,
+      map,
+      fixture.difficulty,
+    );
+    const order = must(
+      orders.find((candidate) => candidate.shipId === stalledShipId),
+    );
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(order.burn).not.toBeNull();
+    expect(
+      findFuelStallShipIds(fixture.state, fixture.activePlayer, orders),
     ).toEqual([]);
   });
   it('fleetAction: does not hold station beside disabled decoys while enabled enemies are distant', () => {

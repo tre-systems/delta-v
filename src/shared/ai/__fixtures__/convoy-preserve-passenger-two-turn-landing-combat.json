@@ -1,0 +1,336 @@
+{
+  "schemaVersion": 1,
+  "scenario": "convoy",
+  "seed": 3668340032,
+  "gameIndex": 2,
+  "playerDifficulties": {
+    "p0": "hard",
+    "p1": "hard"
+  },
+  "kind": "objectiveDrift",
+  "turnNumber": 7,
+  "phase": "combat",
+  "activePlayer": 0,
+  "difficulty": "hard",
+  "state": {
+    "schemaVersion": 1,
+    "gameId": "sim-convoy-3668340032",
+    "scenario": "convoy",
+    "scenarioRules": {
+      "planetaryDefenseEnabled": true,
+      "hiddenIdentityInspection": false,
+      "escapeEdge": "any",
+      "logisticsEnabled": true,
+      "passengerRescueEnabled": true,
+      "targetWinRequiresPassengers": true
+    },
+    "escapeMoralVictoryAchieved": false,
+    "turnNumber": 7,
+    "phase": "combat",
+    "activePlayer": 0,
+    "ships": [
+      {
+        "id": "p0s0",
+        "type": "liner",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": -9,
+          "r": 5
+        },
+        "lastMovementPath": [
+          {
+            "q": -11,
+            "r": 4
+          },
+          {
+            "q": -10,
+            "r": 4
+          },
+          {
+            "q": -10,
+            "r": 5
+          },
+          {
+            "q": -9,
+            "r": 5
+          }
+        ],
+        "velocity": {
+          "dq": 2,
+          "dr": 1
+        },
+        "fuel": 8,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": false,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "passengersAboard": 120,
+        "lastBurnDirection": 1
+      },
+      {
+        "id": "p0s1",
+        "type": "tanker",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": -9,
+          "r": 5
+        },
+        "lastMovementPath": [
+          {
+            "q": -11,
+            "r": 4
+          },
+          {
+            "q": -10,
+            "r": 4
+          },
+          {
+            "q": -10,
+            "r": 5
+          },
+          {
+            "q": -9,
+            "r": 5
+          }
+        ],
+        "velocity": {
+          "dq": 2,
+          "dr": 1
+        },
+        "fuel": 38,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": false,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "lastBurnDirection": 1
+      },
+      {
+        "id": "p0s2",
+        "type": "frigate",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": -9,
+          "r": 0
+        },
+        "lastMovementPath": [
+          {
+            "q": -11,
+            "r": 0
+          },
+          {
+            "q": -10,
+            "r": 0
+          },
+          {
+            "q": -9,
+            "r": 0
+          }
+        ],
+        "velocity": {
+          "dq": 2,
+          "dr": 0
+        },
+        "fuel": 12,
+        "cargoUsed": 40,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": true,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "lastBurnDirection": 0
+      },
+      {
+        "id": "p1s0",
+        "type": "corsair",
+        "owner": 1,
+        "originalOwner": 1,
+        "position": {
+          "q": -9,
+          "r": -3
+        },
+        "lastMovementPath": [
+          {
+            "q": -9,
+            "r": -2
+          },
+          {
+            "q": -9,
+            "r": -3
+          }
+        ],
+        "velocity": {
+          "dq": 0,
+          "dr": 0
+        },
+        "fuel": 17,
+        "cargoUsed": 10,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "destroyed",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": true,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 6
+        },
+        "lastBurnDirection": 5,
+        "deathCause": "gun",
+        "killedBy": "p0s2"
+      },
+      {
+        "id": "p1s1",
+        "type": "corsair",
+        "owner": 1,
+        "originalOwner": 1,
+        "position": {
+          "q": -8,
+          "r": -3
+        },
+        "lastMovementPath": [
+          {
+            "q": -7,
+            "r": -2
+          },
+          {
+            "q": -7,
+            "r": -3
+          },
+          {
+            "q": -8,
+            "r": -3
+          }
+        ],
+        "velocity": {
+          "dq": 0,
+          "dr": 0
+        },
+        "fuel": 18,
+        "cargoUsed": 10,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "destroyed",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": true,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 2
+        },
+        "lastBurnDirection": 2,
+        "deathCause": "gun",
+        "killedBy": "p0s2"
+      },
+      {
+        "id": "p1s2",
+        "type": "corvette",
+        "owner": 1,
+        "originalOwner": 1,
+        "position": {
+          "q": -10,
+          "r": 0
+        },
+        "lastMovementPath": [
+          {
+            "q": -10,
+            "r": -1
+          },
+          {
+            "q": -10,
+            "r": 0
+          }
+        ],
+        "velocity": {
+          "dq": 0,
+          "dr": 1
+        },
+        "fuel": 14,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": true,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 4
+        },
+        "lastBurnDirection": 0
+      }
+    ],
+    "ordnance": [],
+    "pendingAstrogationOrders": null,
+    "pendingAsteroidHazards": [],
+    "destroyedAsteroids": [],
+    "destroyedBases": [],
+    "players": [
+      {
+        "connected": true,
+        "ready": true,
+        "targetBody": "Venus",
+        "homeBody": "Mars",
+        "bases": [
+          "-8,-6",
+          "-10,-4",
+          "-8,-5",
+          "-9,-6",
+          "-10,-5",
+          "-9,-4"
+        ],
+        "escapeWins": false
+      },
+      {
+        "connected": true,
+        "ready": true,
+        "targetBody": "",
+        "homeBody": "",
+        "bases": [],
+        "escapeWins": false
+      }
+    ],
+    "outcome": null
+  },
+  "action": {
+    "type": "combat",
+    "attacks": [
+      {
+        "attackerIds": [
+          "p0s2"
+        ],
+        "targetId": "p1s2",
+        "targetType": "ship",
+        "attackStrength": null
+      }
+    ]
+  },
+  "message": "Fleet eliminated!"
+}
