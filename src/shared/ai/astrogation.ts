@@ -10,7 +10,7 @@ import {
   skipLogistics,
   skipOrdnance,
 } from '../engine/game-engine';
-import { type HexKey, hexDistance, hexKey, hexVecLength } from '../hex';
+import { type HexKey, hexAdd, hexDistance, hexKey, hexVecLength } from '../hex';
 import { findBaseHexes } from '../map-data';
 import { computeCourse, detectOrbit } from '../movement';
 import { deriveCapabilities } from '../scenario-capabilities';
@@ -28,6 +28,7 @@ import {
   estimateMovementCostToHex,
   estimateRemainingCheckpointTourCost,
   estimateTurnsToTargetLanding,
+  findDirectionToward,
   findNearestRefuelBase,
   findReachableRefuelBase,
   getHomeDefenseThreat,
@@ -1792,6 +1793,49 @@ export const aiAstrogation = (
         bestBurn = plan.firstBurn;
         bestOverload = null;
         bestWeakGrav = undefined;
+      }
+    }
+
+    if (
+      !checkpoints &&
+      !passengerEscortMission &&
+      !escapeWins &&
+      shipTargetHex == null &&
+      ship.lifecycle === 'active' &&
+      hexVecLength(ship.velocity) === 0 &&
+      canBurnFuel &&
+      bestBurn === null &&
+      !bestLand
+    ) {
+      const nearestCombatEnemy = minBy(enemyCombatShips, (enemy) =>
+        hexDistance(ship.position, enemy.position),
+      );
+
+      if (
+        nearestCombatEnemy != null &&
+        hexDistance(ship.position, nearestCombatEnemy.position) > 2
+      ) {
+        const interceptHex = hexAdd(
+          nearestCombatEnemy.position,
+          nearestCombatEnemy.velocity,
+        );
+        const plan = planShortHorizonMovementToHex(
+          ship,
+          interceptHex,
+          map,
+          state.destroyedBases,
+        );
+        const fallbackBurn = findDirectionToward(ship.position, interceptHex);
+        const correctiveBurn = plan?.firstBurn ?? fallbackBurn;
+        const correctiveCourse = computeCourse(ship, correctiveBurn, map, {
+          destroyedBases: state.destroyedBases,
+        });
+
+        if (correctiveCourse.outcome !== 'crash') {
+          bestBurn = correctiveBurn;
+          bestOverload = null;
+          bestWeakGrav = undefined;
+        }
       }
     }
 
