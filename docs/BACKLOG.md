@@ -121,6 +121,13 @@ changes:
   better but still well short of an objective-driven scenario. The
   landing objective is largely unreachable under current AI doctrine
   outside the rare seed where one side commits.
+- **Duel live seat imbalance:** the 2026-04-27 D1 audit (R20) measured
+  Duel at **27/35 = 77% P0** across decided archived matches. A
+  follow-up audit of `MatchmakerDO` found the quick-match layer already
+  shuffles seats and now has a repeated stable-key regression covering
+  both shuffle directions and token-to-seat mapping. Treat the remaining
+  imbalance as Duel turn-order, doctrine, or scenario-balance work rather
+  than a matchmaking assignment bug.
 - **Grand Tour:** the 2026-04-27 cost-to-go checkpoint targeting pass moved
   focused `grandTour 60 --ci --seed 1` to a passing 55% P0 decided rate
   with no invalid actions or fuel stalls, but 55% still resolved by fleet
@@ -163,33 +170,6 @@ players form their lasting impression. The items below are gaps surfaced by
 a 2026-04-26 deep-review pass.
 
 ## Gameplay UX & Matchmaking
-
-### Investigate Duel Host-Seat Win Rate (P2)
-
-The 2026-04-27 D1 audit (R20) measured host-seat (P0) wins per
-scenario across the full match archive:
-
-- Duel: **27/35 = 77 % P0** (and 8 P1)
-- Biplanetary: 17/29 = 59 % P0
-- Across all decided matches: 55/82 = 67 % P0
-
-Duel is the most-played scenario and the seat balance is well outside
-the AI-sweep tolerance band of [30 %, 70 %]. Either the seat-shuffle
-isn't actually firing for Quick Match Duel, or the seat itself
-carries a real first-mover edge in the way real humans play it.
-
-Action: instrument or read the seat-assignment path in
-[matchmaker](../src/server/quick-match.ts) and confirm the shuffle
-fires for every Duel pairing; add a Glicko-aware test that cycles
-seat assignments across N back-to-back matches and asserts P0/P1
-parity. If the shuffle is correct, the imbalance is in the engine
-(first-attacker turn order in Duel) and belongs to the AI doctrine
-backlog.
-
-**Files:** `src/server/quick-match.ts`,
-[src/shared/engine/](../src/shared/engine/) (Duel turn-order rules),
-`docs/SIMULATION_TESTING.md` (add a duel-seat-balance check at the
-fixture level).
 
 ### Polish the Menu First-Impression Layer (P3)
 
