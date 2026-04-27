@@ -15,6 +15,8 @@ export {
   comparePlanCandidates,
   comparePlanEvaluations,
 } from './plans';
+export type { ReachableRefuelTargetAction } from './plans/navigation';
+export { chooseReachableRefuelTargetPlan } from './plans/navigation';
 export type {
   PassengerCarrierEscortTargetAction,
   PassengerCombatPlanAction,

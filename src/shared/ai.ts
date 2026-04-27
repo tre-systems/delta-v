@@ -9,6 +9,7 @@ export type {
   PlanDiagnostic,
   PlanEvaluation,
   PlanIntent,
+  ReachableRefuelTargetAction,
 } from './ai/index';
 export {
   aiAstrogation,
@@ -22,4 +23,5 @@ export {
   choosePassengerFuelSupportPlan,
   choosePassengerPostCarrierLossTargetPlan,
   choosePostCarrierLossPursuitPlan,
+  chooseReachableRefuelTargetPlan,
 } from './ai/index';
