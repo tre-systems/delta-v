@@ -1097,6 +1097,16 @@ export const aiAstrogation = (
 
     if (
       passengerEscortMission &&
+      primaryPassengerCarrier == null &&
+      canAttack(ship) &&
+      (ship.passengersAboard ?? 0) === 0
+    ) {
+      shipTargetHex = null;
+      shipTargetBody = '';
+    }
+
+    if (
+      passengerEscortMission &&
       primaryPassengerCarrier != null &&
       primaryPassengerThreatDist <= 5 &&
       ship.id !== primaryPassengerCarrier.id &&
@@ -1622,8 +1632,11 @@ export const aiAstrogation = (
             shipTargetHex != null &&
             hexDistance(course.destination, shipTargetHex) <
               hexDistance(ship.position, shipTargetHex);
-          const nothingToDo =
-            shipTargetHex == null && enemyCombatShips.length === 0;
+          const hasPursuitTargets =
+            passengerEscortMission && primaryPassengerCarrier == null
+              ? enemyShips.length > 0
+              : enemyCombatShips.length > 0;
+          const nothingToDo = shipTargetHex == null && !hasPursuitTargets;
           const stationary =
             hexVecLength(ship.velocity) === 0 &&
             hexVecLength(course.newVelocity) === 0;
@@ -1831,7 +1844,7 @@ export const aiAstrogation = (
 
     if (
       !checkpoints &&
-      !passengerEscortMission &&
+      (!passengerEscortMission || primaryPassengerCarrier == null) &&
       !escapeWins &&
       shipTargetHex == null &&
       ship.lifecycle === 'active' &&
@@ -1840,7 +1853,11 @@ export const aiAstrogation = (
       bestBurn === null &&
       !bestLand
     ) {
-      const nearestCombatEnemy = minBy(enemyCombatShips, (enemy) =>
+      const pursuitTargets =
+        passengerEscortMission && primaryPassengerCarrier == null
+          ? enemyShips
+          : enemyCombatShips;
+      const nearestCombatEnemy = minBy(pursuitTargets, (enemy) =>
         hexDistance(ship.position, enemy.position),
       );
 
