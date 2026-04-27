@@ -266,6 +266,48 @@ The AI uses a **config-weighted composable scoring** architecture rather than a 
 
 Difficulty tuning is pure data, new scoring dimensions are pure additions, and all AI functions accept `rng` for deterministic testing. The pattern walk-through is in [patterns/scenarios-and-config.md#ai-config-as-weights-not-code](../patterns/scenarios-and-config.md#ai-config-as-weights-not-code).
 
+#### Intent-first AI Plans
+
+Passenger and fuel-support decisions now sit on top of the scalar scoring layer
+as **named plans** in `src/shared/ai/plans/`. The purpose is not to replace
+course scoring wholesale; it is to make high-risk doctrine decisions explicit
+before they become small, hard-to-reason-about weight tweaks.
+
+The shared plan vocabulary lives in `src/shared/ai/plans/index.ts`:
+
+- `PlanIntent` names the strategic reason for a choice.
+- `PlanCandidate<TAction>` stores the intent, concrete action, comparable
+  `PlanEvaluation` vector, and optional diagnostics.
+- `chooseBestPlan()` provides deterministic selection across candidates.
+
+Current named intents with regression coverage:
+
+| Intent | Purpose | Main implementation |
+| --- | --- | --- |
+| `deliverPassengers` | Preserve or start passenger delivery progress instead of drifting or finishing attrition combat. | `plans/passenger.ts` |
+| `preserveLandingLine` | Skip combat when a passenger carrier has a one- or two-turn landing line. | `plans/passenger.ts` |
+| `escortCarrier` | Drop objective navigation so an escort screens a threatened passenger carrier. | `plans/passenger.ts` |
+| `interceptPassengerCarrier` | Convert a stationary pursuit fallback into a named enemy-carrier intercept. | `plans/passenger.ts` |
+| `supportPassengerCarrier` | Keep a tanker stacked with the passenger carrier by mirroring the carrier burn. | `plans/passenger.ts` |
+| `postCarrierLossPursuit` | Release remaining ships to pursue after the passenger objective is gone. | `plans/passenger.ts` |
+| `refuelAtReachableBase` | Divert to a planner-reachable refuel base instead of a geometrically tempting but unreachable target. | `plans/navigation.ts` |
+
+The refactor was successful as an architecture change: doctrine-level tests now
+assert chosen intents instead of only exact burns, and simulation captures can
+record plan decisions where the caller supplies them. It did **not** fully solve
+scenario balance. The remaining work is behavior tuning backed by paired
+scorecards and captured states, especially evacuation's P0 skew and convoy's
+remaining fleet-elimination share.
+
+When adding AI behavior now:
+
+1. Promote a captured bad state or add a focused fixture first.
+2. Express doctrine as a named plan when the decision has strategic meaning
+   beyond a local numeric score.
+3. Keep scalar course scoring for low-level burn comparison.
+4. Compare paired seed scorecards before and after; see
+   [SIMULATION_TESTING.md](./SIMULATION_TESTING.md).
+
 #### Engine Mutation Model and RNG Injection
 
 The shared engine is side-effect-free and externally immutable. Turn-resolution entry points `structuredClone` their input state, mutate the clone internally, and return it. RNG is a mandatory parameter on all turn-resolution entry points; the server derives a per-match, per-action PRNG from a seed persisted in storage. Full detail in [patterns/engine-and-architecture.md](../patterns/engine-and-architecture.md) (sections "Side-Effect-Free Shared Engine" and "Deterministic RNG via Per-Match Seed").
