@@ -3,8 +3,11 @@
 
 import type { EngineEvent } from '../../shared/engine/engine-events';
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import { scheduleMatchRatingUpdate } from '../leaderboard/rating-writer';
-import type { RoomConfig } from '../protocol';
+import {
+  type AppliedRatingSummary,
+  writeAndReportMatchRatingIfEligible,
+} from '../leaderboard/rating-writer';
+import type { RoomConfig, RoomPlayerProfile } from '../protocol';
 import {
   appendEnvelopedEvents,
   getEventStreamLength,
@@ -27,6 +30,7 @@ export interface PublicationDeps {
   broadcastStateChange: (
     state: GameState,
     primaryMessage?: StatefulServerMessage,
+    ratingDeltasByPlayerId?: Partial<Record<PlayerId, number>>,
   ) => void;
   startTurnTimer: (state: GameState) => Promise<void>;
 }
@@ -36,6 +40,47 @@ export interface PublicationOptions {
   restartTurnTimer?: boolean;
   events?: EngineEvent[];
 }
+
+const roundRatingDelta = (after: number, before: number): number =>
+  Math.round(after - before);
+
+const ratingDeltaForPlayer = (
+  applied: AppliedRatingSummary,
+  player: RoomPlayerProfile,
+): number | undefined => {
+  if (player.playerKey === applied.aKey) {
+    return roundRatingDelta(applied.ratingAfterA, applied.ratingBeforeA);
+  }
+
+  if (player.playerKey === applied.bKey) {
+    return roundRatingDelta(applied.ratingAfterB, applied.ratingBeforeB);
+  }
+
+  return undefined;
+};
+
+const buildHumanRatingDeltas = (
+  roomConfig: RoomConfig,
+  applied: AppliedRatingSummary,
+): Partial<Record<PlayerId, number>> | undefined => {
+  if (
+    applied.officialBotMatch ||
+    roomConfig.players.some((player) => player.kind !== 'human')
+  ) {
+    return undefined;
+  }
+
+  const deltas: Partial<Record<PlayerId, number>> = {};
+
+  for (const playerId of [0, 1] as const) {
+    const delta = ratingDeltaForPlayer(applied, roomConfig.players[playerId]);
+    if (delta !== undefined) {
+      deltas[playerId] = delta;
+    }
+  }
+
+  return Object.keys(deltas).length > 0 ? deltas : undefined;
+};
 
 // Pipeline runner: executes all steps in order, preserving the original
 // behavioral contract of GameDO.publishStateChange.
@@ -49,6 +94,7 @@ export const runPublicationPipeline = async (
 
   const roomCode = await deps.getGameCode();
   const replayMessage = resolveStateBearingMessage(state, primaryMessage);
+  let ratingDeltasByPlayerId: Partial<Record<PlayerId, number>> | undefined;
 
   if (
     !STATEFUL_SERVER_MESSAGE_TYPES.includes(
@@ -102,14 +148,25 @@ export const runPublicationPipeline = async (
     // Step 4b: Update Glicko-2 ratings if game over (paired matches only)
     // The rating-writer itself no-ops on non-paired rooms and when either
     // participant lacks a `player` row.
-    scheduleMatchRatingUpdate(
-      {
-        db: deps.env.DB,
-        waitUntil: deps.waitUntil,
-        getRoomConfig: deps.getRoomConfig,
-      },
-      state,
-    );
+    if (deps.env.DB) {
+      const roomConfig = await deps.getRoomConfig();
+      if (roomConfig) {
+        const ratingResult = await writeAndReportMatchRatingIfEligible(
+          {
+            db: deps.env.DB,
+            waitUntil: deps.waitUntil,
+          },
+          state,
+          roomConfig,
+        );
+        if (ratingResult.ok && ratingResult.wrote && ratingResult.applied) {
+          ratingDeltasByPlayerId = buildHumanRatingDeltas(
+            roomConfig,
+            ratingResult.applied,
+          );
+        }
+      }
+    }
   }
 
   // Step 5: Restart turn timer
@@ -118,5 +175,5 @@ export const runPublicationPipeline = async (
   }
 
   // Step 6: Broadcast
-  deps.broadcastStateChange(state, replayMessage);
+  deps.broadcastStateChange(state, replayMessage, ratingDeltasByPlayerId);
 };

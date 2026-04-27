@@ -1800,6 +1800,7 @@ describe('validateServerMessage', () => {
         type: 'gameOver',
         winner: 1,
         reason: 'Fleet eliminated!',
+        ratingDelta: 18,
       });
       expect(result.ok).toBe(true);
     });

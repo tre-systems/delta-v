@@ -796,8 +796,16 @@ export class GameDO extends DurableObject<Env> {
         getRoomConfig: () => this.getRoomConfig(),
         verifyProjectionParity: (nextState) =>
           this.verifyProjectionParity(nextState),
-        broadcastStateChange: (nextState, nextPrimaryMessage) =>
-          this.broadcastStateChange(nextState, nextPrimaryMessage),
+        broadcastStateChange: (
+          nextState,
+          nextPrimaryMessage,
+          ratingDeltasByPlayerId,
+        ) =>
+          this.broadcastStateChange(
+            nextState,
+            nextPrimaryMessage,
+            ratingDeltasByPlayerId,
+          ),
         startTurnTimer: (nextState) => this.startTurnTimer(nextState),
       },
       state,
@@ -1135,6 +1143,7 @@ export class GameDO extends DurableObject<Env> {
   private broadcastStateChange(
     state: GameState,
     primaryMessage?: StatefulServerMessage,
+    ratingDeltasByPlayerId?: Partial<Record<PlayerId, number>>,
   ) {
     const primary = primaryMessage ?? toStateUpdateMessage(state);
     const hasHiddenInfo =
@@ -1185,16 +1194,33 @@ export class GameDO extends DurableObject<Env> {
       );
     }
     if (state.phase === 'gameOver') {
-      const gameOver = {
+      const baseGameOver = {
         type: 'gameOver',
         winner: state.outcome?.winner ?? 0,
         reason: state.outcome?.reason ?? 'Game over',
       } satisfies S2C;
-      broadcastMessage(this.ctx, gameOver);
       for (const playerId of [0, 1] as const) {
+        const ratingDelta = ratingDeltasByPlayerId?.[playerId];
+        const gameOver =
+          ratingDelta === undefined
+            ? baseGameOver
+            : ({ ...baseGameOver, ratingDelta } satisfies S2C);
+        const data = JSON.stringify(gameOver);
+        for (const ws of this.getWebSockets(`player:${playerId}`)) {
+          try {
+            ws.send(data);
+          } catch {}
+        }
         this.waitUntil(
           appendHostedMcpSeatEvent(this.storage, playerId, gameOver),
         );
+      }
+
+      const spectatorData = JSON.stringify(baseGameOver);
+      for (const ws of this.getWebSockets('spectator')) {
+        try {
+          ws.send(spectatorData);
+        } catch {}
       }
     }
   }

@@ -66,6 +66,7 @@ export type ClientMessagePlan =
       kind: 'gameOver';
       won: boolean;
       reason: string;
+      ratingDelta?: number;
     }
   | { kind: 'rematchPending' }
   | {
@@ -194,6 +195,9 @@ export const deriveClientMessagePlan = (
         kind: 'gameOver',
         won: msg.winner === playerId,
         reason: msg.reason,
+        ...(msg.ratingDelta !== undefined
+          ? { ratingDelta: msg.ratingDelta }
+          : {}),
       };
     case 'rematchPending':
       return { kind: 'rematchPending' };

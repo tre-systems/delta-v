@@ -119,6 +119,7 @@ const createDeps = (
     resetTurnTelemetry: track('resetTurnTelemetry'),
     onAnimationComplete: track('onAnimationComplete'),
     logScenarioBriefing: track('logScenarioBriefing'),
+    showScenarioBriefing: track('showScenarioBriefing'),
     trackEvent: track('trackEvent'),
     recordLatencySample: track('recordLatencySample'),
     deserializeState: (raw: GameState) => raw,

@@ -31,6 +31,7 @@ export interface GameOverStats {
   enemyFuelSpent: number;
   basesDestroyed: number;
   ordnanceInFlight: number;
+  ratingDelta?: number;
   shipFates: ShipFate[];
 }
 

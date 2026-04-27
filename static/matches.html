@@ -4,6 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0c1220">
+  <meta name="description" content="Browse Delta-V match history and replays from real-time multiplayer tactical space combat.">
+  <meta property="og:title" content="Delta-V Matches">
+  <meta property="og:description" content="Browse Delta-V match history and replays from real-time multiplayer tactical space combat.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://delta-v.tre.systems/matches">
+  <meta property="og:image" content="https://delta-v.tre.systems/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Delta-V tactical space combat with ships plotting vector burns around a planet.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Delta-V Matches">
+  <meta name="twitter:description" content="Browse Delta-V match history and replays from real-time multiplayer tactical space combat.">
+  <meta name="twitter:image" content="https://delta-v.tre.systems/og-card.png">
   <title>Matches — Delta-V</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <style>
@@ -323,6 +336,32 @@
       white-space: nowrap;
     }
 
+    .replay-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      white-space: nowrap;
+    }
+
+    .replay-copy-btn {
+      padding: 0.25rem 0.5rem;
+      border: 1px solid rgba(122, 215, 255, 0.28);
+      border-radius: var(--radius-sm);
+      background: rgba(122, 215, 255, 0.08);
+      color: var(--accent);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .replay-copy-btn:hover,
+    .replay-copy-btn:focus-visible {
+      border-color: var(--border-strong);
+      background: rgba(122, 215, 255, 0.14);
+    }
+
     .status {
       text-align: center;
       padding: 3rem 1rem;
@@ -592,6 +631,7 @@
       : '';
 
     const replayUrl = `/?code=${encodeURIComponent(match.roomCode)}&archivedReplay=${encodeURIComponent(match.gameId)}`;
+    const absoluteReplayUrl = new URL(replayUrl, window.location.origin).toString();
 
     return `
       <tr>
@@ -601,7 +641,12 @@
         <td>${winnerCell}${coachedBadge}${officialBotBadge}${winReason}</td>
         <td class="turns-cell">${match.turns}</td>
         <td class="date-cell hide-mobile" title="${new Date(match.completedAt).toISOString()}">${formatDate(match.completedAt)}</td>
-        <td><a class="replay-link" href="${replayUrl}" title="Watch ${escapeHtml(match.gameId)}">Replay →</a></td>
+        <td>
+          <span class="replay-actions">
+            <a class="replay-link" href="${replayUrl}" title="Watch ${escapeHtml(match.gameId)}">Replay →</a>
+            <button type="button" class="replay-copy-btn" data-replay-url="${escapeHtml(absoluteReplayUrl)}" aria-label="Copy replay link for ${escapeHtml(match.gameId)}">Copy</button>
+          </span>
+        </td>
       </tr>
     `;
   };
@@ -727,6 +772,26 @@
   };
 
   $loadMore.addEventListener('click', loadMore);
+
+  $tbody.addEventListener('click', async (event) => {
+    const button = event.target.closest('.replay-copy-btn');
+    if (!button) return;
+    const replayUrl = button.dataset.replayUrl;
+    if (!replayUrl || !navigator.clipboard) return;
+
+    try {
+      await navigator.clipboard.writeText(replayUrl);
+      button.textContent = 'Copied';
+      window.setTimeout(() => {
+        button.textContent = 'Copy';
+      }, 1800);
+    } catch {
+      button.textContent = 'Failed';
+      window.setTimeout(() => {
+        button.textContent = 'Copy';
+      }, 1800);
+    }
+  });
 
   // Load completed matches and live matches in parallel on page load.
   Promise.all([initialLoad(), pollLive()]);

@@ -4,7 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0c1220">
-  <title>Delta-V</title>
+  <meta name="description" content="Real-time multiplayer tactical space combat with vector movement and orbital gravity.">
+  <meta property="og:title" content="Delta-V — Real-time tactical space combat">
+  <meta property="og:description" content="Real-time multiplayer tactical space combat with vector movement and orbital gravity.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://delta-v.tre.systems/">
+  <meta property="og:image" content="https://delta-v.tre.systems/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Delta-V tactical space combat with ships plotting vector burns around a planet.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Delta-V — Real-time tactical space combat">
+  <meta name="twitter:description" content="Real-time multiplayer tactical space combat with vector movement and orbital gravity.">
+  <meta name="twitter:image" content="https://delta-v.tre.systems/og-card.png">
+  <title>Delta-V — Real-time tactical space combat</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="manifest" href="/site.webmanifest">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -69,7 +82,25 @@
 <body>
   <canvas id="gameCanvas" role="application" tabindex="-1" aria-label="Interactive tactical map: hex grid, ships, gravity, and movement. Open the Help button for keyboard and touch controls."></canvas>
   <div id="hudBoardSummary" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
-  <div id="jsRequiredMsg" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0c1220;color:#7ad7ff;font-family:monospace;font-size:1rem;padding:2rem;text-align:center;">JavaScript is required to play Delta-V.</div>
+  <div id="jsRequiredMsg" class="boot-loading" role="status" aria-live="polite" aria-label="Loading Delta-V">
+    <div class="boot-loading-mark" aria-hidden="true">
+      <img src="/favicon.svg" alt="">
+    </div>
+    <div class="boot-loading-title">Loading Delta-V…</div>
+    <div class="boot-loading-subtitle">Plotting intercept vectors</div>
+  </div>
+  <noscript>
+    <style>
+      #jsRequiredMsg { display: none !important; }
+    </style>
+    <div class="boot-loading boot-no-script" role="alert">
+      <div class="boot-loading-mark" aria-hidden="true">
+        <img src="/favicon.svg" alt="">
+      </div>
+      <div class="boot-loading-title">JavaScript is required to play Delta-V.</div>
+      <div class="boot-loading-subtitle">Enable JavaScript, then reload this page.</div>
+    </div>
+  </noscript>
   <div id="newVersionBanner" class="new-version-banner" role="status" aria-live="polite" hidden>
     <span class="new-version-banner-text">New version available</span>
     <button type="button" id="newVersionReloadBtn" class="new-version-banner-btn" data-testid="newVersionReloadBtn">Reload</button>
@@ -281,6 +312,7 @@
           <button type="button" id="replayMatchNextBtn" class="btn btn-secondary" aria-label="Next match in archive">&gt;</button>
         </div>
         <button type="button" id="replayToggleBtn" class="btn btn-secondary">View Replay</button>
+        <button type="button" id="shareReplayBtn" class="btn btn-secondary">Copy Replay Link</button>
         <div id="replayNav" class="replay-bar-nav" hidden>
           <button type="button" id="replayStartBtn" class="replay-btn" aria-label="First turn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="5" x2="5" y2="19"/><polyline points="19 5 9 12 19 19"/></svg>
@@ -333,6 +365,20 @@
     <span id="replayBarStatus" class="replay-bar-status"></span>
   </div>
 
+  <!-- Scenario briefing -->
+  <div id="scenarioBriefing" data-testid="scenarioBriefing" class="screen screen-page scenario-briefing" hidden role="dialog" aria-modal="true" aria-labelledby="scenarioBriefingTitle" aria-describedby="scenarioBriefingDescription">
+    <div class="scenario-briefing-content overlay-panel">
+      <div class="scenario-briefing-kicker">Mission Briefing</div>
+      <h2 id="scenarioBriefingTitle" class="scenario-briefing-title"></h2>
+      <p id="scenarioBriefingDescription" class="scenario-briefing-description"></p>
+      <div class="scenario-briefing-objective">
+        <span>Objective</span>
+        <strong id="scenarioBriefingObjective"></strong>
+      </div>
+      <button type="button" id="scenarioBriefingStartBtn" data-testid="scenarioBriefingStartBtn" class="btn btn-primary">Start Flight</button>
+    </div>
+  </div>
+
   <!-- Help overlay -->
   <div id="helpOverlay" data-testid="helpOverlay" class="screen screen-page" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-describedby="helpIntro">
     <div class="menu-content help-content">
@@ -372,7 +418,9 @@
           <div class="help-row">Out of fuel? You still drift — you just can't change course.</div>
           <div class="help-row">Ships that drift off the map are <strong>eliminated</strong>.</div>
         </div>
-        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: A ship with its cyan velocity arrow pointing ahead, and burn arrows around it showing the 6 possible acceleration directions]</div>
+        <figure class="help-screenshot">
+          <img src="/help/movement.png" alt="Ship with cyan velocity vector and numbered burn directions around it.">
+        </figure>
       </div>
 
       <div class="help-group" id="help-group-gravity">
@@ -386,7 +434,9 @@
           <div class="help-row">Resupply only happens at a <strong>friendly-controlled</strong> base: fuel restored, ordnance reloaded, damage cleared. Neutral or enemy bases accept a landing but do not resupply.</div>
           <div class="help-row">Any other contact with a planet or moon is a <strong>crash</strong> (eliminated).</div>
         </div>
-        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: A gravity well around a planet with an arrow showing how a ship's course bends into orbit on the next turn]</div>
+        <figure class="help-screenshot">
+          <img src="/help/gravity.png" alt="Planet gravity well with arrows bending a ship course into orbit.">
+        </figure>
       </div>
 
       <div class="help-group" id="help-group-combat">
@@ -424,7 +474,9 @@
           <div class="help-row">Each ship repairs 1 disabled turn at the end of each of its own turns.</div>
           <div class="help-row"><strong>Dreadnaughts</strong> may still fire even when fully disabled. <strong>Orbital Bases</strong> may fire at D1 damage only.</div>
         </div>
-        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: The combat result popup showing attacker vs defender odds, die roll, modifiers, and the resulting D3 damage outcome]</div>
+        <figure class="help-screenshot">
+          <img src="/help/combat.png" alt="Combat result card showing attack odds, modifiers, die roll, and D3 damage.">
+        </figure>
       </div>
 
       <div class="help-group" id="help-group-ships">
@@ -449,7 +501,9 @@
           </table>
         </div>
         <div class="help-note-row"><strong>D suffix</strong> = defensive only, cannot attack or counterattack · Cost in MC (MegaCredits) · Warships may overload and launch torpedoes</div>
-        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: The fleet building screen showing the ship shop, credits remaining, and a cart with selected ships ready to launch]</div>
+        <figure class="help-screenshot">
+          <img src="/help/fleet.png" alt="Fleet build screen with ship shop, credits, cart, and ready button.">
+        </figure>
       </div>
 
       <div class="help-group" id="help-group-ordnance">
@@ -466,7 +520,9 @@
           <h4>Nukes <span class="help-tag">mass 20</span></h4>
           <div class="help-row">Inherit launch ship's velocity. Destroy <em>everything</em> in the detonated hex automatically. Guns and planetary defense may intercept at 2:1 odds — any disabling result destroys the nuke. Active for 5 turns.</div>
         </div>
-        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: A mine and torpedo on the map with their dashed trails, showing an enemy ship approaching the mine field]</div>
+        <figure class="help-screenshot">
+          <img src="/help/ordnance.png" alt="Mine and torpedo paths on the map with an enemy ship approaching.">
+        </figure>
       </div>
 
       <div class="help-group" id="help-group-victory">
@@ -531,7 +587,9 @@
 
       <div class="help-group" id="help-group-controls">
         <h3>Controls</h3>
-        <div class="help-screenshot" aria-label="Screenshot placeholder">[Screenshot: The in-game HUD with labels pointing to the turn/phase indicator, fuel gauge, fleet status, objective, and the confirm button]</div>
+        <figure class="help-screenshot">
+          <img src="/help/hud.png" alt="In-game HUD showing turn, phase, fuel, objective, ship list, and confirm button.">
+        </figure>
         <div class="help-section">
           <h4>Navigation</h4>
           <div class="help-row"><span class="help-key">Drag</span> Pan camera</div>

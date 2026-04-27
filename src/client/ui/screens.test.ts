@@ -143,6 +143,7 @@ describe('ui-screens', () => {
       enemyFuelSpent: 12,
       basesDestroyed: 0,
       ordnanceInFlight: 0,
+      ratingDelta: 18,
     });
 
     expect(view.titleText).toBe('VICTORY');
@@ -155,6 +156,7 @@ describe('ui-screens', () => {
       { label: 'Your fleet', value: '2/3 survived', tone: 'success' },
       { label: 'Enemy fleet', value: '0/2 survived', tone: 'warning' },
       { label: 'Kills', value: '2', tone: 'accent' },
+      { label: 'Rating', value: '+18', tone: 'success' },
       { label: 'Fuel spent', value: '18', tone: 'neutral' },
     ]);
     expect(view.shipGroups).toEqual([]);

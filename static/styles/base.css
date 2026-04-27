@@ -180,6 +180,105 @@ body::before {
   z-index: 0;
 }
 
+.boot-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: var(--text);
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(122, 215, 255, 0.2), transparent 18rem),
+    radial-gradient(circle at 18% 24%, rgba(255, 197, 106, 0.1), transparent 13rem),
+    linear-gradient(180deg, #08111f 0%, #040b16 100%);
+  overflow: hidden;
+}
+
+.boot-loading::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(238, 244, 255, 0.58) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(122, 215, 255, 0.42) 0 1px, transparent 1.4px);
+  background-position:
+    0 0,
+    23px 31px;
+  background-size:
+    92px 92px,
+    137px 137px;
+  opacity: 0.22;
+}
+
+.boot-loading-mark,
+.boot-loading-title,
+.boot-loading-subtitle {
+  position: relative;
+}
+
+.boot-loading-mark {
+  width: 4.5rem;
+  height: 4.5rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: rgba(7, 14, 28, 0.68);
+  box-shadow:
+    0 0 42px rgba(122, 215, 255, 0.28),
+    inset 0 0 28px rgba(122, 215, 255, 0.1);
+  animation: bootPulse 1.8s ease-in-out infinite;
+}
+
+.boot-loading-mark img {
+  width: 2.8rem;
+  height: 2.8rem;
+}
+
+.boot-loading-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 4vw, 2.15rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.boot-loading-subtitle {
+  color: var(--muted-strong);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.boot-no-script {
+  z-index: 61;
+}
+
+@keyframes bootPulse {
+  0%,
+  100% {
+    transform: scale(0.98);
+    opacity: 0.82;
+  }
+
+  50% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-loading-mark {
+    animation: none;
+  }
+}
+
 .touch-only {
   display: none;
 }

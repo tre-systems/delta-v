@@ -73,6 +73,7 @@ const installFixture = () => {
     <span id="replayMatchLabel"></span>
     <button id="replayMatchNextBtn"></button>
     <button id="replayToggleBtn"></button>
+    <button id="shareReplayBtn"></button>
     <div id="replayNav"></div>
     <button id="replayStartBtn"></button>
     <button id="replayPrevBtn"></button>
@@ -150,6 +151,12 @@ const installFixture = () => {
     <button id="helpCloseBtn"></button>
     <button id="soundBtn"></button>
     <button id="exitGameBtn"></button>
+    <div id="scenarioBriefing" hidden>
+      <h2 id="scenarioBriefingTitle"></h2>
+      <p id="scenarioBriefingDescription"></p>
+      <strong id="scenarioBriefingObjective"></strong>
+      <button id="scenarioBriefingStartBtn"></button>
+    </div>
     <div id="helpOverlay"></div>
     <div id="phaseAlert">
       <div class="phase-alert-title"></div>

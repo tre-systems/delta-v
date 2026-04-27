@@ -81,6 +81,7 @@ export interface GameOverStatsLike {
   enemyFuelSpent: number;
   basesDestroyed: number;
   ordnanceInFlight: number;
+  ratingDelta?: number;
   playerId?: number;
   shipFates?: Array<{
     name: string;
@@ -390,6 +391,15 @@ const buildSummaryItems = (stats: GameOverStatsLike): GameOverSummaryItem[] => {
       label: 'Kills',
       value: String(stats.enemyShipsDestroyed),
       tone: 'accent',
+    });
+  }
+
+  if (!spectator && stats.ratingDelta !== undefined) {
+    const rounded = Math.round(stats.ratingDelta);
+    items.push({
+      label: 'Rating',
+      value: `${rounded >= 0 ? '+' : ''}${rounded}`,
+      tone: rounded >= 0 ? 'success' : 'warning',
     });
   }
 

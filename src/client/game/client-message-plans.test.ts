@@ -251,11 +251,13 @@ describe('game-client-message-plans', () => {
         type: 'gameOver',
         winner: 0,
         reason: 'Fleet eliminated!',
+        ratingDelta: 18,
       }),
     ).toEqual({
       kind: 'gameOver',
       won: true,
       reason: 'Fleet eliminated!',
+      ratingDelta: 18,
     });
 
     expect(derive({ type: 'rematchPending' })).toEqual({

@@ -13,6 +13,7 @@ import type { LocalResolution } from './local';
 type ImmediateGameOver = {
   won: boolean;
   reason: string;
+  ratingDelta?: number;
 };
 
 export type AuthoritativeUpdate =
@@ -51,6 +52,7 @@ export type AuthoritativeUpdate =
       kind: 'gameOver';
       won: boolean;
       reason: string;
+      ratingDelta?: number;
     };
 
 export interface AuthoritativeUpdateDeps {
@@ -69,7 +71,11 @@ export interface AuthoritativeUpdateDeps {
     results: CombatResult[],
     resetCombat?: boolean,
   ) => void;
-  showGameOverOutcome: (won: boolean, reason: string) => void;
+  showGameOverOutcome: (
+    won: boolean,
+    reason: string,
+    ratingDelta?: number,
+  ) => void;
   onMovementResultComplete: () => void;
   onCombatResultComplete: () => void;
   onCombatSingleResultComplete: () => void;
@@ -92,6 +98,18 @@ const deriveImmediateGameOver = (
   };
 };
 
+const showGameOver = (
+  deps: Pick<AuthoritativeUpdateDeps, 'showGameOverOutcome'>,
+  gameOver: ImmediateGameOver,
+): void => {
+  if (gameOver.ratingDelta === undefined) {
+    deps.showGameOverOutcome(gameOver.won, gameOver.reason);
+    return;
+  }
+
+  deps.showGameOverOutcome(gameOver.won, gameOver.reason, gameOver.ratingDelta);
+};
+
 const showImmediateGameOverOrContinue = (
   deps: Pick<
     AuthoritativeUpdateDeps,
@@ -105,7 +123,7 @@ const showImmediateGameOverOrContinue = (
   gameOver: ImmediateGameOver | undefined,
 ): void => {
   if (gameOver) {
-    deps.showGameOverOutcome(gameOver.won, gameOver.reason);
+    showGameOver(deps, gameOver);
     return;
   }
 
@@ -175,7 +193,7 @@ export const applyAuthoritativeUpdate = (
       );
 
       if (update.gameOver) {
-        deps.showGameOverOutcome(update.gameOver.won, update.gameOver.reason);
+        showGameOver(deps, update.gameOver);
         return;
       }
 
@@ -203,7 +221,7 @@ export const applyAuthoritativeUpdate = (
       deps.applyGameState(state);
 
       if (update.gameOver) {
-        deps.showGameOverOutcome(update.gameOver.won, update.gameOver.reason);
+        showGameOver(deps, update.gameOver);
         return;
       }
 
@@ -213,7 +231,7 @@ export const applyAuthoritativeUpdate = (
       return;
     }
     case 'gameOver':
-      deps.showGameOverOutcome(update.won, update.reason);
+      showGameOver(deps, update);
       return;
     default: {
       const _exhaustive: never = update;

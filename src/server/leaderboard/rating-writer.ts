@@ -129,6 +129,65 @@ export type WriteMatchRatingResult =
     }
   | { ok: false; error: string };
 
+const reportMatchRatingResult = (
+  deps: {
+    db: D1Database;
+    waitUntil: (p: Promise<unknown>) => void;
+  },
+  state: GameState,
+  result: WriteMatchRatingResult,
+): void => {
+  if (!result.ok) {
+    reportLifecycleEvent(deps, 'rating_failed', {
+      gameId: state.gameId,
+      error: result.error,
+    });
+    return;
+  }
+  if (!result.wrote) {
+    reportLifecycleEvent(deps, 'rating_skipped', {
+      gameId: state.gameId,
+      reason: result.reason ?? 'unknown',
+    });
+    return;
+  }
+  const a = result.applied;
+  if (!a) return;
+  reportLifecycleEvent(deps, 'rating_applied', {
+    gameId: state.gameId,
+    scenario: state.scenario,
+    aKey: a.aKey,
+    bKey: a.bKey,
+    winnerKey: a.winnerKey,
+    ratingDeltaA: Math.round((a.ratingAfterA - a.ratingBeforeA) * 100) / 100,
+    ratingDeltaB: Math.round((a.ratingAfterB - a.ratingBeforeB) * 100) / 100,
+    rdAfterA: Math.round(a.rdAfterA),
+    rdAfterB: Math.round(a.rdAfterB),
+    newOpponent: a.newOpponent,
+  });
+};
+
+export const writeAndReportMatchRatingIfEligible = async (
+  deps: {
+    db: D1Database;
+    waitUntil: (p: Promise<unknown>) => void;
+  },
+  state: GameState,
+  roomConfig: RoomConfig,
+  now = Date.now(),
+): Promise<WriteMatchRatingResult> => {
+  const winner = state.outcome?.winner ?? null;
+  const result = await writeMatchRatingIfEligible({
+    db: deps.db,
+    roomConfig,
+    gameId: state.gameId,
+    outcomeWinner: winner === 0 || winner === 1 ? winner : null,
+    now,
+  });
+  reportMatchRatingResult(deps, state, result);
+  return result;
+};
+
 export const writeMatchRatingIfEligible = async (
   opts: WriteMatchRatingOpts,
 ): Promise<WriteMatchRatingResult> => {
@@ -268,45 +327,11 @@ export const scheduleMatchRatingUpdate = (
       if (!roomConfig) return;
       const db = deps.db;
       if (!db) return;
-      const winner = state.outcome?.winner ?? null;
-      const result = await writeMatchRatingIfEligible({
-        db,
+      await writeAndReportMatchRatingIfEligible(
+        { db, waitUntil: deps.waitUntil },
+        state,
         roomConfig,
-        gameId: state.gameId,
-        outcomeWinner: winner === 0 || winner === 1 ? winner : null,
-        now: Date.now(),
-      });
-      const eventDeps = { db, waitUntil: deps.waitUntil };
-      if (!result.ok) {
-        reportLifecycleEvent(eventDeps, 'rating_failed', {
-          gameId: state.gameId,
-          error: result.error,
-        });
-        return;
-      }
-      if (!result.wrote) {
-        reportLifecycleEvent(eventDeps, 'rating_skipped', {
-          gameId: state.gameId,
-          reason: result.reason ?? 'unknown',
-        });
-        return;
-      }
-      const a = result.applied;
-      if (!a) return;
-      reportLifecycleEvent(eventDeps, 'rating_applied', {
-        gameId: state.gameId,
-        scenario: state.scenario,
-        aKey: a.aKey,
-        bKey: a.bKey,
-        winnerKey: a.winnerKey,
-        ratingDeltaA:
-          Math.round((a.ratingAfterA - a.ratingBeforeA) * 100) / 100,
-        ratingDeltaB:
-          Math.round((a.ratingAfterB - a.ratingBeforeB) * 100) / 100,
-        rdAfterA: Math.round(a.rdAfterA),
-        rdAfterB: Math.round(a.rdAfterB),
-        newOpponent: a.newOpponent,
-      });
+      );
     })(),
   );
 };

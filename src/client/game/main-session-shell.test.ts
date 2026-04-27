@@ -142,6 +142,7 @@ const createArgs = () => {
   const ui = {
     overlay,
     setMenuLoading: vi.fn(),
+    showScenarioBriefing: vi.fn(),
   } as unknown as UIManager;
 
   return {

@@ -22,6 +22,7 @@ import { createLayoutSync } from './layout-sync';
 import { createLobbyView, type LobbyView } from './lobby-view';
 import { createOverlayStateStore } from './overlay-state';
 import { createOverlayView } from './overlay-view';
+import { createScenarioBriefingView } from './scenario-briefing-view';
 import { mapInteractionModeToUIScreenMode } from './screens';
 import { createShipListView } from './ship-list-view';
 import { applyUIVisibility } from './visibility';
@@ -103,6 +104,7 @@ export const createUIManager = (deps: UIManagerDeps) => {
 
   const overlayState = createOverlayStateStore();
   const overlay = Object.assign(overlayState, createOverlayView(overlayState));
+  const scenarioBriefingView = createScenarioBriefingView();
 
   let lobbyView: LobbyView;
 
@@ -147,6 +149,7 @@ export const createUIManager = (deps: UIManagerDeps) => {
       () => hudChromeView.dispose(),
       () => lobbyView.dispose(),
       () => overlay.dispose(),
+      () => scenarioBriefingView.dispose(),
       () => shipListView.dispose(),
     ),
   );
@@ -258,6 +261,8 @@ export const createUIManager = (deps: UIManagerDeps) => {
     setPlayerId: log.setPlayerId,
     setMenuLoading: lobbyView.setMenuLoading,
     setWaitingState: lobbyView.setWaitingState,
+    showScenarioBriefing: scenarioBriefingView.show,
+    hideScenarioBriefing: scenarioBriefingView.hide,
     showMenu,
     showScenarioSelect,
     showFleetBuilding,

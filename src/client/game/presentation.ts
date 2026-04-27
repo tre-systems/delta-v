@@ -162,14 +162,19 @@ export const showGameOverOutcome = (
   deps: PresentationDeps,
   won: boolean,
   reason: string,
+  ratingDelta?: number,
 ) => {
   deps.setState('gameOver');
   const gameState = deps.getGameState();
   const playerId = deps.getPlayerId();
   const isSpectator = playerId < 0;
-  const stats = gameState
+  const baseStats = gameState
     ? getGameOverStats(gameState, isSpectator ? -1 : (playerId as PlayerId))
     : undefined;
+  const stats =
+    baseStats && ratingDelta !== undefined && !isSpectator
+      ? { ...baseStats, ratingDelta }
+      : baseStats;
   const logText = isSpectator
     ? `GAME OVER: ${reason}`
     : `${won ? 'VICTORY' : 'DEFEAT'}: ${reason}`;

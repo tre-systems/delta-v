@@ -112,6 +112,8 @@ export const startLocalGameFromMain = (
       },
       applyGameState: deps.applyGameState,
       logScenarioBriefing: () => deps.hud.logScenarioBriefing(),
+      showScenarioBriefing: (state, playerId) =>
+        deps.ui.showScenarioBriefing(state, playerId),
       setState: deps.setState,
       runLocalAI: deps.runLocalAI,
     },
@@ -156,6 +158,8 @@ export const resumeLocalGameFromMain = (
       },
       applyGameState: deps.applyGameState,
       logScenarioBriefing: () => deps.hud.logScenarioBriefing(),
+      showScenarioBriefing: (state, playerId) =>
+        deps.ui.showScenarioBriefing(state, playerId),
       setState: deps.setState,
       runLocalAI: deps.runLocalAI,
     },

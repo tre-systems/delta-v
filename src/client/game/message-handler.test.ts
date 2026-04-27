@@ -45,6 +45,7 @@ const createDeps = (): MessageHandlerDeps => {
     resetTurnTelemetry: vi.fn(),
     onAnimationComplete: vi.fn(),
     logScenarioBriefing: vi.fn(),
+    showScenarioBriefing: vi.fn(),
     trackEvent: vi.fn(),
     recordLatencySample: vi.fn(),
     deserializeState: (raw) => raw,

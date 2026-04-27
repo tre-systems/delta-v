@@ -61,6 +61,7 @@ export interface LocalGameSessionDeps {
   }) => void;
   applyGameState: (state: GameState) => void;
   logScenarioBriefing: () => void;
+  showScenarioBriefing: (state: GameState, playerId: PlayerId) => void;
   setState: (state: ClientState) => void;
   runLocalAI: () => void;
 }
@@ -226,6 +227,13 @@ const completeLocalGameSession = (
   const nextState = deriveGameStartClientState(gameState, deps.ctx.playerId);
 
   deps.setState(nextState);
+  if (
+    mode === 'new' &&
+    deps.ctx.playerId >= 0 &&
+    nextState !== 'playing_fleetBuilding'
+  ) {
+    deps.showScenarioBriefing(gameState, deps.ctx.playerId as PlayerId);
+  }
 
   if (nextState === 'playing_opponentTurn') {
     deps.runLocalAI();

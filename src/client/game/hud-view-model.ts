@@ -19,7 +19,10 @@ import type { HudPlanningSnapshot } from './planning';
 import { getSelectedShip } from './selection';
 import type { HudViewModel, OrdnanceActionState } from './types';
 
-const getObjective = (state: GameState, playerId: PlayerId | -1): string => {
+export const getObjective = (
+  state: GameState,
+  playerId: PlayerId | -1,
+): string => {
   if (playerId < 0) {
     return '⬡ Spectating';
   }

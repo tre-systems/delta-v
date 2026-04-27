@@ -122,7 +122,7 @@ export type S2C =
       state: GameState;
       transferEvents?: LogisticsTransferLogEvent[];
     }
-  | { type: 'gameOver'; winner: PlayerId; reason: string }
+  | { type: 'gameOver'; winner: PlayerId; reason: string; ratingDelta?: number }
   | { type: 'rematchPending' }
   | {
       type: 'chat';
