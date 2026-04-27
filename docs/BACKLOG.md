@@ -99,7 +99,12 @@ changes:
   with no invalid actions or fuel stalls, but route pacing remains
   imbalanced. Tune route pacing / seat balance without giving back the
   objective-safety gains; avoid simple checkpoint-list or start-world swaps
-  unless paired scorecards prove they generalize.
+  unless paired scorecards prove they generalize. A 2026-04-27 follow-up
+  showed the current objective-safe Luna route still sweeps at 0% P0 across
+  seeds 0-7 x 60, while an outward-first Luna route only reached 19.6% P0 and
+  regressed objective completions to 31.5% with many fleet eliminations. Do not
+  revive that route; the next fix needs to preserve landing-safe completion
+  while addressing the Mars-side timing advantage.
 - **FleetAction balance:** keep watching timeout rate and P0 blowout risk on
   broader seeded sweeps.
 

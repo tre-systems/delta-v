@@ -3400,10 +3400,10 @@ describe('Grand Tour', () => {
     expect(tourState.players[1].visitedBodies).toBeDefined();
     expect(tourState.players[1].totalFuelSpent).toBe(0);
   });
-  it('pre-marks starting body as visited', () => {
-    // Player 0 starts at Luna, Player 1 at Mars
-    expect(tourState.players[0].visitedBodies).toContain('Luna');
-    expect(tourState.players[1].visitedBodies).toContain('Mars');
+  it('does not pre-mark starting body as visited', () => {
+    // Players must pass through checkpoint bodies during the tour.
+    expect(tourState.players[0].visitedBodies).not.toContain('Luna');
+    expect(tourState.players[1].visitedBodies).not.toContain('Mars');
   });
   it('gives both players shared bases for fuel', () => {
     const terraBaseKeys = findBaseHexes(map, 'Terra').map((h) => hexKey(h));

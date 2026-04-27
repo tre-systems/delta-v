@@ -2087,7 +2087,7 @@ describe('aiAstrogation — checkpoint race', () => {
 
     expect(
       pickNextCheckpoint(state.players[0], checkpoints, map, p0Ship.position),
-    ).toBe('Sol');
+    ).toBe('Mercury');
     expect(
       pickNextCheckpoint(state.players[1], checkpoints, map, p1Ship.position),
     ).toBe('Callisto');
@@ -2102,11 +2102,11 @@ describe('aiAstrogation — checkpoint race', () => {
     );
     const checkpoints = state.scenarioRules.checkpointBodies ?? [];
 
-    state.players[0].visitedBodies = ['Luna', 'Sol', 'Terra'];
+    state.players[0].visitedBodies = ['Luna', 'Mercury', 'Sol'];
     state.players[1].visitedBodies = ['Mars', 'Callisto', 'Jupiter'];
 
     expect(pickNextCheckpoint(state.players[0], checkpoints, map)).toBe(
-      'Mercury',
+      'Venus',
     );
     expect(pickNextCheckpoint(state.players[1], checkpoints, map)).toBe('Io');
   });
