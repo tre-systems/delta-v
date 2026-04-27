@@ -415,6 +415,36 @@ describe('buildFailureCaptureManifestEntry', () => {
       playerDifficulties: { p0: 'hard', p1: 'hard' },
       state: {} as SimulationFailureCapture['state'],
       action: { type: 'astrogation' },
+      planDecision: {
+        chosen: {
+          id: 'preserve-landing-line:p0s0',
+          intent: 'preserveLandingLine',
+          action: {
+            type: 'skipCombat',
+            carrierShipId: 'p0s0',
+            landingTurns: 2,
+          },
+          evaluation: {
+            feasible: true,
+            objective: 98,
+            survival: 20,
+            landing: 48,
+            fuel: 8,
+            combat: 0,
+            formation: 0,
+            tempo: 0,
+            risk: 0,
+            effort: 2,
+          },
+          diagnostics: [
+            {
+              reason: 'passenger carrier has a near-term landing line',
+              detail: 'p0s0 can land in 2 turn(s)',
+            },
+          ],
+        },
+        rejected: [],
+      },
       stalledShipIds: ['ship-a', 'ship-b'],
       message: 'stationary fueled ships coasted',
     };
@@ -436,6 +466,8 @@ describe('buildFailureCaptureManifestEntry', () => {
       difficulty: 'hard',
       message: 'stationary fueled ships coasted',
       stalledShipIds: ['ship-a', 'ship-b'],
+      chosenPlanIntent: 'preserveLandingLine',
+      chosenPlanId: 'preserve-landing-line:p0s0',
     });
   });
 

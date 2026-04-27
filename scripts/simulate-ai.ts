@@ -8,6 +8,12 @@ import {
   aiLogistics,
   aiOrdnance,
   buildAIFleetPurchases,
+  choosePassengerCombatPlan,
+  type PlanCandidate,
+  type PlanDecision,
+  type PlanDiagnostic,
+  type PlanEvaluation,
+  type PlanIntent,
 } from '../src/shared/ai';
 import { estimateRemainingCheckpointTourCost } from '../src/shared/ai/common';
 import { scorePassengerArrivalOdds } from '../src/shared/ai/logistics';
@@ -126,6 +132,19 @@ export interface PassengerTransferMistake {
   reason: string;
 }
 
+export interface SimulationPlanCandidateTrace {
+  id: string;
+  intent: PlanIntent;
+  action: unknown;
+  evaluation: PlanEvaluation;
+  diagnostics?: readonly PlanDiagnostic[];
+}
+
+export interface SimulationPlanDecisionTrace {
+  chosen: SimulationPlanCandidateTrace;
+  rejected: SimulationPlanCandidateTrace[];
+}
+
 export interface SimulationFailureCapture {
   schemaVersion: 1;
   kind: SimulationFailureKind;
@@ -139,6 +158,7 @@ export interface SimulationFailureCapture {
   playerDifficulties: { p0: AIDifficulty; p1: AIDifficulty };
   state: GameState;
   action?: unknown;
+  planDecision?: SimulationPlanDecisionTrace;
   stalledShipIds?: string[];
   passengerTransferMistakes?: PassengerTransferMistake[];
   message?: string;
@@ -157,6 +177,8 @@ export interface SimulationFailureCaptureManifestEntry {
   message?: string;
   stalledShipIds?: string[];
   passengerTransferMistakeCount?: number;
+  chosenPlanIntent?: PlanIntent;
+  chosenPlanId?: string;
 }
 
 export interface SimulationFailureCaptureManifest {
@@ -335,6 +357,26 @@ const writeFailureCapture = async (
   return buildFailureCaptureManifestEntry(`${filename}.json`, capture);
 };
 
+const summarizePlanCandidate = <TAction>(
+  candidate: PlanCandidate<TAction>,
+): SimulationPlanCandidateTrace => ({
+  id: candidate.id,
+  intent: candidate.intent,
+  action: candidate.action,
+  evaluation: candidate.evaluation,
+  ...(candidate.diagnostics ? { diagnostics: candidate.diagnostics } : {}),
+});
+
+const summarizePlanDecision = <TAction>(
+  decision: PlanDecision<TAction> | null,
+): SimulationPlanDecisionTrace | undefined =>
+  decision
+    ? {
+        chosen: summarizePlanCandidate(decision.chosen),
+        rejected: decision.rejected.slice(0, 3).map(summarizePlanCandidate),
+      }
+    : undefined;
+
 export const buildFailureCaptureManifestEntry = (
   relativePath: string,
   capture: SimulationFailureCapture,
@@ -353,6 +395,12 @@ export const buildFailureCaptureManifestEntry = (
   ...(capture.passengerTransferMistakes
     ? {
         passengerTransferMistakeCount: capture.passengerTransferMistakes.length,
+      }
+    : {}),
+  ...(capture.planDecision
+    ? {
+        chosenPlanIntent: capture.planDecision.chosen.intent,
+        chosenPlanId: capture.planDecision.chosen.id,
       }
     : {}),
 });
@@ -1101,6 +1149,18 @@ const runSingleGame = async (
         }
 
         if (state.phase === 'combat') {
+          const detectedEnemyShips = state.ships.filter(
+            (ship) =>
+              ship.owner !== activePlayer &&
+              ship.lifecycle !== 'destroyed' &&
+              ship.detected,
+          );
+          const passengerCombatPlan = choosePassengerCombatPlan(
+            state,
+            activePlayer,
+            map,
+            detectedEnemyShips,
+          );
           const attacks = aiCombat(state, activePlayer, map, difficulty);
           lastActionableCapture = {
             kind: 'objectiveDrift',
@@ -1113,6 +1173,7 @@ const runSingleGame = async (
               attacks.length > 0
                 ? { type: 'combat', attacks }
                 : { type: 'skipCombat' },
+            planDecision: summarizePlanDecision(passengerCombatPlan),
           };
 
           if (attacks.length > 0) {
