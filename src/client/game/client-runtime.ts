@@ -500,14 +500,6 @@ export const setupClientRuntime = ({
     showToast: (message, type) => interactions.showToast(message, type),
   });
 
-  const onBeforeUnload = (e: BeforeUnloadEvent) => {
-    const state = ctx.state;
-    if (ctx.gameState && state !== 'menu' && state !== 'gameOver') {
-      e.preventDefault();
-    }
-  };
-  window.addEventListener('beforeunload', onBeforeUnload);
-
   initAudio();
   renderer.start();
   autoJoinFromUrl(
@@ -522,7 +514,6 @@ export const setupClientRuntime = ({
   );
 
   return () => {
-    window.removeEventListener('beforeunload', onBeforeUnload);
     disposeBrowserEvents();
   };
 };
