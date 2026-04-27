@@ -673,7 +673,7 @@ describe('aiAstrogation', () => {
     }
   });
 
-  it('uses a coordinated evacuation line without a turn-one landing', () => {
+  it('uses an evasive evacuation line without a turn-one landing', () => {
     const state = createGameOrThrow(
       SCENARIOS.evacuation,
       map,
@@ -686,6 +686,7 @@ describe('aiAstrogation', () => {
     );
     const corvetteOrder = must(orders.find((order) => order.shipId === 'p0s1'));
     const transport = must(state.ships.find((ship) => ship.id === 'p0s0'));
+    const corvette = must(state.ships.find((ship) => ship.id === 'p0s1'));
     const transportCourse = computeCourse(
       transport,
       transportOrder.burn ?? null,
@@ -697,11 +698,24 @@ describe('aiAstrogation', () => {
         weakGravityChoices: transportOrder.weakGravityChoices,
       },
     );
+    const corvetteCourse = computeCourse(
+      corvette,
+      corvetteOrder.burn ?? null,
+      map,
+      {
+        land: corvetteOrder.land,
+        overload: corvetteOrder.overload ?? null,
+        destroyedBases: state.destroyedBases,
+        weakGravityChoices: corvetteOrder.weakGravityChoices,
+      },
+    );
     const terra = must(map.bodies.find((body) => body.name === 'Terra'));
 
+    expect(transportOrder.burn).toBe(0);
     expect(transportOrder.overload).toBeNull();
-    expect(corvetteOrder.burn).toBe(transportOrder.burn);
+    expect(corvetteOrder.burn).not.toBe(transportOrder.burn);
     expect(transportCourse.outcome).not.toBe('landing');
+    expect(corvetteCourse.destination).not.toEqual(transportCourse.destination);
     expect(hexDistance(transportCourse.destination, terra.center)).toBeLessThan(
       hexDistance(transport.position, terra.center),
     );
