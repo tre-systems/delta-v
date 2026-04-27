@@ -56,6 +56,7 @@ import {
   choosePassengerCarrierEscortTargetPlan,
   choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
+  choosePassengerPostCarrierLossTargetPlan,
   choosePostCarrierLossPursuitPlan,
 } from './plans/passenger';
 import { scoreCourse } from './scoring';
@@ -1105,14 +1106,18 @@ export const aiAstrogation = (
       );
     }
 
-    if (
-      passengerEscortMission &&
-      primaryPassengerCarrier == null &&
-      canAttack(ship) &&
-      (ship.passengersAboard ?? 0) === 0
-    ) {
-      shipTargetHex = null;
-      shipTargetBody = '';
+    const postCarrierLossTargetPlan = passengerEscortMission
+      ? choosePassengerPostCarrierLossTargetPlan(
+          state,
+          playerId,
+          ship,
+          primaryPassengerCarrier,
+        )
+      : null;
+
+    if (postCarrierLossTargetPlan) {
+      shipTargetHex = postCarrierLossTargetPlan.chosen.action.targetHex;
+      shipTargetBody = postCarrierLossTargetPlan.chosen.action.targetBody;
     }
 
     const carrierEscortTargetPlan = passengerEscortMission

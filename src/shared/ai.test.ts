@@ -13,6 +13,7 @@ import {
   choosePassengerCombatPlan,
   choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
+  choosePassengerPostCarrierLossTargetPlan,
   choosePostCarrierLossPursuitPlan,
   aiAstrogation as rawAiAstrogation,
   aiOrdnance as rawAiOrdnance,
@@ -801,8 +802,27 @@ describe('aiAstrogation', () => {
     const escortOrder = must(
       orders.find((order) => order.shipId === stalledShipId),
     );
+    const escort = must(
+      fixture.state.ships.find((ship) => ship.id === stalledShipId),
+    );
 
     expect(fixture.kind).toBe('fuelStall');
+    expect(
+      choosePassengerPostCarrierLossTargetPlan(
+        fixture.state,
+        fixture.activePlayer,
+        escort,
+        null,
+      )?.chosen,
+    ).toMatchObject({
+      intent: 'postCarrierLossPursuit',
+      action: {
+        type: 'navigationTargetOverride',
+        shipId: stalledShipId,
+        targetHex: null,
+        targetBody: '',
+      },
+    });
     expect(escortOrder.burn).not.toBeNull();
     expect(
       findFuelStallShipIds(fixture.state, fixture.activePlayer, orders),

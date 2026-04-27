@@ -3,6 +3,7 @@ export type {
   PassengerCarrierEscortTargetAction,
   PassengerDeliveryApproachAction,
   PassengerFuelSupportAction,
+  PassengerPostCarrierLossTargetAction,
   PlanCandidate,
   PlanDecision,
   PlanDiagnostic,
@@ -19,5 +20,6 @@ export {
   choosePassengerCombatPlan,
   choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
+  choosePassengerPostCarrierLossTargetPlan,
   choosePostCarrierLossPursuitPlan,
 } from './ai/index';

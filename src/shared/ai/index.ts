@@ -20,6 +20,7 @@ export type {
   PassengerCombatPlanAction,
   PassengerDeliveryApproachAction,
   PassengerFuelSupportAction,
+  PassengerPostCarrierLossTargetAction,
   PostCarrierLossPursuitAction,
 } from './plans/passenger';
 export {
@@ -27,6 +28,7 @@ export {
   choosePassengerCombatPlan,
   choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
+  choosePassengerPostCarrierLossTargetPlan,
   choosePostCarrierLossPursuitPlan,
 } from './plans/passenger';
 export type { AIDifficulty } from './types';
