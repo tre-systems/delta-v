@@ -171,26 +171,6 @@ a 2026-04-26 deep-review pass.
 
 ## Gameplay UX & Matchmaking
 
-### Stronger Visual Punch on Detonation and Ship Destruction (P3)
-
-The renderer already has [combat-fx.ts](../src/client/renderer/combat-fx.ts)
-and [effects.ts](../src/client/renderer/effects.ts), and procedural
-audio plays an explosion sample on each hit. But a *nuke* detonation
-should feel cinematically heavier than a *gun hit* — currently both
-read similarly to a casual viewer. The central drama of the game is
-combat; it should hit harder.
-
-Action: differentiate signatures by ordnance type in `combat-fx.ts`.
-Nukes get a multi-stage shockwave (bright flash → expanding ring →
-secondary debris cloud) and a screen-flash. Mines get a tighter
-particle burst. Standard gun hits stay subtle. Capped intensity for
-`prefers-reduced-motion: reduce` so the cinematics degrade
-gracefully.
-
-**Files:** [src/client/renderer/combat-fx.ts](../src/client/renderer/combat-fx.ts),
-[src/client/renderer/effects.ts](../src/client/renderer/effects.ts),
-[src/client/audio.ts](../src/client/audio.ts) (per-type sample tweak).
-
 ### Match-History Replay Thumbnails (P3)
 
 `/matches` is a text-only table of game IDs / scenarios / winners /

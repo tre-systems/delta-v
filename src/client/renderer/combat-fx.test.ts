@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createGameOrThrow } from '../../shared/engine/game-engine';
-import { asGameId, asShipId } from '../../shared/ids';
+import { asGameId, asOrdnanceId, asShipId } from '../../shared/ids';
 import {
   buildSolarSystemMap,
   findBaseHex,
@@ -90,5 +90,76 @@ describe('buildCombatEffectsForResults', () => {
     });
     const fx = buildCombatEffectsForResults([r], state, null, map, 500, 28);
     expect(fx.some((e) => e.type === 'beam')).toBe(false);
+  });
+
+  it('marks destroyed ships with the heavier destruction style', () => {
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('CEFW'),
+      findBaseHex,
+    );
+    const [a, b] = state.ships;
+    const r = minimalCombatResult({
+      attackerIds: [a.id],
+      targetId: b.id,
+      targetType: 'ship',
+      damageType: 'eliminated',
+    });
+
+    const fx = buildCombatEffectsForResults([r], state, null, map, 1000, 28);
+
+    expect(fx).toContainEqual(
+      expect.objectContaining({
+        type: 'explosion',
+        style: 'shipDestruction',
+        duration: 1000,
+      }),
+    );
+  });
+
+  it('adds a nuke shockwave and flash when anti-nuke fire destroys ordnance', () => {
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('CEFN'),
+      findBaseHex,
+    );
+    const [a] = state.ships;
+    state.ordnance.push({
+      id: asOrdnanceId('ord-nuke'),
+      type: 'nuke',
+      owner: 1,
+      sourceShipId: null,
+      position: { q: 0, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      turnsRemaining: 4,
+      lifecycle: 'active',
+    });
+    const r = minimalCombatResult({
+      attackerIds: [a.id],
+      targetId: asOrdnanceId('ord-nuke'),
+      targetType: 'ordnance',
+      attackType: 'antiNuke',
+      damageType: 'eliminated',
+    });
+
+    const fx = buildCombatEffectsForResults([r], state, null, map, 1000, 28);
+
+    expect(fx).toContainEqual(
+      expect.objectContaining({
+        type: 'explosion',
+        style: 'nuke',
+        duration: 1300,
+      }),
+    );
+    expect(fx).toContainEqual(
+      expect.objectContaining({
+        type: 'screenFlash',
+        style: 'nuke',
+      }),
+    );
   });
 });
