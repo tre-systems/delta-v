@@ -7,12 +7,17 @@ const drawVectorArrowHead = (
   vector: VelocityVectorView,
 ): void => {
   if (!vector.arrowHead) return;
+  // Draw the head as one path so the tip uses canvas line joining
+  // instead of two butt-end strokes colliding.
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   ctx.beginPath();
-  ctx.moveTo(vector.to.x, vector.to.y);
-  ctx.lineTo(vector.arrowHead.left.x, vector.arrowHead.left.y);
-  ctx.moveTo(vector.to.x, vector.to.y);
+  ctx.moveTo(vector.arrowHead.left.x, vector.arrowHead.left.y);
+  ctx.lineTo(vector.to.x, vector.to.y);
   ctx.lineTo(vector.arrowHead.right.x, vector.arrowHead.right.y);
   ctx.stroke();
+  ctx.restore();
 };
 
 const drawVectorGhostDot = (

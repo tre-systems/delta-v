@@ -39,38 +39,46 @@ const drawCourseArrow = (
   ctx: CanvasRenderingContext2D,
   arrow: CourseArrowView,
 ): void => {
+  ctx.save();
   ctx.strokeStyle = arrow.color;
   ctx.lineWidth = arrow.lineWidth;
+  // Draw the head as one path so the tip uses canvas line joining
+  // instead of two butt-end strokes colliding.
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   ctx.beginPath();
   ctx.moveTo(arrow.from.x, arrow.from.y);
   ctx.lineTo(arrow.to.x, arrow.to.y);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(arrow.to.x, arrow.to.y);
-  ctx.lineTo(arrow.headLeft.x, arrow.headLeft.y);
-  ctx.moveTo(arrow.to.x, arrow.to.y);
+  ctx.moveTo(arrow.headLeft.x, arrow.headLeft.y);
+  ctx.lineTo(arrow.to.x, arrow.to.y);
   ctx.lineTo(arrow.headRight.x, arrow.headRight.y);
   ctx.stroke();
+  ctx.restore();
 };
 
 const drawPendingGravityArrow = (
   ctx: CanvasRenderingContext2D,
   arrow: CourseArrowView,
 ): void => {
+  ctx.save();
   ctx.strokeStyle = arrow.color;
   ctx.lineWidth = arrow.lineWidth;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   ctx.setLineDash([3, 3]);
   ctx.beginPath();
   ctx.moveTo(arrow.from.x, arrow.from.y);
   ctx.lineTo(arrow.to.x, arrow.to.y);
   ctx.stroke();
+  ctx.setLineDash([]);
   ctx.beginPath();
-  ctx.moveTo(arrow.to.x, arrow.to.y);
-  ctx.lineTo(arrow.headLeft.x, arrow.headLeft.y);
-  ctx.moveTo(arrow.to.x, arrow.to.y);
+  ctx.moveTo(arrow.headLeft.x, arrow.headLeft.y);
+  ctx.lineTo(arrow.to.x, arrow.to.y);
   ctx.lineTo(arrow.headRight.x, arrow.headRight.y);
   ctx.stroke();
-  ctx.setLineDash([]);
+  ctx.restore();
 };
 
 const drawCourseCrashMarker = (
