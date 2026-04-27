@@ -19,6 +19,7 @@ export type { ReachableRefuelTargetAction } from './plans/navigation';
 export { chooseReachableRefuelTargetPlan } from './plans/navigation';
 export type {
   PassengerCarrierEscortTargetAction,
+  PassengerCarrierInterceptAction,
   PassengerCombatPlanAction,
   PassengerDeliveryApproachAction,
   PassengerFuelSupportAction,
@@ -27,6 +28,7 @@ export type {
 } from './plans/passenger';
 export {
   choosePassengerCarrierEscortTargetPlan,
+  choosePassengerCarrierInterceptPlan,
   choosePassengerCombatPlan,
   choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,

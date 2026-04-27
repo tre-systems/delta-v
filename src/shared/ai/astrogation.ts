@@ -54,6 +54,7 @@ import { aiOrdnance } from './ordnance';
 import { chooseReachableRefuelTargetPlan } from './plans/navigation';
 import {
   choosePassengerCarrierEscortTargetPlan,
+  choosePassengerCarrierInterceptPlan,
   choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
   choosePassengerPostCarrierLossTargetPlan,
@@ -1859,10 +1860,24 @@ export const aiAstrogation = (
       const nearestCombatEnemy = minBy(pursuitTargets, (enemy) =>
         hexDistance(ship.position, enemy.position),
       );
+      const passengerCarrierIntercept =
+        nearestCombatEnemy != null &&
+        (nearestCombatEnemy.passengersAboard ?? 0) > 0
+          ? choosePassengerCarrierInterceptPlan(
+              state,
+              ship,
+              nearestCombatEnemy,
+              map,
+            )
+          : null;
 
       if (postCarrierLossPursuit) {
         bestBurn = postCarrierLossPursuit.chosen.action.burn;
         bestOverload = postCarrierLossPursuit.chosen.action.overload;
+        bestWeakGrav = undefined;
+      } else if (passengerCarrierIntercept) {
+        bestBurn = passengerCarrierIntercept.chosen.action.burn;
+        bestOverload = passengerCarrierIntercept.chosen.action.overload;
         bestWeakGrav = undefined;
       } else if (
         nearestCombatEnemy != null &&
