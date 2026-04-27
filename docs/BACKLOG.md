@@ -18,6 +18,8 @@ fragile. The active AI work is grouped into three tracks:
   regressions.
 - **Reusable planning primitives:** bounded movement planning and ship-role
   assignment.
+- **Intent-first planning:** named tactical plans with comparable evaluation
+  vectors instead of one large scalar score.
 - **Scenario symptom queue:** player-facing balance/AI failures to validate
   through the first two tracks rather than one-off weight changes.
 
@@ -53,6 +55,44 @@ score unless the fixture proves it generalizes.
 
 **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`, `src/shared/ai.test.ts`
+
+### Introduce Intent-First AI Planning (P1)
+
+The AI has outgrown a single scalar course score. Future fixes should extract
+named plans and ordered evaluation vectors so objective safety, carrier
+survival, fuel margin, landing setup, and combat posture are compared
+explicitly instead of fighting through unrelated bonuses.
+
+Concrete steps:
+
+1. Add `src/shared/ai/plans/` with small shared types:
+   `PlanIntent`, `PlanCandidate`, `PlanEvaluation`, and a deterministic
+   `comparePlanEvaluations` helper.
+2. Start with passenger scenarios only. Generate named candidates for
+   `deliverPassengers`, `preserveLandingLine`, `escortCarrier`,
+   `interceptPassengerCarrier`, `refuelAtReachableBase`, and
+   `postCarrierLossPursuit`.
+3. Evaluate candidates with the existing forward model first:
+   `computeCourse`, `planShortHorizonMovementToHex`,
+   `estimateTurnsToTargetLanding`, and one-to-two-turn lookahead where the
+   fixture proves it matters.
+4. Return the chosen intent and short rejection diagnostics from planning so
+   failure captures can record "why this plan won" and the top rejected
+   alternatives.
+5. Move passenger-specific branches out of `aiAstrogation` and `aiCombat`
+   behind the plan generator incrementally. Do not rewrite Grand Tour or fleet
+   combat until passenger fixtures show the pattern is stable.
+6. Update fixture assertions to prefer doctrine-level checks such as "chooses
+   preserveLandingLine" or "keeps escort with carrier" over exact burn
+   directions, except where a rules edge requires an exact order.
+7. Compare paired seed sweeps before and after each extraction. The first
+   target is to improve convoy / evacuation objective share or reduce
+   fleet-elimination share without increasing invalid actions, fuel stalls, or
+   timeout-heavy stalemates.
+
+**Files:** new `src/shared/ai/plans/`, `src/shared/ai/astrogation.ts`,
+`src/shared/ai/combat.ts`, `src/shared/ai/logistics.ts`,
+`scripts/simulate-ai.ts`, `src/shared/ai.test.ts`
 
 ### Tighten Role-Aware Tactical Doctrine (P1)
 
