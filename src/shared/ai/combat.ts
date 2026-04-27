@@ -119,6 +119,7 @@ export const aiCombat = (
     playerId,
     map,
     enemyShips,
+    enemyNukes,
   );
   const shipRoles = assignTurnShipRoles(state, playerId, map);
 

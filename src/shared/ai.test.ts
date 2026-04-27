@@ -1878,6 +1878,51 @@ describe('aiCombat', () => {
       },
     });
   });
+  it('skips finishing disabled enemies while a passenger carrier can still deliver', () => {
+    const carrier = createTestShip({
+      id: asShipId('attrition-carrier'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'transport',
+      passengersAboard: 8,
+      position: { q: 0, r: 0 },
+    });
+    const escort = createTestShip({
+      id: asShipId('attrition-escort'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'frigate',
+      position: { q: 0, r: 1 },
+    });
+    const disabledEnemy = createTestShip({
+      id: asShipId('attrition-disabled-enemy'),
+      owner: 1,
+      originalOwner: 1,
+      type: 'corvette',
+      position: { q: 1, r: 1 },
+      detected: true,
+      damage: { disabledTurns: 2 },
+    });
+    const state = createTestState({
+      phase: 'combat',
+      activePlayer: 0,
+      scenarioRules: { targetWinRequiresPassengers: true },
+      ships: [carrier, escort, disabledEnemy],
+      players: [{ targetBody: 'Mars' }, { targetBody: '' }],
+    });
+
+    expect(aiCombat(state, 0, openMap, 'hard')).toEqual([]);
+    expect(
+      choosePassengerCombatPlan(state, 0, openMap, [disabledEnemy])?.chosen,
+    ).toMatchObject({
+      intent: 'deliverPassengers',
+      action: {
+        type: 'skipCombat',
+        carrierShipId: carrier.id,
+        reason: 'avoidAttritionFinish',
+      },
+    });
+  });
   it('keeps race-role ships out of opportunistic gun attacks when cover can fire', () => {
     const racer = createTestShip({
       id: asShipId('combat-racer'),

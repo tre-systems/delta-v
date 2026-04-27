@@ -4,6 +4,7 @@ import { computeCourse } from '../../movement';
 import type {
   AstrogationOrder,
   GameState,
+  Ordnance,
   PlayerId,
   Ship,
   SolarSystemMap,
@@ -14,12 +15,13 @@ import {
   findDirectionToward,
   planShortHorizonMovementToHex,
 } from '../common';
-import { chooseBestPlan, type PlanDecision } from '.';
+import { chooseBestPlan, type PlanCandidate, type PlanDecision } from '.';
 
 export interface PassengerCombatPlanAction {
   type: 'skipCombat';
   carrierShipId: string;
-  landingTurns: number;
+  landingTurns: number | null;
+  reason: 'preserveLandingLine' | 'avoidAttritionFinish';
 }
 
 export interface PostCarrierLossPursuitAction {
@@ -77,6 +79,7 @@ export const choosePassengerCombatPlan = (
   playerId: PlayerId,
   map: SolarSystemMap,
   enemyShips: readonly Ship[],
+  enemyOrdnance: readonly Ordnance[] = [],
 ): PlanDecision<PassengerCombatPlanAction> | null => {
   const player = state.players[playerId];
 
@@ -84,13 +87,14 @@ export const choosePassengerCombatPlan = (
     return null;
   }
 
-  const candidates = state.ships
-    .filter(
-      (ship) =>
-        ship.owner === playerId &&
-        ship.lifecycle === 'active' &&
-        (ship.passengersAboard ?? 0) > 0,
-    )
+  const activePassengerCarriers = state.ships.filter(
+    (ship) =>
+      ship.owner === playerId &&
+      ship.lifecycle === 'active' &&
+      (ship.passengersAboard ?? 0) > 0,
+  );
+  const candidates: PlanCandidate<PassengerCombatPlanAction>[] = state.ships
+    .filter((ship) => activePassengerCarriers.includes(ship))
     .flatMap((ship) => {
       const landingTurns = estimateTurnsToTargetLanding(
         ship,
@@ -118,6 +122,7 @@ export const choosePassengerCombatPlan = (
             type: 'skipCombat' as const,
             carrierShipId: ship.id,
             landingTurns,
+            reason: 'preserveLandingLine' as const,
           },
           evaluation: {
             feasible: true,
@@ -140,6 +145,53 @@ export const choosePassengerCombatPlan = (
         },
       ];
     });
+
+  if (
+    activePassengerCarriers.length > 0 &&
+    enemyShips.length > 0 &&
+    enemyOrdnance.length === 0 &&
+    enemyShips.every((enemy) => !canAttack(enemy))
+  ) {
+    candidates.push(
+      ...activePassengerCarriers.map((ship) => {
+        const landingTurns = estimateTurnsToTargetLanding(
+          ship,
+          player.targetBody,
+          map,
+          state.destroyedBases,
+        );
+
+        return {
+          id: `avoid-attrition-finish:${ship.id}`,
+          intent: 'deliverPassengers' as const,
+          action: {
+            type: 'skipCombat' as const,
+            carrierShipId: ship.id,
+            landingTurns,
+            reason: 'avoidAttritionFinish' as const,
+          },
+          evaluation: {
+            feasible: true,
+            objective: 70,
+            survival: 10,
+            landing: landingTurns == null ? 0 : Math.max(0, 20 - landingTurns),
+            fuel: ship.fuel,
+            combat: -10,
+            formation: 0,
+            tempo: landingTurns == null ? 0 : Math.max(0, 8 - landingTurns),
+            risk: 0,
+            effort: landingTurns ?? 10,
+          },
+          diagnostics: [
+            {
+              reason: 'avoid ending passenger scenario by attrition',
+              detail: `${ship.id} can keep pursuing passenger delivery`,
+            },
+          ],
+        };
+      }),
+    );
+  }
 
   return chooseBestPlan(candidates);
 };
