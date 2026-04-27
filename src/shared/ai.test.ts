@@ -10,6 +10,7 @@ import {
   aiLogistics,
   buildAIFleetPurchases,
   choosePassengerCombatPlan,
+  choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
   choosePostCarrierLossPursuitPlan,
   aiAstrogation as rawAiAstrogation,
@@ -759,9 +760,26 @@ describe('aiAstrogation', () => {
       weakGravityChoices: carrierOrder.weakGravityChoices,
     });
     const venus = must(map.bodies.find((body) => body.name === 'Venus'));
+    const deliveryPlan = choosePassengerDeliveryApproachPlan(
+      fixture.state,
+      carrier,
+      carrier,
+      venus.center,
+      map,
+    );
 
     expect(fixture.kind).toBe('objectiveDrift');
     expect(carrier.passengersAboard).toBeGreaterThan(0);
+    expect(deliveryPlan?.chosen).toMatchObject({
+      intent: 'deliverPassengers',
+      action: {
+        type: 'astrogationOrder',
+        shipId: carrier.id,
+        targetHex: venus.center,
+        burn: carrierOrder.burn,
+        overload: null,
+      },
+    });
     expect(carrierOrder.burn).not.toBeNull();
     expect(hexDistance(course.destination, venus.center)).toBeLessThan(
       hexDistance(carrier.position, venus.center),

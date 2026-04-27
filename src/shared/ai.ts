@@ -1,5 +1,6 @@
 export type {
   AIDifficulty,
+  PassengerDeliveryApproachAction,
   PassengerFuelSupportAction,
   PlanCandidate,
   PlanDecision,
@@ -14,6 +15,7 @@ export {
   aiOrdnance,
   buildAIFleetPurchases,
   choosePassengerCombatPlan,
+  choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
   choosePostCarrierLossPursuitPlan,
 } from './ai/index';
