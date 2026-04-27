@@ -39,6 +39,7 @@ import type {
   GameState,
   Phase,
   PlayerId,
+  ScenarioDefinition,
   TransferOrder,
 } from '../src/shared/types';
 
@@ -257,15 +258,34 @@ const OBJECTIVE_WARNING_POLICIES: Record<string, ObjectiveWarningPolicy> = {
   },
 };
 
-// Symmetric fleet-building scenarios where the starting player
-// should be randomized to cancel first-mover advantage.
+// Symmetric scenarios where the starting player should be randomized to cancel
+// first-mover advantage in aggregate scorecards.
 const RANDOMIZE_START_SCENARIOS: ReadonlySet<string> = new Set([
+  'biplanetary',
   // Symmetric starts: cancel fixed scenario.startingPlayer so P0/P1 balance
   // checks are not dominated by first-mover effects at low iteration counts.
   'duel',
   'interplanetaryWar',
   'fleetAction',
 ]);
+
+// Symmetric scenarios with fixed player definitions but randomized live seat
+// assignment. Swap the scenario sides in the simulator so scorecards measure
+// player fairness rather than one named faction's deterministic route.
+const RANDOMIZE_PLAYER_ORDER_SCENARIOS: ReadonlySet<string> = new Set([
+  'biplanetary',
+]);
+
+const maybeSwapScenarioPlayers = (
+  scenario: ScenarioDefinition,
+  shouldSwap: boolean,
+): ScenarioDefinition => {
+  if (!shouldSwap) return scenario;
+
+  const swapped = structuredClone(scenario);
+  swapped.players = [swapped.players[1], swapped.players[0]];
+  return swapped;
+};
 
 const parseDifficulty = (value: string): AIDifficulty => {
   if (value === 'easy' || value === 'normal' || value === 'hard') {
@@ -770,7 +790,13 @@ const runSingleGame = async (
   },
 ) => {
   const failureCounters = emptyFailureCounters();
-  const scenario = SCENARIOS[scenarioName];
+  const swapPlayerOrder =
+    RANDOMIZE_PLAYER_ORDER_SCENARIOS.has(scenarioName) &&
+    ((gameSeed >>> 0) & 1) === 1;
+  const scenario = maybeSwapScenarioPlayers(
+    SCENARIOS[scenarioName],
+    swapPlayerOrder,
+  );
   const objectivePolicy = OBJECTIVE_WARNING_POLICIES[scenarioName];
 
   const map = buildSolarSystemMap();
