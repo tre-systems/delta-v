@@ -30,7 +30,6 @@ import {
   estimateTurnsToTargetLanding,
   findDirectionToward,
   findNearestRefuelBase,
-  findReachableRefuelBase,
   getHomeDefenseThreat,
   getInterceptContinuationPreference,
   pickNextCheckpoint,
@@ -52,6 +51,7 @@ import {
   scorePassengerEscortCourse,
 } from './logistics';
 import { aiOrdnance } from './ordnance';
+import { chooseReachableRefuelTargetPlan } from './plans/navigation';
 import {
   choosePassengerCarrierEscortTargetPlan,
   choosePassengerDeliveryApproachPlan,
@@ -1195,42 +1195,21 @@ export const aiAstrogation = (
         }
 
         if (ship.fuel < fuelForTrip + continuationFuel) {
-          // Prefer a base the planner can actually thread to within the
-          // current fuel envelope. The legacy `nearest base + naive
-          // reachability` path stays as a fallback so a momentum-spike
-          // beyond what the 3-turn planner explores doesn't silently
-          // strand the ship — better to commit to a plausible target than
-          // freeze.
-          const reachableBase = findReachableRefuelBase(
+          const refuelPlan = chooseReachableRefuelTargetPlan(
+            state,
             ship,
             player.bases,
             caps.sharedBases,
             map,
-            state.destroyedBases,
+            shipTargetHex,
+            fuelForTrip,
+            continuationFuel,
           );
-          const basePos =
-            reachableBase ??
-            findNearestRefuelBase(
-              ship.position,
-              player.bases,
-              caps.sharedBases,
-              map,
-            );
 
-          if (basePos) {
-            const baseDist = hexDistance(ship.position, basePos);
-            const baseBody =
-              map.hexes.get(hexKey(basePos))?.base?.bodyName ?? '';
-
-            const planSaysReachable = reachableBase != null;
-            const heuristicSaysReachable =
-              baseDist < distToTarget && baseDist <= ship.fuel + speed + 2;
-
-            if (planSaysReachable || heuristicSaysReachable) {
-              shipTargetHex = basePos;
-              shipTargetBody = baseBody;
-              seekingFuel = true;
-            }
+          if (refuelPlan) {
+            shipTargetHex = refuelPlan.chosen.action.targetHex;
+            shipTargetBody = refuelPlan.chosen.action.targetBody;
+            seekingFuel = refuelPlan.chosen.action.seekingFuel;
           }
         }
 

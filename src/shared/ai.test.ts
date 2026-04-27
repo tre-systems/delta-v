@@ -15,6 +15,7 @@ import {
   choosePassengerFuelSupportPlan,
   choosePassengerPostCarrierLossTargetPlan,
   choosePostCarrierLossPursuitPlan,
+  chooseReachableRefuelTargetPlan,
   aiAstrogation as rawAiAstrogation,
   aiOrdnance as rawAiOrdnance,
 } from './ai';
@@ -4120,6 +4121,27 @@ describe('findReachableRefuelBase', () => {
       [],
     );
     expect(reachable).toEqual({ q: 6, r: 0 });
+    expect(
+      chooseReachableRefuelTargetPlan(
+        createTestState({ ships: [ship] }),
+        ship,
+        [behindBase, aheadBase],
+        [],
+        openMap,
+        { q: 12, r: 0 },
+        7,
+        0,
+      )?.chosen,
+    ).toMatchObject({
+      intent: 'refuelAtReachableBase',
+      action: {
+        type: 'navigationTargetOverride',
+        shipId: ship.id,
+        targetHex: { q: 6, r: 0 },
+        targetBody: '',
+        seekingFuel: true,
+      },
+    });
   });
 
   it('returns null when the planner cannot reach any candidate within fuel and horizon', () => {
