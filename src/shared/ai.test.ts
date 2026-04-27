@@ -591,6 +591,33 @@ describe('aiAstrogation', () => {
     expect(order?.burn).toBe(2);
   });
 
+  it('biplanetary: takes a burn-to-land objective line before attrition can decide the game', () => {
+    const fixture = loadAIFailureFixture('biplanetary-burn-to-land.json');
+    const ship = must(
+      fixture.state.ships.find((candidate) => candidate.owner === 1),
+    );
+    const [order] = aiAstrogation(
+      fixture.state,
+      fixture.activePlayer,
+      map,
+      fixture.difficulty,
+    );
+    const course = computeCourse(ship, order?.burn ?? null, map, {
+      land: order?.land,
+      overload: order?.overload ?? null,
+      destroyedBases: fixture.state.destroyedBases,
+      weakGravityChoices: order?.weakGravityChoices,
+    });
+
+    expect(fixture.kind).toBe('objectiveDrift');
+    expect(order?.shipId).toBe(ship.id);
+    expect(order?.land).toBe(true);
+    expect(course.outcome).toBe('landing');
+    if (course.outcome === 'landing') {
+      expect(course.landedAt).toBe('Mars');
+    }
+  });
+
   it('preserves an immediate landing line under Venus gravity in biplanetary', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
@@ -624,9 +651,18 @@ describe('aiAstrogation', () => {
     opponent.fuel = 12;
 
     const [order] = aiAstrogation(state, 0, map, 'hard');
+    const course = computeCourse(racer, order?.burn ?? null, map, {
+      land: order?.land,
+      overload: order?.overload ?? null,
+      destroyedBases: state.destroyedBases,
+      weakGravityChoices: order?.weakGravityChoices,
+    });
 
     expect(order?.shipId).toBe(racer.id);
-    expect(order?.burn).toBe(2);
+    expect(course.outcome).toBe('landing');
+    if (course.outcome === 'landing') {
+      expect(course.landedAt).toBe('Venus');
+    }
   });
 
   it('uses a coordinated escape line for immediate passenger threats', () => {
