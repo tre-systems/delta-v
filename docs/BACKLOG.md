@@ -63,25 +63,20 @@ existing counters.
 `src/shared/simulate-ai-policy.test.ts` (gates), `docs/SIMULATION_TESTING.md`
 (when adding a counter).
 
-### Add a Bounded Engine Planner for Movement Objectives (P1)
+### Turn Planner Signals Into Landing-Safe Objective Decisions (P1)
 
 Grand Tour, evacuation, convoy, and blockade all depend on movement planning
-under fuel, velocity, gravity, and landing constraints. The current scorer uses
-many scalar distance/fuel bonuses where a small bounded planner would provide a
-better signal without replacing the whole AI.
+under fuel, velocity, gravity, and landing constraints. The planner now has
+short-horizon cost-to-go signals for refuel, passenger arrival, and Grand Tour
+checkpoint targeting. The next open problem is converting those signals into
+landing-safe objective doctrine: ships should not win the fuel math only to
+die by over-fast approaches, repeated gravity traps, or poor abort/refuel
+timing.
 
-Already plumbed via [planShortHorizonMovementToHex](../src/shared/ai/common.ts):
-refuel base reachability ([findReachableRefuelBase](../src/shared/ai/common.ts)),
-passenger arrival odds ([scorePassengerArrivalOdds](../src/shared/ai/logistics.ts)),
-and the burn-vs-coast gate that drove fleet-scale fuel stalls (drift bonus
-gated to "fuel tight, drift closes the gap, or genuinely nothing to do" plus
-a stall penalty for stationary fueled ships ignoring engagements).
-
-Still to do: score the *cost-to-go* (turns × fuel) for the next checkpoint
-so Grand Tour ships pre-emptively detour to refuel rather than committing
-to a checkpoint they can't reach with current fuel + velocity. The seed-1
-Grand Tour `28.3% P0` decided rate hasn't moved despite the refuel work —
-this is the next planner extension to attempt.
+Action: promote the remaining Grand Tour fleet-elimination states into
+fixtures, then teach the race/refuel branch to prefer plans that preserve a
+safe landing or abort line rather than only the cheapest next checkpoint.
+Avoid another scalar-only course score unless the fixture proves it generalizes.
 
 **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`, `src/shared/ai.test.ts`
@@ -121,12 +116,11 @@ changes:
   better but still well short of an objective-driven scenario. The
   landing objective is largely unreachable under current AI doctrine
   outside the rare seed where one side commits.
-- **Grand Tour:** the 2026-04-24 refuel-navigation pass improved focused
-  `grandTour 60 -- --ci --seed 1` from `0/60` P0 to `18/60`. After the
-  planner-aware refuel pass on 2026-04-26 the same focused run sits at
-  17/60 (28.3%) — within sample noise of the 2026-04-24 baseline, no
-  regression but no win either. Still warns at decided-rate skew and
-  has too many fleet-elimination resolutions.
+- **Grand Tour:** the 2026-04-27 cost-to-go checkpoint targeting pass moved
+  focused `grandTour 60 --ci --seed 1` to a passing 55% P0 decided rate
+  with no invalid actions or fuel stalls, but the same sample still resolves
+  55% by fleet elimination. Next work should capture those elimination states
+  and improve landing/abort safety, not rebalance the seat rate.
 - **Evacuation:** the scenario is still too short — average 2.3 turns at
   30 games — but objective share has crossed back above 50% on the
   focused seed. Continue to track on broader sweeps.
