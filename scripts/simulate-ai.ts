@@ -24,7 +24,7 @@ import {
   skipOrdnance,
 } from '../src/shared/engine/game-engine';
 import { getOrderableShipsForPlayer } from '../src/shared/engine/util';
-import { hexVecLength } from '../src/shared/hex';
+import { hexDistance, hexVecLength } from '../src/shared/hex';
 import { asGameId } from '../src/shared/ids';
 import type { ScenarioKey } from '../src/shared/map-data';
 import {
@@ -465,6 +465,21 @@ export const findFuelStallShipIds = (
   orders: readonly AstrogationOrder[],
 ): string[] => {
   const ordersByShip = new Map(orders.map((order) => [order.shipId, order]));
+  const pureCombatState =
+    !state.players.some((player) => player.escapeWins || player.targetBody) &&
+    (state.scenarioRules.checkpointBodies?.length ?? 0) === 0;
+  const isCloseCombatStationKeeping = (ship: {
+    owner: PlayerId;
+    position: { q: number; r: number };
+  }): boolean =>
+    pureCombatState &&
+    state.ships.some(
+      (enemy) =>
+        enemy.owner !== ship.owner &&
+        enemy.lifecycle === 'active' &&
+        enemy.damage.disabledTurns === 0 &&
+        hexDistance(ship.position, enemy.position) <= 2,
+    );
 
   return getOrderableShipsForPlayer(state, playerId)
     .filter((ship) => {
@@ -478,7 +493,8 @@ export const findFuelStallShipIds = (
         order != null &&
         order.burn === null &&
         (order.overload ?? null) === null &&
-        order.land !== true
+        order.land !== true &&
+        !isCloseCombatStationKeeping(ship)
       );
     })
     .map((ship) => ship.id);

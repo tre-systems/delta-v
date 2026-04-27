@@ -95,9 +95,6 @@ changes:
   imbalanced. Tune route pacing / seat balance without giving back the
   objective-safety gains; avoid simple checkpoint-list or start-world swaps
   unless paired scorecards prove they generalize.
-- **FleetAction fuel stalls:** fuel stalls remain above the policy gate on
-  focused sweeps. Tightening likely needs bounded planning for combat
-  positioning rather than another scalar.
 - **FleetAction balance:** keep watching timeout rate and P0 blowout risk on
   broader seeded sweeps.
 
