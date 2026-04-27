@@ -171,30 +171,6 @@ a 2026-04-26 deep-review pass.
 
 ## Gameplay UX & Matchmaking
 
-### Polish the Menu First-Impression Layer (P3)
-
-The drifting nebula + parallax starfield (commit `302e858`) gave the
-menu pulse, but two more pieces would carry the atmosphere:
-
-- **Ambient drone.** The procedural [audio.ts](../src/client/audio.ts)
-  has SFX for select / confirm / thrust / combat / explosion / phase
-  change / warning / victory / defeat — but no music or ambient pad.
-  A low sine pad + sub-rumble + occasional tonal swell, gesture-gated
-  on first user interaction (so it never autoplays), default-on with
-  a "Sound on" indicator on the existing sound button, would
-  transform the first 5 seconds of the experience.
-- **Logo entrance.** The 72 px DELTA-V `<img>` hero
-  ([static/index.html:83](../static/index.html)) appears statically
-  on first paint. A scale-in + glow-pulse on first paint, gated to
-  once-per-session via `sessionStorage`, would punctuate arrival
-  without replaying every menu return.
-
-**Files:** [src/client/audio.ts](../src/client/audio.ts) (new
-`playAmbientDrone()` / `stopAmbientDrone()`),
-[src/client/main.ts](../src/client/main.ts) (wiring),
-[static/styles/components.css](../static/styles/components.css)
-(`menu-logo` keyframes + reduced-motion guard).
-
 ### Stronger Visual Punch on Detonation and Ship Destruction (P3)
 
 The renderer already has [combat-fx.ts](../src/client/renderer/combat-fx.ts)
