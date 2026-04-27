@@ -53,6 +53,7 @@ import {
 } from './logistics';
 import { aiOrdnance } from './ordnance';
 import {
+  choosePassengerDeliveryApproachPlan,
   choosePassengerFuelSupportPlan,
   choosePostCarrierLossPursuitPlan,
 } from './plans/passenger';
@@ -1803,29 +1804,21 @@ export const aiAstrogation = (
       }
     }
 
-    if (
-      passengerEscortMission &&
-      primaryPassengerCarrier != null &&
-      ship.id === primaryPassengerCarrier.id &&
-      ship.lifecycle === 'active' &&
-      hexVecLength(ship.velocity) === 0 &&
-      canBurnFuel &&
-      bestBurn === null &&
-      !bestLand &&
-      shipTargetHex != null
-    ) {
-      const plan = planShortHorizonMovementToHex(
-        ship,
-        shipTargetHex,
-        map,
-        state.destroyedBases,
-      );
+    const passengerDeliveryApproach =
+      passengerEscortMission && bestBurn === null && !bestLand && canBurnFuel
+        ? choosePassengerDeliveryApproachPlan(
+            state,
+            ship,
+            primaryPassengerCarrier,
+            shipTargetHex,
+            map,
+          )
+        : null;
 
-      if (plan?.firstBurn !== null && plan?.firstBurn !== undefined) {
-        bestBurn = plan.firstBurn;
-        bestOverload = null;
-        bestWeakGrav = undefined;
-      }
+    if (passengerDeliveryApproach) {
+      bestBurn = passengerDeliveryApproach.chosen.action.burn;
+      bestOverload = passengerDeliveryApproach.chosen.action.overload;
+      bestWeakGrav = undefined;
     }
 
     if (
