@@ -639,14 +639,9 @@
 }
 
 .btn-icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex: 0 0 auto;
-  opacity: 0.85;
-}
-
-.btn:hover:not(:disabled) .btn-icon {
-  opacity: 1;
 }
 
 .btn-label:empty {
