@@ -253,6 +253,25 @@ describe('applyCheckpoints', () => {
     applyCheckpoints(state, 0, [must(marsGravHex)], map);
     expect(state.players[0].visitedBodies).toContain('Mars');
   });
+  it('does not count the home checkpoint on opening departure', () => {
+    map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.grandTour,
+      map,
+      asGameId('CP04'),
+      findBaseHex,
+    );
+    const marsBase = must(findBaseHex(map, 'Mars'));
+
+    applyCheckpoints(state, 1, [marsBase], map);
+
+    expect(state.players[1].visitedBodies).not.toContain('Mars');
+
+    state.players[1].visitedBodies = ['Sol'];
+    applyCheckpoints(state, 1, [marsBase], map);
+
+    expect(state.players[1].visitedBodies).toContain('Mars');
+  });
 });
 describe('checkImmediateVictory', () => {
   it('is a no-op when no map provided', () => {
