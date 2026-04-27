@@ -131,7 +131,12 @@ changes:
   eliminations, and no objective-drift captures, but it exposed the underlying
   race imbalance: P0 decided rate is 0% on this focused seed. Next Grand Tour
   work should tune route pacing / seat balance without giving back the
-  objective-safety gains.
+  objective-safety gains. A 2026-04-27 follow-up rejected two tempting
+  rules/data shortcuts: adding Luna as a ninth checkpoint improved seat rate
+  but reintroduced 30-50% fleet eliminations through terminal-approach crashes,
+  while moving P0's home start from Luna to Terra produced 100% fleet
+  eliminations in the focused sample. Treat this as an AI route/landing-planner
+  problem rather than a simple checkpoint-list or start-world swap.
 - **Evacuation:** the scenario is still too short — average 2.3 turns at
   30 games — but objective share has crossed back above 50% on the
   focused seed. Continue to track on broader sweeps.
