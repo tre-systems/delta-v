@@ -75,10 +75,13 @@ These are still real player-facing AI issues, but they should be handled through
 the scorecard / fixture / planner workflow above rather than one-off weight
 changes:
 
-- **Passenger scenarios:** evacuation remains too short and swingy, while
-  convoy still resolves too often through attrition. Passenger-carrier
-  doctrine should rank arrival odds and survival of a viable destination
-  runner above hull quality or generic combat value.
+- **Passenger scenarios:** the 2026-04-27 evacuation setup pass removed the
+  one-turn Terra landing, but hard-vs-hard samples still skew toward the
+  passenger side; convoy also still resolves too often through attrition.
+  Passenger-carrier doctrine should rank arrival odds and survival of a viable
+  destination runner above hull quality or generic combat value, while
+  defender/interceptor doctrine should contest carriers without creating
+  timeout-heavy stalemates.
 - **Duel live seat imbalance:** the 2026-04-27 D1 audit (R20) measured
   Duel at **27/35 = 77% P0** across decided archived matches. A
   follow-up audit of `MatchmakerDO` found the quick-match layer already
