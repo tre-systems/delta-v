@@ -263,7 +263,8 @@ Detection matters most in hidden-information scenarios. In fully open scenarios,
 
 ## Scenarios
 
-Nine scenarios ship; the menu lists them in rough difficulty order.
+Nine scenarios ship; the menu lists the simplest and fastest scenarios first,
+then longer or more sophisticated scenarios.
 
 ### Bi-Planetary (learning scenario)
 
@@ -271,6 +272,23 @@ Nine scenarios ship; the menu lists them in rough difficulty order.
 - **Setup:** Player 1 starts with a corvette on Mars; Player 2 starts with a corvette on Venus.
 - **Goal:** Navigate to the other player's starting world and land.
 - **Teaches:** vector movement, fuel management, gravity assists, orbital mechanics.
+
+### Duel (combat training)
+
+- 2 frigates near Mercury — last ship standing wins.
+- Teaches combat, ordnance, and gravity combat maneuvers.
+
+### Blockade Runner
+
+- 1 packet ship vs 1 corvette — packet must reach Mars.
+- Asymmetric: speed and agility vs raw firepower.
+
+### Grand Tour (race)
+
+- Each player starts with a corvette at a different habitable world.
+- Must pass through at least one gravity hex of each major body (Sol, Mercury, Venus, Terra, Mars, Jupiter, Io, Callisto) and return to land at the starting world.
+- No combat — pure navigation and gravity management.
+- Shared bases at Terra, Venus, Mars, and Callisto.
 
 ### Escape (asymmetric)
 
@@ -290,16 +308,6 @@ Nine scenarios ship; the menu lists them in rough difficulty order.
 - Escort (liner with passengers + tanker + frigate from Mars) vs Pirates (2 corsairs + 1 corvette).
 - Passenger rescue logistics enabled. Target-body win requires survivors aboard.
 
-### Duel (combat training)
-
-- 2 frigates near Mercury — last ship standing wins.
-- Teaches combat, ordnance, and gravity combat maneuvers.
-
-### Blockade Runner
-
-- 1 packet ship vs 1 corvette — packet must reach Mars.
-- Asymmetric: speed and agility vs raw firepower.
-
 ### Fleet Action
 
 - Fleet-building battle with a tuned first-player order for a shorter balanced clash.
@@ -310,13 +318,6 @@ Nine scenarios ship; the menu lists them in rough difficulty order.
 - Tuned fleet-building war using Terran vs Rebel roles from the rulebook.
 - Uses a smaller MegaCredit budget than the full paper campaign.
 - Strategic home-base positioning and mixed-fleet combat.
-
-### Grand Tour (race)
-
-- Each player starts with a corvette at a different habitable world.
-- Must pass through at least one gravity hex of each major body (Sol, Mercury, Venus, Terra, Mars, Jupiter, Io, Callisto) and return to land at the starting world.
-- No combat — pure navigation and gravity management.
-- Shared bases at Terra, Venus, Mars, and Callisto.
 
 Scenario definition shape and `ScenarioRules` flags: [PROTOCOL.md#scenario-definition](./PROTOCOL.md#scenario-definition). Gameplay notes per scenario: [MANUAL_TEST_PLAN.md#6-scenarios](./MANUAL_TEST_PLAN.md#6-scenarios-verify-each-starts-correctly-and-applies-its-rules).
 

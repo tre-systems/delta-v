@@ -114,6 +114,11 @@ const SCENARIOS_INTERNAL = {
     description:
       'A crowded transport flees Luna for Terra with corvette and frigate escorts ' +
       '— win only by landing survivors; a corsair tries to cut you off',
+    lobbyMeta: {
+      length: 'medium',
+      complexity: 'high',
+      mechanics: ['Escort', 'Passengers', 'Asymmetric'],
+    },
     rules: {
       logisticsEnabled: true,
       passengerRescueEnabled: true,
@@ -168,6 +173,11 @@ const SCENARIOS_INTERNAL = {
     description:
       'Escort a liner with colonists (and tanker) from Mars to Venus ' +
       '— transfer passengers to safety; pirates intercept',
+    lobbyMeta: {
+      length: 'medium',
+      complexity: 'high',
+      mechanics: ['Escort', 'Passengers', 'Logistics'],
+    },
     rules: {
       logisticsEnabled: true,
       passengerRescueEnabled: true,
@@ -286,6 +296,11 @@ const SCENARIOS_INTERNAL = {
     name: 'Blockade Runner',
     tags: ['Speed'],
     description: 'Packet ship races past a corvette ' + 'to reach Mars',
+    lobbyMeta: {
+      length: 'short',
+      complexity: 'medium',
+      mechanics: ['Asymmetric', 'Landing race'],
+    },
     startingPlayer: 1,
     players: [
       {
@@ -323,6 +338,11 @@ const SCENARIOS_INTERNAL = {
     description:
       'Build your fleet with MegaCredits ' +
       '— total war across the solar system',
+    lobbyMeta: {
+      length: 'long',
+      complexity: 'high',
+      mechanics: ['Fleet build', 'Logistics', 'Campaign-scale'],
+    },
     rules: { logisticsEnabled: true },
     startingPlayer: 1,
     startingCredits: 850,
@@ -357,6 +377,11 @@ const SCENARIOS_INTERNAL = {
     name: 'Fleet Action',
     tags: ['Fleet'],
     description: 'Build your fleet and clash ' + '— Mars vs Venus',
+    lobbyMeta: {
+      length: 'long',
+      complexity: 'high',
+      mechanics: ['Fleet build', 'Combat-heavy'],
+    },
     rules: {
       logisticsEnabled: true,
       aiConfigOverrides: {
@@ -394,6 +419,11 @@ const SCENARIOS_INTERNAL = {
     tags: ['Race'],
     description:
       'Race past every major body in the solar ' + 'system and return home',
+    lobbyMeta: {
+      length: 'medium',
+      complexity: 'medium',
+      mechanics: ['No combat', 'Navigation race', 'Shared bases'],
+    },
     rules: {
       combatDisabled: true,
       checkpointBodies: [
@@ -439,6 +469,18 @@ const SCENARIOS_INTERNAL = {
 
 // Union of all scenario keys, derived from the object above.
 export type ScenarioKey = keyof typeof SCENARIOS_INTERNAL;
+
+export const SCENARIO_DISPLAY_ORDER = [
+  'biplanetary',
+  'duel',
+  'blockade',
+  'grandTour',
+  'escape',
+  'evacuation',
+  'convoy',
+  'fleetAction',
+  'interplanetaryWar',
+] as const satisfies readonly ScenarioKey[];
 
 // Runtime type guard for validating untrusted scenario strings.
 export const isValidScenario = (key: string): key is ScenarioKey =>

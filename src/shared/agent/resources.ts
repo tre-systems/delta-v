@@ -1,4 +1,8 @@
-import { SCENARIOS, type ScenarioKey } from '../map-data';
+import {
+  SCENARIO_DISPLAY_ORDER,
+  SCENARIOS,
+  type ScenarioKey,
+} from '../map-data';
 import type { ReplayTimeline } from '../replay';
 import type { S2C } from '../types/protocol';
 import type { AgentTurnInput } from './types';
@@ -66,14 +70,10 @@ export const listRulesResources = (): ListedMcpResource[] => [
     uri: RULES_CURRENT_URI,
     mimeType: RULES_RESOURCE_MIME_TYPE,
   },
-  ...(
-    Object.entries(SCENARIOS) as Array<
-      [ScenarioKey, (typeof SCENARIOS)[ScenarioKey]]
-    >
-  ).map(([scenario, definition]) => ({
+  ...SCENARIO_DISPLAY_ORDER.map((scenario) => ({
     name: `delta-v-rules-${scenario}`,
-    title: `${definition.name} Rules`,
-    description: `${definition.description} Structured scenario rules payload.`,
+    title: `${SCENARIOS[scenario].name} Rules`,
+    description: `${SCENARIOS[scenario].description} Structured scenario rules payload.`,
     uri: rulesScenarioUri(scenario),
     mimeType: RULES_RESOURCE_MIME_TYPE,
   })),
