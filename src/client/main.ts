@@ -5,6 +5,7 @@ import {
   setupVersionCheck,
 } from './game/client-runtime';
 import { installHudScaleShortcuts } from './hud-scale';
+import { installMenuAtmosphere } from './menu-atmosphere';
 import { installPwaInstallPrompt } from './pwa-install';
 import {
   configureTelemetryRuntime,
@@ -36,6 +37,7 @@ try {
   });
   installGlobalErrorHandlers();
   installViewportSizing();
+  installMenuAtmosphere();
   installPwaInstallPrompt({ storage: ls });
   setupServiceWorkerReload();
   setupVersionCheck();
