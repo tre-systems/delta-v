@@ -21,6 +21,7 @@ import type {
 import { minBy, sumBy } from '../util';
 import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
+import { assignTurnShipRoles } from './logistics';
 import type { AIDifficulty } from './types';
 
 interface ScoredTarget {
@@ -110,6 +111,7 @@ export const aiCombat = (
   );
   const shouldPreserveLandingLine =
     singleShipObjectiveDuel && myLandingTurns === 1 && enemyLandingTurns !== 0;
+  const shipRoles = assignTurnShipRoles(state, playerId, map);
 
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
     return [];
@@ -252,13 +254,22 @@ export const aiCombat = (
 
       if (!enemy) continue;
 
-      const nonPassengerAttackers = availableAttackers.filter(
+      const roleDisciplinedAttackers = availableAttackers.filter(
+        (attacker) =>
+          shipRoles.get(attacker.id) !== 'race' ||
+          hexDistance(attacker.position, enemy.position) <= 2,
+      );
+      const roleAvailable =
+        roleDisciplinedAttackers.length > 0
+          ? roleDisciplinedAttackers
+          : availableAttackers;
+      const nonPassengerAttackers = roleAvailable.filter(
         (attacker) => (attacker.passengersAboard ?? 0) === 0,
       );
       const available =
         nonPassengerAttackers.length > 0
           ? nonPassengerAttackers
-          : availableAttackers;
+          : roleAvailable;
       const attackStrength = getCombatStrength(available);
       const defendStrength = getCombatStrength([enemy]);
       const rangeMod = computeGroupRangeMod(available, enemy);
