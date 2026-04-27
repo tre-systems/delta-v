@@ -13,4 +13,5 @@ export {
   aiOrdnance,
   buildAIFleetPurchases,
   choosePassengerCombatPlan,
+  choosePostCarrierLossPursuitPlan,
 } from './ai/index';
