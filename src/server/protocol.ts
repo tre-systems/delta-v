@@ -65,17 +65,46 @@ export const normalizeScenarioKey = (
     : 'biplanetary';
 };
 
+export type CreatePayloadErrorCode = 'invalid_payload' | 'missing_scenario';
+
+export interface CreatePayloadError {
+  code: CreatePayloadErrorCode;
+  message: string;
+}
+
 export const parseCreatePayload = (
   raw: unknown,
   knownScenarioKeys: readonly ScenarioKey[],
-): Result<{ scenario: ScenarioKey }> => {
+): Result<{ scenario: ScenarioKey }, CreatePayloadError> => {
   if (!isObject(raw)) {
-    return { ok: false, error: 'Invalid create payload' };
+    return {
+      ok: false,
+      error: {
+        code: 'invalid_payload',
+        message: 'Invalid create payload',
+      },
+    };
   }
 
   const keys = Object.keys(raw);
+  if (keys.length === 0) {
+    return {
+      ok: false,
+      error: {
+        code: 'missing_scenario',
+        message: 'Create payload must include a scenario.',
+      },
+    };
+  }
+
   if (keys.length !== 1 || keys[0] !== 'scenario') {
-    return { ok: false, error: 'Create payload only supports scenario' };
+    return {
+      ok: false,
+      error: {
+        code: 'invalid_payload',
+        message: 'Create payload only supports scenario',
+      },
+    };
   }
 
   if (
@@ -83,7 +112,13 @@ export const parseCreatePayload = (
     !isValidScenario(raw.scenario) ||
     !knownScenarioKeys.includes(raw.scenario)
   ) {
-    return { ok: false, error: 'Invalid scenario' };
+    return {
+      ok: false,
+      error: {
+        code: 'invalid_payload',
+        message: 'Invalid scenario',
+      },
+    };
   }
 
   return {

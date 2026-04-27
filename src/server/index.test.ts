@@ -234,6 +234,42 @@ describe('server index worker', () => {
       message: 'Invalid scenario',
     });
 
+    const missingScenario = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      }),
+      env as unknown as Env,
+      ctx,
+    );
+    expect(missingScenario.status).toBe(400);
+    await expect(missingScenario.json()).resolves.toMatchObject({
+      ok: false,
+      error: 'missing_scenario',
+      message: 'Create payload must include a scenario.',
+    });
+
+    const extraField = await worker.fetch(
+      new Request('https://delta-v.test/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ scenario: 'escape', extra: true }),
+      }),
+      env as unknown as Env,
+      ctx,
+    );
+    expect(extraField.status).toBe(400);
+    await expect(extraField.json()).resolves.toMatchObject({
+      ok: false,
+      error: 'invalid_payload',
+      message: 'Create payload only supports scenario',
+    });
+
     const oversized = await worker.fetch(
       new Request('https://delta-v.test/create', {
         method: 'POST',

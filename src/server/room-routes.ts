@@ -153,7 +153,7 @@ export const handleCreate = async (
     Object.keys(SCENARIOS) as ScenarioKey[],
   );
   if (!parsed.ok) {
-    return invalidRequest(400, 'invalid_payload', parsed.error);
+    return invalidRequest(400, parsed.error.code, parsed.error.message);
   }
   const { scenario } = parsed.value;
 
