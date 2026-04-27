@@ -42,6 +42,7 @@ import type {
 import { maxBy, minBy } from '../util';
 import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
+import { assignTurnShipRoles } from './logistics';
 import type { AIDifficulty } from './types';
 
 interface ScoredEnemyTarget {
@@ -786,6 +787,7 @@ export const aiOrdnance = (
       : null;
   const shouldPreserveLandingLine =
     singleShipObjectiveDuel && myLandingTurns === 1 && enemyLandingTurns !== 0;
+  const shipRoles = assignTurnShipRoles(state, playerId, map);
 
   if (cfg.ordnanceSkipChance > 0 && rng() < cfg.ordnanceSkipChance) {
     return launches;
@@ -836,6 +838,18 @@ export const aiOrdnance = (
 
     if (!nearestEnemy || !bestEnemyTarget) continue;
 
+    const shipRole = shipRoles.get(ship.id);
+    const hasRoleCover = state.ships.some((candidate) => {
+      const role = shipRoles.get(candidate.id);
+      return (
+        candidate.id !== ship.id &&
+        candidate.owner === playerId &&
+        candidate.lifecycle === 'active' &&
+        candidate.damage.disabledTurns === 0 &&
+        (role === 'escort' || role === 'interceptor' || role === 'screen') &&
+        canAttack(candidate)
+      );
+    });
     const nearestDist = hexDistance(ship.position, nearestEnemy.position);
     const bestEnemy = bestEnemyTarget.enemy;
     const bestEnemyCurrentDist = bestEnemyTarget.currentDistance;
@@ -881,6 +895,12 @@ export const aiOrdnance = (
       playerId,
       map,
     );
+    const shouldPreserveRaceRole =
+      shipRole === 'race' && hasRoleCover && bestEnemyCurrentDist > 2;
+
+    if (shouldPreserveRaceRole) {
+      continue;
+    }
 
     // Early-turn nuke guard ported from scripts/llm-agent-coach.ts:
     // in the first two turns, a nuke is only considered when the enemy is

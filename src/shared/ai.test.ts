@@ -885,6 +885,52 @@ describe('aiOrdnance', () => {
 
     expect(aiOrdnance(state, 1, map, 'hard')).toEqual([]);
   });
+  it('keeps race-role ships from launching opportunistic ordnance when cover is available', () => {
+    const racer = createTestShip({
+      id: asShipId('ord-racer'),
+      type: 'corvette',
+      owner: 0,
+      originalOwner: 0,
+      position: { q: -6, r: 5 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const escort = createTestShip({
+      id: asShipId('ord-escort'),
+      type: 'frigate',
+      owner: 0,
+      originalOwner: 0,
+      position: { q: 2, r: -2 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
+    const enemy = createTestShip({
+      id: asShipId('ord-enemy'),
+      type: 'corvette',
+      owner: 1,
+      originalOwner: 1,
+      position: { q: -3, r: 5 },
+      velocity: { dq: 0, dr: 0 },
+    });
+    const state = createTestState({
+      scenario: 'biplanetary',
+      phase: 'ordnance',
+      activePlayer: 0,
+      players: [
+        { targetBody: 'Venus', homeBody: 'Mars', escapeWins: false },
+        { targetBody: '', homeBody: 'Venus', escapeWins: false },
+      ],
+      ships: [racer, escort, enemy],
+    });
+
+    const roles = assignTurnShipRoles(state, 0, map);
+    const launches = aiOrdnance(state, 0, map, 'hard');
+
+    expect(roles.get(racer.id)).toBe('race');
+    expect(
+      launches.find((launch) => launch.shipId === racer.id),
+    ).toBeUndefined();
+  });
   it('does not propose ordnance from ships that resupplied this turn', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
@@ -1489,6 +1535,54 @@ describe('aiCombat', () => {
     enemyShip.detected = true;
 
     expect(aiCombat(state, 1, map, 'hard')).toEqual([]);
+  });
+  it('keeps race-role ships out of opportunistic gun attacks when cover can fire', () => {
+    const racer = createTestShip({
+      id: asShipId('combat-racer'),
+      type: 'corvette',
+      owner: 0,
+      originalOwner: 0,
+      position: { q: -6, r: 5 },
+      velocity: { dq: 0, dr: 0 },
+      lastMovementPath: [{ q: -6, r: 5 }],
+    });
+    const escort = createTestShip({
+      id: asShipId('combat-escort'),
+      type: 'frigate',
+      owner: 0,
+      originalOwner: 0,
+      position: { q: -3, r: 5 },
+      velocity: { dq: 0, dr: 0 },
+      lastMovementPath: [{ q: -3, r: 5 }],
+    });
+    const enemy = createTestShip({
+      id: asShipId('combat-enemy'),
+      type: 'corvette',
+      owner: 1,
+      originalOwner: 1,
+      position: { q: -2, r: 5 },
+      velocity: { dq: 0, dr: 0 },
+      detected: true,
+      lastMovementPath: [{ q: -2, r: 5 }],
+    });
+    const state = createTestState({
+      scenario: 'biplanetary',
+      phase: 'combat',
+      activePlayer: 0,
+      players: [
+        { targetBody: 'Venus', homeBody: 'Mars', escapeWins: false },
+        { targetBody: '', homeBody: 'Venus', escapeWins: false },
+      ],
+      ships: [racer, escort, enemy],
+    });
+
+    const roles = assignTurnShipRoles(state, 0, map);
+    const attacks = aiCombat(state, 0, map, 'hard');
+
+    expect(roles.get(racer.id)).toBe('race');
+    expect(attacks.length).toBeGreaterThan(0);
+    expect(attacks[0].attackerIds).toContain(escort.id);
+    expect(attacks[0].attackerIds).not.toContain(racer.id);
   });
   it('skips targets that are blocked by a body', () => {
     const state = createGameOrThrow(
