@@ -535,6 +535,10 @@ export const createGame = (
   const hasFleetBuilding = ([0, 1] as PlayerId[]).some(
     (playerId) => (getScenarioStartingCredits(scenario, playerId) ?? 0) > 0,
   );
+  const activePlayer = scenario.rules?.randomizeStartingPlayer
+    ? ((rng() < 0.5 ? 0 : 1) as PlayerId)
+    : (scenario.startingPlayer ?? 0);
+
   return {
     ok: true,
     value: {
@@ -557,6 +561,7 @@ export const createGame = (
         checkpointBodies: scenario.rules?.checkpointBodies
           ? [...scenario.rules.checkpointBodies]
           : undefined,
+        randomizeStartingPlayer: scenario.rules?.randomizeStartingPlayer,
         sharedBases: scenario.rules?.sharedBases
           ? [...scenario.rules.sharedBases]
           : undefined,
@@ -597,7 +602,7 @@ export const createGame = (
       escapeMoralVictoryAchieved: false,
       turnNumber: 1,
       phase: hasFleetBuilding ? 'fleetBuilding' : 'astrogation',
-      activePlayer: scenario.startingPlayer ?? 0,
+      activePlayer,
       ships,
       ordnance: [],
       pendingAstrogationOrders: null,

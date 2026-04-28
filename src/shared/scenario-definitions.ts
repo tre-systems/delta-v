@@ -446,6 +446,7 @@ const SCENARIOS_INTERNAL = {
         'Io',
         'Callisto',
       ],
+      randomizeStartingPlayer: true,
       sharedBases: ['Terra', 'Venus', 'Mars', 'Callisto'],
     },
     players: [

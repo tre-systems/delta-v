@@ -158,25 +158,6 @@ changes:
   segmentation query in [OBSERVABILITY.md](./OBSERVABILITY.md#operational-d1-queries)
   to split by official bot, human-vs-human/rematches, and winner seat before
   changing Duel rules or doctrine.
-- **Grand Tour:** the 2026-04-27 cost-to-go checkpoint targeting pass moved
-  focused `grandTour 60 --ci --seed 1` to a passing 55% P0 decided rate
-  with no invalid actions or fuel stalls, but route pacing remains
-  imbalanced. Tune route pacing / seat balance without giving back the
-  objective-safety gains; avoid simple checkpoint-list or start-world swaps
-  unless paired scorecards prove they generalize. A 2026-04-27 follow-up
-  showed the current objective-safe Luna route still sweeps at 0% P0 across
-  seeds 0-7 x 60, while an outward-first Luna route only reached 19.6% P0 and
-  regressed objective completions to 31.5% with many fleet eliminations. Do not
-  revive that route; the next fix needs to preserve landing-safe completion
-  while addressing the Mars-side timing advantage. A 2026-04-28 pass made Luna
-  an explicit checkpoint so both home worlds are checkpoint bodies. Focused
-  `grandTour 40 --seed 21` and `--seed 1` stayed at 100% objective completions
-  with no invalid actions or fuel stalls, and moved P0 from 0% to 12.5% / 5%.
-  A 2026-04-28 inward-first Luna-route experiment regressed objective
-  completion to 10% / 2.5% with heavy fleet eliminations, so do not tune Grand
-  Tour by simple route reorder. The remaining work is to improve pacing through
-  landing-safe movement cost or start-state timing without regressing objective
-  completions.
 - **FleetAction balance:** keep watching timeout rate and P0 blowout risk on
   broader seeded sweeps.
 

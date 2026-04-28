@@ -35,7 +35,7 @@ npm run simulate -- grandTour 20 --seed 1 --capture-failures tmp/ai-failures
 
 - `--ci` fails on engine crashes or rejected built-in AI actions; balance and objective warnings print but are non-fatal.
 - `--randomize-start` forces per-game starting-player randomization.
-  Biplanetary, Duel, interplanetaryWar, and fleetAction auto-randomize the
+  Biplanetary, Duel, Grand Tour, interplanetaryWar, and fleetAction auto-randomize the
   starting player so turn-order bias doesn't dominate short batches.
   Biplanetary also auto-swaps scenario sides in the simulator so scorecards
   measure player fairness under randomized live seat assignment rather than the
@@ -95,6 +95,13 @@ elimination to 73.75% objective / 26.25% fleet elimination with no invalid
 actions or passenger-transfer mistakes. Passenger delivery share stayed 11.25%,
 which is why follow-up tuning should target carrier survival rather than
 outcome classification.
+
+The 2026-04-28 Grand Tour start-order change made the race randomize its
+starting player at game creation. On `grandTour 40 --seed 21`, the scorecard
+was 40% P0 decided, 90% Grand Tour completion, 10% fleet elimination, and no
+invalid actions or fuel stalls. Across seeds 0-7 at 20 games each, the aggregate
+was 52.5% P0 decided, 96.875% Grand Tour completion, 3.125% fleet elimination,
+0 timeouts, 0 invalid actions, and 0 fuel stalls.
 
 **Failure captures.** Use `--capture-failures <dir>` to write bounded JSON
 snapshots for invalid built-in AI actions, fuel stalls, passenger-transfer

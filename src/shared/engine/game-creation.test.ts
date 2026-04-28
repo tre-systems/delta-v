@@ -71,6 +71,36 @@ describe('createGame', () => {
     expect(result.value.players[0].bases).toEqual(['2,3']);
     expect(result.value.players[1].bases).toEqual(['0,3']);
   });
+  it('supports seeded randomized starting player for symmetric races', () => {
+    const baseScenario: ScenarioDefinition = {
+      ...SCENARIOS.grandTour,
+      rules: {
+        ...SCENARIOS.grandTour.rules,
+        randomizeStartingPlayer: true,
+      },
+    };
+    const p0Start = createGame(
+      baseScenario,
+      map,
+      asGameId('RND0'),
+      findBaseHex,
+      () => 0.25,
+    );
+    const p1Start = createGame(
+      baseScenario,
+      map,
+      asGameId('RND1'),
+      findBaseHex,
+      () => 0.75,
+    );
+
+    expect(p0Start.ok).toBe(true);
+    expect(p1Start.ok).toBe(true);
+    if (!p0Start.ok || !p1Start.ok) return;
+    expect(p0Start.value.activePlayer).toBe(0);
+    expect(p1Start.value.activePlayer).toBe(1);
+    expect(p1Start.value.scenarioRules.randomizeStartingPlayer).toBe(true);
+  });
   it('copies logistics and turn-rule scenario settings into runtime state', () => {
     const result = createGame(
       {
