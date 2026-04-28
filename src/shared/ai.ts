@@ -1,5 +1,7 @@
 export type {
   AIDifficulty,
+  CombatTargetPlanAction,
+  CombatTargetPlanInput,
   PassengerCarrierEscortTargetAction,
   PassengerCarrierInterceptAction,
   PassengerDeliveryApproachAction,
@@ -18,6 +20,7 @@ export {
   aiLogistics,
   aiOrdnance,
   buildAIFleetPurchases,
+  chooseCombatTargetPlan,
   choosePassengerCarrierEscortTargetPlan,
   choosePassengerCarrierInterceptPlan,
   choosePassengerCombatPlan,

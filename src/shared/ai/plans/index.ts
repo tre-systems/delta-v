@@ -8,7 +8,9 @@ export type PlanIntent =
   | 'postCarrierLossPursuit'
   | 'completeCheckpointRoute'
   | 'screenObjectiveRunner'
-  | 'finishAttrition';
+  | 'finishAttrition'
+  | 'defendAgainstOrdnance'
+  | 'attackThreat';
 
 export interface PlanEvaluation {
   feasible: boolean;

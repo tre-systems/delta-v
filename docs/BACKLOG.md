@@ -70,12 +70,14 @@ plans for `deliverPassengers`, `preserveLandingLine`, `escortCarrier`,
 
 Remaining architecture tasks:
 
-1. **Convert combat doctrine into named plans.** Move ship target selection
-   decisions such as `interceptPassengerCarrier`, `finishAttrition`,
-   `screenObjectiveRunner`, and nuke defense out of anonymous combat scoring
-   into `PlanDecision` candidates. Keep the low-level odds / range math in the
-   combat module, but make the strategic reason for firing explicit and covered
-   by intent assertions.
+1. **Complete combat doctrine plan extraction.** Ship and ordnance target
+   ordering now flows through named combat target plans, including
+   `interceptPassengerCarrier`, `finishAttrition`, `defendAgainstOrdnance`,
+   and `attackThreat`. Remaining work is to move attack grouping / threshold
+   decisions such as `screenObjectiveRunner`, race-role restraint, and
+   anti-nuke grouping into `PlanDecision` candidates. Keep the low-level odds /
+   range math in the combat module, but make the strategic reason for firing or
+   holding fire explicit and covered by intent assertions.
 2. **Return plan traces from astrogation decisions.** Failure captures should
    include chosen and rejected movement intents, not only combat decisions.
    This should explain why a carrier, escort, interceptor, or refuel ship chose
