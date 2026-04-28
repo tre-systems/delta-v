@@ -517,7 +517,7 @@ const scoreRaceEscortRoleCourse = (
   return score;
 };
 
-const CHECKPOINT_BOUNDARY_CONTINUATION_DEPTH = 2;
+const BOUNDED_MAP_CONTINUATION_DEPTH = 2;
 
 const isInsideMapBounds = (
   position: { q: number; r: number },
@@ -574,7 +574,7 @@ const hasInMapContinuation = (
   return false;
 };
 
-const scoreCheckpointBoundaryContinuation = (
+const scoreBoundedMapContinuation = (
   ship: Ship,
   course: ReturnType<typeof computeCourse>,
   map: SolarSystemMap,
@@ -595,7 +595,7 @@ const scoreCheckpointBoundaryContinuation = (
     projectedShip,
     map,
     destroyedBases,
-    CHECKPOINT_BOUNDARY_CONTINUATION_DEPTH,
+    BOUNDED_MAP_CONTINUATION_DEPTH,
   )
     ? 0
     : -cfg.navTargetLandingBonus * cfg.multiplier * 3;
@@ -1738,7 +1738,7 @@ export const aiAstrogation = (
       }
 
       if (checkpoints && !escapeWins && !seekingFuel) {
-        score += scoreCheckpointBoundaryContinuation(
+        score += scoreBoundedMapContinuation(
           ship,
           course,
           map,
@@ -1746,6 +1746,22 @@ export const aiAstrogation = (
           cfg,
         );
         score += scoreCheckpointRammingAvoidance(course, enemyShips, cfg);
+      }
+
+      if (
+        passengerEscortMission &&
+        !seekingFuel &&
+        primaryPassengerCarrier != null &&
+        ship.id === primaryPassengerCarrier.id &&
+        (ship.passengersAboard ?? 0) > 0
+      ) {
+        score += scoreBoundedMapContinuation(
+          ship,
+          course,
+          map,
+          state.destroyedBases,
+          cfg,
+        );
       }
 
       if (
