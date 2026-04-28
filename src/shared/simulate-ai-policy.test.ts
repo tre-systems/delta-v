@@ -12,11 +12,16 @@ import {
   buildFailureCaptureManifestEntry,
   buildScenarioScorecard,
   evaluateSimulationPolicies,
+  findAstrogationCrashShipIds,
   runSimulation,
   type SimulationFailureCapture,
   type SimulationMetrics,
   shouldCaptureFailureKind,
 } from '../../scripts/simulate-ai';
+import { asShipId } from './ids';
+import { buildSolarSystemMap } from './map-data';
+import { createTestShip } from './test-helpers';
+import type { GameState } from './types';
 
 const metrics = (
   overrides: Partial<SimulationMetrics> & Pick<SimulationMetrics, 'scenario'>,
@@ -446,6 +451,7 @@ describe('buildFailureCaptureManifestEntry', () => {
         rejected: [],
       },
       stalledShipIds: ['ship-a', 'ship-b'],
+      astrogationCrashShipIds: ['ship-c'],
       message: 'stationary fueled ships coasted',
     };
 
@@ -465,10 +471,44 @@ describe('buildFailureCaptureManifestEntry', () => {
       activePlayer: 1,
       difficulty: 'hard',
       message: 'stationary fueled ships coasted',
+      astrogationCrashShipIds: ['ship-c'],
       stalledShipIds: ['ship-a', 'ship-b'],
       chosenPlanIntent: 'preserveLandingLine',
       chosenPlanId: 'preserve-landing-line:p0s0',
     });
+  });
+
+  it('identifies astrogation orders that would crash in failure captures', () => {
+    const map = buildSolarSystemMap();
+    const sol = map.bodies.find((body) => body.name === 'Sol');
+    expect(sol).toBeDefined();
+    const doomedShip = createTestShip({
+      id: asShipId('doomed'),
+      position: { q: -1, r: 0 },
+      velocity: { dq: 1, dr: 0 },
+      fuel: 1,
+    });
+    const safeShip = createTestShip({
+      id: asShipId('safe'),
+      position: { q: -4, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      fuel: 1,
+    });
+    const state = {
+      ships: [doomedShip, safeShip],
+      destroyedBases: [],
+    } as unknown as GameState;
+
+    expect(
+      findAstrogationCrashShipIds(
+        state,
+        [
+          { shipId: doomedShip.id, burn: null, overload: null },
+          { shipId: safeShip.id, burn: null, overload: null },
+        ],
+        map,
+      ),
+    ).toEqual([doomedShip.id]);
   });
 
   it('summarizes astrogation plan traces in capture manifests', () => {

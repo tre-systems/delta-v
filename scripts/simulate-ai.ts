@@ -41,6 +41,7 @@ import {
   isValidScenario,
   SCENARIOS,
 } from '../src/shared/map-data';
+import { computeCourse } from '../src/shared/movement';
 import { mulberry32 } from '../src/shared/prng';
 import type {
   AstrogationOrder,
@@ -163,6 +164,7 @@ export interface SimulationFailureCapture {
   action?: unknown;
   planDecision?: SimulationPlanDecisionTrace;
   planDecisions?: SimulationPlanDecisionTrace[];
+  astrogationCrashShipIds?: string[];
   stalledShipIds?: string[];
   passengerTransferMistakes?: PassengerTransferMistake[];
   message?: string;
@@ -179,6 +181,7 @@ export interface SimulationFailureCaptureManifestEntry {
   activePlayer: PlayerId;
   difficulty: AIDifficulty;
   message?: string;
+  astrogationCrashShipIds?: string[];
   stalledShipIds?: string[];
   passengerTransferMistakeCount?: number;
   chosenPlanIntent?: PlanIntent;
@@ -195,6 +198,34 @@ export interface SimulationFailureCaptureManifest {
   captured: number;
   entries: SimulationFailureCaptureManifestEntry[];
 }
+
+export const findAstrogationCrashShipIds = (
+  state: GameState,
+  orders: AstrogationOrder[],
+  map: ReturnType<typeof buildSolarSystemMap>,
+): string[] => {
+  const shipsById = new Map(state.ships.map((ship) => [ship.id, ship]));
+  const crashingShipIds: string[] = [];
+
+  for (const order of orders) {
+    const ship = shipsById.get(order.shipId);
+
+    if (!ship) continue;
+
+    const course = computeCourse(ship, order.burn ?? null, map, {
+      ...(order.overload != null ? { overload: order.overload } : {}),
+      ...(order.land ? { land: true } : {}),
+      destroyedBases: state.destroyedBases,
+      weakGravityChoices: order.weakGravityChoices,
+    });
+
+    if (course.outcome === 'crash') {
+      crashingShipIds.push(order.shipId);
+    }
+  }
+
+  return crashingShipIds;
+};
 
 type SimulationFailureRecorder = (
   capture: SimulationFailureCapture,
@@ -398,6 +429,9 @@ export const buildFailureCaptureManifestEntry = (
     activePlayer: capture.activePlayer,
     difficulty: capture.difficulty,
     ...(capture.message ? { message: capture.message } : {}),
+    ...(capture.astrogationCrashShipIds
+      ? { astrogationCrashShipIds: capture.astrogationCrashShipIds }
+      : {}),
     ...(capture.stalledShipIds
       ? { stalledShipIds: capture.stalledShipIds }
       : {}),
@@ -1057,6 +1091,9 @@ const runSingleGame = async (
     throw new AIActionError(phase, playerId, failureCounters, message);
   };
 
+  const captureActionableState = (): GameState =>
+    captureFailure ? structuredClone(state) : state;
+
   const recordObjectiveDrift = async (
     winner: PlayerId | null,
     reason: string | null,
@@ -1085,6 +1122,12 @@ const runSingleGame = async (
         : {}),
       ...(lastActionableCapture?.planDecisions
         ? { planDecisions: lastActionableCapture.planDecisions }
+        : {}),
+      ...(lastActionableCapture?.astrogationCrashShipIds
+        ? {
+            astrogationCrashShipIds:
+              lastActionableCapture.astrogationCrashShipIds,
+          }
         : {}),
       message: reason,
     });
@@ -1116,6 +1159,12 @@ const runSingleGame = async (
       ...(lastActionableCapture?.planDecisions
         ? { planDecisions: lastActionableCapture.planDecisions }
         : {}),
+      ...(lastActionableCapture?.astrogationCrashShipIds
+        ? {
+            astrogationCrashShipIds:
+              lastActionableCapture.astrogationCrashShipIds,
+          }
+        : {}),
       message: reason,
     });
   };
@@ -1143,15 +1192,23 @@ const runSingleGame = async (
           astrogationPlanDecisions.length > 0
             ? astrogationPlanDecisions
             : undefined;
+        const astrogationCrashShipIds = findAstrogationCrashShipIds(
+          state,
+          orders,
+          map,
+        );
         lastActionableCapture = {
           kind: 'objectiveDrift',
           turnNumber: state.turnNumber,
           phase: state.phase,
           activePlayer,
           difficulty,
-          state,
+          state: captureActionableState(),
           action: { type: 'astrogation', orders },
           ...(planDecisions ? { planDecisions } : {}),
+          ...(astrogationCrashShipIds.length > 0
+            ? { astrogationCrashShipIds }
+            : {}),
         };
         const stalledShipIds = findFuelStallShipIds(
           state,
@@ -1169,6 +1226,9 @@ const runSingleGame = async (
             state,
             action: { type: 'astrogation', orders },
             ...(planDecisions ? { planDecisions } : {}),
+            ...(astrogationCrashShipIds.length > 0
+              ? { astrogationCrashShipIds }
+              : {}),
             stalledShipIds,
           });
         }
@@ -1210,7 +1270,7 @@ const runSingleGame = async (
           phase: state.phase,
           activePlayer,
           difficulty,
-          state,
+          state: captureActionableState(),
           action:
             launches.length > 0
               ? { type: 'ordnance', launches }
@@ -1261,7 +1321,7 @@ const runSingleGame = async (
           phase: state.phase,
           activePlayer,
           difficulty,
-          state,
+          state: captureActionableState(),
           action:
             transfers.length > 0
               ? { type: 'logistics', transfers }
@@ -1362,7 +1422,7 @@ const runSingleGame = async (
             phase: state.phase,
             activePlayer,
             difficulty,
-            state,
+            state: captureActionableState(),
             action:
               attacks.length > 0
                 ? { type: 'combat', attacks }
