@@ -333,6 +333,43 @@ FROM duel
 GROUP BY official_bot_match, official_key_seen, rating_winner_seat
 ORDER BY matches DESC;
 
+-- Duel queue-side segmentation (last 30 days). The 2026-04-28 audit found the
+-- skew concentrated in non-official-bot quick matches and persisting whether
+-- the first or second queued player became seat 0. That closed the token
+-- mapping suspicion and led to Duel randomizing active player at creation.
+WITH mm AS (
+  SELECT
+    json_extract(props, '$.code') AS room_code,
+    json_extract(props, '$.leftKey') AS left_key,
+    json_extract(props, '$.rightKey') AS right_key,
+    json_extract(props, '$.seat0Key') AS seat0_key,
+    json_extract(props, '$.seat1Key') AS seat1_key
+  FROM events
+  WHERE event = 'matchmaker_paired'
+    AND json_extract(props, '$.scenario') = 'duel'
+    AND ts > (strftime('%s','now') - 30 * 86400) * 1000
+),
+duel AS (
+  SELECT
+    ma.winner,
+    CASE
+      WHEN mm.seat0_key = mm.left_key THEN 'left'
+      WHEN mm.seat0_key = mm.right_key THEN 'right'
+      ELSE 'unknown'
+    END AS seat0_queue_side
+  FROM match_archive ma
+  JOIN mm ON mm.room_code = ma.room_code
+  WHERE ma.scenario = 'duel'
+    AND ma.official_bot_match = 0
+    AND ma.completed_at > (strftime('%s','now') - 30 * 86400) * 1000
+)
+SELECT
+  seat0_queue_side,
+  COUNT(*) AS matches,
+  ROUND(AVG(CASE WHEN winner = 0 THEN 1.0 ELSE 0.0 END), 3) AS p0_win_rate
+FROM duel
+GROUP BY seat0_queue_side;
+
 -- Matchmaker fallback accept volume (last 7 days)
 SELECT
   strftime('%Y-%m-%d', ts / 1000, 'unixepoch') AS day,

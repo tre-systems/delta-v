@@ -290,9 +290,6 @@ const OBJECTIVE_WARNING_POLICIES: Record<string, ObjectiveWarningPolicy> = {
 // first-mover advantage in aggregate scorecards.
 const RANDOMIZE_START_SCENARIOS: ReadonlySet<string> = new Set([
   'biplanetary',
-  // Symmetric starts: cancel fixed scenario.startingPlayer so P0/P1 balance
-  // checks are not dominated by first-mover effects at low iteration counts.
-  'duel',
   'interplanetaryWar',
   'fleetAction',
 ]);

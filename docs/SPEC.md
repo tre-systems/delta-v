@@ -277,6 +277,7 @@ then longer or more sophisticated scenarios.
 
 - 2 frigates near Mercury — last ship standing wins.
 - Teaches combat, ordnance, and gravity combat maneuvers.
+- Starting player is randomized at game creation so quick-match seats do not inherit a fixed tempo edge.
 
 ### Blockade Runner
 
