@@ -1117,7 +1117,7 @@ const runSingleGame = async (
     if (!captureFailure) return;
 
     actionableHistory.push(structuredClone(capture));
-    if (actionableHistory.length > 4) {
+    if (actionableHistory.length > 8) {
       actionableHistory.shift();
     }
   };
