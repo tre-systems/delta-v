@@ -31,6 +31,8 @@ Action: continue promoting representative convoy and evacuation captures into
 fixtures, then improve carrier survival, raider interception, and landing-safe
 abort/refuel choices through named plans or bounded movement planning. Do not
 add broad scalar weights without a fixture proving the change generalizes.
+Use `--capture-failure-kind passengerObjectiveFailure,objectiveDrift` for convoy
+so carrier-loss states and fleet-elimination drift are both visible.
 
 Acceptance: paired scorecards should improve passenger delivery quality or
 reduce fleet-elimination drift without increasing invalid actions, fuel stalls,
