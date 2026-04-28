@@ -1,5 +1,7 @@
 export type {
   AIDifficulty,
+  AstrogationPlanTrace,
+  AstrogationPlanTraceCollector,
   CombatTargetPlanAction,
   CombatTargetPlanInput,
   PassengerCarrierEscortTargetAction,

@@ -78,10 +78,11 @@ Remaining architecture tasks:
    anti-nuke grouping into `PlanDecision` candidates. Keep the low-level odds /
    range math in the combat module, but make the strategic reason for firing or
    holding fire explicit and covered by intent assertions.
-2. **Return plan traces from astrogation decisions.** Failure captures should
-   include chosen and rejected movement intents, not only combat decisions.
-   This should explain why a carrier, escort, interceptor, or refuel ship chose
-   a burn without requiring a local debugger.
+2. **Complete astrogation trace coverage.** Failure captures now include chosen
+   and rejected named astrogation plan intents when a passenger, escort,
+   interceptor, or refuel plan is applied. Remaining work is to trace the
+   generic scalar course-score branch and special emergency / transfer
+   formation orders so every burn can be explained without a local debugger.
 3. **Add a passenger turn-level doctrine coordinator.** Evacuation and convoy
    failures cross phase boundaries: route choice, escort screen, ordnance, and
    combat affect each other. Add a small coordinator that can identify the

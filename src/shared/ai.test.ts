@@ -5,6 +5,7 @@ import {
   findPassengerTransferMistakes,
   type SimulationFailureCapture,
 } from '../../scripts/simulate-ai';
+import type { AstrogationPlanTraceCollector } from './ai';
 import {
   aiCombat,
   aiLogistics,
@@ -43,8 +44,9 @@ const aiAstrogation = (
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
   rng: () => number = TEST_RNG,
+  tracePlan?: AstrogationPlanTraceCollector,
 ): AstrogationOrder[] =>
-  rawAiAstrogation(state, playerId, map, difficulty, rng);
+  rawAiAstrogation(state, playerId, map, difficulty, rng, tracePlan);
 
 const aiOrdnance = (
   state: GameState,
@@ -754,6 +756,22 @@ describe('aiAstrogation', () => {
     });
     expect(tankerOrder.overload).toBeNull();
     expect(tankerOrder.burn).toBe(linerOrder.burn);
+  });
+
+  it('traces applied astrogation passenger plans', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('PAX-TRACE'),
+      findBaseHex,
+    );
+    const tracedIntents: string[] = [];
+
+    aiAstrogation(state, 0, map, 'hard', TEST_RNG, ({ decision }) => {
+      tracedIntents.push(decision.chosen.intent);
+    });
+
+    expect(tracedIntents).toContain('supportPassengerCarrier');
   });
 
   it('convoy: passenger carrier near Venus starts the landing approach instead of coasting', () => {

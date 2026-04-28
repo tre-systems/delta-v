@@ -471,6 +471,63 @@ describe('buildFailureCaptureManifestEntry', () => {
     });
   });
 
+  it('summarizes astrogation plan traces in capture manifests', () => {
+    const capture: SimulationFailureCapture = {
+      schemaVersion: 1,
+      kind: 'fuelStall',
+      scenario: 'convoy',
+      seed: 44,
+      gameIndex: 2,
+      turnNumber: 5,
+      phase: 'astrogation',
+      activePlayer: 0,
+      difficulty: 'hard',
+      playerDifficulties: { p0: 'hard', p1: 'hard' },
+      state: {} as SimulationFailureCapture['state'],
+      action: { type: 'astrogation' },
+      planDecisions: [
+        {
+          chosen: {
+            id: 'support-passenger-carrier:p0s1:p0s0',
+            intent: 'supportPassengerCarrier',
+            action: {
+              type: 'astrogationOrder',
+              shipId: 'p0s1',
+              carrierShipId: 'p0s0',
+              burn: 0,
+              overload: null,
+            },
+            evaluation: {
+              feasible: true,
+              objective: 70,
+              survival: 20,
+              landing: 0,
+              fuel: 10,
+              combat: 0,
+              formation: 30,
+              tempo: 0,
+              risk: 0,
+              effort: 1,
+            },
+          },
+          rejected: [],
+        },
+      ],
+    };
+
+    expect(
+      buildFailureCaptureManifestEntry(
+        '001-convoy-44-fuelStall-turn-5-p0.json',
+        capture,
+      ),
+    ).toMatchObject({
+      chosenPlanIntent: 'supportPassengerCarrier',
+      chosenPlanId: 'support-passenger-carrier:p0s1:p0s0',
+      chosenPlanIntents: ['supportPassengerCarrier'],
+      chosenPlanIds: ['support-passenger-carrier:p0s1:p0s0'],
+    });
+  });
+
   it('writes a capture manifest sidecar when captures are enabled', async () => {
     const captureDir = await mkdtemp(path.join(tmpdir(), 'delta-v-captures-'));
 
