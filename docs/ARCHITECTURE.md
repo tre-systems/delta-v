@@ -279,6 +279,8 @@ The shared plan vocabulary lives in `src/shared/ai/plans/index.ts`:
 - `PlanIntent` names the strategic reason for a choice.
 - `PlanCandidate<TAction>` stores the intent, concrete action, comparable
   `PlanEvaluation` vector, and optional diagnostics.
+- `planEvaluation()` constructs full vectors with neutral defaults so a plan
+  only spells out dimensions that carry strategic meaning.
 - `chooseBestPlan()` provides deterministic selection across candidates.
 
 Current named intents with regression coverage:

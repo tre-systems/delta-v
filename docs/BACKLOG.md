@@ -94,11 +94,12 @@ Remaining architecture tasks:
    `plans/passenger.ts` into narrower modules such as delivery, escort,
    intercept, and combat once the next behavior fix touches that area. Avoid a
    pure file shuffle; do it when a concrete fixture needs the split.
-5. **Standardize `PlanEvaluation` units and ranges.** Document expected ranges
-   for objective, survival, landing, fuel, combat, formation, tempo, risk, and
-   effort, then update plan candidates whose scores are currently informal
-   constants. Add comparison tests for at least one cross-domain decision
-   where objective safety should beat local combat.
+5. **Finish `PlanEvaluation` range cleanup.** `planEvaluation()` now gives
+   every plan candidate neutral defaults for omitted dimensions, and the docs
+   define the intended comparison order / practical ranges for objective,
+   survival, landing, fuel, combat, formation, tempo, risk, and effort.
+   Remaining work is to audit the actual numeric constants against those ranges
+   and tighten any candidates that still use informal values.
 
 **Files:** new `src/shared/ai/plans/`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/combat.ts`, `src/shared/ai/logistics.ts`,

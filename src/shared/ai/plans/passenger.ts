@@ -16,7 +16,12 @@ import {
   planShortHorizonMovementToHex,
 } from '../common';
 import type { PassengerDoctrineContext } from '../doctrine';
-import { chooseBestPlan, type PlanCandidate, type PlanDecision } from '.';
+import {
+  chooseBestPlan,
+  type PlanCandidate,
+  type PlanDecision,
+  planEvaluation,
+} from '.';
 
 export interface PassengerCombatPlanAction {
   type: 'skipCombat';
@@ -129,18 +134,16 @@ export const choosePassengerCombatPlan = (
             landingTurns,
             reason: 'preserveLandingLine' as const,
           },
-          evaluation: {
+          evaluation: planEvaluation({
             feasible: true,
             objective: 100 - landingTurns,
             survival: 20,
             landing: 50 - landingTurns,
             fuel: ship.fuel,
-            combat: 0,
-            formation: 0,
             tempo: 2 - landingTurns,
             risk: carrierUnderImmediateThreat ? 1 : 0,
             effort: landingTurns,
-          },
+          }),
           diagnostics: [
             {
               reason: 'passenger carrier has a near-term landing line',
@@ -175,18 +178,16 @@ export const choosePassengerCombatPlan = (
             landingTurns,
             reason: 'avoidAttritionFinish' as const,
           },
-          evaluation: {
+          evaluation: planEvaluation({
             feasible: true,
             objective: 70,
             survival: 10,
             landing: landingTurns == null ? 0 : Math.max(0, 20 - landingTurns),
             fuel: ship.fuel,
             combat: -10,
-            formation: 0,
             tempo: landingTurns == null ? 0 : Math.max(0, 8 - landingTurns),
-            risk: 0,
             effort: landingTurns ?? 10,
-          },
+          }),
           diagnostics: [
             {
               reason: 'avoid ending passenger scenario by attrition',
@@ -284,18 +285,15 @@ export const choosePassengerFuelSupportPlan = (
         burn: carrierOrder.burn,
         overload: null,
       },
-      evaluation: {
+      evaluation: planEvaluation({
         feasible: true,
         objective: 40,
         survival: mirroredCourse.outcome === 'landing' ? -5 : 0,
-        landing: 0,
         fuel: ship.fuel - mirroredCourse.fuelSpent,
-        combat: 0,
         formation: 50,
-        tempo: 0,
         risk: mirroredCourse.outcome === 'landing' ? 1 : 0,
         effort: mirroredCourse.fuelSpent,
-      },
+      }),
       diagnostics: [
         {
           reason: 'tanker mirrors passenger carrier for fuel support',
@@ -354,22 +352,19 @@ export const choosePassengerDeliveryApproachPlan = (
         burn: plan.firstBurn,
         overload: null,
       },
-      evaluation: {
+      evaluation: planEvaluation({
         feasible: true,
         objective: 80,
-        survival: 0,
         landing: Math.max(
           0,
           hexDistance(ship.position, targetHex) -
             hexDistance(course.destination, targetHex),
         ),
         fuel: ship.fuel - course.fuelSpent,
-        combat: 0,
-        formation: 0,
         tempo: 1,
         risk: course.outcome === 'landing' ? 1 : 0,
         effort: course.fuelSpent,
-      },
+      }),
       diagnostics: [
         {
           reason: 'stationary passenger carrier starts target approach',
@@ -431,11 +426,10 @@ export const choosePassengerCarrierEscortTargetPlan = (
         targetHex: null,
         targetBody: '',
       },
-      evaluation: {
+      evaluation: planEvaluation({
         feasible: true,
         objective: 45,
         survival: 35,
-        landing: 0,
         fuel: ship.fuel,
         combat: 20,
         formation: Math.max(
@@ -447,8 +441,7 @@ export const choosePassengerCarrierEscortTargetPlan = (
           5 - hexDistance(carrier.position, nearestThreat.position),
         ),
         risk: hexDistance(carrier.position, nearestThreat.position),
-        effort: 0,
-      },
+      }),
       diagnostics: [
         {
           reason: 'escort drops objective navigation to protect carrier',
@@ -493,18 +486,12 @@ export const choosePassengerPostCarrierLossTargetPlan = (
         targetHex: null,
         targetBody: '',
       },
-      evaluation: {
+      evaluation: planEvaluation({
         feasible: true,
-        objective: 0,
-        survival: 0,
-        landing: 0,
         fuel: ship.fuel,
         combat: 20,
-        formation: 0,
         tempo: 1,
-        risk: 0,
-        effort: 0,
-      },
+      }),
       diagnostics: [
         {
           reason: 'passenger carrier is gone; release ship to pursue',
@@ -581,18 +568,15 @@ export const choosePassengerCarrierInterceptPlan = (
         burn: selected.direction,
         overload: null,
       },
-      evaluation: {
+      evaluation: planEvaluation({
         feasible: true,
         objective: 35,
-        survival: 0,
-        landing: 0,
         fuel: ship.fuel - selected.course.fuelSpent,
         combat: Math.max(0, 14 - nextDistance),
-        formation: 0,
         tempo: currentDistance - nextDistance,
         risk: selected.course.outcome === 'landing' ? 1 : 0,
         effort: selected.course.fuelSpent,
-      },
+      }),
       diagnostics: [
         {
           reason: 'intercept enemy passenger carrier',
@@ -676,18 +660,14 @@ export const choosePostCarrierLossPursuitPlan = (
         burn: selected.direction,
         overload: null,
       },
-      evaluation: {
+      evaluation: planEvaluation({
         feasible: true,
-        objective: 0,
-        survival: 0,
-        landing: 0,
         fuel: ship.fuel - selected.course.fuelSpent,
         combat: Math.max(0, 12 - nextDistance),
-        formation: 0,
         tempo: currentDistance - nextDistance,
         risk: selected.course.outcome === 'landing' ? 1 : 0,
         effort: selected.course.fuelSpent,
-      },
+      }),
       diagnostics: [
         {
           reason: 'passenger objective is gone; pursue remaining ships',

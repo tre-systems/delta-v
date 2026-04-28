@@ -1,5 +1,10 @@
 import type { OrdnanceId, ShipId } from '../../ids';
-import { chooseBestPlan, type PlanDecision, type PlanIntent } from '.';
+import {
+  chooseBestPlan,
+  type PlanDecision,
+  type PlanIntent,
+  planEvaluation,
+} from '.';
 
 export interface CombatTargetPlanInput {
   targetId: ShipId | OrdnanceId;
@@ -46,18 +51,10 @@ export const chooseCombatTargetPlan = (
           targetId: target.targetId,
           targetType: target.targetType,
         },
-        evaluation: {
+        evaluation: planEvaluation({
           feasible: true,
-          objective: 0,
-          survival: 0,
-          landing: 0,
-          fuel: 0,
           combat: target.score,
-          formation: 0,
-          tempo: 0,
-          risk: 0,
-          effort: 0,
-        },
+        }),
         diagnostics: [
           {
             reason:

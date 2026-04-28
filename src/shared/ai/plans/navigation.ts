@@ -1,7 +1,7 @@
 import { type HexKey, hexDistance, hexKey, hexVecLength } from '../../hex';
 import type { GameState, Ship, SolarSystemMap } from '../../types';
 import { findNearestRefuelBase, findReachableRefuelBase } from '../common';
-import { chooseBestPlan, type PlanDecision } from '.';
+import { chooseBestPlan, type PlanDecision, planEvaluation } from '.';
 
 export interface ReachableRefuelTargetAction {
   type: 'navigationTargetOverride';
@@ -64,18 +64,15 @@ export const chooseReachableRefuelTargetPlan = (
         targetBody: baseBody,
         seekingFuel: true,
       },
-      evaluation: {
+      evaluation: planEvaluation({
         feasible: true,
         objective: 20,
         survival: 15,
-        landing: 0,
         fuel: ship.fuel - Math.min(ship.fuel, baseDist),
-        combat: 0,
-        formation: 0,
         tempo: distToTarget - baseDist,
         risk: planSaysReachable ? 0 : 1,
         effort: baseDist,
-      },
+      }),
       diagnostics: [
         {
           reason: 'ship diverts to a reachable refuel base',

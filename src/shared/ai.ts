@@ -15,6 +15,7 @@ export type {
   PlanDecision,
   PlanDiagnostic,
   PlanEvaluation,
+  PlanEvaluationInput,
   PlanIntent,
   ReachableRefuelTargetAction,
 } from './ai/index';
@@ -35,4 +36,5 @@ export {
   choosePassengerPostCarrierLossTargetPlan,
   choosePostCarrierLossPursuitPlan,
   chooseReachableRefuelTargetPlan,
+  planEvaluation,
 } from './ai/index';
