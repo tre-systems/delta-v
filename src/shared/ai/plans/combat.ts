@@ -127,6 +127,12 @@ export const chooseCombatAttackGroupPlan = (
           combat: getCombatStrength([...input.availableAttackers]),
           effort: input.availableAttackers.length,
         }),
+        diagnostics: [
+          {
+            reason: 'group available anti-ordnance fire',
+            detail: `${input.targetType}:${input.targetId}`,
+          },
+        ],
       },
     ]);
   }
