@@ -137,19 +137,6 @@ changes:
   19 passenger-objective failures, 76.25% P0). Improve carrier survival and
   raider counterplay without returning to fleet-elimination-heavy outcomes or
   timeout-heavy stalemates.
-- **Duel live seat imbalance:** the 2026-04-27 D1 audit (R20) measured
-  Duel at **27/35 = 77% P0** across decided archived matches. A
-  follow-up audit of `MatchmakerDO` found the quick-match layer already
-  shuffles seats and now has a repeated stable-key regression covering
-  both shuffle directions and token-to-seat mapping. A local hard-vs-hard
-  check on 2026-04-27 did **not** reproduce the live skew: `duel 200
-  --seed 10` measured 45% P0, forced P0 start measured 41% P0, forced P1
-  start measured 55% P0, and the 2026-04-28 16-seed x 80-game sweep averaged
-  44.2% P0 with no invalid actions or fuel stalls. Treat the remaining
-  imbalance as a production-segmentation question first: use the Duel
-  segmentation query in [OBSERVABILITY.md](./OBSERVABILITY.md#operational-d1-queries)
-  to split by official bot, human-vs-human/rematches, and winner seat before
-  changing Duel rules or doctrine.
 - **FleetAction balance:** keep watching timeout rate and P0 blowout risk on
   broader seeded sweeps.
 
