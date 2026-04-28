@@ -141,7 +141,7 @@ describe('evaluateSimulationPolicies', () => {
         player0Wins: 0,
         player1Wins: 20,
         reasons: {
-          'Grand Tour complete! Visited all 8 bodies.': 20,
+          'Grand Tour complete! Visited all 9 bodies.': 20,
         },
       }),
     ]);

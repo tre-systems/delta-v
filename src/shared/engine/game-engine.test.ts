@@ -3389,6 +3389,7 @@ describe('Grand Tour', () => {
       'Mercury',
       'Venus',
       'Terra',
+      'Luna',
       'Mars',
       'Jupiter',
       'Io',

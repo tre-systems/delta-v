@@ -183,7 +183,12 @@ changes:
   seeds 0-7 x 60, while an outward-first Luna route only reached 19.6% P0 and
   regressed objective completions to 31.5% with many fleet eliminations. Do not
   revive that route; the next fix needs to preserve landing-safe completion
-  while addressing the Mars-side timing advantage.
+  while addressing the Mars-side timing advantage. A 2026-04-28 pass made Luna
+  an explicit checkpoint so both home worlds are checkpoint bodies. Focused
+  `grandTour 40 --seed 21` and `--seed 1` stayed at 100% objective completions
+  with no invalid actions or fuel stalls, and moved P0 from 0% to 12.5% / 5%.
+  The remaining work is still to improve pacing without regressing objective
+  completions.
 - **FleetAction balance:** keep watching timeout rate and P0 blowout risk on
   broader seeded sweeps.
 
