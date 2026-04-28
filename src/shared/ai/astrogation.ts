@@ -517,7 +517,7 @@ const scoreRaceEscortRoleCourse = (
   return score;
 };
 
-const BOUNDED_MAP_CONTINUATION_DEPTH = 2;
+const BOUNDED_MAP_CONTINUATION_DEPTH = 3;
 
 const isInsideMapBounds = (
   position: { q: number; r: number },

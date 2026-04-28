@@ -1002,6 +1002,152 @@ describe('aiAstrogation', () => {
     expect(course.destination).not.toEqual({ q: 1, r: 0 });
   });
 
+  it('convoy: passenger carrier avoids over-accelerating into a delayed gravity trap', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('CONVOY-PAX-DELAYED-GRAVITY'),
+      findBaseHex,
+    );
+    const shipStates = new Map<
+      string,
+      {
+        lifecycle: 'active' | 'destroyed';
+        position: { q: number; r: number };
+        velocity: { dq: number; dr: number };
+        fuel: number;
+        disabledTurns: number;
+        passengersAboard?: number;
+        lastMovementPath: { q: number; r: number }[];
+      }
+    >([
+      [
+        'p0s0',
+        {
+          lifecycle: 'active',
+          position: { q: -1, r: -3 },
+          velocity: { dq: 2, dr: 2 },
+          fuel: 10,
+          disabledTurns: 0,
+          passengersAboard: 120,
+          lastMovementPath: [
+            { q: -3, r: -5 },
+            { q: -2, r: -5 },
+            { q: -2, r: -4 },
+            { q: -1, r: -4 },
+            { q: -1, r: -3 },
+          ],
+        },
+      ],
+      [
+        'p0s1',
+        {
+          lifecycle: 'active',
+          position: { q: -1, r: -3 },
+          velocity: { dq: 2, dr: 2 },
+          fuel: 42,
+          disabledTurns: 0,
+          lastMovementPath: [
+            { q: -3, r: -5 },
+            { q: -2, r: -5 },
+            { q: -2, r: -4 },
+            { q: -1, r: -4 },
+            { q: -1, r: -3 },
+          ],
+        },
+      ],
+      [
+        'p0s2',
+        {
+          lifecycle: 'active',
+          position: { q: -5, r: -4 },
+          velocity: { dq: 2, dr: -1 },
+          fuel: 15,
+          disabledTurns: 1,
+          lastMovementPath: [
+            { q: -7, r: -3 },
+            { q: -6, r: -3 },
+            { q: -5, r: -4 },
+          ],
+        },
+      ],
+      [
+        'p1s0',
+        {
+          lifecycle: 'active',
+          position: { q: -6, r: -9 },
+          velocity: { dq: 1, dr: -3 },
+          fuel: 17,
+          disabledTurns: 1,
+          lastMovementPath: [
+            { q: -7, r: -6 },
+            { q: -7, r: -7 },
+            { q: -6, r: -8 },
+            { q: -6, r: -9 },
+          ],
+        },
+      ],
+      [
+        'p1s1',
+        {
+          lifecycle: 'active',
+          position: { q: -5, r: -4 },
+          velocity: { dq: 1, dr: 0 },
+          fuel: 15,
+          disabledTurns: 0,
+          lastMovementPath: [
+            { q: -6, r: -4 },
+            { q: -5, r: -4 },
+          ],
+        },
+      ],
+      [
+        'p1s2',
+        {
+          lifecycle: 'destroyed',
+          position: { q: -7, r: -4 },
+          velocity: { dq: 0, dr: 0 },
+          fuel: 19,
+          disabledTurns: 6,
+          lastMovementPath: [
+            { q: -7, r: -3 },
+            { q: -7, r: -4 },
+          ],
+        },
+      ],
+    ]);
+
+    state.turnNumber = 5;
+    state.phase = 'astrogation';
+    state.activePlayer = 0;
+
+    for (const ship of state.ships) {
+      const next = must(shipStates.get(ship.id));
+      ship.lifecycle = next.lifecycle;
+      ship.position = next.position;
+      ship.velocity = next.velocity;
+      ship.fuel = next.fuel;
+      ship.damage = { disabledTurns: next.disabledTurns };
+      ship.lastMovementPath = next.lastMovementPath;
+      ship.pendingGravityEffects = [];
+      ship.detected = true;
+      ship.passengersAboard = next.passengersAboard;
+    }
+
+    const carrier = must(state.ships.find((ship) => ship.id === 'p0s0'));
+    const orders = aiAstrogation(state, 0, map, 'hard');
+    const carrierOrder = must(
+      orders.find((order) => order.shipId === carrier.id),
+    );
+    const course = computeCourse(carrier, carrierOrder.burn, map, {
+      destroyedBases: state.destroyedBases,
+    });
+
+    expect(carrierOrder.burn).toBeNull();
+    expect(course.outcome).toBe('normal');
+    expect(course.destination).toEqual({ q: 1, r: -1 });
+  });
+
   it('evacuation: remaining escort pursues raiders after the carrier is lost', () => {
     const fixture = loadAIFailureFixture(
       'evacuation-escort-after-carrier-loss-stall.json',

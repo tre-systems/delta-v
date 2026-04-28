@@ -249,12 +249,12 @@ The intent-first shift is successful but incomplete:
   candidates.
 - Passenger doctrine has a shared turn context, and emergency escort planning
   now consumes that context for carrier, threat, and role state. Passenger
-  carriers also use bounded map-continuation checks before accepting a course,
-  so short-term target progress cannot win if every near follow-up leaves the
-  carrier off-map. Escorts can switch from threat pursuit to carrier rendezvous
-  when the carrier is compromised. Future passenger fixes should keep moving
-  phase-specific decisions onto this shared context when they need the same
-  facts.
+  carriers also use three-turn bounded map-continuation checks before accepting
+  a course, so short-term target progress cannot win if every near follow-up
+  leaves the carrier off-map or in a delayed gravity trap. Escorts can switch
+  from threat pursuit to carrier rendezvous when the carrier is compromised.
+  Future passenger fixes should keep moving phase-specific decisions onto this
+  shared context when they need the same facts.
 - `PlanEvaluation` ranges are documented here and current named plans stay
   inside those practical ranges for objective/survival/landing dimensions.
 
