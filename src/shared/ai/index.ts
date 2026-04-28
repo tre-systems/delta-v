@@ -1,3 +1,7 @@
+export type {
+  AstrogationPlanTrace,
+  AstrogationPlanTraceCollector,
+} from './astrogation';
 export { aiAstrogation } from './astrogation';
 export { aiCombat } from './combat';
 export { buildAIFleetPurchases } from './fleet';

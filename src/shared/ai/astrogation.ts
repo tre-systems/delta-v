@@ -51,6 +51,7 @@ import {
   scorePassengerEscortCourse,
 } from './logistics';
 import { aiOrdnance } from './ordnance';
+import type { PlanDecision } from './plans';
 import { chooseReachableRefuelTargetPlan } from './plans/navigation';
 import {
   choosePassengerCarrierEscortTargetPlan,
@@ -79,6 +80,25 @@ export let LOOKAHEAD_BIAS_BY_DIFFICULTY: Record<AIDifficulty, number> = {
   easy: 0.4,
   normal: 0.42,
   hard: 0.7,
+};
+
+export interface AstrogationPlanTrace {
+  shipId: Ship['id'];
+  decision: PlanDecision<unknown>;
+}
+
+export type AstrogationPlanTraceCollector = (
+  trace: AstrogationPlanTrace,
+) => void;
+
+const traceAstrogationPlan = <TAction>(
+  tracePlan: AstrogationPlanTraceCollector | undefined,
+  shipId: Ship['id'],
+  decision: PlanDecision<TAction> | null,
+): void => {
+  if (!decision) return;
+
+  tracePlan?.({ shipId, decision });
 };
 
 // Test/sweep-only override. Production callers never touch this.
@@ -923,6 +943,7 @@ export const aiAstrogation = (
   // error, which is the point: a production call that accidentally relied
   // on `Math.random` would silently desync from the authoritative engine.
   rng: () => number,
+  tracePlan?: AstrogationPlanTraceCollector,
 ): AstrogationOrder[] => {
   const cfg = resolveAIConfig(
     difficulty,
@@ -1084,6 +1105,7 @@ export const aiAstrogation = (
     );
 
     if (fuelSupportPlan) {
+      traceAstrogationPlan(tracePlan, ship.id, fuelSupportPlan);
       const action = fuelSupportPlan.chosen.action;
       orders.push({
         shipId: action.shipId,
@@ -1117,6 +1139,7 @@ export const aiAstrogation = (
       : null;
 
     if (postCarrierLossTargetPlan) {
+      traceAstrogationPlan(tracePlan, ship.id, postCarrierLossTargetPlan);
       shipTargetHex = postCarrierLossTargetPlan.chosen.action.targetHex;
       shipTargetBody = postCarrierLossTargetPlan.chosen.action.targetBody;
     }
@@ -1132,6 +1155,7 @@ export const aiAstrogation = (
       : null;
 
     if (carrierEscortTargetPlan) {
+      traceAstrogationPlan(tracePlan, ship.id, carrierEscortTargetPlan);
       shipTargetHex = carrierEscortTargetPlan.chosen.action.targetHex;
       shipTargetBody = carrierEscortTargetPlan.chosen.action.targetBody;
     }
@@ -1208,6 +1232,7 @@ export const aiAstrogation = (
           );
 
           if (refuelPlan) {
+            traceAstrogationPlan(tracePlan, ship.id, refuelPlan);
             shipTargetHex = refuelPlan.chosen.action.targetHex;
             shipTargetBody = refuelPlan.chosen.action.targetBody;
             seekingFuel = refuelPlan.chosen.action.seekingFuel;
@@ -1805,6 +1830,7 @@ export const aiAstrogation = (
         : null;
 
     if (passengerDeliveryApproach) {
+      traceAstrogationPlan(tracePlan, ship.id, passengerDeliveryApproach);
       bestBurn = passengerDeliveryApproach.chosen.action.burn;
       bestOverload = passengerDeliveryApproach.chosen.action.overload;
       bestWeakGrav = undefined;
@@ -1872,10 +1898,12 @@ export const aiAstrogation = (
           : null;
 
       if (postCarrierLossPursuit) {
+        traceAstrogationPlan(tracePlan, ship.id, postCarrierLossPursuit);
         bestBurn = postCarrierLossPursuit.chosen.action.burn;
         bestOverload = postCarrierLossPursuit.chosen.action.overload;
         bestWeakGrav = undefined;
       } else if (passengerCarrierIntercept) {
+        traceAstrogationPlan(tracePlan, ship.id, passengerCarrierIntercept);
         bestBurn = passengerCarrierIntercept.chosen.action.burn;
         bestOverload = passengerCarrierIntercept.chosen.action.overload;
         bestWeakGrav = undefined;

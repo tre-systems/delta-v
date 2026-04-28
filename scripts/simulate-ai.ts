@@ -159,6 +159,7 @@ export interface SimulationFailureCapture {
   state: GameState;
   action?: unknown;
   planDecision?: SimulationPlanDecisionTrace;
+  planDecisions?: SimulationPlanDecisionTrace[];
   stalledShipIds?: string[];
   passengerTransferMistakes?: PassengerTransferMistake[];
   message?: string;
@@ -179,6 +180,8 @@ export interface SimulationFailureCaptureManifestEntry {
   passengerTransferMistakeCount?: number;
   chosenPlanIntent?: PlanIntent;
   chosenPlanId?: string;
+  chosenPlanIntents?: PlanIntent[];
+  chosenPlanIds?: string[];
 }
 
 export interface SimulationFailureCaptureManifest {
@@ -380,30 +383,48 @@ const summarizePlanDecision = <TAction>(
 export const buildFailureCaptureManifestEntry = (
   relativePath: string,
   capture: SimulationFailureCapture,
-): SimulationFailureCaptureManifestEntry => ({
-  path: relativePath,
-  kind: capture.kind,
-  scenario: capture.scenario,
-  seed: capture.seed,
-  gameIndex: capture.gameIndex,
-  turnNumber: capture.turnNumber,
-  phase: capture.phase,
-  activePlayer: capture.activePlayer,
-  difficulty: capture.difficulty,
-  ...(capture.message ? { message: capture.message } : {}),
-  ...(capture.stalledShipIds ? { stalledShipIds: capture.stalledShipIds } : {}),
-  ...(capture.passengerTransferMistakes
-    ? {
-        passengerTransferMistakeCount: capture.passengerTransferMistakes.length,
-      }
-    : {}),
-  ...(capture.planDecision
-    ? {
-        chosenPlanIntent: capture.planDecision.chosen.intent,
-        chosenPlanId: capture.planDecision.chosen.id,
-      }
-    : {}),
-});
+): SimulationFailureCaptureManifestEntry => {
+  const primaryPlanDecision =
+    capture.planDecision ?? capture.planDecisions?.[0];
+
+  return {
+    path: relativePath,
+    kind: capture.kind,
+    scenario: capture.scenario,
+    seed: capture.seed,
+    gameIndex: capture.gameIndex,
+    turnNumber: capture.turnNumber,
+    phase: capture.phase,
+    activePlayer: capture.activePlayer,
+    difficulty: capture.difficulty,
+    ...(capture.message ? { message: capture.message } : {}),
+    ...(capture.stalledShipIds
+      ? { stalledShipIds: capture.stalledShipIds }
+      : {}),
+    ...(capture.passengerTransferMistakes
+      ? {
+          passengerTransferMistakeCount:
+            capture.passengerTransferMistakes.length,
+        }
+      : {}),
+    ...(primaryPlanDecision
+      ? {
+          chosenPlanIntent: primaryPlanDecision.chosen.intent,
+          chosenPlanId: primaryPlanDecision.chosen.id,
+        }
+      : {}),
+    ...(capture.planDecisions
+      ? {
+          chosenPlanIntents: capture.planDecisions.map(
+            (decision) => decision.chosen.intent,
+          ),
+          chosenPlanIds: capture.planDecisions.map(
+            (decision) => decision.chosen.id,
+          ),
+        }
+      : {}),
+  };
+};
 
 export const shouldCaptureFailureKind = (
   kind: SimulationFailureKind,
@@ -975,6 +996,12 @@ const runSingleGame = async (
         (state.activePlayer === 0 ? p0Diff : p1Diff),
       state: lastActionableCapture?.state ?? state,
       action: lastActionableCapture?.action,
+      ...(lastActionableCapture?.planDecision
+        ? { planDecision: lastActionableCapture.planDecision }
+        : {}),
+      ...(lastActionableCapture?.planDecisions
+        ? { planDecisions: lastActionableCapture.planDecisions }
+        : {}),
       message: reason,
     });
   };
@@ -985,7 +1012,23 @@ const runSingleGame = async (
 
     try {
       if (state.phase === 'astrogation') {
-        const orders = aiAstrogation(state, activePlayer, map, difficulty, rng);
+        const astrogationPlanDecisions: SimulationPlanDecisionTrace[] = [];
+        const orders = aiAstrogation(
+          state,
+          activePlayer,
+          map,
+          difficulty,
+          rng,
+          ({ decision }) => {
+            const planDecision = summarizePlanDecision(decision);
+
+            if (planDecision) astrogationPlanDecisions.push(planDecision);
+          },
+        );
+        const planDecisions =
+          astrogationPlanDecisions.length > 0
+            ? astrogationPlanDecisions
+            : undefined;
         lastActionableCapture = {
           kind: 'objectiveDrift',
           turnNumber: state.turnNumber,
@@ -994,6 +1037,7 @@ const runSingleGame = async (
           difficulty,
           state,
           action: { type: 'astrogation', orders },
+          ...(planDecisions ? { planDecisions } : {}),
         };
         const stalledShipIds = findFuelStallShipIds(
           state,
@@ -1010,6 +1054,7 @@ const runSingleGame = async (
             difficulty,
             state,
             action: { type: 'astrogation', orders },
+            ...(planDecisions ? { planDecisions } : {}),
             stalledShipIds,
           });
         }
