@@ -1210,7 +1210,24 @@ const runSingleGame = async (
             buildAIDoctrineContext(state, activePlayer, map, detectedEnemyShips)
               .passenger,
           );
-          const attacks = aiCombat(state, activePlayer, map, difficulty);
+          const combatPlanDecisions: SimulationPlanDecisionTrace[] = [];
+          const attacks = aiCombat(
+            state,
+            activePlayer,
+            map,
+            difficulty,
+            ({ decision }) => {
+              const planDecision = summarizePlanDecision(decision);
+
+              if (planDecision) combatPlanDecisions.push(planDecision);
+            },
+          );
+          const passengerPlanDecision =
+            summarizePlanDecision(passengerCombatPlan);
+          const planDecisions = [
+            ...(passengerPlanDecision ? [passengerPlanDecision] : []),
+            ...combatPlanDecisions,
+          ];
           lastActionableCapture = {
             kind: 'objectiveDrift',
             turnNumber: state.turnNumber,
@@ -1222,7 +1239,10 @@ const runSingleGame = async (
               attacks.length > 0
                 ? { type: 'combat', attacks }
                 : { type: 'skipCombat' },
-            planDecision: summarizePlanDecision(passengerCombatPlan),
+            ...(passengerPlanDecision
+              ? { planDecision: passengerPlanDecision }
+              : {}),
+            ...(planDecisions.length > 0 ? { planDecisions } : {}),
           };
 
           if (attacks.length > 0) {
