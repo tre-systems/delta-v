@@ -20,7 +20,7 @@ well enough that the intended passenger objective produces credible play.
 
 Current 2026-04-28 checks:
 
-- `convoy 40 --seed 21`: 7.5% passenger deliveries, 72.5% objective
+- `convoy 40 --seed 21`: 25% passenger deliveries, 72.5% objective
   resolutions, 27.5% fleet eliminations, 0 invalid actions, 0 transfer
   mistakes, 0 fuel stalls.
 - `evacuation 40 --seed 21`: 80% passenger deliveries, 100% objective
@@ -29,10 +29,12 @@ Current 2026-04-28 checks:
 
 Action: continue promoting representative convoy and evacuation captures into
 fixtures, then improve carrier survival, raider interception, and landing-safe
-abort/refuel choices through named plans or bounded movement planning. Do not
-add broad scalar weights without a fixture proving the change generalizes.
-Use `--capture-failure-kind passengerObjectiveFailure,objectiveDrift` for convoy
-so carrier-loss states and fleet-elimination drift are both visible.
+abort/refuel choices through named plans or bounded movement planning. The next
+useful slice is threat-aware carrier survival once the carrier is near Venus or
+disabled but still stacked with support. Do not add broad scalar weights without
+a fixture proving the change generalizes. Use `--capture-failure-kind
+passengerObjectiveFailure,objectiveDrift` for convoy so carrier-loss states and
+fleet-elimination drift are both visible.
 
 Acceptance: paired scorecards should improve passenger delivery quality or
 reduce fleet-elimination drift without increasing invalid actions, fuel stalls,
