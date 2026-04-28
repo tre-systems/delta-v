@@ -17,6 +17,13 @@ export interface OrdnanceHoldPlanAction {
   reason: 'preserveObjectiveRunner';
 }
 
+export interface OrdnanceRejectPlanAction {
+  type: 'ordnanceReject';
+  shipId: Ship['id'];
+  ordnanceType: OrdnanceLaunch['ordnanceType'];
+  reason: 'antiNukeReach';
+}
+
 export const ordnanceLaunchIntent = (
   ordnanceType: OrdnanceLaunch['ordnanceType'],
 ): PlanIntent => {
@@ -71,3 +78,33 @@ export const chooseOrdnanceHoldPlan = (
       }),
     },
   ]) as PlanDecision<OrdnanceHoldPlanAction>;
+
+export const chooseOrdnanceRejectPlan = (
+  action: OrdnanceRejectPlanAction,
+  diagnostics: {
+    reachSurvival: number;
+    requiredReachProbability: number;
+    turnsToIntercept: number;
+  },
+): PlanDecision<OrdnanceRejectPlanAction> =>
+  chooseBestPlan([
+    {
+      id: `ordnance-reject:${action.shipId}:${action.ordnanceType}:${action.reason}`,
+      intent: ordnanceLaunchIntent(action.ordnanceType),
+      action,
+      evaluation: planEvaluation({
+        feasible: false,
+        combat: action.ordnanceType === 'nuke' ? 40 : 0,
+        risk: 20,
+      }),
+      diagnostics: [
+        {
+          reason: 'reject nuke because anti-nuke reach odds are too strong',
+          detail:
+            `survival ${diagnostics.reachSurvival.toFixed(2)} < ` +
+            `required ${diagnostics.requiredReachProbability.toFixed(2)} ` +
+            `over ${diagnostics.turnsToIntercept} turn(s)`,
+        },
+      ],
+    },
+  ]) as PlanDecision<OrdnanceRejectPlanAction>;

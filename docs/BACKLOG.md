@@ -80,9 +80,10 @@ Remaining architecture tasks:
   the plan module by responsibility and add traces to simulation captures if a
   logistics-specific failure needs them.
 - **Ordnance:** nuke, torpedo, mine, and race-role hold decisions now have
-  named plan candidates. Remaining ordnance work is to expose landing-line
-  hold and anti-nuke-reach rejection diagnostics in simulation captures while
-  keeping intercept geometry helpers local.
+  named plan candidates. Launches, race-role holds, and anti-nuke-reach
+  rejections now flow into simulation captures. Remaining ordnance work is to
+  expose landing-line hold diagnostics if a concrete capture shows they are
+  needed, while keeping intercept geometry helpers local.
 - **Combat:** target choice, attack grouping, hold-fire, and anti-nuke grouping
   now emit named plans into simulation diagnostics.
 - **Fleet building:** purchase search remains acceptable as bounded optimizer

@@ -5,7 +5,10 @@ import {
   findPassengerTransferMistakes,
   type SimulationFailureCapture,
 } from '../../scripts/simulate-ai';
-import type { AstrogationPlanTraceCollector } from './ai';
+import type {
+  AstrogationPlanTraceCollector,
+  OrdnancePlanTraceCollector,
+} from './ai';
 import {
   aiCombat,
   aiLogistics,
@@ -59,7 +62,9 @@ const aiOrdnance = (
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
   rng: () => number = TEST_RNG,
-): OrdnanceLaunch[] => rawAiOrdnance(state, playerId, map, difficulty, rng);
+  tracePlan?: OrdnancePlanTraceCollector,
+): OrdnanceLaunch[] =>
+  rawAiOrdnance(state, playerId, map, difficulty, rng, tracePlan);
 
 import {
   estimateMovementCostToHex,
@@ -4379,7 +4384,7 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
     expect(assessment.targetShipId).toBeNull();
   });
 
-  it('hard AI skips a nuke when grouped anti-nuke geometry is too strong', () => {
+  it('hard AI traces when anti-nuke reach odds reject a nuke', () => {
     const lead = createTestShip({
       id: asShipId('p1-lead'),
       owner: 1,
@@ -4396,30 +4401,51 @@ describe('aiOrdnance — impossible-shot regression fixtures', () => {
       velocity: { dq: 0, dr: 0 },
       cargoUsed: 0,
     });
-    const pickets = [
-      { q: 1, r: 0 },
-      { q: 1, r: -1 },
-      { q: 0, r: -1 },
-      { q: -1, r: 0 },
-      { q: -1, r: 1 },
-      { q: 0, r: 1 },
-    ].map((pos, i) =>
-      createTestShip({
-        id: asShipId(`p0-p${i}`),
-        owner: 0,
-        type: 'corvette',
-        position: pos,
-        velocity: { dq: 0, dr: 0 },
-        cargoUsed: 0,
-      }),
-    );
+    const reserve = createTestShip({
+      id: asShipId('p1-reserve'),
+      owner: 1,
+      type: 'corvette',
+      position: { q: -3, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      cargoUsed: 0,
+    });
     const state = createTestState({
       turnNumber: 4,
-      scenarioRules: { allowedOrdnanceTypes: ['nuke', 'torpedo'] },
-      ships: [primary, ...pickets, lead],
+      scenarioRules: {
+        allowedOrdnanceTypes: ['nuke', 'torpedo'],
+        aiConfigOverrides: { nukeMinReachProbability: 1.01 },
+      },
+      ships: [primary, lead, reserve],
     });
-    const launches = aiOrdnance(state, 1, EMPTY_SOLAR_MAP, 'hard');
+    const traces: Array<{
+      intent: string;
+      id: string;
+      diagnostic?: string;
+    }> = [];
+    const launches = aiOrdnance(
+      state,
+      1,
+      EMPTY_SOLAR_MAP,
+      'hard',
+      Math.random,
+      ({ decision }) => {
+        traces.push({
+          intent: decision.chosen.intent,
+          id: decision.chosen.id,
+          diagnostic: decision.chosen.diagnostics?.[0]?.detail,
+        });
+      },
+    );
     expect(launches.find((l) => l.ordnanceType === 'nuke')).toBeUndefined();
+    expect(traces).toContainEqual(
+      expect.objectContaining({
+        intent: 'launchNuke',
+        id: 'ordnance-reject:p1-lead:nuke:antiNukeReach',
+      }),
+    );
+    expect(
+      traces.find((trace) => trace.id.includes('antiNukeReach'))?.diagnostic,
+    ).toContain('survival');
   });
 });
 

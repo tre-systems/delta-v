@@ -1078,7 +1078,19 @@ const runSingleGame = async (
           state = result.state;
         }
       } else if (state.phase === 'ordnance') {
-        const launches = aiOrdnance(state, activePlayer, map, difficulty, rng);
+        const ordnancePlanDecisions: SimulationPlanDecisionTrace[] = [];
+        const launches = aiOrdnance(
+          state,
+          activePlayer,
+          map,
+          difficulty,
+          rng,
+          ({ decision }) => {
+            const planDecision = summarizePlanDecision(decision);
+
+            if (planDecision) ordnancePlanDecisions.push(planDecision);
+          },
+        );
         lastActionableCapture = {
           kind: 'objectiveDrift',
           turnNumber: state.turnNumber,
@@ -1090,6 +1102,9 @@ const runSingleGame = async (
             launches.length > 0
               ? { type: 'ordnance', launches }
               : { type: 'skipOrdnance' },
+          ...(ordnancePlanDecisions.length > 0
+            ? { planDecisions: ordnancePlanDecisions }
+            : {}),
         };
 
         if (launches.length > 0) {
