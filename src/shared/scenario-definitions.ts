@@ -253,6 +253,7 @@ const SCENARIOS_INTERNAL = {
     },
     rules: {
       planetaryDefenseEnabled: false,
+      randomizeStartingPlayer: true,
       // Duel-only AI scoring: reduce combat-closing pressure so the AI
       // plays range-managed fights instead of rushing the first turn.
       // Measured in a 480-game seeded sweep to lift duel's average length
