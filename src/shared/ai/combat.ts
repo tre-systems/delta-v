@@ -119,7 +119,14 @@ export const aiCombat = (
     singleShipObjectiveDuel && myLandingTurns === 1 && enemyLandingTurns !== 0;
   const doctrine = buildAIDoctrineContext(state, playerId, map, enemyShips);
   const passengerCombatPlan = doctrine.passenger.isPassengerMission
-    ? choosePassengerCombatPlan(state, playerId, map, enemyShips, enemyNukes)
+    ? choosePassengerCombatPlan(
+        state,
+        playerId,
+        map,
+        enemyShips,
+        enemyNukes,
+        doctrine.passenger,
+      )
     : null;
   const shipRoles = doctrine.shipRoles;
 
