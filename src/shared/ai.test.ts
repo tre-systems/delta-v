@@ -736,12 +736,14 @@ describe('aiAstrogation', () => {
     const linerOrder = must(orders.find((order) => order.shipId === 'p0s0'));
     const tankerOrder = must(orders.find((order) => order.shipId === 'p0s1'));
     const tanker = must(state.ships.find((ship) => ship.id === 'p0s1'));
+    const doctrine = buildAIDoctrineContext(state, 0, map);
     const fuelSupportPlan = choosePassengerFuelSupportPlan(
       state,
       0,
       tanker,
       [linerOrder],
       map,
+      doctrine.passenger,
     );
 
     expect(linerOrder.burn).not.toBeNull();

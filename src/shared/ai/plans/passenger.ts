@@ -15,6 +15,7 @@ import {
   findDirectionToward,
   planShortHorizonMovementToHex,
 } from '../common';
+import type { PassengerDoctrineContext } from '../doctrine';
 import { chooseBestPlan, type PlanCandidate, type PlanDecision } from '.';
 
 export interface PassengerCombatPlanAction {
@@ -80,10 +81,14 @@ export const choosePassengerCombatPlan = (
   map: SolarSystemMap,
   enemyShips: readonly Ship[],
   enemyOrdnance: readonly Ordnance[] = [],
+  passengerContext?: PassengerDoctrineContext,
 ): PlanDecision<PassengerCombatPlanAction> | null => {
   const player = state.players[playerId];
+  const isPassengerMission =
+    passengerContext?.isPassengerMission ??
+    state.scenarioRules.targetWinRequiresPassengers;
 
-  if (!state.scenarioRules.targetWinRequiresPassengers || !player.targetBody) {
+  if (!isPassengerMission || !player.targetBody) {
     return null;
   }
 
@@ -221,11 +226,15 @@ export const choosePassengerFuelSupportPlan = (
   ship: Ship,
   plannedOrders: readonly AstrogationOrder[],
   map: SolarSystemMap,
+  passengerContext?: PassengerDoctrineContext,
 ): PlanDecision<PassengerFuelSupportAction> | null => {
   const player = state.players[playerId];
+  const isPassengerMission =
+    passengerContext?.isPassengerMission ??
+    state.scenarioRules.targetWinRequiresPassengers;
 
   if (
-    !state.scenarioRules.targetWinRequiresPassengers ||
+    !isPassengerMission ||
     !player?.targetBody ||
     ship.type !== 'tanker' ||
     ship.lifecycle === 'destroyed' ||
@@ -234,7 +243,9 @@ export const choosePassengerFuelSupportPlan = (
     return null;
   }
 
-  const primaryCarrier = findPrimaryPassengerCarrier(state, playerId);
+  const primaryCarrier =
+    passengerContext?.primaryCarrier ??
+    findPrimaryPassengerCarrier(state, playerId);
 
   if (
     primaryCarrier == null ||
@@ -375,40 +386,47 @@ export const choosePassengerCarrierEscortTargetPlan = (
   ship: Ship,
   primaryCarrier: Ship | null,
   enemyShips: readonly Ship[],
+  passengerContext?: PassengerDoctrineContext,
 ): PlanDecision<PassengerCarrierEscortTargetAction> | null => {
   const player = state.players[playerId];
+  const isPassengerMission =
+    passengerContext?.isPassengerMission ??
+    state.scenarioRules.targetWinRequiresPassengers;
+  const carrier = passengerContext?.primaryCarrier ?? primaryCarrier;
 
   if (
-    !state.scenarioRules.targetWinRequiresPassengers ||
+    !isPassengerMission ||
     !player?.targetBody ||
-    primaryCarrier == null ||
+    carrier == null ||
     ship.owner !== playerId ||
-    ship.id === primaryCarrier.id ||
+    ship.id === carrier.id ||
     !canAttack(ship) ||
     (ship.passengersAboard ?? 0) > 0
   ) {
     return null;
   }
 
-  const nearestThreat = minBy(enemyShips.filter(canAttack), (enemy) =>
-    hexDistance(primaryCarrier.position, enemy.position),
-  );
+  const nearestThreat =
+    passengerContext?.activeThreat ??
+    minBy(enemyShips.filter(canAttack), (enemy) =>
+      hexDistance(carrier.position, enemy.position),
+    );
 
   if (
     nearestThreat == null ||
-    hexDistance(primaryCarrier.position, nearestThreat.position) > 5
+    hexDistance(carrier.position, nearestThreat.position) > 5
   ) {
     return null;
   }
 
   return chooseBestPlan([
     {
-      id: `passenger-carrier-escort-target:${ship.id}:${primaryCarrier.id}`,
+      id: `passenger-carrier-escort-target:${ship.id}:${carrier.id}`,
       intent: 'escortCarrier',
       action: {
         type: 'navigationTargetOverride',
         shipId: ship.id,
-        carrierShipId: primaryCarrier.id,
+        carrierShipId: carrier.id,
         threatShipId: nearestThreat.id,
         targetHex: null,
         targetBody: '',
@@ -422,19 +440,19 @@ export const choosePassengerCarrierEscortTargetPlan = (
         combat: 20,
         formation: Math.max(
           0,
-          10 - hexDistance(ship.position, primaryCarrier.position),
+          10 - hexDistance(ship.position, carrier.position),
         ),
         tempo: Math.max(
           0,
-          5 - hexDistance(primaryCarrier.position, nearestThreat.position),
+          5 - hexDistance(carrier.position, nearestThreat.position),
         ),
-        risk: hexDistance(primaryCarrier.position, nearestThreat.position),
+        risk: hexDistance(carrier.position, nearestThreat.position),
         effort: 0,
       },
       diagnostics: [
         {
           reason: 'escort drops objective navigation to protect carrier',
-          detail: `${ship.id} screens ${primaryCarrier.id} from ${nearestThreat.id}`,
+          detail: `${ship.id} screens ${carrier.id} from ${nearestThreat.id}`,
         },
       ],
     },
@@ -446,13 +464,18 @@ export const choosePassengerPostCarrierLossTargetPlan = (
   playerId: PlayerId,
   ship: Ship,
   primaryCarrier: Ship | null,
+  passengerContext?: PassengerDoctrineContext,
 ): PlanDecision<PassengerPostCarrierLossTargetAction> | null => {
   const player = state.players[playerId];
+  const isPassengerMission =
+    passengerContext?.isPassengerMission ??
+    state.scenarioRules.targetWinRequiresPassengers;
+  const carrier = passengerContext?.primaryCarrier ?? primaryCarrier;
 
   if (
-    !state.scenarioRules.targetWinRequiresPassengers ||
+    !isPassengerMission ||
     !player?.targetBody ||
-    primaryCarrier != null ||
+    carrier != null ||
     ship.owner !== playerId ||
     !canAttack(ship) ||
     (ship.passengersAboard ?? 0) > 0
