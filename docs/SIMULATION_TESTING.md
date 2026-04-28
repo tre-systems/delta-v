@@ -51,12 +51,14 @@ object in JSON output and prints a compact scorecard in text mode. Treat that
 scorecard as the first stop for AI tuning reviews:
 
 - `objectiveShare` — games that resolved through the scenario's intended
-  objective route.
+  objective route. For passenger-rescue scenarios this includes both delivery
+  wins and the interceptor's decisive "no colonists survive" objective failure.
 - `fleetEliminationShare` — games that ended by deleting the opposing fleet.
 - `timeoutShare` — draws or progress-tiebreak timeouts.
 - `player0DecidedRate` — decided-game seat balance when applicable.
-- `passengerDeliveryShare` — passenger objective completions for convoy /
-  evacuation-style scenarios.
+- `passengerDeliveryShare` — successful passenger deliveries for convoy /
+  evacuation-style scenarios; compare this separately from `objectiveShare`
+  when tuning escort-side survival.
 - `grandTourCompletionShare` — clean Grand Tour completions rather than
   attrition or timeout progress wins.
 - `invalidActionShare` — built-in AI action rejections per game; any non-zero
@@ -87,10 +89,12 @@ For behavior changes in those areas, report both:
   `objectiveShare`, `fleetEliminationShare`, `player0DecidedRate`,
   `invalidActionShare`, and `fuelStallsPerGame`.
 
-For example, the 2026-04-27 passenger attrition-finish change moved the
-seed-21 120-game convoy scorecard from 47.5% objective / 47.5% fleet
-elimination to 50.8% objective / 45.0% fleet elimination with no invalid
-actions. That is the expected reporting shape for future AI doctrine work.
+For example, the 2026-04-28 passenger-objective-failure change moved the
+seed-21 80-game convoy scorecard from 11.25% objective / 83.75% fleet
+elimination to 73.75% objective / 26.25% fleet elimination with no invalid
+actions or passenger-transfer mistakes. Passenger delivery share stayed 11.25%,
+which is why follow-up tuning should target carrier survival rather than
+outcome classification.
 
 **Failure captures.** Use `--capture-failures <dir>` to write bounded JSON
 snapshots for invalid built-in AI actions, fuel stalls, passenger-transfer

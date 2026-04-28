@@ -134,15 +134,17 @@ These are still real player-facing AI issues, but they should be handled through
 the scorecard / fixture / planner workflow above rather than one-off weight
 changes:
 
-- **Passenger scenarios:** evacuation now avoids the worst early carrier-stack
-  wipeouts, but hard-vs-hard samples are too escort-favored. Interceptor
-  combat now explicitly prioritizes passenger carriers over closer escorts;
-  the remaining evacuation issue is the short two-turn landing window and
-  escort opening volley, which can deny the corsair a meaningful first combat.
-  Tune that without returning to fleet-elimination-heavy outcomes or
-  timeout-heavy stalemates. Convoy still has too many attrition endings; keep
-  using captured fleet-elimination states to rank arrival odds and survival of
-  viable destination runners above hull quality or generic combat value.
+- **Passenger scenarios:** passenger-objective failure is now explicit: if no
+  colonists survive on the delivery side, the interceptor wins immediately
+  instead of cleaning up tankers/escorts as a fleet-elimination ending. In
+  `convoy 80 --seed 21`, this moved fleet eliminations from 83.75% to 26.25%
+  while preserving 0 invalid actions, 0 transfer mistakes, and 0.25 fuel
+  stalls/game. Remaining tuning is behavior, not outcome classification:
+  convoy still delivers passengers only 11.25% in that sample, and evacuation
+  still has a short opening window (`evacuation 80 --seed 21`: 61 deliveries,
+  19 passenger-objective failures, 76.25% P0). Improve carrier survival and
+  raider counterplay without returning to fleet-elimination-heavy outcomes or
+  timeout-heavy stalemates.
 - **Duel live seat imbalance:** the 2026-04-27 D1 audit (R20) measured
   Duel at **27/35 = 77% P0** across decided archived matches. A
   follow-up audit of `MatchmakerDO` found the quick-match layer already
