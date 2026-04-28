@@ -1,5 +1,5 @@
 import { canAttack } from '../../../combat';
-import { hexDistance } from '../../../hex';
+import { hexAdd, hexDistance } from '../../../hex';
 import type { GameState, PlayerId, Ship } from '../../../types';
 import { minBy } from '../../../util';
 import type { PassengerDoctrineContext } from '../../doctrine';
@@ -48,6 +48,14 @@ export const choosePassengerCarrierEscortTargetPlan = (
     return null;
   }
 
+  const carrierCompromised =
+    carrier.damage.disabledTurns > 0 ||
+    carrier.control !== 'own' ||
+    carrier.lifecycle !== 'active';
+  const rendezvousHex = carrierCompromised
+    ? hexAdd(carrier.position, carrier.velocity)
+    : null;
+
   return chooseBestPlan([
     {
       id: `passenger-carrier-escort-target:${ship.id}:${carrier.id}`,
@@ -57,18 +65,18 @@ export const choosePassengerCarrierEscortTargetPlan = (
         shipId: ship.id,
         carrierShipId: carrier.id,
         threatShipId: nearestThreat.id,
-        targetHex: null,
+        targetHex: rendezvousHex,
         targetBody: '',
       },
       evaluation: planEvaluation({
         feasible: true,
         objective: 45,
-        survival: 35,
+        survival: carrierCompromised ? 55 : 35,
         fuel: ship.fuel,
         combat: 20,
         formation: Math.max(
           0,
-          10 - hexDistance(ship.position, carrier.position),
+          10 - hexDistance(ship.position, rendezvousHex ?? carrier.position),
         ),
         tempo: Math.max(
           0,
@@ -78,8 +86,13 @@ export const choosePassengerCarrierEscortTargetPlan = (
       }),
       diagnostics: [
         {
-          reason: 'escort drops objective navigation to protect carrier',
-          detail: `${ship.id} screens ${carrier.id} from ${nearestThreat.id}`,
+          reason: carrierCompromised
+            ? 'escort regroups with compromised passenger carrier'
+            : 'escort drops objective navigation to protect carrier',
+          detail:
+            rendezvousHex == null
+              ? `${ship.id} screens ${carrier.id} from ${nearestThreat.id}`
+              : `${ship.id} targets ${rendezvousHex.q},${rendezvousHex.r} for ${carrier.id}`,
         },
       ],
     },
