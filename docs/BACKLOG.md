@@ -81,9 +81,10 @@ Remaining architecture tasks:
    intent assertions.
 2. **Complete astrogation trace coverage.** Failure captures now include chosen
    and rejected named astrogation plan intents when a passenger, escort,
-   interceptor, or refuel plan is applied. Remaining work is to trace the
-   generic scalar course-score branch and special emergency / transfer
-   formation orders so every burn can be explained without a local debugger.
+   interceptor, or refuel plan is applied, plus a generic scalar-course trace
+   for ordinary astrogation orders. Remaining work is to include rejected
+   scalar burn candidates and special emergency / transfer formation orders so
+   every burn can be explained without a local debugger.
 3. **Finish passenger doctrine coordinator adoption.** Evacuation and convoy
    failures cross phase boundaries: route choice, escort screen, ordnance, and
    combat affect each other. A shared turn context now identifies the primary

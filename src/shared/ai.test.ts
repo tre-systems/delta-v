@@ -792,6 +792,7 @@ describe('aiAstrogation', () => {
     });
 
     expect(tracedIntents).toContain('supportPassengerCarrier');
+    expect(tracedIntents).toContain('deliverPassengers');
   });
 
   it('convoy: passenger carrier near Venus starts the landing approach instead of coasting', () => {

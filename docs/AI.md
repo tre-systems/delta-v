@@ -233,9 +233,10 @@ Risk:
 The intent-first shift is successful but incomplete:
 
 - Combat target selection still has some anonymous scalar scoring.
-- Astrogation captures include named movement/refuel plan traces when one of
-  those plans is applied; generic scalar course scoring is still not fully
-  traced.
+- Astrogation captures include named movement/refuel plan traces plus a generic
+  scalar-course trace for orders that do not come from a named plan. Generic
+  scalar traces summarize the chosen order, but do not yet include rejected burn
+  candidates.
 - Passenger doctrine has a shared turn context, but some phase-specific
   decisions still duplicate carrier/threat reasoning outside that context.
 - `PlanEvaluation` ranges are documented here, but older candidates still use

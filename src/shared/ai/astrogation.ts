@@ -51,7 +51,7 @@ import {
   scorePassengerEscortCourse,
 } from './logistics';
 import { aiOrdnance } from './ordnance';
-import type { PlanDecision } from './plans';
+import { type PlanDecision, type PlanIntent, planEvaluation } from './plans';
 import { chooseReachableRefuelTargetPlan } from './plans/navigation';
 import {
   choosePassengerCarrierEscortTargetPlan,
@@ -87,6 +87,14 @@ export interface AstrogationPlanTrace {
   decision: PlanDecision<unknown>;
 }
 
+interface ScalarAstrogationPlanAction {
+  type: 'astrogationOrder';
+  shipId: Ship['id'];
+  burn: number | null;
+  overload: number | null;
+  land: boolean;
+}
+
 export type AstrogationPlanTraceCollector = (
   trace: AstrogationPlanTrace,
 ) => void;
@@ -95,10 +103,78 @@ const traceAstrogationPlan = <TAction>(
   tracePlan: AstrogationPlanTraceCollector | undefined,
   shipId: Ship['id'],
   decision: PlanDecision<TAction> | null,
-): void => {
-  if (!decision) return;
+): boolean => {
+  if (!decision) return false;
 
   tracePlan?.({ shipId, decision });
+
+  return true;
+};
+
+const inferScalarAstrogationIntent = (
+  checkpoints: readonly string[] | null,
+  passengerEscortMission: boolean,
+  ship: Ship,
+  shipRole: ShipRole | undefined,
+): PlanIntent => {
+  if (checkpoints) return 'completeCheckpointRoute';
+  if (passengerEscortMission && (ship.passengersAboard ?? 0) > 0) {
+    return 'deliverPassengers';
+  }
+  if (shipRole === 'escort' || shipRole === 'screen') return 'escortCarrier';
+  if (shipRole === 'race') return 'screenObjectiveRunner';
+
+  return 'attackThreat';
+};
+
+const buildScalarAstrogationPlanDecision = (
+  ship: Ship,
+  burn: number | null,
+  overload: number | null,
+  land: boolean,
+  checkpoints: readonly string[] | null,
+  passengerEscortMission: boolean,
+  shipRole: ShipRole | undefined,
+): PlanDecision<ScalarAstrogationPlanAction> => {
+  const intent = inferScalarAstrogationIntent(
+    checkpoints,
+    passengerEscortMission,
+    ship,
+    shipRole,
+  );
+
+  return {
+    chosen: {
+      id: `scalar-astrogation:${ship.id}:${burn ?? 'coast'}:${land ? 'land' : 'fly'}`,
+      intent,
+      action: {
+        type: 'astrogationOrder',
+        shipId: ship.id,
+        burn,
+        overload,
+        land,
+      },
+      evaluation: planEvaluation({
+        feasible: true,
+        objective:
+          intent === 'deliverPassengers' || intent === 'completeCheckpointRoute'
+            ? 20
+            : 0,
+        landing: land ? 25 : 0,
+        fuel: ship.fuel,
+        combat: intent === 'attackThreat' ? 10 : 0,
+        formation: intent === 'escortCarrier' ? 10 : 0,
+        effort: burn == null ? 0 : 1,
+      }),
+      diagnostics: [
+        {
+          reason: 'selected by scalar astrogation course score',
+          detail: `${ship.id} ${burn == null ? 'coasts' : `burns ${burn}`}`,
+        },
+      ],
+    },
+    rejected: [],
+  };
 };
 
 // Test/sweep-only override. Production callers never touch this.
@@ -1072,6 +1148,7 @@ export const aiAstrogation = (
       continue;
     }
 
+    let tracedAstrogationPlan = false;
     const emergencyOrder = passengerEmergencyEscortOrders.get(ship.id);
 
     if (emergencyOrder) {
@@ -1133,7 +1210,9 @@ export const aiAstrogation = (
       : null;
 
     if (postCarrierLossTargetPlan) {
-      traceAstrogationPlan(tracePlan, ship.id, postCarrierLossTargetPlan);
+      tracedAstrogationPlan =
+        traceAstrogationPlan(tracePlan, ship.id, postCarrierLossTargetPlan) ||
+        tracedAstrogationPlan;
       shipTargetHex = postCarrierLossTargetPlan.chosen.action.targetHex;
       shipTargetBody = postCarrierLossTargetPlan.chosen.action.targetBody;
     }
@@ -1150,7 +1229,9 @@ export const aiAstrogation = (
       : null;
 
     if (carrierEscortTargetPlan) {
-      traceAstrogationPlan(tracePlan, ship.id, carrierEscortTargetPlan);
+      tracedAstrogationPlan =
+        traceAstrogationPlan(tracePlan, ship.id, carrierEscortTargetPlan) ||
+        tracedAstrogationPlan;
       shipTargetHex = carrierEscortTargetPlan.chosen.action.targetHex;
       shipTargetBody = carrierEscortTargetPlan.chosen.action.targetBody;
     }
@@ -1227,7 +1308,9 @@ export const aiAstrogation = (
           );
 
           if (refuelPlan) {
-            traceAstrogationPlan(tracePlan, ship.id, refuelPlan);
+            tracedAstrogationPlan =
+              traceAstrogationPlan(tracePlan, ship.id, refuelPlan) ||
+              tracedAstrogationPlan;
             shipTargetHex = refuelPlan.chosen.action.targetHex;
             shipTargetBody = refuelPlan.chosen.action.targetBody;
             seekingFuel = refuelPlan.chosen.action.seekingFuel;
@@ -1825,7 +1908,9 @@ export const aiAstrogation = (
         : null;
 
     if (passengerDeliveryApproach) {
-      traceAstrogationPlan(tracePlan, ship.id, passengerDeliveryApproach);
+      tracedAstrogationPlan =
+        traceAstrogationPlan(tracePlan, ship.id, passengerDeliveryApproach) ||
+        tracedAstrogationPlan;
       bestBurn = passengerDeliveryApproach.chosen.action.burn;
       bestOverload = passengerDeliveryApproach.chosen.action.overload;
       bestWeakGrav = undefined;
@@ -1893,12 +1978,16 @@ export const aiAstrogation = (
           : null;
 
       if (postCarrierLossPursuit) {
-        traceAstrogationPlan(tracePlan, ship.id, postCarrierLossPursuit);
+        tracedAstrogationPlan =
+          traceAstrogationPlan(tracePlan, ship.id, postCarrierLossPursuit) ||
+          tracedAstrogationPlan;
         bestBurn = postCarrierLossPursuit.chosen.action.burn;
         bestOverload = postCarrierLossPursuit.chosen.action.overload;
         bestWeakGrav = undefined;
       } else if (passengerCarrierIntercept) {
-        traceAstrogationPlan(tracePlan, ship.id, passengerCarrierIntercept);
+        tracedAstrogationPlan =
+          traceAstrogationPlan(tracePlan, ship.id, passengerCarrierIntercept) ||
+          tracedAstrogationPlan;
         bestBurn = passengerCarrierIntercept.chosen.action.burn;
         bestOverload = passengerCarrierIntercept.chosen.action.overload;
         bestWeakGrav = undefined;
@@ -1952,6 +2041,22 @@ export const aiAstrogation = (
           }
         }
       }
+    }
+
+    if (!tracedAstrogationPlan) {
+      traceAstrogationPlan(
+        tracePlan,
+        ship.id,
+        buildScalarAstrogationPlanDecision(
+          ship,
+          bestBurn,
+          bestOverload,
+          bestLand,
+          checkpoints,
+          passengerEscortMission,
+          shipRole,
+        ),
+      );
     }
 
     orders.push({
