@@ -252,13 +252,13 @@ const OBJECTIVE_WARNING_POLICIES: Record<string, ObjectiveWarningPolicy> = {
     maxFuelStallsPerGame: 30,
   },
   evacuation: {
-    objectiveReasonMatchers: [/with colonists!/],
+    objectiveReasonMatchers: [/with colonists!/, /Passenger objective failed/],
     minObjectiveShare: 0.05,
     maxEliminationShare: 0.9,
     maxFuelStallsPerGame: 30,
   },
   convoy: {
-    objectiveReasonMatchers: [/with colonists!/],
+    objectiveReasonMatchers: [/with colonists!/, /Passenger objective failed/],
     minObjectiveShare: 0.05,
     maxEliminationShare: 0.9,
     maxFuelStallsPerGame: 30,

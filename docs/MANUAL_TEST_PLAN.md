@@ -93,8 +93,8 @@ Scenarios and their rules are fully specified in [SPEC.md § Scenarios](./SPEC.m
 
 - **Bi-Planetary** — land on opposite planet.
 - **Escape** — hidden fugitive ship; only nukes (no mines/torpedoes); planetary defense disabled; moral victory on Enforcer disable.
-- **Convoy** — liner + tanker + frigate escort; logistics enabled; land liner on Venus with colonists.
-- **Lunar Evacuation** — passenger rescue enabled; win requires passengers aboard.
+- **Convoy** — liner + tanker + frigate escort; logistics enabled; land a ship on Venus with colonists, or verify pirates win immediately once no colonists survive.
+- **Lunar Evacuation** — passenger rescue enabled; win requires passengers aboard; interceptor wins immediately once no colonists survive.
 - **Duel** — last ship standing.
 - **Blockade Runner** — packet with head-start velocity; land on Mars.
 - **Fleet Action** — 400 MC fleet build (section 8).
