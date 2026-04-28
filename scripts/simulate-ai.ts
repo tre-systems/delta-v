@@ -7,6 +7,7 @@ import {
   aiCombat,
   aiLogistics,
   aiOrdnance,
+  buildAIDoctrineContext,
   buildAIFleetPurchases,
   choosePassengerCombatPlan,
   type PlanCandidate,
@@ -1205,6 +1206,9 @@ const runSingleGame = async (
             activePlayer,
             map,
             detectedEnemyShips,
+            undefined,
+            buildAIDoctrineContext(state, activePlayer, map, detectedEnemyShips)
+              .passenger,
           );
           const attacks = aiCombat(state, activePlayer, map, difficulty);
           lastActionableCapture = {

@@ -87,9 +87,9 @@ Remaining architecture tasks:
    failures cross phase boundaries: route choice, escort screen, ordnance, and
    combat affect each other. A shared turn context now identifies the primary
    passenger carrier, active threat, landing window, and ship roles for
-   astrogation, ordnance, and combat. Remaining work is to move logistics and
-   phase-specific passenger plan helpers onto that context, then use it for the
-   next concrete passenger behavior fix.
+   astrogation, ordnance, combat, and the passenger plan helpers that need
+   carrier/threat context. Remaining work is to move logistics onto that
+   context, then use it for the next concrete passenger behavior fix.
 4. **Split passenger plan modules by responsibility.** Break
    `plans/passenger.ts` into narrower modules such as delivery, escort,
    intercept, and combat once the next behavior fix touches that area. Avoid a

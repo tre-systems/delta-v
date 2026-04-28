@@ -1094,6 +1094,7 @@ export const aiAstrogation = (
       ship,
       orders,
       map,
+      doctrine.passenger,
     );
 
     if (fuelSupportPlan) {
@@ -1127,6 +1128,7 @@ export const aiAstrogation = (
           playerId,
           ship,
           primaryPassengerCarrier,
+          doctrine.passenger,
         )
       : null;
 
@@ -1143,6 +1145,7 @@ export const aiAstrogation = (
           ship,
           primaryPassengerCarrier,
           enemyShips,
+          doctrine.passenger,
         )
       : null;
 
