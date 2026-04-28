@@ -788,13 +788,19 @@ describe('aiAstrogation', () => {
       findBaseHex,
     );
     const tracedIntents: string[] = [];
+    const scalarTraceRejectedCounts: number[] = [];
 
     aiAstrogation(state, 0, map, 'hard', TEST_RNG, ({ decision }) => {
       tracedIntents.push(decision.chosen.intent);
+
+      if (decision.chosen.id.startsWith('scalar-astrogation:')) {
+        scalarTraceRejectedCounts.push(decision.rejected.length);
+      }
     });
 
     expect(tracedIntents).toContain('supportPassengerCarrier');
     expect(tracedIntents).toContain('deliverPassengers');
+    expect(Math.max(...scalarTraceRejectedCounts)).toBeGreaterThan(0);
   });
 
   it('convoy: passenger carrier near Venus starts the landing approach instead of coasting', () => {
