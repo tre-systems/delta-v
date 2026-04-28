@@ -1,0 +1,433 @@
+{
+  "schemaVersion": 1,
+  "scenario": "convoy",
+  "seed": 3041712747,
+  "gameIndex": 5,
+  "playerDifficulties": {
+    "p0": "hard",
+    "p1": "hard"
+  },
+  "kind": "fuelStall",
+  "turnNumber": 4,
+  "phase": "astrogation",
+  "activePlayer": 0,
+  "difficulty": "hard",
+  "state": {
+    "schemaVersion": 1,
+    "gameId": "sim-convoy-3041712747",
+    "scenario": "convoy",
+    "scenarioRules": {
+      "planetaryDefenseEnabled": true,
+      "hiddenIdentityInspection": false,
+      "escapeEdge": "any",
+      "logisticsEnabled": true,
+      "passengerRescueEnabled": true,
+      "targetWinRequiresPassengers": true
+    },
+    "escapeMoralVictoryAchieved": false,
+    "turnNumber": 4,
+    "phase": "astrogation",
+    "activePlayer": 0,
+    "ships": [
+      {
+        "id": "p0s0",
+        "type": "liner",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": -8,
+          "r": -4
+        },
+        "lastMovementPath": [
+          {
+            "q": -7,
+            "r": -5
+          },
+          {
+            "q": -8,
+            "r": -4
+          }
+        ],
+        "velocity": {
+          "dq": -1,
+          "dr": 1
+        },
+        "fuel": 10,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": false,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 4
+        },
+        "passengersAboard": 120,
+        "lastBurnDirection": 3
+      },
+      {
+        "id": "p0s1",
+        "type": "tanker",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": -8,
+          "r": -4
+        },
+        "lastMovementPath": [
+          {
+            "q": -7,
+            "r": -5
+          },
+          {
+            "q": -8,
+            "r": -4
+          }
+        ],
+        "velocity": {
+          "dq": -1,
+          "dr": 1
+        },
+        "fuel": 44,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": false,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "lastBurnDirection": 3
+      },
+      {
+        "id": "p0s2",
+        "type": "frigate",
+        "owner": 0,
+        "originalOwner": 0,
+        "position": {
+          "q": -8,
+          "r": -3
+        },
+        "lastMovementPath": [
+          {
+            "q": -8,
+            "r": -3
+          }
+        ],
+        "velocity": {
+          "dq": 0,
+          "dr": 0
+        },
+        "fuel": 16,
+        "cargoUsed": 40,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": true,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "lastBurnDirection": 2
+      },
+      {
+        "id": "p1s0",
+        "type": "corsair",
+        "owner": 1,
+        "originalOwner": 1,
+        "position": {
+          "q": -7,
+          "r": -4
+        },
+        "lastMovementPath": [
+          {
+            "q": -8,
+            "r": -2
+          },
+          {
+            "q": -7,
+            "r": -3
+          },
+          {
+            "q": -7,
+            "r": -4
+          }
+        ],
+        "velocity": {
+          "dq": 1,
+          "dr": -2
+        },
+        "fuel": 17,
+        "cargoUsed": 10,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": true,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 1
+        },
+        "lastBurnDirection": 0
+      },
+      {
+        "id": "p1s1",
+        "type": "corsair",
+        "owner": 1,
+        "originalOwner": 1,
+        "position": {
+          "q": -7,
+          "r": -4
+        },
+        "lastMovementPath": [
+          {
+            "q": -6,
+            "r": -4
+          },
+          {
+            "q": -7,
+            "r": -4
+          }
+        ],
+        "velocity": {
+          "dq": -1,
+          "dr": 0
+        },
+        "fuel": 16,
+        "cargoUsed": 10,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "active",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": true,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 0
+        },
+        "lastBurnDirection": 4
+      },
+      {
+        "id": "p1s2",
+        "type": "corvette",
+        "owner": 1,
+        "originalOwner": 1,
+        "position": {
+          "q": -7,
+          "r": -3
+        },
+        "lastMovementPath": [
+          {
+            "q": -7,
+            "r": -3
+          }
+        ],
+        "velocity": {
+          "dq": 0,
+          "dr": 0
+        },
+        "fuel": 20,
+        "cargoUsed": 0,
+        "nukesLaunchedSinceResupply": 0,
+        "resuppliedThisTurn": false,
+        "lifecycle": "destroyed",
+        "control": "own",
+        "heroismAvailable": false,
+        "overloadUsed": false,
+        "detected": true,
+        "pendingGravityEffects": [],
+        "damage": {
+          "disabledTurns": 6
+        },
+        "deathCause": "torpedo",
+        "killedBy": "ord2"
+      }
+    ],
+    "ordnance": [
+      {
+        "id": "ord0",
+        "type": "mine",
+        "owner": 1,
+        "sourceShipId": "p1s0",
+        "position": {
+          "q": -9,
+          "r": 2
+        },
+        "velocity": {
+          "dq": 0,
+          "dr": 0
+        },
+        "turnsRemaining": 2,
+        "lifecycle": "active",
+        "pendingGravityEffects": []
+      },
+      {
+        "id": "ord1",
+        "type": "mine",
+        "owner": 1,
+        "sourceShipId": "p1s1",
+        "position": {
+          "q": -6,
+          "r": -1
+        },
+        "velocity": {
+          "dq": 0,
+          "dr": 0
+        },
+        "turnsRemaining": 2,
+        "lifecycle": "active",
+        "pendingGravityEffects": []
+      },
+      {
+        "id": "ord2",
+        "type": "torpedo",
+        "owner": 0,
+        "sourceShipId": "p0s2",
+        "position": {
+          "q": -7,
+          "r": -2
+        },
+        "velocity": {
+          "dq": 1,
+          "dr": 1
+        },
+        "turnsRemaining": 4,
+        "lifecycle": "active",
+        "pendingGravityEffects": []
+      }
+    ],
+    "pendingAstrogationOrders": null,
+    "pendingAsteroidHazards": [],
+    "destroyedAsteroids": [],
+    "destroyedBases": [],
+    "players": [
+      {
+        "connected": true,
+        "ready": true,
+        "targetBody": "Venus",
+        "homeBody": "Mars",
+        "bases": [
+          "-8,-6",
+          "-10,-4",
+          "-8,-5",
+          "-9,-6",
+          "-10,-5",
+          "-9,-4"
+        ],
+        "escapeWins": false
+      },
+      {
+        "connected": true,
+        "ready": true,
+        "targetBody": "",
+        "homeBody": "",
+        "bases": [],
+        "escapeWins": false
+      }
+    ],
+    "outcome": null
+  },
+  "action": {
+    "type": "astrogation",
+    "orders": [
+      {
+        "shipId": "p0s0",
+        "burn": null,
+        "overload": null
+      },
+      {
+        "shipId": "p0s1",
+        "burn": null,
+        "overload": null
+      },
+      {
+        "shipId": "p0s2",
+        "burn": null,
+        "overload": null
+      }
+    ]
+  },
+  "planDecisions": [
+    {
+      "chosen": {
+        "id": "passenger-fuel-support:p0s1:p0s0",
+        "intent": "supportPassengerCarrier",
+        "action": {
+          "type": "astrogationOrder",
+          "shipId": "p0s1",
+          "carrierShipId": "p0s0",
+          "burn": null,
+          "overload": null
+        },
+        "evaluation": {
+          "objective": 40,
+          "survival": 0,
+          "landing": 0,
+          "fuel": 44,
+          "combat": 0,
+          "formation": 50,
+          "tempo": 0,
+          "risk": 0,
+          "effort": 0,
+          "feasible": true
+        },
+        "diagnostics": [
+          {
+            "reason": "tanker mirrors passenger carrier for fuel support",
+            "detail": "p0s1 follows p0s0"
+          }
+        ]
+      },
+      "rejected": []
+    },
+    {
+      "chosen": {
+        "id": "special-astrogation:emergencyEscort:p0s2",
+        "intent": "escortCarrier",
+        "action": {
+          "type": "astrogationOrder",
+          "shipId": "p0s2",
+          "burn": null,
+          "overload": null,
+          "land": false,
+          "reason": "emergencyEscort"
+        },
+        "evaluation": {
+          "objective": 0,
+          "survival": 35,
+          "landing": 0,
+          "fuel": 0,
+          "combat": 0,
+          "formation": 30,
+          "tempo": 0,
+          "risk": 0,
+          "effort": 0,
+          "feasible": true
+        },
+        "diagnostics": [
+          {
+            "reason": "emergency passenger escort formation",
+            "detail": "p0s2"
+          }
+        ]
+      },
+      "rejected": []
+    }
+  ],
+  "stalledShipIds": [
+    "p0s2"
+  ]
+}

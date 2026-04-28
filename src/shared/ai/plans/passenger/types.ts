@@ -24,6 +24,15 @@ export interface PassengerFuelSupportAction {
   overload: null;
 }
 
+export interface PassengerEscortFormationAction {
+  type: 'astrogationOrder';
+  shipId: Ship['id'];
+  carrierShipId: Ship['id'];
+  targetHex: { q: number; r: number };
+  burn: number;
+  overload: null;
+}
+
 export interface PassengerDeliveryApproachAction {
   type: 'astrogationOrder';
   shipId: Ship['id'];
