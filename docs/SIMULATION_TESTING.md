@@ -8,7 +8,9 @@ Delta-V has three complementary simulation layers. Because the shared engine is 
 | Network load / chaos | `scripts/load-test.ts` | DO lifecycle, WebSocket, reconnection, concurrency |
 | LLM / agent bridge | `scripts/llm-player.ts` | External model-driven agent against browser or another agent |
 
-Related docs: [AGENTS.md](./AGENTS.md) (agent workflow), [MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md), [ARCHITECTURE](./ARCHITECTURE.md).
+Related docs: [AI.md](./AI.md) (built-in AI workflow),
+[AGENTS.md](./AGENTS.md) (agent workflow),
+[MANUAL_TEST_PLAN](./MANUAL_TEST_PLAN.md), [ARCHITECTURE](./ARCHITECTURE.md).
 
 ---
 
@@ -72,7 +74,8 @@ For AI PRs, compare scorecards on paired seed sets rather than only quoting
 win rate. If a simulation exposes a bad state, prefer saving that state as a
 focused decision-class regression ("land to refuel", "preserve passenger
 carrier", "do not coast while stalled") over adding another global weight from
-one trace.
+one trace. Use [AI.md#reporting-template](./AI.md#reporting-template) for the
+expected PR or handoff summary shape.
 
 **Intent-first AI plan reporting.** Passenger and refuel doctrine now has named
 plans documented in [ARCHITECTURE.md#intent-first-ai-plans](./ARCHITECTURE.md#intent-first-ai-plans).
