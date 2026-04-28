@@ -44,6 +44,28 @@ export interface PlanDecision<TAction> {
   rejected: readonly PlanCandidate<TAction>[];
 }
 
+export type PlanEvaluationInput = Pick<PlanEvaluation, 'feasible'> &
+  Partial<Omit<PlanEvaluation, 'feasible'>>;
+
+const ZERO_PLAN_EVALUATION: Omit<PlanEvaluation, 'feasible'> = {
+  objective: 0,
+  survival: 0,
+  landing: 0,
+  fuel: 0,
+  combat: 0,
+  formation: 0,
+  tempo: 0,
+  risk: 0,
+  effort: 0,
+};
+
+export const planEvaluation = (
+  evaluation: PlanEvaluationInput,
+): PlanEvaluation => ({
+  ...ZERO_PLAN_EVALUATION,
+  ...evaluation,
+});
+
 type EvaluationScoreKey = Exclude<keyof PlanEvaluation, 'feasible'>;
 
 const HIGHER_IS_BETTER: readonly EvaluationScoreKey[] = [

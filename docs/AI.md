@@ -97,6 +97,7 @@ The shared vocabulary lives in `src/shared/ai/plans/index.ts`.
 | `PlanIntent` | Stable name for the strategic reason. |
 | `PlanCandidate<TAction>` | Intent, concrete action, evaluation vector, priority, diagnostics. |
 | `PlanDecision<TAction>` | Chosen candidate plus rejected candidates in rank order. |
+| `planEvaluation()` | Builds a full vector from the explicitly relevant dimensions, defaulting omitted scores to neutral zero. |
 | `chooseBestPlan()` | Deterministic selection by evaluation vector, priority, then id. |
 
 Current named intents include:

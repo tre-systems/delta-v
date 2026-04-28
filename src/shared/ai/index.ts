@@ -17,12 +17,14 @@ export type {
   PlanDecision,
   PlanDiagnostic,
   PlanEvaluation,
+  PlanEvaluationInput,
   PlanIntent,
 } from './plans';
 export {
   chooseBestPlan,
   comparePlanCandidates,
   comparePlanEvaluations,
+  planEvaluation,
 } from './plans';
 export type {
   CombatTargetPlanAction,
