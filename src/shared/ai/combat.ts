@@ -190,8 +190,13 @@ export const aiCombat = (
     const rangeMod = computeGroupRangeMod(attackersForTarget, enemy);
     const velMod = computeGroupVelocityMod(attackersForTarget, enemy);
     const totalMod = rangeMod + velMod;
+    const passengerObjectiveTargetBonus =
+      caps.targetWinRequiresPassengers && (enemy.passengersAboard ?? 0) > 0
+        ? 80
+        : 0;
     const score =
-      -avgDist * cfg.targetDistPenalty -
+      passengerObjectiveTargetBonus -
+      avgDist * cfg.targetDistPenalty -
       totalMod * cfg.targetModPenalty +
       enemy.damage.disabledTurns * cfg.targetDisabledBonus;
 
