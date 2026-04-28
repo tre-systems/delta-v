@@ -254,5 +254,5 @@ The intent-first shift is successful but incomplete:
 - `PlanEvaluation` ranges are documented here and current named plans stay
   inside those practical ranges for objective/survival/landing dimensions.
 
-The active work to finish those pieces lives in
-[BACKLOG.md#complete-intent-first-ai-planning-architecture-p1](./BACKLOG.md#complete-intent-first-ai-planning-architecture-p1).
+The active AI work now lives in
+[BACKLOG.md#improve-passenger-objective-ai-p1](./BACKLOG.md#improve-passenger-objective-ai-p1).

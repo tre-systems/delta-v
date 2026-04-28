@@ -6,145 +6,55 @@ Outstanding tasks that deserve a named home between PRs. Shipped work belongs in
 [ARCHITECTURE.md](./ARCHITECTURE.md). Exploratory-pass technique lives in
 [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md).
 
-Sections are grouped by theme and ordered roughly by player impact.
+Sections are grouped by priority and trigger. Last reviewed: 2026-04-28.
 
-## AI Evaluation & Heuristic Planning
+## Active Priority
 
-The current AI backlog has repeatedly converged on the same failure mode: a
-single bad simulation or playtest produces another local weight tweak. That is
-fragile. The active AI work is grouped into three tracks:
+### Improve Passenger Objective AI (P1)
 
-- **Evaluation loop:** scenario scorecards, failure captures, and fixture
-  regressions.
-- **Reusable planning primitives:** bounded movement planning and ship-role
-  assignment.
-- **Intent-first planning:** named tactical plans with comparable evaluation
-  vectors instead of one large scalar score.
-- **Scenario symptom queue:** player-facing balance/AI failures to validate
-  through the first two tracks rather than one-off weight changes.
+Convoy and Lunar Evacuation are the remaining high-value AI tuning targets.
+Recent engine work made passenger objective failure explicit, so these scenarios
+now end for the right reason instead of drifting into cleanup fleet-elimination
+endings. The remaining problem is behavior: protect or intercept the carrier
+well enough that the intended passenger objective produces credible play.
 
-### Promote Captured Failure States into Fixtures (P1, ongoing)
+Current 2026-04-28 checks:
 
-Keep promoting captured `GameState` snapshots into decision-class regressions in
-[src/shared/ai/__fixtures__/](../src/shared/ai/__fixtures__/) when a
-particular bad decision appears repeatedly across seeds — "land to refuel",
-"keep the viable passenger carrier", "do not coast while stalled", "screen
-the carrier instead of chasing attrition", etc. Avoid exact burn assertions
-unless the rules require them. Fixture-backed behaviour assertions should
-land with the AI fix that makes the bad decision unrepresentable.
+- `convoy 40 --seed 21`: 7.5% passenger deliveries, 70% objective resolutions,
+  30% fleet eliminations, 0 invalid actions, 0 transfer mistakes, 0.25 fuel
+  stalls/game.
+- `evacuation 40 --seed 21`: 80% passenger deliveries, 100% objective
+  resolutions, average 2.1 turns, 80% P0 decided, 0 invalid actions, 0 fuel
+  stalls.
 
-Add a new failure counter only when the current scorecard / capture
-manifest genuinely misses a recurring symptom; pure tuning belongs in
-existing counters.
+Action: promote representative convoy and evacuation captures into fixtures,
+then improve carrier survival, escort/screen formation, raider interception,
+and landing-safe abort/refuel choices through named plans or bounded movement
+planning. Do not add broad scalar weights without a fixture proving the change
+generalizes.
 
-**Files:** `src/shared/ai/__fixtures__/`,
-`src/shared/simulate-ai-policy.test.ts` (gates), `docs/SIMULATION_TESTING.md`
-(when adding a counter).
-
-### Turn Planner Signals Into Landing-Safe Objective Decisions (P1)
-
-Grand Tour, evacuation, convoy, and blockade all depend on movement planning
-under fuel, velocity, gravity, and landing constraints. The open problem is
-applying landing-safe doctrine to passenger and landing-objective scenarios
-without turning every fix into a scenario-specific weight.
-
-Action: promote recurring evacuation, convoy, and biplanetary terminal-approach
-failures into fixtures, then teach the race/refuel branch to prefer plans that
-preserve a safe landing or abort/refuel line. Avoid another scalar-only course
-score unless the fixture proves it generalizes.
-
-**Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,
-`src/shared/ai/scoring.ts`, `src/shared/ai.test.ts`
-
-### Complete Intent-First AI Planning Architecture (P1)
-
-The AI has outgrown a single scalar course score. Future fixes should extract
-named plans and ordered evaluation vectors so objective safety, carrier
-survival, fuel margin, landing setup, and combat posture are compared
-explicitly instead of fighting through unrelated bonuses.
-
-The foundation is now in place: passenger and fuel-support decisions have named
-plans for `deliverPassengers`, `preserveLandingLine`, `escortCarrier`,
-`interceptPassengerCarrier`, `supportPassengerCarrier`,
-`postCarrierLossPursuit`, and `refuelAtReachableBase`.
-
-Current architecture state:
-
-**Decision inventory to finish the shift:**
-
-- **Astrogation:** named plans cover passenger/refuel overrides, emergency
-  escort, and transfer formation orders. Scalar order traces cover ordinary
-  burns, including top rejected scalar burn candidates.
-- **Logistics:** transfer selection now emits named passenger/fuel transfer
-  plans that consume `AIDoctrineContext`. Add logistics-specific capture traces
-  only if a concrete logistics failure needs them.
-- **Ordnance:** nuke, torpedo, mine, and race-role hold decisions now have
-  named plan candidates. Launches, race-role holds, and anti-nuke-reach
-  rejections now flow into simulation captures. Remaining ordnance work is to
-  expose landing-line hold diagnostics if a concrete capture shows they are
-  needed, while keeping intercept geometry helpers local.
-- **Combat:** target choice, attack grouping, hold-fire, and anti-nuke grouping
-  now emit named plans into simulation diagnostics.
-- **Fleet building:** purchase search remains acceptable as bounded optimizer
-  / rules-gate logic unless a player-facing fleet-choice failure appears; do
-  not churn it only for architecture purity.
-
-The passenger plan surface is split by responsibility behind the stable
-`plans/passenger.ts` barrel: combat holds, carrier support/delivery approach,
-escort navigation overrides, interceptor pursuit, shared passenger helpers,
-and action types. Future passenger fixes should extend the relevant narrow
-module and consume `AIDoctrineContext` instead of rediscovering carrier,
-threat, and role state.
-
-**Files:** new `src/shared/ai/plans/`, `src/shared/ai/astrogation.ts`,
-`src/shared/ai/combat.ts`, `src/shared/ai/logistics.ts`,
-`scripts/simulate-ai.ts`, `src/shared/ai.test.ts`
-
-Acceptance for each task: add or promote a fixture that failed before the
-change, assert the chosen intent where possible, and compare paired seed
-scorecards before / after without increasing invalid actions, fuel stalls,
+Acceptance: paired scorecards should improve passenger delivery quality or
+reduce fleet-elimination drift without increasing invalid actions, fuel stalls,
 passenger-transfer mistakes, or timeout-heavy stalemates.
 
-### Tighten Role-Aware Tactical Doctrine (P1)
+**Files:** `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
+`src/shared/simulate-ai-policy.test.ts`, `scripts/simulate-ai.ts`
 
-Generic combat, objective, fuel, and landing scores still fight each other in
-escort scenarios.
+### Maintain Fixture-Backed AI Workflow (P1, ongoing)
 
-Action: use promoted fixtures and paired scorecards to tune the role-specific
-priorities instead of adding broad weights. Interceptors should commit harder to
-enemy objective runners, escorts/screens should value formation and blocking
-over attrition, and race ships should only break objective posture for direct
-threats. Grand Tour should stay on the separate landing-safe checkpoint doctrine
-item; the generic race overlay skewed seat balance there.
+This is the guardrail for future AI fixes, not a standalone refactor project.
+When a bad decision repeats across seeds, capture the state and add a
+decision-class regression such as "land to refuel", "preserve passenger
+carrier", "screen instead of chasing attrition", or "do not coast while
+stalled". Avoid exact burn assertions unless the rules require them.
 
-**Files:** `src/shared/ai/logistics.ts`, `src/shared/ai/astrogation.ts`,
-`src/shared/ai/scoring.ts`
+Add a new failure counter only when the current scorecard or capture manifest
+misses a recurring symptom. Pure tuning belongs in existing counters.
 
-### Scenario Symptoms to Validate With the New Loop (P1)
+**Files:** `src/shared/ai/__fixtures__/`,
+`src/shared/simulate-ai-policy.test.ts`, `docs/SIMULATION_TESTING.md`
 
-These are still real player-facing AI issues, but they should be handled through
-the scorecard / fixture / planner workflow above rather than one-off weight
-changes:
-
-- **Passenger scenarios:** passenger-objective failure is now explicit: if no
-  colonists survive on the delivery side, the interceptor wins immediately
-  instead of cleaning up tankers/escorts as a fleet-elimination ending. In
-  `convoy 80 --seed 21`, this moved fleet eliminations from 83.75% to 26.25%
-  while preserving 0 invalid actions, 0 transfer mistakes, and 0.25 fuel
-  stalls/game. Remaining tuning is behavior, not outcome classification:
-  convoy still delivers passengers only 11.25% in that sample, and evacuation
-  still has a short opening window (`evacuation 80 --seed 21`: 61 deliveries,
-  19 passenger-objective failures, 76.25% P0). Improve carrier survival and
-  raider counterplay without returning to fleet-elimination-heavy outcomes or
-  timeout-heavy stalemates.
-- **FleetAction balance:** keep watching timeout rate and P0 blowout risk on
-  broader seeded sweeps.
-
-**Files:** `src/shared/ai/`, `src/shared/scenario-definitions.ts`,
-`src/shared/engine/victory.ts`, `scripts/simulate-ai.ts`,
-`scripts/duel-seed-sweep.ts`
-
-## Gameplay UX & Matchmaking
+## Opportunistic Polish
 
 ### Small Accessibility Polish (P3)
 
@@ -168,29 +78,13 @@ Candidate small fixes:
 [src/client/ui/hud-chrome-view.ts](../src/client/ui/hud-chrome-view.ts)
 (pattern reference), [e2e/a11y.spec.ts](../e2e/a11y.spec.ts)
 
-## Telemetry & Observability
-
 ### Leaderboard Row Click Telemetry (P2)
 
-Add `leaderboard_row_clicked` once leaderboard rows become interactive.
+Add `leaderboard_row_clicked` when leaderboard rows become interactive. Do not
+add telemetry for inert rows.
 
 **Files:** `src/client/leaderboard/*.ts`, `static/leaderboard.html`,
 `src/server/metrics-route.ts`
-
-## Architecture & Correctness
-
-### Optional Deduplication of Initial Publication Path (P3)
-
-`initGameSession` already publishes via the same `GameDO.publishStateChange` to
-`runPublicationPipeline` path as post-init actions, and RNG breach fallbacks now
-use deterministic `mulberry32` streams. The remaining work is optional
-deduplication only.
-
-Action: if this area is touched again, consider whether `match.ts` should call
-`runPublicationPipeline` without the `publishStateChange` indirection.
-
-**Files:** `src/server/game-do/match.ts`,
-`src/server/game-do/publication.ts`, `src/server/game-do/game-do.ts`
 
 ## Future Features
 
