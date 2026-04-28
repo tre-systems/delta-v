@@ -56,6 +56,7 @@ Doc index by purpose, grouped by theme:
 | [SPEC.md](./docs/SPEC.md) | Game rules and scenarios |
 | [PROTOCOL.md](./docs/PROTOCOL.md) | Wire format, state shapes, hex math, HTTP/WS routes |
 | [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Module inventory, data flow, Durable Object design, replay/recovery |
+| [AI.md](./docs/AI.md) | Built-in AI architecture, intent-first planning, and tuning workflow |
 
 **Code and contribution**
 

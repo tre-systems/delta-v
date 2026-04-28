@@ -256,15 +256,15 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [Engine Mutation Model and RNG Injection](#engine-mutation-model-and-rng-injection).
 - **Domain event emission**: Turn-resolution engine entry points emit `EngineEvent[]` (33 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
 
-#### AI Strategy Design (`shared/ai/*` + `shared/ai.ts`)
+#### AI Strategy Design (`src/shared/ai/*`)
 
 The AI uses a **config-weighted composable scoring** architecture rather than a monolithic decision tree:
 
-- **`shared/ai/config.ts`** defines `AIDifficultyConfig` — a flat record of ~60 numeric weights and boolean flags. Three presets (`easy`, `normal`, `hard`) tune aggression, accuracy, and capability without changing any logic, and `ScenarioRules.aiConfigOverrides` can selectively override individual knobs per scenario (used by Duel to lengthen engagements). This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data rather than class hierarchies.
-- **`shared/ai/scoring.ts`** contains composable scoring functions, each handling one concern: `scoreNavigation` (distance/speed toward objective), `scoreEscape` (distance from center + velocity), `scoreRaceDanger` (gravity well proximity penalty), `scoreGravityLookAhead` (deferred-gravity next-turn value), and `scoreCombatPositioning` (engagement/interception posture). Each takes a course candidate and a config, returns a number.
-- **`shared/ai/index.ts`** orchestrates: for each AI ship, enumerate all 7 burn options (6 hex directions + null), compute each course via `computeCourse()`, sum scores across all strategies, pick the highest. Combat and ordnance decisions follow the same evaluate-all-options-then-pick pattern.
+- **`src/shared/ai/config.ts`** defines `AIDifficultyConfig` — a flat record of ~60 numeric weights and boolean flags. Three presets (`easy`, `normal`, `hard`) tune aggression, accuracy, and capability without changing any logic, and `ScenarioRules.aiConfigOverrides` can selectively override individual knobs per scenario (used by Duel to lengthen engagements). This is the [Strategy pattern](https://refactoring.guru/design-patterns/strategy) expressed as data rather than class hierarchies.
+- **`src/shared/ai/scoring.ts`** contains composable scoring functions, each handling one concern: `scoreNavigation` (distance/speed toward objective), `scoreEscape` (distance from center + velocity), `scoreRaceDanger` (gravity well proximity penalty), `scoreGravityLookAhead` (deferred-gravity next-turn value), and `scoreCombatPositioning` (engagement/interception posture). Each takes a course candidate and a config, returns a number.
+- **`src/shared/ai/index.ts`** orchestrates: for each AI ship, enumerate all 7 burn options (6 hex directions + null), compute each course via `computeCourse()`, sum scores across all strategies, pick the highest. Combat and ordnance decisions follow the same evaluate-all-options-then-pick pattern.
 
-Difficulty tuning is pure data, new scoring dimensions are pure additions, and all AI functions accept `rng` for deterministic testing. The pattern walk-through is in [patterns/scenarios-and-config.md#ai-config-as-weights-not-code](../patterns/scenarios-and-config.md#ai-config-as-weights-not-code).
+Difficulty tuning is pure data, new scoring dimensions are pure additions, and all AI functions accept `rng` for deterministic testing. The contributor-facing workflow for AI changes lives in [AI.md](./AI.md). The pattern walk-through is in [patterns/scenarios-and-config.md#ai-config-as-weights-not-code](../patterns/scenarios-and-config.md#ai-config-as-weights-not-code).
 
 #### Intent-first AI Plans
 
@@ -307,6 +307,9 @@ When adding AI behavior now:
 3. Keep scalar course scoring for low-level burn comparison.
 4. Compare paired seed scorecards before and after; see
    [SIMULATION_TESTING.md](./SIMULATION_TESTING.md).
+
+The full module map, plan-evaluation convention, change workflow, failure
+triage table, and reporting template are in [AI.md](./AI.md).
 
 #### Engine Mutation Model and RNG Injection
 
