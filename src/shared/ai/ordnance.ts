@@ -42,7 +42,7 @@ import type {
 import { maxBy, minBy } from '../util';
 import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
-import { assignTurnShipRoles } from './logistics';
+import { buildAIDoctrineContext } from './doctrine';
 import type { AIDifficulty } from './types';
 
 interface ScoredEnemyTarget {
@@ -787,7 +787,8 @@ export const aiOrdnance = (
       : null;
   const shouldPreserveLandingLine =
     singleShipObjectiveDuel && myLandingTurns === 1 && enemyLandingTurns !== 0;
-  const shipRoles = assignTurnShipRoles(state, playerId, map);
+  const doctrine = buildAIDoctrineContext(state, playerId, map);
+  const shipRoles = doctrine.shipRoles;
 
   if (cfg.ordnanceSkipChance > 0 && rng() < cfg.ordnanceSkipChance) {
     return launches;
