@@ -1145,6 +1145,56 @@ describe('aiAstrogation', () => {
     });
   });
 
+  it('targets a disabled passenger carrier rendezvous before chasing raiders', () => {
+    const carrier = createTestShip({
+      id: asShipId('disabled-carrier-target'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'transport',
+      passengersAboard: 12,
+      position: { q: 3, r: -6 },
+      velocity: { dq: 2, dr: 0 },
+      damage: { disabledTurns: 2 },
+    });
+    const escort = createTestShip({
+      id: asShipId('disabled-carrier-escort'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'frigate',
+      position: { q: -2, r: -5 },
+      velocity: { dq: 3, dr: -2 },
+    });
+    const threat = createTestShip({
+      id: asShipId('disabled-carrier-threat'),
+      owner: 1,
+      originalOwner: 1,
+      type: 'corvette',
+      position: { q: 0, r: -5 },
+      velocity: { dq: 2, dr: 0 },
+    });
+    const state = createTestState({
+      scenarioRules: { targetWinRequiresPassengers: true },
+      ships: [carrier, escort, threat],
+      players: [{ targetBody: 'Mars' }, { targetBody: '' }],
+    });
+
+    expect(
+      choosePassengerCarrierEscortTargetPlan(state, 0, escort, carrier, [
+        threat,
+      ])?.chosen,
+    ).toMatchObject({
+      intent: 'escortCarrier',
+      action: {
+        type: 'navigationTargetOverride',
+        shipId: escort.id,
+        carrierShipId: carrier.id,
+        threatShipId: threat.id,
+        targetHex: { q: 5, r: -6 },
+        targetBody: '',
+      },
+    });
+  });
+
   it('chooses passenger carrier interception when the nearest pursuit target carries passengers', () => {
     const interceptor = createTestShip({
       id: asShipId('carrier-interceptor'),
