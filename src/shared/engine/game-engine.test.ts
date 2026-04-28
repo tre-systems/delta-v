@@ -3516,6 +3516,7 @@ describe('Grand Tour', () => {
     const tangentDir = (gravityDir + 1) % 6;
 
     const ship = must(tourState.ships.find((s) => s.owner === 0));
+    tourState.activePlayer = 0;
     ship.position = { q, r };
     ship.velocity = HEX_NEIGHBOURS[tangentDir];
     ship.fuel = 20;

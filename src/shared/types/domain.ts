@@ -467,6 +467,9 @@ export interface ScenarioRules {
   escapeEdge?: 'any' | 'north';
   combatDisabled?: boolean;
   checkpointBodies?: string[];
+  // Randomize the active player at game creation for symmetric races where a
+  // fixed first mover creates a deterministic pacing edge.
+  randomizeStartingPlayer?: boolean;
   sharedBases?: string[];
   logisticsEnabled?: boolean;
   // Enable passenger transfers in logistics (same geometry rules as fuel/cargo).
