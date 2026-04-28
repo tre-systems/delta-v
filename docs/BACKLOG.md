@@ -70,6 +70,24 @@ plans for `deliverPassengers`, `preserveLandingLine`, `escortCarrier`,
 
 Remaining architecture tasks:
 
+**Decision inventory to finish the shift:**
+
+- **Astrogation:** named plans cover passenger/refuel overrides and scalar
+  order traces cover ordinary burns. Still missing rejected scalar burn
+  candidates plus emergency escort / transfer-formation orders as named
+  candidates.
+- **Logistics:** transfer selection is still mostly procedural. Convert
+  passenger and fuel transfers into named plans that consume
+  `AIDoctrineContext`.
+- **Ordnance:** nuke, torpedo, mine, race-role hold, and landing-line hold
+  decisions are still procedural. Wrap launch/hold decisions in named
+  `PlanDecision` candidates while keeping intercept geometry helpers local.
+- **Combat:** target choice and attack grouping have named plans. Still missing
+  named hold-fire threshold plans and anti-nuke grouping intent.
+- **Fleet building:** purchase search remains acceptable as bounded optimizer
+  / rules-gate logic unless a player-facing fleet-choice failure appears; do
+  not churn it only for architecture purity.
+
 1. **Complete combat doctrine plan extraction.** Ship and ordnance target
    ordering now flows through named combat target plans, including
    `interceptPassengerCarrier`, `finishAttrition`, `defendAgainstOrdnance`,
