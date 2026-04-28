@@ -109,6 +109,7 @@ Current named intents include:
 | `escortCarrier` | Drop objective navigation to screen a threatened carrier. |
 | `interceptPassengerCarrier` | Commit an interceptor toward an enemy carrier. |
 | `supportPassengerCarrier` | Keep a tanker aligned with the carrier. |
+| `transferPassengers` | Move passengers to a better carrier during logistics. |
 | `postCarrierLossPursuit` | Release ships to pursue after passenger delivery is impossible. |
 | `refuelAtReachableBase` | Divert to a reachable base instead of a tempting unreachable target. |
 | `defendAgainstOrdnance` | Prefer anti-ordnance fire when incoming ordnance is the threat. |

@@ -4,6 +4,7 @@ export type PlanIntent =
   | 'escortCarrier'
   | 'interceptPassengerCarrier'
   | 'supportPassengerCarrier'
+  | 'transferPassengers'
   | 'refuelAtReachableBase'
   | 'postCarrierLossPursuit'
   | 'completeCheckpointRoute'
