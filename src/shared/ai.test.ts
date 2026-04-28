@@ -1252,6 +1252,197 @@ describe('aiAstrogation', () => {
     expect(course.destination).toEqual({ q: 1, r: -1 });
   });
 
+  it('convoy: emergency escort avoids carrier burns that crash after a disabling hit', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('CONVOY-PAX-DISABLED-DRIFT-TRAP'),
+      findBaseHex,
+    );
+    const shipStates = new Map<
+      string,
+      {
+        lifecycle: 'active' | 'destroyed';
+        position: { q: number; r: number };
+        velocity: { dq: number; dr: number };
+        fuel: number;
+        cargoUsed: number;
+        disabledTurns: number;
+        passengersAboard?: number;
+        overloadUsed: boolean;
+        lastMovementPath: { q: number; r: number }[];
+        pendingGravityEffects?: NonNullable<
+          GameState['ships'][number]['pendingGravityEffects']
+        >;
+      }
+    >([
+      [
+        'p0s0',
+        {
+          lifecycle: 'active',
+          position: { q: -4, r: 7 },
+          velocity: { dq: 0, dr: 0 },
+          fuel: 4,
+          cargoUsed: 0,
+          disabledTurns: 0,
+          passengersAboard: 120,
+          overloadUsed: false,
+          lastMovementPath: [{ q: -4, r: 7 }],
+        },
+      ],
+      [
+        'p0s1',
+        {
+          lifecycle: 'active',
+          position: { q: -4, r: 7 },
+          velocity: { dq: 0, dr: 0 },
+          fuel: 26,
+          cargoUsed: 0,
+          disabledTurns: 0,
+          overloadUsed: false,
+          lastMovementPath: [{ q: -4, r: 7 }],
+        },
+      ],
+      [
+        'p0s2',
+        {
+          lifecycle: 'active',
+          position: { q: -2, r: 11 },
+          velocity: { dq: 2, dr: -1 },
+          fuel: 8,
+          cargoUsed: 40,
+          disabledTurns: 0,
+          overloadUsed: true,
+          lastMovementPath: [
+            { q: -4, r: 12 },
+            { q: -3, r: 12 },
+            { q: -2, r: 11 },
+          ],
+        },
+      ],
+      [
+        'p1s0',
+        {
+          lifecycle: 'active',
+          position: { q: -5, r: 6 },
+          velocity: { dq: 0, dr: 4 },
+          fuel: 9,
+          cargoUsed: 10,
+          disabledTurns: 0,
+          overloadUsed: true,
+          lastMovementPath: [
+            { q: -5, r: 2 },
+            { q: -5, r: 3 },
+            { q: -5, r: 4 },
+            { q: -5, r: 5 },
+            { q: -5, r: 6 },
+          ],
+          pendingGravityEffects: [
+            {
+              hex: { q: -5, r: 3 },
+              direction: 0,
+              bodyName: 'Sol',
+              strength: 'full',
+              ignored: false,
+            },
+            {
+              hex: { q: -5, r: 4 },
+              direction: 1,
+              bodyName: 'Sol',
+              strength: 'full',
+              ignored: false,
+            },
+            {
+              hex: { q: -5, r: 5 },
+              direction: 4,
+              bodyName: 'Venus',
+              strength: 'full',
+              ignored: false,
+            },
+            {
+              hex: { q: -5, r: 6 },
+              direction: 4,
+              bodyName: 'Venus',
+              strength: 'full',
+              ignored: false,
+            },
+          ],
+        },
+      ],
+      [
+        'p1s1',
+        {
+          lifecycle: 'destroyed',
+          position: { q: -8, r: 9 },
+          velocity: { dq: 0, dr: 0 },
+          fuel: 9,
+          cargoUsed: 10,
+          disabledTurns: 2,
+          overloadUsed: true,
+          lastMovementPath: [
+            { q: -9, r: 8 },
+            { q: -8, r: 8 },
+            { q: -8, r: 9 },
+          ],
+        },
+      ],
+      [
+        'p1s2',
+        {
+          lifecycle: 'destroyed',
+          position: { q: -7, r: -3 },
+          velocity: { dq: 0, dr: 0 },
+          fuel: 20,
+          cargoUsed: 0,
+          disabledTurns: 2,
+          overloadUsed: false,
+          lastMovementPath: [{ q: -7, r: -3 }],
+        },
+      ],
+    ]);
+
+    state.turnNumber = 17;
+    state.phase = 'astrogation';
+    state.activePlayer = 0;
+
+    for (const ship of state.ships) {
+      const next = must(shipStates.get(ship.id));
+      ship.lifecycle = next.lifecycle;
+      ship.position = next.position;
+      ship.velocity = next.velocity;
+      ship.fuel = next.fuel;
+      ship.cargoUsed = next.cargoUsed;
+      ship.damage = { disabledTurns: next.disabledTurns };
+      ship.lastMovementPath = next.lastMovementPath;
+      ship.pendingGravityEffects = next.pendingGravityEffects ?? [];
+      ship.detected = true;
+      ship.overloadUsed = next.overloadUsed;
+      ship.passengersAboard = next.passengersAboard;
+    }
+
+    const carrier = must(state.ships.find((ship) => ship.id === 'p0s0'));
+    const orders = aiAstrogation(state, 0, map, 'hard');
+    const carrierOrder = must(
+      orders.find((order) => order.shipId === carrier.id),
+    );
+    const course = computeCourse(carrier, carrierOrder.burn, map, {
+      destroyedBases: state.destroyedBases,
+    });
+    const disabledProjection = {
+      ...carrier,
+      position: course.destination,
+      velocity: course.newVelocity,
+      pendingGravityEffects: course.enteredGravityEffects,
+      damage: { disabledTurns: 1 },
+    };
+    const disabledDrift = computeCourse(disabledProjection, null, map, {
+      destroyedBases: state.destroyedBases,
+    });
+
+    expect(carrierOrder.burn).not.toBe(3);
+    expect(disabledDrift.outcome).not.toBe('crash');
+  });
+
   it('evacuation: remaining escort pursues raiders after the carrier is lost', () => {
     const fixture = loadAIFailureFixture(
       'evacuation-escort-after-carrier-loss-stall.json',

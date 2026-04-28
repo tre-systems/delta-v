@@ -940,6 +940,16 @@ const getPassengerEmergencyEscortOrders = (
       return -10_000;
     }
 
+    if (simulatedCarrier.damage.disabledTurns > 0) {
+      const disabledDrift = computeCourse(simulatedCarrier, null, map, {
+        destroyedBases: simulated.destroyedBases,
+      });
+
+      if (disabledDrift.outcome === 'crash') {
+        return -9_000;
+      }
+    }
+
     const distToTarget =
       targetHex == null ? 0 : hexDistance(simulatedCarrier.position, targetHex);
 
@@ -1005,6 +1015,24 @@ const getPassengerEmergencyEscortOrders = (
           carrierCourse.destination,
           escortCourse.destination,
         );
+        const disabledDriftCourse =
+          carrierCourse.outcome === 'normal' &&
+          carrierCourse.enteredGravityEffects.length > 0
+            ? computeCourse(
+                {
+                  ...primaryCarrier,
+                  position: carrierCourse.destination,
+                  velocity: carrierCourse.newVelocity,
+                  pendingGravityEffects: carrierCourse.enteredGravityEffects,
+                  damage: { ...primaryCarrier.damage, disabledTurns: 1 },
+                },
+                null,
+                map,
+                { destroyedBases: state.destroyedBases },
+              )
+            : null;
+        const disabledDriftCrashPenalty =
+          disabledDriftCourse?.outcome === 'crash' ? -1_400 : 0;
         const score =
           scoreCourse({
             ship: primaryCarrier,
@@ -1047,6 +1075,7 @@ const getPassengerEmergencyEscortOrders = (
             projectedCarrier,
             enemyShips,
           ) +
+          disabledDriftCrashPenalty +
           (spacing === 0 ? 220 : spacing === 1 ? 40 : -spacing * 30) +
           evaluateCandidateOutcome(
             {
