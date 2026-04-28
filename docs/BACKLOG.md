@@ -84,7 +84,7 @@ Remaining architecture tasks:
   hold and anti-nuke-reach rejection diagnostics in simulation captures while
   keeping intercept geometry helpers local.
 - **Combat:** target choice and attack grouping have named plans. Still missing
-  named hold-fire threshold plans and anti-nuke grouping intent.
+  anti-nuke grouping intent in simulation diagnostics.
 - **Fleet building:** purchase search remains acceptable as bounded optimizer
   / rules-gate logic unless a player-facing fleet-choice failure appears; do
   not churn it only for architecture purity.
@@ -93,11 +93,11 @@ Remaining architecture tasks:
    ordering now flows through named combat target plans, including
    `interceptPassengerCarrier`, `finishAttrition`, `defendAgainstOrdnance`,
    and `attackThreat`. Race-role attack grouping now flows through
-   `screenObjectiveRunner`. Remaining work is to move the remaining attack
-   threshold / hold-fire decisions and anti-nuke grouping into `PlanDecision`
-   candidates. Keep the low-level odds / range math in the combat module, but
-   make the strategic reason for firing or holding fire explicit and covered by
-   intent assertions.
+   `screenObjectiveRunner`, and low-odds / passenger-protection hold-fire now
+   has named plans. Remaining work is to expose anti-nuke grouping diagnostics
+   in simulation captures. Keep the low-level odds / range math in the combat
+   module, but make the strategic reason for firing or holding fire explicit
+   and covered by intent assertions.
 2. **Complete astrogation trace coverage.** Failure captures now include chosen
    and rejected named astrogation plan intents when a passenger, escort,
    interceptor, or refuel plan is applied, plus a generic scalar-course trace

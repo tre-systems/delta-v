@@ -12,6 +12,7 @@ import {
   buildAIDoctrineContext,
   buildAIFleetPurchases,
   chooseCombatAttackGroupPlan,
+  chooseCombatHoldFirePlan,
   chooseCombatTargetPlan,
   chooseLogisticsTransferPlan,
   chooseOrdnanceHoldPlan,
@@ -2005,6 +2006,40 @@ describe('aiCombat', () => {
         type: 'skipCombat',
         carrierShipId: carrier.id,
         reason: 'avoidAttritionFinish',
+      },
+    });
+  });
+  it('names low-odds combat hold-fire decisions', () => {
+    const attacker = createTestShip({
+      id: asShipId('hold-attacker'),
+      type: 'corvette',
+      owner: 0,
+      originalOwner: 0,
+      position: { q: 0, r: 0 },
+    });
+    const target = createTestShip({
+      id: asShipId('hold-target'),
+      type: 'frigate',
+      owner: 1,
+      originalOwner: 1,
+      position: { q: 6, r: 0 },
+      detected: true,
+    });
+    const input = {
+      targetId: target.id,
+      targetType: 'ship' as const,
+      enemyShip: target,
+      availableAttackers: [attacker],
+      shipRoles: new Map(),
+      minRollThreshold: 6,
+    };
+
+    expect(chooseCombatAttackGroupPlan(input)).toBeNull();
+    expect(chooseCombatHoldFirePlan(input, 'lowOdds').chosen).toMatchObject({
+      intent: 'attackThreat',
+      action: {
+        type: 'combatHoldFire',
+        reason: 'lowOdds',
       },
     });
   });
