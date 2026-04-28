@@ -45,6 +45,13 @@ export interface CombatAttackGroupPlanAction {
   attackStrength: null;
 }
 
+export interface CombatHoldFirePlanAction {
+  type: 'combatHoldFire';
+  targetId: ShipId | OrdnanceId;
+  targetType: 'ship' | 'ordnance';
+  reason: 'lowOdds' | 'protectPassengerCarrier';
+}
+
 const combatTargetIntent = (target: CombatTargetPlanInput): PlanIntent => {
   if (target.targetType === 'ordnance') {
     return 'defendAgainstOrdnance';
@@ -200,3 +207,38 @@ export const chooseCombatAttackGroupPlan = (
     },
   ]);
 };
+
+export const chooseCombatHoldFirePlan = (
+  input: CombatAttackGroupPlanInput,
+  reason: CombatHoldFirePlanAction['reason'],
+): PlanDecision<CombatHoldFirePlanAction> =>
+  chooseBestPlan([
+    {
+      id: `combat-hold-fire:${input.targetType}:${input.targetId}:${reason}`,
+      intent:
+        reason === 'protectPassengerCarrier'
+          ? 'deliverPassengers'
+          : 'attackThreat',
+      action: {
+        type: 'combatHoldFire',
+        targetId: input.targetId,
+        targetType: input.targetType,
+        reason,
+      },
+      evaluation: planEvaluation({
+        feasible: true,
+        objective: reason === 'protectPassengerCarrier' ? 45 : 0,
+        survival: reason === 'protectPassengerCarrier' ? 30 : 0,
+        risk: reason === 'lowOdds' ? 3 : 0,
+      }),
+      diagnostics: [
+        {
+          reason:
+            reason === 'protectPassengerCarrier'
+              ? 'hold passenger carrier out of unfavorable combat'
+              : 'hold fire because attack odds are below threshold',
+          detail: `${input.targetType}:${input.targetId}`,
+        },
+      ],
+    },
+  ]) as PlanDecision<CombatHoldFirePlanAction>;

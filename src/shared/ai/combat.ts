@@ -23,6 +23,7 @@ import { resolveAIConfig } from './config';
 import { buildAIDoctrineContext } from './doctrine';
 import {
   chooseCombatAttackGroupPlan,
+  chooseCombatHoldFirePlan,
   chooseCombatTargetPlan,
 } from './plans/combat';
 import { choosePassengerCombatPlan } from './plans/passenger';
@@ -309,7 +310,24 @@ export const aiCombat = (
         minRollThreshold,
       });
 
-      if (!attackGroupPlan) continue;
+      if (!attackGroupPlan) {
+        chooseCombatHoldFirePlan(
+          {
+            targetId: target.targetId,
+            targetType: target.targetType,
+            enemyShip: enemy,
+            availableAttackers,
+            shipRoles,
+            minRollThreshold,
+          },
+          availableAttackers.some(
+            (attacker) => (attacker.passengersAboard ?? 0) > 0,
+          )
+            ? 'protectPassengerCarrier'
+            : 'lowOdds',
+        );
+        continue;
+      }
 
       attacks.push({
         attackerIds: attackGroupPlan.chosen.action.attackerIds,

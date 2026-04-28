@@ -30,11 +30,13 @@ export {
 export type {
   CombatAttackGroupPlanAction,
   CombatAttackGroupPlanInput,
+  CombatHoldFirePlanAction,
   CombatTargetPlanAction,
   CombatTargetPlanInput,
 } from './plans/combat';
 export {
   chooseCombatAttackGroupPlan,
+  chooseCombatHoldFirePlan,
   chooseCombatTargetPlan,
 } from './plans/combat';
 export type { ReachableRefuelTargetAction } from './plans/navigation';
