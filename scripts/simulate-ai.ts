@@ -115,12 +115,14 @@ export type SimulationFailureKind =
   | 'fuelStall'
   | 'invalidAction'
   | 'objectiveDrift'
+  | 'passengerObjectiveFailure'
   | 'passengerTransferMistake';
 
 const SIMULATION_FAILURE_KINDS: readonly SimulationFailureKind[] = [
   'fuelStall',
   'invalidAction',
   'objectiveDrift',
+  'passengerObjectiveFailure',
   'passengerTransferMistake',
 ];
 
@@ -1029,6 +1031,36 @@ const runSingleGame = async (
       message: reason,
     });
   };
+  const recordPassengerObjectiveFailure = async (
+    reason: string | null,
+  ): Promise<void> => {
+    if (
+      !reason ||
+      !state.scenarioRules.targetWinRequiresPassengers ||
+      !reason.startsWith('Passenger objective failed')
+    ) {
+      return;
+    }
+
+    await recordFailure({
+      kind: 'passengerObjectiveFailure',
+      turnNumber: lastActionableCapture?.turnNumber ?? state.turnNumber,
+      phase: lastActionableCapture?.phase ?? state.phase,
+      activePlayer: lastActionableCapture?.activePlayer ?? state.activePlayer,
+      difficulty:
+        lastActionableCapture?.difficulty ??
+        (state.activePlayer === 0 ? p0Diff : p1Diff),
+      state: lastActionableCapture?.state ?? state,
+      action: lastActionableCapture?.action,
+      ...(lastActionableCapture?.planDecision
+        ? { planDecision: lastActionableCapture.planDecision }
+        : {}),
+      ...(lastActionableCapture?.planDecisions
+        ? { planDecisions: lastActionableCapture.planDecisions }
+        : {}),
+      message: reason,
+    });
+  };
 
   while (state.phase !== 'gameOver' && phaseLimit > 0) {
     const activePlayer = state.activePlayer;
@@ -1345,6 +1377,7 @@ const runSingleGame = async (
     };
   }
 
+  await recordPassengerObjectiveFailure(state.outcome?.reason ?? null);
   await recordObjectiveDrift(
     state.outcome?.winner ?? null,
     state.outcome?.reason ?? null,

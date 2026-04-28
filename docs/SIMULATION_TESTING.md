@@ -104,12 +104,13 @@ was 52.5% P0 decided, 96.875% Grand Tour completion, 3.125% fleet elimination,
 0 timeouts, 0 invalid actions, and 0 fuel stalls.
 
 **Failure captures.** Use `--capture-failures <dir>` to write bounded JSON
-snapshots for invalid built-in AI actions, fuel stalls, passenger-transfer
-mistakes, and objective-scenario drift such as fleet-elimination resolutions.
+snapshots for invalid built-in AI actions, fuel stalls, passenger-objective
+failures, passenger-transfer mistakes, and objective-scenario drift such as
+fleet-elimination resolutions.
 The default cap is 5 files; override it with `--capture-failures-limit N`.
 Use `--capture-failure-kind fuelStall` or a comma-separated list such as
-`--capture-failure-kind fuelStall,objectiveDrift` when building a focused
-fixture corpus for one recurring symptom.
+`--capture-failure-kind passengerObjectiveFailure,objectiveDrift` when building
+a focused fixture corpus for one recurring symptom.
 Captures include the seed, scenario, active player, proposed action when
 relevant, stalled ship ids or passenger-transfer diagnostics when relevant, and
 the full `GameState`. Combat captures include the chosen combat plan when one

@@ -568,5 +568,10 @@ describe('buildFailureCaptureManifestEntry', () => {
     expect(shouldCaptureFailureKind('fuelStall', ['objectiveDrift'])).toBe(
       false,
     );
+    expect(
+      shouldCaptureFailureKind('passengerObjectiveFailure', [
+        'passengerObjectiveFailure',
+      ]),
+    ).toBe(true);
   });
 });
