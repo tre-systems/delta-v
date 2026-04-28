@@ -23,9 +23,9 @@ Current 2026-04-28 checks:
 - `convoy 40 --seed 21`: 30% passenger deliveries, 70% objective
   resolutions, 30% fleet eliminations, 0 invalid actions, 0 transfer
   mistakes, 0 fuel stalls.
-- `convoy 200 --seed 21`: 21.5% passenger deliveries, 72% objective
+- `convoy 200 --seed 21`: 22% passenger deliveries, 71.5% objective
   resolutions, 27.5% fleet eliminations, 0 invalid actions, 0 transfer
-  mistakes, 8 fuel stalls.
+  mistakes, 0 fuel stalls.
 - `evacuation 40 --seed 21`: 80% passenger deliveries, 100% objective
   resolutions, average 2.1 turns, 80% P0 decided, 0 invalid actions, 0 fuel
   stalls.
@@ -33,14 +33,11 @@ Current 2026-04-28 checks:
 Action: continue promoting representative convoy and evacuation captures into
 fixtures, then improve carrier survival, raider interception, and landing-safe
 abort/refuel choices through named plans or bounded movement planning. The next
-useful slice is support behavior around Venus in larger samples: tankers and
-escorts can still hold station after separating from the carrier, which shows up
-as 8 fuel stalls in the 200-game convoy sweep. After that, continue near-target
-carrier survival: several remaining failures happen after the carrier is already
-disabled and under attack near Venus. Do not add broad scalar weights without a
-fixture proving the change generalizes. Use `--capture-failure-kind
-passengerObjectiveFailure,objectiveDrift` for convoy so carrier-loss states and
-fleet-elimination drift are both visible.
+useful slice is near-target carrier survival: several remaining failures happen
+after the carrier is already disabled and under attack near Venus. Do not add
+broad scalar weights without a fixture proving the change generalizes. Use
+`--capture-failure-kind passengerObjectiveFailure,objectiveDrift` for convoy so
+carrier-loss states and fleet-elimination drift are both visible.
 
 Acceptance: paired scorecards should improve passenger delivery quality or
 reduce fleet-elimination drift without increasing invalid actions, fuel stalls,
