@@ -302,11 +302,13 @@ then longer or more sophisticated scenarios.
 - Evacuees (transport + corvette from Luna) vs Interceptor (corsair from Terra).
 - Logistics and passenger-rescue rules enabled.
 - Victory requires landing survivors at Terra.
+- If no colonists survive on any evacuee ship, the interceptor wins immediately.
 
 ### Convoy (escort mission)
 
 - Escort (liner with passengers + tanker + frigate from Mars) vs Pirates (2 corsairs + 1 corvette).
 - Passenger rescue logistics enabled. Target-body win requires survivors aboard.
+- If no colonists survive on any escort ship, the pirates win immediately.
 
 ### Fleet Action
 

@@ -481,6 +481,47 @@ describe('checkGameEnd', () => {
     expect(state.outcome?.winner).toBe(0);
     expect(state.outcome?.reason).toContain('Fleet eliminated');
   });
+  it('ends passenger rescue scenarios when no colonists survive', () => {
+    map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('GE-PAX-LOST'),
+      findBaseHex,
+    );
+
+    for (const ship of state.ships.filter((s) => s.owner === 0)) {
+      ship.passengersAboard = undefined;
+    }
+
+    checkGameEnd(state, map);
+
+    expect(state.outcome?.winner).toBe(1);
+    expect(state.outcome?.reason).toContain('Passenger objective failed');
+  });
+  it('does not fail passenger rescue while any colonists survive', () => {
+    map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('GE-PAX-ALIVE'),
+      findBaseHex,
+    );
+    const liner = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'liner'),
+    );
+    const tanker = must(
+      state.ships.find((ship) => ship.owner === 0 && ship.type === 'tanker'),
+    );
+
+    liner.lifecycle = 'destroyed';
+    liner.passengersAboard = undefined;
+    tanker.passengersAboard = 1;
+
+    checkGameEnd(state, map);
+
+    expect(state.outcome).toBeNull();
+  });
 });
 describe('applyEscapeMoralVictory', () => {
   it('sets moral victory when an enforcer ship is destroyed', () => {

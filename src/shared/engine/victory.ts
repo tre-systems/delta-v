@@ -199,6 +199,42 @@ export const checkImmediateVictory = (
 export const getFugitiveShip = (state: GameState): Ship | undefined =>
   state.ships.find((ship) => ship.identity?.hasFugitives);
 
+const checkPassengerObjectiveFailure = (
+  state: GameState,
+  engineEvents?: EngineEvent[],
+): boolean => {
+  if (!state.scenarioRules.targetWinRequiresPassengers) {
+    return false;
+  }
+
+  for (const [playerId, player] of state.players.entries()) {
+    if (!player.targetBody) {
+      continue;
+    }
+
+    const hasSurvivingPassengers = state.ships.some(
+      (ship) =>
+        ship.owner === playerId &&
+        ship.lifecycle !== 'destroyed' &&
+        (ship.passengersAboard ?? 0) > 0,
+    );
+
+    if (hasSurvivingPassengers) {
+      continue;
+    }
+
+    setGameOutcome(
+      state,
+      (playerId === 0 ? 1 : 0) as PlayerId,
+      `Passenger objective failed — no colonists remain for ${player.targetBody}.`,
+      engineEvents,
+    );
+    return true;
+  }
+
+  return false;
+};
+
 // Check if the game has ended (victory or all ships destroyed).
 export const checkGameEnd = (
   state: GameState,
@@ -255,6 +291,10 @@ export const checkGameEnd = (
       return;
     }
 
+    return;
+  }
+
+  if (checkPassengerObjectiveFailure(state, engineEvents)) {
     return;
   }
 
