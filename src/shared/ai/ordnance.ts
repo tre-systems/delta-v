@@ -43,6 +43,10 @@ import { maxBy, minBy } from '../util';
 import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
 import { buildAIDoctrineContext } from './doctrine';
+import {
+  chooseOrdnanceHoldPlan,
+  chooseOrdnanceLaunchPlan,
+} from './plans/ordnance';
 import type { AIDifficulty } from './types';
 
 interface ScoredEnemyTarget {
@@ -56,6 +60,16 @@ interface ScoredEnemyTarget {
 type InterceptResult = {
   hasIntercept: boolean;
   turnsToIntercept: number;
+};
+
+const appendLaunchPlan = (
+  launches: OrdnanceLaunch[],
+  launch: OrdnanceLaunch,
+  priority: number,
+): void => {
+  const plan = chooseOrdnanceLaunchPlan(launch, priority);
+
+  if (plan) launches.push(plan.chosen.action.launch);
 };
 
 // Rulebook ordnance prices (Triplanetary 2018, equipment table): nuke 300 MCr,
@@ -900,6 +914,7 @@ export const aiOrdnance = (
       shipRole === 'race' && hasRoleCover && bestEnemyCurrentDist > 2;
 
     if (shouldPreserveRaceRole) {
+      chooseOrdnanceHoldPlan(ship.id, 'preserveObjectiveRunner');
       continue;
     }
 
@@ -1000,12 +1015,16 @@ export const aiOrdnance = (
         antiNukeGateOk &&
         expectedDamageGateOk
       ) {
-        launches.push({
-          shipId: ship.id,
-          ordnanceType: 'nuke',
-          torpedoAccel: null,
-          torpedoAccelSteps: null,
-        });
+        appendLaunchPlan(
+          launches,
+          {
+            shipId: ship.id,
+            ordnanceType: 'nuke',
+            torpedoAccel: null,
+            torpedoAccelSteps: null,
+          },
+          bestEnemyTarget.score,
+        );
         continue;
       }
     }
@@ -1016,12 +1035,16 @@ export const aiOrdnance = (
       canLaunchTorpedo
     ) {
       const bestDir = torpedoVector?.direction ?? 0;
-      launches.push({
-        shipId: ship.id,
-        ordnanceType: 'torpedo',
-        torpedoAccel: bestDir,
-        torpedoAccelSteps: torpedoVector?.steps ?? 1,
-      });
+      appendLaunchPlan(
+        launches,
+        {
+          shipId: ship.id,
+          ordnanceType: 'torpedo',
+          torpedoAccel: bestDir,
+          torpedoAccelSteps: torpedoVector?.steps ?? 1,
+        },
+        bestEnemyTarget.score,
+      );
       continue;
     }
 
@@ -1030,12 +1053,16 @@ export const aiOrdnance = (
       nearestDist <= mineRange &&
       canLaunchMine
     ) {
-      launches.push({
-        shipId: ship.id,
-        ordnanceType: 'mine',
-        torpedoAccel: null,
-        torpedoAccelSteps: null,
-      });
+      appendLaunchPlan(
+        launches,
+        {
+          shipId: ship.id,
+          ordnanceType: 'mine',
+          torpedoAccel: null,
+          torpedoAccelSteps: null,
+        },
+        bestEnemyTarget.score,
+      );
       continue;
     }
 
@@ -1045,12 +1072,16 @@ export const aiOrdnance = (
       const speed = hexVecLength(ship.velocity);
 
       if (speed >= 2 && difficulty !== 'easy') {
-        launches.push({
-          shipId: ship.id,
-          ordnanceType: 'mine',
-          torpedoAccel: null,
-          torpedoAccelSteps: null,
-        });
+        appendLaunchPlan(
+          launches,
+          {
+            shipId: ship.id,
+            ordnanceType: 'mine',
+            torpedoAccel: null,
+            torpedoAccelSteps: null,
+          },
+          nearestDist,
+        );
       }
     }
   }

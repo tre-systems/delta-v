@@ -40,6 +40,15 @@ export {
 export type { ReachableRefuelTargetAction } from './plans/navigation';
 export { chooseReachableRefuelTargetPlan } from './plans/navigation';
 export type {
+  OrdnanceHoldPlanAction,
+  OrdnanceLaunchPlanAction,
+} from './plans/ordnance';
+export {
+  chooseOrdnanceHoldPlan,
+  chooseOrdnanceLaunchPlan,
+  ordnanceLaunchIntent,
+} from './plans/ordnance';
+export type {
   PassengerCarrierEscortTargetAction,
   PassengerCarrierInterceptAction,
   PassengerCombatPlanAction,

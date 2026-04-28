@@ -11,6 +11,9 @@ export type PlanIntent =
   | 'screenObjectiveRunner'
   | 'finishAttrition'
   | 'defendAgainstOrdnance'
+  | 'launchNuke'
+  | 'launchTorpedo'
+  | 'deployMine'
   | 'attackThreat';
 
 export interface PlanEvaluation {
