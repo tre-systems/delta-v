@@ -73,11 +73,12 @@ Remaining architecture tasks:
 1. **Complete combat doctrine plan extraction.** Ship and ordnance target
    ordering now flows through named combat target plans, including
    `interceptPassengerCarrier`, `finishAttrition`, `defendAgainstOrdnance`,
-   and `attackThreat`. Remaining work is to move attack grouping / threshold
-   decisions such as `screenObjectiveRunner`, race-role restraint, and
-   anti-nuke grouping into `PlanDecision` candidates. Keep the low-level odds /
-   range math in the combat module, but make the strategic reason for firing or
-   holding fire explicit and covered by intent assertions.
+   and `attackThreat`. Race-role attack grouping now flows through
+   `screenObjectiveRunner`. Remaining work is to move the remaining attack
+   threshold / hold-fire decisions and anti-nuke grouping into `PlanDecision`
+   candidates. Keep the low-level odds / range math in the combat module, but
+   make the strategic reason for firing or holding fire explicit and covered by
+   intent assertions.
 2. **Complete astrogation trace coverage.** Failure captures now include chosen
    and rejected named astrogation plan intents when a passenger, escort,
    interceptor, or refuel plan is applied. Remaining work is to trace the

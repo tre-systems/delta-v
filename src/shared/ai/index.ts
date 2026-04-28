@@ -27,10 +27,15 @@ export {
   planEvaluation,
 } from './plans';
 export type {
+  CombatAttackGroupPlanAction,
+  CombatAttackGroupPlanInput,
   CombatTargetPlanAction,
   CombatTargetPlanInput,
 } from './plans/combat';
-export { chooseCombatTargetPlan } from './plans/combat';
+export {
+  chooseCombatAttackGroupPlan,
+  chooseCombatTargetPlan,
+} from './plans/combat';
 export type { ReachableRefuelTargetAction } from './plans/navigation';
 export { chooseReachableRefuelTargetPlan } from './plans/navigation';
 export type {
