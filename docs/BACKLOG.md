@@ -68,7 +68,7 @@ plans for `deliverPassengers`, `preserveLandingLine`, `escortCarrier`,
 `interceptPassengerCarrier`, `supportPassengerCarrier`,
 `postCarrierLossPursuit`, and `refuelAtReachableBase`.
 
-Remaining architecture tasks:
+Current architecture state:
 
 **Decision inventory to finish the shift:**
 
@@ -76,9 +76,8 @@ Remaining architecture tasks:
   escort, and transfer formation orders. Scalar order traces cover ordinary
   burns, including top rejected scalar burn candidates.
 - **Logistics:** transfer selection now emits named passenger/fuel transfer
-  plans that consume `AIDoctrineContext`. Remaining logistics work is to split
-  the plan module by responsibility and add traces to simulation captures if a
-  logistics-specific failure needs them.
+  plans that consume `AIDoctrineContext`. Add logistics-specific capture traces
+  only if a concrete logistics failure needs them.
 - **Ordnance:** nuke, torpedo, mine, and race-role hold decisions now have
   named plan candidates. Launches, race-role holds, and anti-nuke-reach
   rejections now flow into simulation captures. Remaining ordnance work is to
@@ -90,19 +89,12 @@ Remaining architecture tasks:
   / rules-gate logic unless a player-facing fleet-choice failure appears; do
   not churn it only for architecture purity.
 
-1. **Finish passenger doctrine coordinator adoption.** Evacuation and convoy
-   failures cross phase boundaries: route choice, escort screen, ordnance, and
-   combat affect each other. A shared turn context now identifies the primary
-   passenger carrier, active threat, landing window, and ship roles for
-   astrogation, ordnance, combat, logistics, and the passenger plan helpers
-   that need carrier/threat context. Astrogation's emergency escort planner now
-   consumes that shared context instead of recomputing carrier, threat, and
-   role state; remaining work is to route future passenger fixes through the
-   same context instead of adding phase-local rediscovery.
-2. **Split passenger plan modules by responsibility.** Break
-   `plans/passenger.ts` into narrower modules such as delivery, escort,
-   intercept, and combat once the next behavior fix touches that area. Avoid a
-   pure file shuffle; do it when a concrete fixture needs the split.
+The passenger plan surface is split by responsibility behind the stable
+`plans/passenger.ts` barrel: combat holds, carrier support/delivery approach,
+escort navigation overrides, interceptor pursuit, shared passenger helpers,
+and action types. Future passenger fixes should extend the relevant narrow
+module and consume `AIDoctrineContext` instead of rediscovering carrier,
+threat, and role state.
 
 **Files:** new `src/shared/ai/plans/`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/combat.ts`, `src/shared/ai/logistics.ts`,

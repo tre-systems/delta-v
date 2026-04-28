@@ -62,6 +62,7 @@ difficulty, and RNG stream. Do not use `Math.random()`.
 | `src/shared/ai/logistics.ts` | Role assignment, passenger value, and transfer choices. |
 | `src/shared/ai/fleet.ts` | Fleet purchase search and purchase preferences. |
 | `src/shared/ai/plans/` | Named doctrine decisions with comparable plan evaluations. |
+| `src/shared/ai/plans/passenger.ts` | Stable passenger-plan barrel; implementation is split under `plans/passenger/`. |
 
 ## Decision Layers
 
