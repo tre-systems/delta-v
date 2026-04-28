@@ -319,6 +319,7 @@ interface ScenarioRules {
   escapeEdge?: 'any' | 'north';
   combatDisabled?: boolean;
   checkpointBodies?: string[];
+  randomizeStartingPlayer?: boolean;
   sharedBases?: string[];
   logisticsEnabled?: boolean;
   passengerRescueEnabled?: boolean;

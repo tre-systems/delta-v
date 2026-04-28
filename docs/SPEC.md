@@ -289,6 +289,7 @@ then longer or more sophisticated scenarios.
 - Must pass through at least one gravity hex of each major body (Sol, Mercury, Venus, Terra, Mars, Jupiter, Io, Callisto) and return to land at the starting world.
 - No combat — pure navigation and gravity management.
 - Shared bases at Terra, Venus, Mars, and Callisto.
+- Starting player is randomized at game creation to avoid a fixed turn-order edge in the race.
 
 ### Escape (asymmetric)
 
