@@ -21,7 +21,7 @@ const STANDARD_SCENARIO_CASES: ScenarioSmokeCase[] = [
         'Tour:',
       );
       await expect(page.locator('[data-testid="objective"]')).toContainText(
-        '/8',
+        '/9',
       );
     },
   },
