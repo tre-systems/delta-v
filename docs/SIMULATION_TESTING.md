@@ -105,8 +105,9 @@ the full `GameState`. Combat captures include the chosen combat plan when one
 applies. Astrogation captures include `planDecisions` for named passenger,
 escort, interceptor, and refuel plans, including each chosen intent and the top
 rejected candidates. Ordinary scalar-scored astrogation orders also emit a
-chosen-order trace so captures show why each ship moved even when no named plan
-overrode the local course score. The capture directory also gets a
+chosen-order trace with top rejected scalar burn candidates so captures show
+why each ship moved even when no named plan overrode the local course score. The
+capture directory also gets a
 `capture-manifest.json` sidecar with one compact row per file, so reviewers can
 scan captured failure kinds without opening full states. To promote a capture,
 copy the JSON into a focused `__fixtures__` path and assert the decision class
