@@ -28,6 +28,7 @@ import {
   OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY,
   OFFICIAL_QUICK_MATCH_BOT_USERNAME,
 } from '../../shared/player';
+import { mulberry32 } from '../../shared/prng';
 import type { ReplayTimeline } from '../../shared/replay';
 import {
   appendEnvelopedEvents,
@@ -908,6 +909,7 @@ describe('GameDO', () => {
       buildSolarSystemMap(),
       asGameId('SAVE1'),
       findBaseHex,
+      mulberry32(0),
     );
 
     await (
