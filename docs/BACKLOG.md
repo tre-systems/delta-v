@@ -20,22 +20,30 @@ well enough that the intended passenger objective produces credible play.
 
 Current 2026-04-28 checks:
 
-- `convoy 40 --seed 21`: 30% passenger deliveries, 70% objective
-  resolutions, 30% fleet eliminations, 0 invalid actions, 0 transfer
+- `convoy 40 --seed 21`: 27.5% passenger deliveries, 65% objective
+  resolutions, 35% fleet eliminations, 0 invalid actions, 0 transfer
   mistakes, 0 fuel stalls.
-- `convoy 200 --seed 21`: 22.5% passenger deliveries, 71.5% objective
-  resolutions, 27.5% fleet eliminations, 0 invalid actions, 0 transfer
-  mistakes, 0 fuel stalls.
+- `convoy 80 --seed 21`: 31.25% passenger deliveries, 70% objective
+  resolutions, 30% fleet eliminations, 0 timeouts, 0 invalid actions, 0
+  transfer mistakes, 0 fuel stalls.
+- `convoy 200 --seed 21`: 24.5% passenger deliveries, 71% objective
+  resolutions, 29% fleet eliminations, 0 timeouts, 0 invalid actions, 0
+  transfer mistakes, 0 fuel stalls.
 - `evacuation 40 --seed 21`: 80% passenger deliveries, 100% objective
   resolutions, average 2.1 turns, 80% P0 decided, 0 invalid actions, 0 fuel
   stalls.
+- `evacuation 80 --seed 21`: 76.25% passenger deliveries, 100% objective
+  resolutions, average 2.075 turns, 76.25% P0 decided, 0 invalid actions, 0
+  fuel stalls.
 
 Action: continue promoting representative convoy and evacuation captures into
 fixtures, then improve carrier survival, raider interception, and landing-safe
-abort/refuel choices through named plans or bounded movement planning. The next
-useful slice is near-target carrier survival: several remaining failures happen
-after the carrier is already disabled and under attack near Venus. Do not add
-broad scalar weights without a fixture proving the change generalizes. Use
+abort/refuel choices through named plans or bounded movement planning. Recent
+work taught the emergency escort lookahead to avoid carrier courses that become
+crash-doomed if the carrier is disabled on the following combat pass. The next
+useful slice is reducing the remaining convoy fleet-elimination drift without
+undoing the higher 200-game passenger delivery rate. Do not add broad scalar
+weights without a fixture proving the change generalizes. Use
 `--capture-failure-kind passengerObjectiveFailure,objectiveDrift` for convoy so
 carrier-loss states and fleet-elimination drift are both visible.
 
