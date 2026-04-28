@@ -249,7 +249,7 @@ The intent-first shift is successful but incomplete:
   candidates.
 - Passenger doctrine has a shared turn context, and emergency escort planning
   now consumes that context for carrier, threat, and role state. Passenger
-  carriers also use three-turn bounded map-continuation checks before accepting
+  carriers also use four-turn bounded map-continuation checks before accepting
   a course, so short-term target progress cannot win if every near follow-up
   leaves the carrier off-map or in a delayed gravity trap. Tankers mirror a
   stacked carrier and regroup toward the carrier's projected position after
