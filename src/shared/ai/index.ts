@@ -10,7 +10,8 @@ export {
   buildPassengerDoctrineContext,
 } from './doctrine';
 export { buildAIFleetPurchases } from './fleet';
-export { aiLogistics } from './logistics';
+export type { LogisticsTransferPlanAction } from './logistics';
+export { aiLogistics, chooseLogisticsTransferPlan } from './logistics';
 export { aiOrdnance } from './ordnance';
 export type {
   PlanCandidate,

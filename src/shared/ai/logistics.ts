@@ -19,6 +19,13 @@ import {
   planShortHorizonMovementToHex,
 } from './common';
 import { AI_CONFIG, type AIDifficultyConfig } from './config';
+import { type AIDoctrineContext, buildAIDoctrineContext } from './doctrine';
+import {
+  chooseBestPlan,
+  type PlanCandidate,
+  type PlanDecision,
+  planEvaluation,
+} from './plans';
 import { scoreCourse } from './scoring';
 import type { AIDifficulty } from './types';
 
@@ -476,143 +483,198 @@ type LogisticsCandidate = {
   score: number;
 };
 
-const selectLogisticsTransfer = (
+export interface LogisticsTransferPlanAction {
+  type: 'logisticsTransfer';
+  transfer: TransferOrder;
+}
+
+export const chooseLogisticsTransferPlan = (
   state: GameState,
   playerId: PlayerId,
   map: SolarSystemMap,
-): LogisticsCandidate | null => {
+  doctrine: AIDoctrineContext = buildAIDoctrineContext(state, playerId, map),
+): PlanDecision<LogisticsTransferPlanAction> | null => {
   const player = state.players[playerId];
-  const candidates = getTransferEligiblePairs(state, playerId)
-    .map<LogisticsCandidate | null>((pair) => {
-      let bestScore = -Infinity;
-      let bestTransfer: TransferOrder | null = null;
+  const candidates = getTransferEligiblePairs(state, playerId).flatMap<
+    PlanCandidate<LogisticsTransferPlanAction>
+  >((pair) => {
+    let bestScore = -Infinity;
+    let bestTransfer: TransferOrder | null = null;
+    let reason = '';
 
-      if (pair.canTransferPassengers) {
-        const sourcePassengers = pair.source.passengersAboard ?? 0;
-        const partialTransfer = pair.maxPassengers < sourcePassengers;
-        const threatenedDuringCombat =
-          deriveCapabilities(state.scenarioRules).targetWinRequiresPassengers &&
-          partialTransfer &&
-          pair.source.damage.disabledTurns === 0 &&
-          state.ships.some(
-            (enemy) =>
-              enemy.owner !== playerId &&
-              enemy.lifecycle !== 'destroyed' &&
-              canAttack(enemy) &&
-              (hasLineOfSight(enemy, pair.source, map) ||
-                hasLineOfSight(enemy, pair.target, map)),
-          );
+    if (pair.canTransferPassengers) {
+      const sourcePassengers = pair.source.passengersAboard ?? 0;
+      const partialTransfer = pair.maxPassengers < sourcePassengers;
+      const threatenedDuringCombat =
+        deriveCapabilities(state.scenarioRules).targetWinRequiresPassengers &&
+        partialTransfer &&
+        pair.source.damage.disabledTurns === 0 &&
+        state.ships.some(
+          (enemy) =>
+            enemy.owner !== playerId &&
+            enemy.lifecycle !== 'destroyed' &&
+            canAttack(enemy) &&
+            (hasLineOfSight(enemy, pair.source, map) ||
+              hasLineOfSight(enemy, pair.target, map)),
+        );
 
-        if (!threatenedDuringCombat) {
-          const sourceValue = scorePassengerCarrier(
-            pair.source,
-            playerId,
-            state,
-            map,
-          );
-          const targetValue = scorePassengerCarrier(
-            pair.target,
-            playerId,
-            state,
-            map,
-          );
-          const sourceArrival = scorePassengerArrivalOdds(
-            pair.source,
-            playerId,
-            state,
-            map,
-          );
-          const targetArrival = scorePassengerArrivalOdds(
-            pair.target,
-            playerId,
-            state,
-            map,
-          );
-          const sourceCanFight = canAttack(pair.source);
-          const targetCanFight = canAttack(pair.target);
-          const sourceCompromised =
-            pair.source.damage.disabledTurns > 0 ||
-            pair.source.control !== 'own' ||
-            pair.source.lifecycle !== 'active';
-          const preservesArrival = targetArrival >= sourceArrival - 15;
-          const improvesArrival = targetArrival >= sourceArrival + 20;
-
-          if (
-            (sourceCompromised &&
-              targetValue > sourceValue + 10 &&
-              targetArrival >= sourceArrival - 40) ||
-            (!sourceCanFight && targetCanFight && preservesArrival) ||
-            (sourceCanFight === targetCanFight &&
-              targetValue > sourceValue + 10 &&
-              improvesArrival)
-          ) {
-            const passengerScore =
-              220 +
-              (targetValue - sourceValue) +
-              (pair.source.damage.disabledTurns > 0 ? 160 : 0) +
-              (pair.source.type === 'liner' || pair.source.type === 'transport'
-                ? 40
-                : 0) +
-              (!sourceCanFight && targetCanFight ? 60 : 0);
-
-            if (passengerScore > bestScore) {
-              bestScore = passengerScore;
-              bestTransfer = {
-                sourceShipId: pair.source.id,
-                targetShipId: pair.target.id,
-                transferType: 'passengers',
-                amount: pair.maxPassengers,
-              };
-            }
-          }
-        }
-      }
-
-      if (pair.canTransferFuel) {
-        const desiredFuel = estimateDesiredFuel(
+      if (!threatenedDuringCombat) {
+        const sourceValue = scorePassengerCarrier(
+          pair.source,
+          playerId,
+          state,
+          map,
+        );
+        const targetValue = scorePassengerCarrier(
           pair.target,
           playerId,
           state,
           map,
         );
-        const sourceReserve =
-          pair.source.owner === playerId
-            ? estimateDesiredFuel(pair.source, playerId, state, map)
-            : 0;
-        const usefulFuel = Math.min(
-          pair.maxFuel,
-          Math.max(0, desiredFuel - pair.target.fuel),
-          Math.max(0, pair.source.fuel - sourceReserve),
+        const sourceArrival = scorePassengerArrivalOdds(
+          pair.source,
+          playerId,
+          state,
+          map,
         );
+        const targetArrival = scorePassengerArrivalOdds(
+          pair.target,
+          playerId,
+          state,
+          map,
+        );
+        const sourceCanFight = canAttack(pair.source);
+        const targetCanFight = canAttack(pair.target);
+        const sourceCompromised =
+          pair.source.damage.disabledTurns > 0 ||
+          pair.source.control !== 'own' ||
+          pair.source.lifecycle !== 'active';
+        const preservesArrival = targetArrival >= sourceArrival - 15;
+        const improvesArrival = targetArrival >= sourceArrival + 20;
 
-        if (usefulFuel > 0) {
-          const fuelScore =
-            40 +
-            usefulFuel * 8 +
-            (pair.source.type === 'tanker' ? 35 : 0) +
-            (pair.source.owner !== playerId ? 60 : 0) +
-            (pair.target.passengersAboard != null ? 30 : 0) +
-            (player.targetBody ? 15 : 0);
+        if (
+          (sourceCompromised &&
+            targetValue > sourceValue + 10 &&
+            targetArrival >= sourceArrival - 40) ||
+          (!sourceCanFight && targetCanFight && preservesArrival) ||
+          (sourceCanFight === targetCanFight &&
+            targetValue > sourceValue + 10 &&
+            improvesArrival)
+        ) {
+          const passengerScore =
+            220 +
+            (targetValue - sourceValue) +
+            (pair.source.damage.disabledTurns > 0 ? 160 : 0) +
+            (pair.source.type === 'liner' || pair.source.type === 'transport'
+              ? 40
+              : 0) +
+            (!sourceCanFight && targetCanFight ? 60 : 0);
 
-          if (fuelScore > bestScore) {
-            bestScore = fuelScore;
+          if (passengerScore > bestScore) {
+            bestScore = passengerScore;
+            reason = targetCanFight
+              ? 'move passengers to stronger combat-capable carrier'
+              : 'move passengers to better arrival carrier';
             bestTransfer = {
               sourceShipId: pair.source.id,
               targetShipId: pair.target.id,
-              transferType: 'fuel',
-              amount: usefulFuel,
+              transferType: 'passengers',
+              amount: pair.maxPassengers,
             };
           }
         }
       }
+    }
 
-      return bestTransfer == null
-        ? null
-        : { transfer: bestTransfer, score: bestScore };
-    })
-    .filter((candidate): candidate is LogisticsCandidate => candidate != null);
+    if (pair.canTransferFuel) {
+      const desiredFuel = estimateDesiredFuel(
+        pair.target,
+        playerId,
+        state,
+        map,
+      );
+      const sourceReserve =
+        pair.source.owner === playerId
+          ? estimateDesiredFuel(pair.source, playerId, state, map)
+          : 0;
+      const usefulFuel = Math.min(
+        pair.maxFuel,
+        Math.max(0, desiredFuel - pair.target.fuel),
+        Math.max(0, pair.source.fuel - sourceReserve),
+      );
 
-  return maxBy(candidates, (candidate) => candidate.score) ?? null;
+      if (usefulFuel > 0) {
+        const fuelScore =
+          40 +
+          usefulFuel * 8 +
+          (pair.source.type === 'tanker' ? 35 : 0) +
+          (pair.source.owner !== playerId ? 60 : 0) +
+          (pair.target.passengersAboard != null ? 30 : 0) +
+          (player.targetBody ? 15 : 0);
+
+        if (fuelScore > bestScore) {
+          bestScore = fuelScore;
+          reason =
+            pair.target.id === doctrine.passenger.primaryCarrier?.id
+              ? 'refuel primary passenger carrier'
+              : 'refuel ship for objective route';
+          bestTransfer = {
+            sourceShipId: pair.source.id,
+            targetShipId: pair.target.id,
+            transferType: 'fuel',
+            amount: usefulFuel,
+          };
+        }
+      }
+    }
+
+    if (bestTransfer == null) return [];
+
+    const intent =
+      bestTransfer.transferType === 'passengers'
+        ? 'transferPassengers'
+        : 'supportPassengerCarrier';
+
+    return [
+      {
+        id: `logistics-transfer:${bestTransfer.transferType}:${bestTransfer.sourceShipId}:${bestTransfer.targetShipId}`,
+        intent,
+        action: {
+          type: 'logisticsTransfer',
+          transfer: bestTransfer,
+        },
+        priority: bestScore,
+        evaluation: planEvaluation({
+          feasible: true,
+          effort: 1,
+        }),
+        diagnostics: [
+          {
+            reason,
+            detail: `${bestTransfer.sourceShipId} -> ${bestTransfer.targetShipId}`,
+          },
+        ],
+      },
+    ];
+  });
+
+  return chooseBestPlan(candidates);
+};
+
+const selectLogisticsTransfer = (
+  state: GameState,
+  playerId: PlayerId,
+  map: SolarSystemMap,
+  doctrine: AIDoctrineContext,
+): LogisticsCandidate | null => {
+  const plan = chooseLogisticsTransferPlan(state, playerId, map, doctrine);
+
+  return plan == null
+    ? null
+    : {
+        transfer: plan.chosen.action.transfer,
+        score: plan.chosen.priority ?? 0,
+      };
 };
 
 const applyTransferToState = (
@@ -794,7 +856,8 @@ export const aiLogistics = (
   const transfers: TransferOrder[] = [];
 
   while (transfers.length < maxTransfers) {
-    const best = selectLogisticsTransfer(workingState, playerId, map);
+    const doctrine = buildAIDoctrineContext(workingState, playerId, map);
+    const best = selectLogisticsTransfer(workingState, playerId, map, doctrine);
 
     if (!best || best.score <= 0) {
       break;
