@@ -149,6 +149,19 @@ export interface SimulationPlanDecisionTrace {
   rejected: SimulationPlanCandidateTrace[];
 }
 
+export interface SimulationActionableCapture {
+  kind: 'objectiveDrift';
+  turnNumber: number;
+  phase: Phase;
+  activePlayer: PlayerId;
+  difficulty: AIDifficulty;
+  state: GameState;
+  action?: unknown;
+  planDecision?: SimulationPlanDecisionTrace;
+  planDecisions?: SimulationPlanDecisionTrace[];
+  astrogationCrashShipIds?: string[];
+}
+
 export interface SimulationFailureCapture {
   schemaVersion: 1;
   kind: SimulationFailureKind;
@@ -165,6 +178,7 @@ export interface SimulationFailureCapture {
   planDecision?: SimulationPlanDecisionTrace;
   planDecisions?: SimulationPlanDecisionTrace[];
   astrogationCrashShipIds?: string[];
+  priorActionableCaptures?: SimulationActionableCapture[];
   stalledShipIds?: string[];
   passengerTransferMistakes?: PassengerTransferMistake[];
   message?: string;
@@ -182,6 +196,7 @@ export interface SimulationFailureCaptureManifestEntry {
   difficulty: AIDifficulty;
   message?: string;
   astrogationCrashShipIds?: string[];
+  priorActionableCount?: number;
   stalledShipIds?: string[];
   passengerTransferMistakeCount?: number;
   chosenPlanIntent?: PlanIntent;
@@ -431,6 +446,9 @@ export const buildFailureCaptureManifestEntry = (
     ...(capture.message ? { message: capture.message } : {}),
     ...(capture.astrogationCrashShipIds
       ? { astrogationCrashShipIds: capture.astrogationCrashShipIds }
+      : {}),
+    ...(capture.priorActionableCaptures
+      ? { priorActionableCount: capture.priorActionableCaptures.length }
       : {}),
     ...(capture.stalledShipIds
       ? { stalledShipIds: capture.stalledShipIds }
@@ -1021,10 +1039,8 @@ const runSingleGame = async (
   }
 
   let state: GameState = createResult.value;
-  let lastActionableCapture: Omit<
-    SimulationFailureCapture,
-    'schemaVersion' | 'scenario' | 'seed' | 'gameIndex' | 'playerDifficulties'
-  > | null = null;
+  let lastActionableCapture: SimulationActionableCapture | null = null;
+  const actionableHistory: SimulationActionableCapture[] = [];
 
   // Randomize starting player to cancel out first-mover bias
   // across many games. Reveals true faction/position balance.
@@ -1093,6 +1109,27 @@ const runSingleGame = async (
 
   const captureActionableState = (): GameState =>
     captureFailure ? structuredClone(state) : state;
+  const rememberActionableCapture = (
+    capture: SimulationActionableCapture,
+  ): void => {
+    lastActionableCapture = capture;
+
+    if (!captureFailure) return;
+
+    actionableHistory.push(structuredClone(capture));
+    if (actionableHistory.length > 4) {
+      actionableHistory.shift();
+    }
+  };
+  const getPriorActionableCaptures = ():
+    | SimulationActionableCapture[]
+    | undefined => {
+    if (!captureFailure || actionableHistory.length <= 1) return undefined;
+
+    return actionableHistory
+      .slice(0, -1)
+      .map((capture) => structuredClone(capture));
+  };
 
   const recordObjectiveDrift = async (
     winner: PlayerId | null,
@@ -1106,6 +1143,8 @@ const runSingleGame = async (
     ) {
       return;
     }
+
+    const priorActionableCaptures = getPriorActionableCaptures();
 
     await recordFailure({
       kind: 'objectiveDrift',
@@ -1129,6 +1168,7 @@ const runSingleGame = async (
               lastActionableCapture.astrogationCrashShipIds,
           }
         : {}),
+      ...(priorActionableCaptures ? { priorActionableCaptures } : {}),
       message: reason,
     });
   };
@@ -1142,6 +1182,8 @@ const runSingleGame = async (
     ) {
       return;
     }
+
+    const priorActionableCaptures = getPriorActionableCaptures();
 
     await recordFailure({
       kind: 'passengerObjectiveFailure',
@@ -1165,6 +1207,7 @@ const runSingleGame = async (
               lastActionableCapture.astrogationCrashShipIds,
           }
         : {}),
+      ...(priorActionableCaptures ? { priorActionableCaptures } : {}),
       message: reason,
     });
   };
@@ -1197,7 +1240,7 @@ const runSingleGame = async (
           orders,
           map,
         );
-        lastActionableCapture = {
+        rememberActionableCapture({
           kind: 'objectiveDrift',
           turnNumber: state.turnNumber,
           phase: state.phase,
@@ -1209,7 +1252,7 @@ const runSingleGame = async (
           ...(astrogationCrashShipIds.length > 0
             ? { astrogationCrashShipIds }
             : {}),
-        };
+        });
         const stalledShipIds = findFuelStallShipIds(
           state,
           activePlayer,
@@ -1264,7 +1307,7 @@ const runSingleGame = async (
             if (planDecision) ordnancePlanDecisions.push(planDecision);
           },
         );
-        lastActionableCapture = {
+        rememberActionableCapture({
           kind: 'objectiveDrift',
           turnNumber: state.turnNumber,
           phase: state.phase,
@@ -1278,7 +1321,7 @@ const runSingleGame = async (
           ...(ordnancePlanDecisions.length > 0
             ? { planDecisions: ordnancePlanDecisions }
             : {}),
-        };
+        });
 
         if (launches.length > 0) {
           const result = processOrdnance(
@@ -1315,7 +1358,7 @@ const runSingleGame = async (
         }
       } else if (state.phase === 'logistics') {
         const transfers = aiLogistics(state, activePlayer, map, difficulty);
-        lastActionableCapture = {
+        rememberActionableCapture({
           kind: 'objectiveDrift',
           turnNumber: state.turnNumber,
           phase: state.phase,
@@ -1326,7 +1369,7 @@ const runSingleGame = async (
             transfers.length > 0
               ? { type: 'logistics', transfers }
               : { type: 'skipLogistics' },
-        };
+        });
         const passengerTransferMistakes = findPassengerTransferMistakes(
           state,
           activePlayer,
@@ -1416,7 +1459,7 @@ const runSingleGame = async (
             ...(passengerPlanDecision ? [passengerPlanDecision] : []),
             ...combatPlanDecisions,
           ];
-          lastActionableCapture = {
+          rememberActionableCapture({
             kind: 'objectiveDrift',
             turnNumber: state.turnNumber,
             phase: state.phase,
@@ -1431,7 +1474,7 @@ const runSingleGame = async (
               ? { planDecision: passengerPlanDecision }
               : {}),
             ...(planDecisions.length > 0 ? { planDecisions } : {}),
-          };
+          });
 
           if (attacks.length > 0) {
             const result = processCombat(

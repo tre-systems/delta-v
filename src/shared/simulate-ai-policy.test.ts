@@ -452,6 +452,17 @@ describe('buildFailureCaptureManifestEntry', () => {
       },
       stalledShipIds: ['ship-a', 'ship-b'],
       astrogationCrashShipIds: ['ship-c'],
+      priorActionableCaptures: [
+        {
+          kind: 'objectiveDrift',
+          turnNumber: 11,
+          phase: 'astrogation',
+          activePlayer: 1,
+          difficulty: 'hard',
+          state: {} as SimulationFailureCapture['state'],
+          action: { type: 'astrogation' },
+        },
+      ],
       message: 'stationary fueled ships coasted',
     };
 
@@ -472,6 +483,7 @@ describe('buildFailureCaptureManifestEntry', () => {
       difficulty: 'hard',
       message: 'stationary fueled ships coasted',
       astrogationCrashShipIds: ['ship-c'],
+      priorActionableCount: 1,
       stalledShipIds: ['ship-a', 'ship-b'],
       chosenPlanIntent: 'preserveLandingLine',
       chosenPlanId: 'preserve-landing-line:p0s0',
