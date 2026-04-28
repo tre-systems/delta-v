@@ -9,6 +9,7 @@ export {
 } from './passenger/navigation';
 export {
   choosePassengerDeliveryApproachPlan,
+  choosePassengerEscortFormationPlan,
   choosePassengerFuelSupportPlan,
 } from './passenger/support';
 export type {
@@ -16,6 +17,7 @@ export type {
   PassengerCarrierInterceptAction,
   PassengerCombatPlanAction,
   PassengerDeliveryApproachAction,
+  PassengerEscortFormationAction,
   PassengerFuelSupportAction,
   PassengerPostCarrierLossTargetAction,
   PostCarrierLossPursuitAction,
