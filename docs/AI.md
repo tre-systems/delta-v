@@ -54,6 +54,7 @@ difficulty, and RNG stream. Do not use `Math.random()`.
 | `src/shared/ai/types.ts` | AI difficulty type. |
 | `src/shared/ai/config.ts` | Difficulty and scenario-tunable numeric knobs. |
 | `src/shared/ai/common.ts` | Shared movement planning, refuel, landing, and intercept helpers. |
+| `src/shared/ai/doctrine.ts` | Shared turn context: ship roles plus passenger carrier, threat, and landing-window signals. |
 | `src/shared/ai/scoring.ts` | Low-level course and combat-position scoring functions. |
 | `src/shared/ai/astrogation.ts` | Per-ship burn enumeration and high-level movement orchestration. |
 | `src/shared/ai/ordnance.ts` | Ordnance launch selection and intercept estimation. |
@@ -233,8 +234,8 @@ The intent-first shift is successful but incomplete:
 - Astrogation captures include named movement/refuel plan traces when one of
   those plans is applied; generic scalar course scoring is still not fully
   traced.
-- Passenger doctrine is still spread across astrogation, logistics, combat,
-  ordnance, and `plans/passenger.ts`.
+- Passenger doctrine has a shared turn context, but some phase-specific
+  decisions still duplicate carrier/threat reasoning outside that context.
 - `PlanEvaluation` ranges are documented here, but older candidates still use
   informal constants.
 

@@ -9,6 +9,7 @@ import type { AstrogationPlanTraceCollector } from './ai';
 import {
   aiCombat,
   aiLogistics,
+  buildAIDoctrineContext,
   buildAIFleetPurchases,
   chooseCombatTargetPlan,
   choosePassengerCarrierEscortTargetPlan,
@@ -756,6 +757,22 @@ describe('aiAstrogation', () => {
     });
     expect(tankerOrder.overload).toBeNull();
     expect(tankerOrder.burn).toBe(linerOrder.burn);
+  });
+
+  it('builds shared passenger doctrine context for convoy planning', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('PAX-DOCTRINE'),
+      findBaseHex,
+    );
+    const doctrine = buildAIDoctrineContext(state, 0, map);
+
+    expect(doctrine.passenger.isPassengerMission).toBe(true);
+    expect(doctrine.passenger.primaryCarrier?.id).toBe('p0s0');
+    expect(doctrine.passenger.shipRoles.get('p0s0')).toBe('carrier');
+    expect(doctrine.shipRoles.get('p0s0')).toBe('carrier');
+    expect(doctrine.passenger.activeThreat).not.toBeNull();
   });
 
   it('traces applied astrogation passenger plans', () => {

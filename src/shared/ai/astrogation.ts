@@ -38,11 +38,11 @@ import {
   scoreObjectiveHomeDefenseCourse,
 } from './common';
 import { resolveAIConfig } from './config';
+import { buildAIDoctrineContext } from './doctrine';
 import type { ShipRole } from './logistics';
 import {
   aiLogistics,
   assignPassengerShipRoles,
-  assignTurnShipRoles,
   getPassengerTransferFormationOrders,
   getPrimaryPassengerCarrier,
   getThreateningEnemies,
@@ -954,7 +954,6 @@ export const aiAstrogation = (
   const orders: AstrogationOrder[] = [];
   const { targetBody, escapeWins } = state.players[playerId];
   const player = state.players[playerId];
-  const passengerEscortMission = isPassengerEscortMission(state, playerId);
   const opponentId: PlayerId = playerId === 0 ? 1 : 0;
   const enemyEscaping = state.players[opponentId]?.escapeWins === true;
   const enemyHasTargetObjective = !!state.players[opponentId]?.targetBody;
@@ -977,6 +976,8 @@ export const aiAstrogation = (
   const enemyShips = state.ships.filter(
     (ship) => ship.owner !== playerId && ship.lifecycle !== 'destroyed',
   );
+  const doctrine = buildAIDoctrineContext(state, playerId, map, enemyShips);
+  const passengerEscortMission = doctrine.passenger.isPassengerMission;
   const myCombatShips = state.ships.filter(
     (ship) =>
       ship.owner === playerId &&
@@ -1007,10 +1008,8 @@ export const aiAstrogation = (
       ? (map.bodies.find((body) => body.name === player.homeBody)?.center ??
         null)
       : null;
-  const primaryPassengerCarrier = passengerEscortMission
-    ? getPrimaryPassengerCarrier(state, playerId, map)
-    : null;
-  const turnShipRoles = assignTurnShipRoles(state, playerId, map);
+  const primaryPassengerCarrier = doctrine.passenger.primaryCarrier;
+  const turnShipRoles = doctrine.shipRoles;
   const raceRoleShipId = [...turnShipRoles.entries()].find(
     ([, role]) => role === 'race',
   )?.[0];
@@ -1020,14 +1019,7 @@ export const aiAstrogation = (
         null)
       : null;
   const primaryPassengerThreatDist =
-    passengerEscortMission && primaryPassengerCarrier != null
-      ? Math.min(
-          ...getThreateningEnemies(enemyShips).map((enemy) =>
-            hexDistance(primaryPassengerCarrier.position, enemy.position),
-          ),
-          Number.POSITIVE_INFINITY,
-        )
-      : Number.POSITIVE_INFINITY;
+    doctrine.passenger.activeThreatDistance ?? Number.POSITIVE_INFINITY;
   const passengerTransferFormationOrders = getPassengerTransferFormationOrders(
     state,
     playerId,

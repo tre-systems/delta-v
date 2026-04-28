@@ -83,12 +83,13 @@ Remaining architecture tasks:
    interceptor, or refuel plan is applied. Remaining work is to trace the
    generic scalar course-score branch and special emergency / transfer
    formation orders so every burn can be explained without a local debugger.
-3. **Add a passenger turn-level doctrine coordinator.** Evacuation and convoy
+3. **Finish passenger doctrine coordinator adoption.** Evacuation and convoy
    failures cross phase boundaries: route choice, escort screen, ordnance, and
-   combat affect each other. Add a small coordinator that can identify the
-   primary passenger objective, active threat, viable landing window, and
-   escort/interceptor posture for reuse by astrogation, ordnance, logistics,
-   and combat.
+   combat affect each other. A shared turn context now identifies the primary
+   passenger carrier, active threat, landing window, and ship roles for
+   astrogation, ordnance, and combat. Remaining work is to move logistics and
+   phase-specific passenger plan helpers onto that context, then use it for the
+   next concrete passenger behavior fix.
 4. **Split passenger plan modules by responsibility.** Break
    `plans/passenger.ts` into narrower modules such as delivery, escort,
    intercept, and combat once the next behavior fix touches that area. Avoid a

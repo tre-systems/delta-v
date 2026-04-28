@@ -4,6 +4,11 @@ export type {
 } from './astrogation';
 export { aiAstrogation } from './astrogation';
 export { aiCombat } from './combat';
+export type { AIDoctrineContext, PassengerDoctrineContext } from './doctrine';
+export {
+  buildAIDoctrineContext,
+  buildPassengerDoctrineContext,
+} from './doctrine';
 export { buildAIFleetPurchases } from './fleet';
 export { aiLogistics } from './logistics';
 export { aiOrdnance } from './ordnance';

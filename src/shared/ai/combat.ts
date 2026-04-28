@@ -21,7 +21,7 @@ import type {
 import { minBy, sumBy } from '../util';
 import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
-import { assignTurnShipRoles } from './logistics';
+import { buildAIDoctrineContext } from './doctrine';
 import { chooseCombatTargetPlan } from './plans/combat';
 import { choosePassengerCombatPlan } from './plans/passenger';
 import type { AIDifficulty } from './types';
@@ -117,14 +117,11 @@ export const aiCombat = (
   );
   const shouldPreserveLandingLine =
     singleShipObjectiveDuel && myLandingTurns === 1 && enemyLandingTurns !== 0;
-  const passengerCombatPlan = choosePassengerCombatPlan(
-    state,
-    playerId,
-    map,
-    enemyShips,
-    enemyNukes,
-  );
-  const shipRoles = assignTurnShipRoles(state, playerId, map);
+  const doctrine = buildAIDoctrineContext(state, playerId, map, enemyShips);
+  const passengerCombatPlan = doctrine.passenger.isPassengerMission
+    ? choosePassengerCombatPlan(state, playerId, map, enemyShips, enemyNukes)
+    : null;
+  const shipRoles = doctrine.shipRoles;
 
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
     return [];
