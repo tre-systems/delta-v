@@ -108,9 +108,11 @@ the scorecard / fixture / planner workflow above rather than one-off weight
 changes:
 
 - **Passenger scenarios:** evacuation now avoids the worst early carrier-stack
-  wipeouts, but hard-vs-hard samples are too escort-favored: the next pass
-  should improve the corsair/interceptor's ability to contest a viable
-  transport line without returning to fleet-elimination-heavy outcomes or
+  wipeouts, but hard-vs-hard samples are too escort-favored. Interceptor
+  combat now explicitly prioritizes passenger carriers over closer escorts;
+  the remaining evacuation issue is the short two-turn landing window and
+  escort opening volley, which can deny the corsair a meaningful first combat.
+  Tune that without returning to fleet-elimination-heavy outcomes or
   timeout-heavy stalemates. Convoy still has too many attrition endings; keep
   using captured fleet-elimination states to rank arrival odds and survival of
   viable destination runners above hull quality or generic combat value.
