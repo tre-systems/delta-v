@@ -80,15 +80,16 @@ const buildDeps = (
   ...overrides,
 });
 
-// Real GameState used by the action / observation happy-path tests. duel
-// starts on turn 1, astrogation phase, with seat 1 active. We use seat 1
-// (TOKEN_B) as the actor in those tests so isActionable returns true.
+// Real GameState used by the action / observation happy-path tests. Pin the
+// Duel randomized-start RNG so seat 1 is active; these tests use TOKEN_B as
+// the actor and assert the actionable path.
 const buildDuelState = (): GameState =>
   createGameOrThrow(
     SCENARIOS.duel,
     buildSolarSystemMap(),
     asGameId('mcp-test'),
     findBaseHex,
+    () => 0.75,
   );
 
 // Build the real action-handler bag against the same map. publishStateChange
