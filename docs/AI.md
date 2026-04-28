@@ -114,6 +114,7 @@ Current named intents include:
 | `defendAgainstOrdnance` | Prefer anti-ordnance fire when incoming ordnance is the threat. |
 | `finishAttrition` | Finish disabled or vulnerable enemies when objective safety permits it. |
 | `attackThreat` | Default combat pressure against ordinary ship threats. |
+| `screenObjectiveRunner` | Hold a race/objective ship out of opportunistic combat when cover can attack. |
 
 ### Plan Evaluation Convention
 

@@ -11,6 +11,7 @@ import {
   aiLogistics,
   buildAIDoctrineContext,
   buildAIFleetPurchases,
+  chooseCombatAttackGroupPlan,
   chooseCombatTargetPlan,
   choosePassengerCarrierEscortTargetPlan,
   choosePassengerCarrierInterceptPlan,
@@ -2017,11 +2018,26 @@ describe('aiCombat', () => {
 
     const roles = assignTurnShipRoles(state, 0, map);
     const attacks = aiCombat(state, 0, map, 'hard');
+    const groupPlan = chooseCombatAttackGroupPlan({
+      targetId: enemy.id,
+      targetType: 'ship',
+      enemyShip: enemy,
+      availableAttackers: [racer, escort],
+      shipRoles: roles,
+      minRollThreshold: 4,
+    });
 
     expect(roles.get(racer.id)).toBe('race');
     expect(attacks.length).toBeGreaterThan(0);
     expect(attacks[0].attackerIds).toContain(escort.id);
     expect(attacks[0].attackerIds).not.toContain(racer.id);
+    expect(groupPlan?.chosen).toMatchObject({
+      intent: 'screenObjectiveRunner',
+      action: {
+        type: 'combatAttackGroup',
+        attackerIds: [escort.id],
+      },
+    });
   });
 
   it('prioritizes passenger carriers over closer escorts in rescue combat', () => {

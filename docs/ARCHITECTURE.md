@@ -297,6 +297,7 @@ Current named intents with regression coverage:
 | `defendAgainstOrdnance` | Name anti-ordnance combat target choices. | `plans/combat.ts` |
 | `finishAttrition` | Name disabled-target combat choices. | `plans/combat.ts` |
 | `attackThreat` | Name default combat target choices when no higher doctrine applies. | `plans/combat.ts` |
+| `screenObjectiveRunner` | Name attack grouping that withholds a race/objective ship while cover fires. | `plans/combat.ts` |
 
 The refactor was successful as an architecture change: doctrine-level tests now
 assert chosen intents instead of only exact burns, and simulation captures can

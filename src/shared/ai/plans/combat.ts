@@ -1,4 +1,12 @@
+import {
+  computeGroupRangeMod,
+  computeGroupVelocityMod,
+  getCombatStrength,
+} from '../../combat';
+import { hexDistance } from '../../hex';
 import type { OrdnanceId, ShipId } from '../../ids';
+import type { Ship } from '../../types';
+import type { ShipRole } from '../logistics';
 import {
   chooseBestPlan,
   type PlanDecision,
@@ -18,6 +26,23 @@ export interface CombatTargetPlanAction {
   type: 'combatTarget';
   targetId: ShipId | OrdnanceId;
   targetType: 'ship' | 'ordnance';
+}
+
+export interface CombatAttackGroupPlanInput {
+  targetId: ShipId | OrdnanceId;
+  targetType: 'ship' | 'ordnance';
+  enemyShip: Ship | null;
+  availableAttackers: readonly Ship[];
+  shipRoles: ReadonlyMap<string, ShipRole>;
+  minRollThreshold: number;
+}
+
+export interface CombatAttackGroupPlanAction {
+  type: 'combatAttackGroup';
+  targetId: ShipId | OrdnanceId;
+  targetType: 'ship' | 'ordnance';
+  attackerIds: Ship['id'][];
+  attackStrength: null;
 }
 
 const combatTargetIntent = (target: CombatTargetPlanInput): PlanIntent => {
@@ -71,3 +96,107 @@ export const chooseCombatTargetPlan = (
       };
     }),
   );
+
+export const chooseCombatAttackGroupPlan = (
+  input: CombatAttackGroupPlanInput,
+): PlanDecision<CombatAttackGroupPlanAction> | null => {
+  if (input.availableAttackers.length === 0) return null;
+
+  if (input.targetType === 'ordnance') {
+    return chooseBestPlan([
+      {
+        id: `combat-attack-group:${input.targetType}:${input.targetId}:all`,
+        intent: 'defendAgainstOrdnance',
+        action: {
+          type: 'combatAttackGroup',
+          targetId: input.targetId,
+          targetType: input.targetType,
+          attackerIds: input.availableAttackers.map((attacker) => attacker.id),
+          attackStrength: null,
+        },
+        evaluation: planEvaluation({
+          feasible: true,
+          survival: 30,
+          combat: getCombatStrength([...input.availableAttackers]),
+          effort: input.availableAttackers.length,
+        }),
+      },
+    ]);
+  }
+
+  const enemyShip = input.enemyShip;
+
+  if (!enemyShip) return null;
+
+  const roleDisciplinedAttackers = input.availableAttackers.filter(
+    (attacker) =>
+      input.shipRoles.get(attacker.id) !== 'race' ||
+      hexDistance(attacker.position, enemyShip.position) <= 2,
+  );
+  const roleAvailable =
+    roleDisciplinedAttackers.length > 0
+      ? roleDisciplinedAttackers
+      : input.availableAttackers;
+  const nonPassengerAttackers = roleAvailable.filter(
+    (attacker) => (attacker.passengersAboard ?? 0) === 0,
+  );
+  const available =
+    nonPassengerAttackers.length > 0 ? nonPassengerAttackers : roleAvailable;
+  const attackStrength = getCombatStrength([...available]);
+  const defendStrength = getCombatStrength([enemyShip]);
+  const rangeMod = computeGroupRangeMod([...available], enemyShip);
+  const velMod = computeGroupVelocityMod([...available], enemyShip);
+
+  if (
+    6 - rangeMod - velMod < input.minRollThreshold &&
+    attackStrength <= defendStrength
+  ) {
+    return null;
+  }
+
+  if (
+    nonPassengerAttackers.length === 0 &&
+    available.some((attacker) => (attacker.passengersAboard ?? 0) > 0) &&
+    enemyShip.damage.disabledTurns === 0 &&
+    attackStrength <= defendStrength
+  ) {
+    return null;
+  }
+
+  const withheldObjectiveRunnerCount =
+    input.availableAttackers.length - roleAvailable.length;
+  const intent =
+    withheldObjectiveRunnerCount > 0 ? 'screenObjectiveRunner' : 'attackThreat';
+
+  return chooseBestPlan([
+    {
+      id: `combat-attack-group:${input.targetType}:${input.targetId}:${available
+        .map((attacker) => attacker.id)
+        .join('+')}`,
+      intent,
+      action: {
+        type: 'combatAttackGroup',
+        targetId: input.targetId,
+        targetType: input.targetType,
+        attackerIds: available.map((attacker) => attacker.id),
+        attackStrength: null,
+      },
+      evaluation: planEvaluation({
+        feasible: true,
+        objective: intent === 'screenObjectiveRunner' ? 35 : 0,
+        combat: attackStrength - defendStrength,
+        risk: Math.max(0, input.minRollThreshold - (6 - rangeMod - velMod)),
+        effort: available.length,
+      }),
+      diagnostics: [
+        {
+          reason:
+            intent === 'screenObjectiveRunner'
+              ? 'hold objective runner out of opportunistic attack'
+              : 'group available attackers against target',
+          detail: `${input.targetType}:${input.targetId}`,
+        },
+      ],
+    },
+  ]);
+};

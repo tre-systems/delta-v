@@ -4,7 +4,6 @@ import {
   computeGroupRangeModToTarget,
   computeGroupVelocityMod,
   computeGroupVelocityModToTarget,
-  getCombatStrength,
   hasLineOfSight,
   hasLineOfSightToTarget,
 } from '../combat';
@@ -22,7 +21,10 @@ import { minBy, sumBy } from '../util';
 import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
 import { buildAIDoctrineContext } from './doctrine';
-import { chooseCombatTargetPlan } from './plans/combat';
+import {
+  chooseCombatAttackGroupPlan,
+  chooseCombatTargetPlan,
+} from './plans/combat';
 import { choosePassengerCombatPlan } from './plans/passenger';
 import type { AIDifficulty } from './types';
 
@@ -298,61 +300,46 @@ export const aiCombat = (
 
       if (!enemy) continue;
 
-      const roleDisciplinedAttackers = availableAttackers.filter(
-        (attacker) =>
-          shipRoles.get(attacker.id) !== 'race' ||
-          hexDistance(attacker.position, enemy.position) <= 2,
-      );
-      const roleAvailable =
-        roleDisciplinedAttackers.length > 0
-          ? roleDisciplinedAttackers
-          : availableAttackers;
-      const nonPassengerAttackers = roleAvailable.filter(
-        (attacker) => (attacker.passengersAboard ?? 0) === 0,
-      );
-      const available =
-        nonPassengerAttackers.length > 0
-          ? nonPassengerAttackers
-          : roleAvailable;
-      const attackStrength = getCombatStrength(available);
-      const defendStrength = getCombatStrength([enemy]);
-      const rangeMod = computeGroupRangeMod(available, enemy);
-      const velMod = computeGroupVelocityMod(available, enemy);
-
-      if (
-        6 - rangeMod - velMod < minRollThreshold &&
-        attackStrength <= defendStrength
-      ) {
-        continue;
-      }
-
-      if (
-        nonPassengerAttackers.length === 0 &&
-        available.some((attacker) => (attacker.passengersAboard ?? 0) > 0) &&
-        enemy.damage.disabledTurns === 0 &&
-        attackStrength <= defendStrength
-      ) {
-        continue;
-      }
-
-      attacks.push({
-        attackerIds: available.map((ship) => ship.id),
+      const attackGroupPlan = chooseCombatAttackGroupPlan({
         targetId: target.targetId,
         targetType: target.targetType,
-        attackStrength: null,
+        enemyShip: enemy,
+        availableAttackers,
+        shipRoles,
+        minRollThreshold,
       });
-      for (const attacker of available) {
-        committedAttackers.add(attacker.id);
+
+      if (!attackGroupPlan) continue;
+
+      attacks.push({
+        attackerIds: attackGroupPlan.chosen.action.attackerIds,
+        targetId: attackGroupPlan.chosen.action.targetId,
+        targetType: attackGroupPlan.chosen.action.targetType,
+        attackStrength: attackGroupPlan.chosen.action.attackStrength,
+      });
+      for (const attackerId of attackGroupPlan.chosen.action.attackerIds) {
+        committedAttackers.add(attackerId);
       }
     } else {
-      attacks.push({
-        attackerIds: availableAttackers.map((ship) => ship.id),
+      const attackGroupPlan = chooseCombatAttackGroupPlan({
         targetId: target.targetId,
         targetType: target.targetType,
-        attackStrength: null,
+        enemyShip: null,
+        availableAttackers,
+        shipRoles,
+        minRollThreshold,
       });
-      for (const attacker of availableAttackers) {
-        committedAttackers.add(attacker.id);
+
+      if (!attackGroupPlan) continue;
+
+      attacks.push({
+        attackerIds: attackGroupPlan.chosen.action.attackerIds,
+        targetId: attackGroupPlan.chosen.action.targetId,
+        targetType: attackGroupPlan.chosen.action.targetType,
+        attackStrength: attackGroupPlan.chosen.action.attackStrength,
+      });
+      for (const attackerId of attackGroupPlan.chosen.action.attackerIds) {
+        committedAttackers.add(attackerId);
       }
     }
 
