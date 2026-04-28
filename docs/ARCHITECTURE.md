@@ -287,12 +287,12 @@ Current named intents with regression coverage:
 
 | Intent | Purpose | Main implementation |
 | --- | --- | --- |
-| `deliverPassengers` | Preserve or start passenger delivery progress instead of drifting or finishing attrition combat. | `plans/passenger.ts` |
-| `preserveLandingLine` | Skip combat when a passenger carrier has a one- or two-turn landing line. | `plans/passenger.ts` |
-| `escortCarrier` | Drop objective navigation so an escort screens a threatened passenger carrier. | `plans/passenger.ts` |
-| `interceptPassengerCarrier` | Convert a stationary pursuit fallback into a named enemy-carrier intercept. | `plans/passenger.ts` |
-| `supportPassengerCarrier` | Keep a tanker stacked with the passenger carrier by mirroring the carrier burn. | `plans/passenger.ts` |
-| `postCarrierLossPursuit` | Release remaining ships to pursue after the passenger objective is gone. | `plans/passenger.ts` |
+| `deliverPassengers` | Preserve or start passenger delivery progress instead of drifting or finishing attrition combat. | `plans/passenger/support.ts`, `plans/passenger/combat.ts` |
+| `preserveLandingLine` | Skip combat when a passenger carrier has a one- or two-turn landing line. | `plans/passenger/combat.ts` |
+| `escortCarrier` | Drop objective navigation so an escort screens a threatened passenger carrier. | `plans/passenger/navigation.ts` |
+| `interceptPassengerCarrier` | Convert a stationary pursuit fallback into a named enemy-carrier intercept. | `plans/passenger/intercept.ts` |
+| `supportPassengerCarrier` | Keep a tanker stacked with the passenger carrier by mirroring the carrier burn. | `plans/passenger/support.ts` |
+| `postCarrierLossPursuit` | Release remaining ships to pursue after the passenger objective is gone. | `plans/passenger/navigation.ts`, `plans/passenger/intercept.ts` |
 | `refuelAtReachableBase` | Divert to a planner-reachable refuel base instead of a geometrically tempting but unreachable target. | `plans/navigation.ts` |
 | `defendAgainstOrdnance` | Name anti-ordnance combat target choices. | `plans/combat.ts` |
 | `finishAttrition` | Name disabled-target combat choices. | `plans/combat.ts` |
