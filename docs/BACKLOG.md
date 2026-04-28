@@ -80,9 +80,10 @@ Remaining architecture tasks:
   plans that consume `AIDoctrineContext`. Remaining logistics work is to split
   the plan module by responsibility and add traces to simulation captures if a
   logistics-specific failure needs them.
-- **Ordnance:** nuke, torpedo, mine, race-role hold, and landing-line hold
-  decisions are still procedural. Wrap launch/hold decisions in named
-  `PlanDecision` candidates while keeping intercept geometry helpers local.
+- **Ordnance:** nuke, torpedo, mine, and race-role hold decisions now have
+  named plan candidates. Remaining ordnance work is to expose landing-line
+  hold and anti-nuke-reach rejection diagnostics in simulation captures while
+  keeping intercept geometry helpers local.
 - **Combat:** target choice and attack grouping have named plans. Still missing
   named hold-fire threshold plans and anti-nuke grouping intent.
 - **Fleet building:** purchase search remains acceptable as bounded optimizer

@@ -14,6 +14,7 @@ import {
   chooseCombatAttackGroupPlan,
   chooseCombatTargetPlan,
   chooseLogisticsTransferPlan,
+  chooseOrdnanceHoldPlan,
   choosePassengerCarrierEscortTargetPlan,
   choosePassengerCarrierInterceptPlan,
   choosePassengerCombatPlan,
@@ -1251,6 +1252,15 @@ describe('aiOrdnance', () => {
     const launches = aiOrdnance(state, 0, map, 'hard');
 
     expect(roles.get(racer.id)).toBe('race');
+    expect(
+      chooseOrdnanceHoldPlan(racer.id, 'preserveObjectiveRunner').chosen,
+    ).toMatchObject({
+      intent: 'screenObjectiveRunner',
+      action: {
+        type: 'ordnanceHold',
+        shipId: racer.id,
+      },
+    });
     expect(
       launches.find((launch) => launch.shipId === racer.id),
     ).toBeUndefined();

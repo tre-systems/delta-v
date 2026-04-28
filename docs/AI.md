@@ -113,6 +113,9 @@ Current named intents include:
 | `postCarrierLossPursuit` | Release ships to pursue after passenger delivery is impossible. |
 | `refuelAtReachableBase` | Divert to a reachable base instead of a tempting unreachable target. |
 | `defendAgainstOrdnance` | Prefer anti-ordnance fire when incoming ordnance is the threat. |
+| `launchNuke` | Commit an expensive nuke after strategic value and interception gates pass. |
+| `launchTorpedo` | Launch a torpedo when it is the preferred lower-cost intercept. |
+| `deployMine` | Deploy a mine for close objective or escape denial. |
 | `finishAttrition` | Finish disabled or vulnerable enemies when objective safety permits it. |
 | `attackThreat` | Default combat pressure against ordinary ship threats. |
 | `screenObjectiveRunner` | Hold a race/objective ship out of opportunistic combat when cover can attack. |
