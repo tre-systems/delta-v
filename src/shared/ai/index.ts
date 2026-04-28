@@ -15,6 +15,11 @@ export {
   comparePlanCandidates,
   comparePlanEvaluations,
 } from './plans';
+export type {
+  CombatTargetPlanAction,
+  CombatTargetPlanInput,
+} from './plans/combat';
+export { chooseCombatTargetPlan } from './plans/combat';
 export type { ReachableRefuelTargetAction } from './plans/navigation';
 export { chooseReachableRefuelTargetPlan } from './plans/navigation';
 export type {

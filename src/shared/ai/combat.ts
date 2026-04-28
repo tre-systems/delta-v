@@ -22,6 +22,7 @@ import { minBy, sumBy } from '../util';
 import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
 import { assignTurnShipRoles } from './logistics';
+import { chooseCombatTargetPlan } from './plans/combat';
 import { choosePassengerCombatPlan } from './plans/passenger';
 import type { AIDifficulty } from './types';
 
@@ -30,6 +31,8 @@ interface ScoredTarget {
   targetType: 'ship' | 'ordnance';
   attackers: Ship[];
   score: number;
+  passengerCarrier?: boolean;
+  disabledTurns?: number;
 }
 
 export const aiCombat = (
@@ -205,6 +208,9 @@ export const aiCombat = (
       targetType: 'ship',
       attackers: attackersForTarget,
       score,
+      passengerCarrier:
+        caps.targetWinRequiresPassengers && (enemy.passengersAboard ?? 0) > 0,
+      disabledTurns: enemy.damage.disabledTurns,
     });
   }
 
@@ -249,14 +255,30 @@ export const aiCombat = (
 
   if (scored.length === 0) return [];
 
-  scored.sort((left, right) => right.score - left.score);
+  const targetPlan = chooseCombatTargetPlan(scored);
+
+  if (!targetPlan) return [];
+
+  const scoredByKey = new Map(
+    scored.map((target) => [
+      combatTargetKey(target.targetType, target.targetId),
+      target,
+    ]),
+  );
+  const orderedTargets = [targetPlan.chosen, ...targetPlan.rejected]
+    .map((candidate) =>
+      scoredByKey.get(
+        combatTargetKey(candidate.action.targetType, candidate.action.targetId),
+      ),
+    )
+    .filter((target): target is ScoredTarget => target != null);
 
   const attacks: CombatAttack[] = [];
   const committedAttackers = new Set<string>();
   const committedTargets = new Set<string>();
   const minRollThreshold = cfg.minRollThreshold;
 
-  for (const target of scored) {
+  for (const target of orderedTargets) {
     const targetKey = combatTargetKey(target.targetType, target.targetId);
 
     if (committedTargets.has(targetKey)) continue;
