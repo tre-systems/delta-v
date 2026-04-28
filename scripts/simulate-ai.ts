@@ -609,6 +609,36 @@ export const findFuelStallShipIds = (
         hexDistance(ship.position, enemy.position) <= 2,
     );
   };
+  const isPassengerFuelSupportStationKeeping = (ship: Ship): boolean => {
+    if (!state.scenarioRules.targetWinRequiresPassengers || canAttack(ship)) {
+      return false;
+    }
+
+    const liveCarrier = state.ships.find(
+      (candidate) =>
+        candidate.owner === ship.owner &&
+        candidate.id !== ship.id &&
+        candidate.lifecycle === 'active' &&
+        (candidate.passengersAboard ?? 0) > 0 &&
+        candidate.position.q === ship.position.q &&
+        candidate.position.r === ship.position.r &&
+        candidate.velocity.dq === ship.velocity.dq &&
+        candidate.velocity.dr === ship.velocity.dr,
+    );
+
+    if (liveCarrier == null) {
+      return false;
+    }
+
+    const carrierOrder = ordersByShip.get(liveCarrier.id);
+
+    return (
+      carrierOrder != null &&
+      carrierOrder.burn === null &&
+      (carrierOrder.overload ?? null) === null &&
+      carrierOrder.land !== true
+    );
+  };
   const isSupportShipWithoutMovementObjective = (ship: Ship): boolean =>
     !hasPlayerMovementObjective(ship.owner) && !canAttack(ship);
 
@@ -627,7 +657,8 @@ export const findFuelStallShipIds = (
         order.land !== true &&
         !isSupportShipWithoutMovementObjective(ship) &&
         !isCloseCombatStationKeeping(ship) &&
-        !isPassengerScreenStationKeeping(ship)
+        !isPassengerScreenStationKeeping(ship) &&
+        !isPassengerFuelSupportStationKeeping(ship)
       );
     })
     .map((ship) => ship.id);

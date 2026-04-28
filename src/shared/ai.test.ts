@@ -3483,6 +3483,48 @@ describe('aiAstrogation — pure combat positioning', () => {
       findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
     ).toEqual([]);
   });
+  it('convoy: tanker holding with a disabled passenger carrier is not a fuel stall', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('CONVOY-TANKER-DISABLED-CARRIER-HOLD'),
+      findBaseHex,
+    );
+    const carrier = must(state.ships.find((ship) => ship.id === 'p0s0'));
+    const tanker = must(state.ships.find((ship) => ship.id === 'p0s1'));
+
+    carrier.lifecycle = 'active';
+    carrier.position = { q: -8, r: -4 };
+    carrier.velocity = { dq: 0, dr: 0 };
+    carrier.fuel = 2;
+    carrier.passengersAboard = 120;
+    carrier.damage = { disabledTurns: 3 };
+    tanker.lifecycle = 'active';
+    tanker.position = { ...carrier.position };
+    tanker.velocity = { ...carrier.velocity };
+    tanker.fuel = 43;
+    tanker.damage = { disabledTurns: 0 };
+    for (const ship of state.ships) {
+      if (ship.owner === 1 || ship.id === 'p0s2') {
+        ship.lifecycle = 'destroyed';
+      }
+    }
+
+    const orders: AstrogationOrder[] = [
+      {
+        shipId: carrier.id,
+        burn: null,
+        overload: null,
+      },
+      {
+        shipId: tanker.id,
+        burn: null,
+        overload: null,
+      },
+    ];
+
+    expect(findFuelStallShipIds(state, 0, orders)).toEqual([]);
+  });
   it('convoy: raiders keep pursuing support ships after the carrier is lost', () => {
     const fixture = loadAIFailureFixture(
       'convoy-raider-after-carrier-loss-stall.json',
