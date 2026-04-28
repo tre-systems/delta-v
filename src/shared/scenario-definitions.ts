@@ -440,6 +440,7 @@ const SCENARIOS_INTERNAL = {
         'Mercury',
         'Venus',
         'Terra',
+        'Luna',
         'Mars',
         'Jupiter',
         'Io',
