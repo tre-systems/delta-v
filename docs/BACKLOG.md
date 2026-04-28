@@ -23,7 +23,7 @@ Current 2026-04-28 checks:
 - `convoy 40 --seed 21`: 30% passenger deliveries, 70% objective
   resolutions, 30% fleet eliminations, 0 invalid actions, 0 transfer
   mistakes, 0 fuel stalls.
-- `convoy 200 --seed 21`: 22% passenger deliveries, 71.5% objective
+- `convoy 200 --seed 21`: 22.5% passenger deliveries, 71.5% objective
   resolutions, 27.5% fleet eliminations, 0 invalid actions, 0 transfer
   mistakes, 0 fuel stalls.
 - `evacuation 40 --seed 21`: 80% passenger deliveries, 100% objective
