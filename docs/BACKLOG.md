@@ -72,10 +72,9 @@ Remaining architecture tasks:
 
 **Decision inventory to finish the shift:**
 
-- **Astrogation:** named plans cover passenger/refuel overrides and scalar
-  order traces cover ordinary burns, including top rejected scalar burn
-  candidates. Still missing emergency escort / transfer-formation orders as
-  named candidates.
+- **Astrogation:** named plans cover passenger/refuel overrides, emergency
+  escort, and transfer formation orders. Scalar order traces cover ordinary
+  burns, including top rejected scalar burn candidates.
 - **Logistics:** transfer selection now emits named passenger/fuel transfer
   plans that consume `AIDoctrineContext`. Remaining logistics work is to split
   the plan module by responsibility and add traces to simulation captures if a
@@ -103,8 +102,7 @@ Remaining architecture tasks:
    and rejected named astrogation plan intents when a passenger, escort,
    interceptor, or refuel plan is applied, plus a generic scalar-course trace
    for ordinary astrogation orders with top rejected scalar candidates.
-   Remaining work is to include special emergency / transfer formation orders
-   so every burn can be explained without a local debugger.
+   Emergency escort and transfer formation orders are now named as well.
 3. **Finish passenger doctrine coordinator adoption.** Evacuation and convoy
    failures cross phase boundaries: route choice, escort screen, ordnance, and
    combat affect each other. A shared turn context now identifies the primary
