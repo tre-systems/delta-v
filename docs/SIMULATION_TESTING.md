@@ -101,7 +101,10 @@ Use `--capture-failure-kind fuelStall` or a comma-separated list such as
 fixture corpus for one recurring symptom.
 Captures include the seed, scenario, active player, proposed action when
 relevant, stalled ship ids or passenger-transfer diagnostics when relevant, and
-the full `GameState`. The capture directory also gets a
+the full `GameState`. Combat captures include the chosen combat plan when one
+applies. Astrogation captures include `planDecisions` for named passenger,
+escort, interceptor, and refuel plans, including each chosen intent and the top
+rejected candidates. The capture directory also gets a
 `capture-manifest.json` sidecar with one compact row per file, so reviewers can
 scan captured failure kinds without opening full states. To promote a capture,
 copy the JSON into a focused `__fixtures__` path and assert the decision class

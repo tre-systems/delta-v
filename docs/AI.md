@@ -230,7 +230,9 @@ Risk:
 The intent-first shift is successful but incomplete:
 
 - Combat target selection still has some anonymous scalar scoring.
-- Astrogation captures do not yet include full chosen/rejected movement plans.
+- Astrogation captures include named movement/refuel plan traces when one of
+  those plans is applied; generic scalar course scoring is still not fully
+  traced.
 - Passenger doctrine is still spread across astrogation, logistics, combat,
   ordnance, and `plans/passenger.ts`.
 - `PlanEvaluation` ranges are documented here, but older candidates still use
