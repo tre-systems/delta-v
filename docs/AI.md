@@ -109,6 +109,9 @@ Current named intents include:
 | `supportPassengerCarrier` | Keep a tanker aligned with the carrier. |
 | `postCarrierLossPursuit` | Release ships to pursue after passenger delivery is impossible. |
 | `refuelAtReachableBase` | Divert to a reachable base instead of a tempting unreachable target. |
+| `defendAgainstOrdnance` | Prefer anti-ordnance fire when incoming ordnance is the threat. |
+| `finishAttrition` | Finish disabled or vulnerable enemies when objective safety permits it. |
+| `attackThreat` | Default combat pressure against ordinary ship threats. |
 
 ### Plan Evaluation Convention
 

@@ -9,6 +9,7 @@ import {
   aiCombat,
   aiLogistics,
   buildAIFleetPurchases,
+  chooseCombatTargetPlan,
   choosePassengerCarrierEscortTargetPlan,
   choosePassengerCarrierInterceptPlan,
   choosePassengerCombatPlan,
@@ -2029,6 +2030,28 @@ describe('aiCombat', () => {
       attackerIds: [interceptor.id],
       targetId: carrier.id,
       targetType: 'ship',
+    });
+    expect(
+      chooseCombatTargetPlan([
+        {
+          targetId: escort.id,
+          targetType: 'ship',
+          score: -2,
+        },
+        {
+          targetId: carrier.id,
+          targetType: 'ship',
+          score: 72,
+          passengerCarrier: true,
+        },
+      ])?.chosen,
+    ).toMatchObject({
+      intent: 'interceptPassengerCarrier',
+      action: {
+        type: 'combatTarget',
+        targetId: carrier.id,
+        targetType: 'ship',
+      },
     });
   });
 

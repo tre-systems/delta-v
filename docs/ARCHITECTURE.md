@@ -291,6 +291,9 @@ Current named intents with regression coverage:
 | `supportPassengerCarrier` | Keep a tanker stacked with the passenger carrier by mirroring the carrier burn. | `plans/passenger.ts` |
 | `postCarrierLossPursuit` | Release remaining ships to pursue after the passenger objective is gone. | `plans/passenger.ts` |
 | `refuelAtReachableBase` | Divert to a planner-reachable refuel base instead of a geometrically tempting but unreachable target. | `plans/navigation.ts` |
+| `defendAgainstOrdnance` | Name anti-ordnance combat target choices. | `plans/combat.ts` |
+| `finishAttrition` | Name disabled-target combat choices. | `plans/combat.ts` |
+| `attackThreat` | Name default combat target choices when no higher doctrine applies. | `plans/combat.ts` |
 
 The refactor was successful as an architecture change: doctrine-level tests now
 assert chosen intents instead of only exact burns, and simulation captures can
