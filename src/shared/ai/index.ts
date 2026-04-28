@@ -12,6 +12,7 @@ export {
 export { buildAIFleetPurchases } from './fleet';
 export type { LogisticsTransferPlanAction } from './logistics';
 export { aiLogistics, chooseLogisticsTransferPlan } from './logistics';
+export type { OrdnancePlanTrace, OrdnancePlanTraceCollector } from './ordnance';
 export { aiOrdnance } from './ordnance';
 export type {
   PlanCandidate,

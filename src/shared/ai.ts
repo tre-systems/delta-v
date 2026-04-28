@@ -11,6 +11,8 @@ export type {
   LogisticsTransferPlanAction,
   OrdnanceHoldPlanAction,
   OrdnanceLaunchPlanAction,
+  OrdnancePlanTrace,
+  OrdnancePlanTraceCollector,
   PassengerCarrierEscortTargetAction,
   PassengerCarrierInterceptAction,
   PassengerDeliveryApproachAction,
