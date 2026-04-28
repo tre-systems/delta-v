@@ -43,9 +43,11 @@ import { maxBy, minBy } from '../util';
 import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
 import { buildAIDoctrineContext } from './doctrine';
+import type { PlanDecision } from './plans';
 import {
   chooseOrdnanceHoldPlan,
   chooseOrdnanceLaunchPlan,
+  chooseOrdnanceRejectPlan,
 } from './plans/ordnance';
 import type { AIDifficulty } from './types';
 
@@ -66,10 +68,31 @@ const appendLaunchPlan = (
   launches: OrdnanceLaunch[],
   launch: OrdnanceLaunch,
   priority: number,
+  tracePlan?: OrdnancePlanTraceCollector,
 ): void => {
   const plan = chooseOrdnanceLaunchPlan(launch, priority);
 
-  if (plan) launches.push(plan.chosen.action.launch);
+  if (plan) {
+    traceOrdnancePlan(tracePlan, plan);
+    launches.push(plan.chosen.action.launch);
+  }
+};
+
+export interface OrdnancePlanTrace {
+  decision: PlanDecision<unknown>;
+}
+
+export type OrdnancePlanTraceCollector = (trace: OrdnancePlanTrace) => void;
+
+const traceOrdnancePlan = <TAction>(
+  tracePlan: OrdnancePlanTraceCollector | undefined,
+  decision: PlanDecision<TAction> | null,
+): boolean => {
+  if (!decision) return false;
+
+  tracePlan?.({ decision });
+
+  return true;
 };
 
 // Rulebook ordnance prices (Triplanetary 2018, equipment table): nuke 300 MCr,
@@ -741,6 +764,7 @@ export const aiOrdnance = (
   // with the caller, and forgetting is a compile error rather than a
   // silent `Math.random` leak.
   rng: () => number,
+  tracePlan?: OrdnancePlanTraceCollector,
 ): OrdnanceLaunch[] => {
   const cfg = resolveAIConfig(
     difficulty,
@@ -914,7 +938,10 @@ export const aiOrdnance = (
       shipRole === 'race' && hasRoleCover && bestEnemyCurrentDist > 2;
 
     if (shouldPreserveRaceRole) {
-      chooseOrdnanceHoldPlan(ship.id, 'preserveObjectiveRunner');
+      traceOrdnancePlan(
+        tracePlan,
+        chooseOrdnanceHoldPlan(ship.id, 'preserveObjectiveRunner'),
+      );
       continue;
     }
 
@@ -1024,8 +1051,32 @@ export const aiOrdnance = (
             torpedoAccelSteps: null,
           },
           bestEnemyTarget.score,
+          tracePlan,
         );
         continue;
+      }
+
+      if (
+        canLaunchNuke &&
+        bestEnemyCurrentDist <= cfg.nukeStrengthRange &&
+        !antiNukeGateOk
+      ) {
+        traceOrdnancePlan(
+          tracePlan,
+          chooseOrdnanceRejectPlan(
+            {
+              type: 'ordnanceReject',
+              shipId: ship.id,
+              ordnanceType: 'nuke',
+              reason: 'antiNukeReach',
+            },
+            {
+              reachSurvival: nukeReachSurvival,
+              requiredReachProbability: requiredNukeReachProbability,
+              turnsToIntercept: nukeIntercept.turnsToIntercept,
+            },
+          ),
+        );
       }
     }
 
@@ -1044,6 +1095,7 @@ export const aiOrdnance = (
           torpedoAccelSteps: torpedoVector?.steps ?? 1,
         },
         bestEnemyTarget.score,
+        tracePlan,
       );
       continue;
     }
@@ -1062,6 +1114,7 @@ export const aiOrdnance = (
           torpedoAccelSteps: null,
         },
         bestEnemyTarget.score,
+        tracePlan,
       );
       continue;
     }
@@ -1081,6 +1134,7 @@ export const aiOrdnance = (
             torpedoAccelSteps: null,
           },
           nearestDist,
+          tracePlan,
         );
       }
     }
