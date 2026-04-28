@@ -123,7 +123,9 @@ Special emergency escort and transfer-formation orders are named too.
 Astrogation captures also include `astrogationCrashShipIds` when any submitted
 order would crash under the movement engine, which helps separate already
 doomed passenger-carrier captures from planner decisions that chose a bad
-survivable line. The capture directory also gets a
+survivable line. Objective-drift and passenger-objective captures keep a short
+`priorActionableCaptures` history so near-terminal failures can be traced back
+to the preceding decisions that created the line. The capture directory also gets a
 `capture-manifest.json` sidecar with one compact row per file, so reviewers can
 scan captured failure kinds without opening full states. To promote a capture,
 copy the JSON into a focused `__fixtures__` path and assert the decision class
