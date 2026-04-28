@@ -296,6 +296,43 @@ WHERE completed_at > (strftime('%s','now') - 7 * 86400) * 1000
 GROUP BY official_bot_match
 ORDER BY official_bot_match DESC;
 
+-- Duel seat-balance segmentation (last 30 days). Use this before changing
+-- Duel AI or rules: local hard-vs-hard sweeps can be balanced while live play
+-- is skewed by official bots, rematches, or a particular seat assignment.
+WITH duel AS (
+  SELECT
+    ma.game_id,
+    ma.winner,
+    ma.official_bot_match,
+    mr.player_a_key,
+    mr.player_b_key,
+    mr.winner_key,
+    CASE
+      WHEN mr.winner_key = mr.player_a_key THEN 'A'
+      WHEN mr.winner_key = mr.player_b_key THEN 'B'
+      ELSE 'draw'
+    END AS rating_winner_seat,
+    CASE
+      WHEN mr.player_a_key LIKE 'agent_official_%'
+        OR mr.player_b_key LIKE 'agent_official_%'
+        THEN 1
+      ELSE 0
+    END AS official_key_seen
+  FROM match_archive ma
+  LEFT JOIN match_rating mr ON mr.game_id = ma.game_id
+  WHERE ma.scenario = 'duel'
+    AND ma.completed_at > (strftime('%s','now') - 30 * 86400) * 1000
+)
+SELECT
+  official_bot_match,
+  official_key_seen,
+  rating_winner_seat,
+  COUNT(*) AS matches,
+  ROUND(AVG(CASE WHEN winner = 0 THEN 1.0 ELSE 0.0 END), 3) AS p0_win_rate
+FROM duel
+GROUP BY official_bot_match, official_key_seen, rating_winner_seat
+ORDER BY matches DESC;
+
 -- Matchmaker fallback accept volume (last 7 days)
 SELECT
   strftime('%Y-%m-%d', ts / 1000, 'unixepoch') AS day,
