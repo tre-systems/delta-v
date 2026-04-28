@@ -76,9 +76,10 @@ Remaining architecture tasks:
   order traces cover ordinary burns. Still missing rejected scalar burn
   candidates plus emergency escort / transfer-formation orders as named
   candidates.
-- **Logistics:** transfer selection is still mostly procedural. Convert
-  passenger and fuel transfers into named plans that consume
-  `AIDoctrineContext`.
+- **Logistics:** transfer selection now emits named passenger/fuel transfer
+  plans that consume `AIDoctrineContext`. Remaining logistics work is to split
+  the plan module by responsibility and add traces to simulation captures if a
+  logistics-specific failure needs them.
 - **Ordnance:** nuke, torpedo, mine, race-role hold, and landing-line hold
   decisions are still procedural. Wrap launch/hold decisions in named
   `PlanDecision` candidates while keeping intercept geometry helpers local.
@@ -107,9 +108,9 @@ Remaining architecture tasks:
    failures cross phase boundaries: route choice, escort screen, ordnance, and
    combat affect each other. A shared turn context now identifies the primary
    passenger carrier, active threat, landing window, and ship roles for
-   astrogation, ordnance, combat, and the passenger plan helpers that need
-   carrier/threat context. Remaining work is to move logistics onto that
-   context, then use it for the next concrete passenger behavior fix.
+   astrogation, ordnance, combat, logistics, and the passenger plan helpers
+   that need carrier/threat context. Remaining work is to use it for the next
+   concrete passenger behavior fix.
 4. **Split passenger plan modules by responsibility.** Break
    `plans/passenger.ts` into narrower modules such as delivery, escort,
    intercept, and combat once the next behavior fix touches that area. Avoid a

@@ -13,6 +13,7 @@ import {
   buildAIFleetPurchases,
   chooseCombatAttackGroupPlan,
   chooseCombatTargetPlan,
+  chooseLogisticsTransferPlan,
   choosePassengerCarrierEscortTargetPlan,
   choosePassengerCarrierInterceptPlan,
   choosePassengerCombatPlan,
@@ -1632,6 +1633,20 @@ describe('aiLogistics', () => {
     enemy.position = { q: 0, r: 0 };
     enemy.lastMovementPath = [{ q: 0, r: 0 }];
 
+    const plan = chooseLogisticsTransferPlan(state, 0, map);
+
+    expect(plan?.chosen).toMatchObject({
+      intent: 'transferPassengers',
+      action: {
+        type: 'logisticsTransfer',
+        transfer: {
+          sourceShipId: transport.id,
+          targetShipId: corvette.id,
+          transferType: 'passengers',
+          amount: 5,
+        },
+      },
+    });
     expect(aiLogistics(state, 0, map, 'hard')).toEqual([
       {
         sourceShipId: transport.id,
