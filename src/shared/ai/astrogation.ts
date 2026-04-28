@@ -51,7 +51,12 @@ import {
   scorePassengerEscortCourse,
 } from './logistics';
 import { aiOrdnance } from './ordnance';
-import { type PlanDecision, type PlanIntent, planEvaluation } from './plans';
+import {
+  type PlanCandidate,
+  type PlanDecision,
+  type PlanIntent,
+  planEvaluation,
+} from './plans';
 import { chooseReachableRefuelTargetPlan } from './plans/navigation';
 import {
   choosePassengerCarrierEscortTargetPlan,
@@ -95,6 +100,12 @@ interface ScalarAstrogationPlanAction {
   land: boolean;
 }
 
+interface ScalarAstrogationCandidateInput extends ScalarAstrogationPlanAction {
+  score: number;
+  fuelSpent: number;
+  land: boolean;
+}
+
 export type AstrogationPlanTraceCollector = (
   trace: AstrogationPlanTrace,
 ) => void;
@@ -132,6 +143,7 @@ const buildScalarAstrogationPlanDecision = (
   burn: number | null,
   overload: number | null,
   land: boolean,
+  rejectedCandidates: readonly ScalarAstrogationCandidateInput[],
   checkpoints: readonly string[] | null,
   passengerEscortMission: boolean,
   shipRole: ShipRole | undefined,
@@ -142,38 +154,64 @@ const buildScalarAstrogationPlanDecision = (
     ship,
     shipRole,
   );
+  const toCandidate = (
+    candidate: ScalarAstrogationCandidateInput,
+    idPrefix = 'scalar-astrogation',
+  ): PlanCandidate<ScalarAstrogationPlanAction> => ({
+    id: `${idPrefix}:${ship.id}:${candidate.burn ?? 'coast'}:${candidate.land ? 'land' : 'fly'}`,
+    intent,
+    action: {
+      type: 'astrogationOrder',
+      shipId: ship.id,
+      burn: candidate.burn,
+      overload: candidate.overload,
+      land: candidate.land,
+    },
+    priority: candidate.score,
+    evaluation: planEvaluation({
+      feasible: true,
+      objective:
+        intent === 'deliverPassengers' || intent === 'completeCheckpointRoute'
+          ? 20
+          : 0,
+      landing: candidate.land ? 25 : 0,
+      fuel: ship.fuel - candidate.fuelSpent,
+      combat: intent === 'attackThreat' ? 10 : 0,
+      formation: intent === 'escortCarrier' ? 10 : 0,
+      effort: candidate.fuelSpent,
+    }),
+    diagnostics: [
+      {
+        reason: 'selected by scalar astrogation course score',
+        detail: `${ship.id} ${
+          candidate.burn == null ? 'coasts' : `burns ${candidate.burn}`
+        }`,
+      },
+    ],
+  });
 
   return {
-    chosen: {
-      id: `scalar-astrogation:${ship.id}:${burn ?? 'coast'}:${land ? 'land' : 'fly'}`,
-      intent,
-      action: {
-        type: 'astrogationOrder',
-        shipId: ship.id,
-        burn,
-        overload,
-        land,
-      },
-      evaluation: planEvaluation({
-        feasible: true,
-        objective:
-          intent === 'deliverPassengers' || intent === 'completeCheckpointRoute'
-            ? 20
-            : 0,
-        landing: land ? 25 : 0,
-        fuel: ship.fuel,
-        combat: intent === 'attackThreat' ? 10 : 0,
-        formation: intent === 'escortCarrier' ? 10 : 0,
-        effort: burn == null ? 0 : 1,
-      }),
-      diagnostics: [
-        {
-          reason: 'selected by scalar astrogation course score',
-          detail: `${ship.id} ${burn == null ? 'coasts' : `burns ${burn}`}`,
-        },
-      ],
-    },
-    rejected: [],
+    chosen: toCandidate({
+      type: 'astrogationOrder',
+      shipId: ship.id,
+      burn,
+      overload,
+      land,
+      score: Number.POSITIVE_INFINITY,
+      fuelSpent: burn == null ? 0 : 1,
+    }),
+    rejected: rejectedCandidates
+      .filter(
+        (candidate) =>
+          candidate.burn !== burn ||
+          candidate.overload !== overload ||
+          candidate.land !== land,
+      )
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 3)
+      .map((candidate) =>
+        toCandidate(candidate, 'scalar-astrogation-rejected'),
+      ),
   };
 };
 
@@ -1421,6 +1459,7 @@ export const aiAstrogation = (
       ...(inOrbit ? [{ burn: 0, overload: null, land: true }] : []),
     ];
     let bestWeakGrav: Record<string, boolean> | undefined;
+    const scalarCandidates: ScalarAstrogationCandidateInput[] = [];
 
     for (const opt of options) {
       const courseOpts = {
@@ -1859,6 +1898,15 @@ export const aiAstrogation = (
 
       score += interceptPreference.bonus;
       const interceptTiebreak = interceptPreference.tiebreak;
+      scalarCandidates.push({
+        type: 'astrogationOrder',
+        shipId: ship.id,
+        burn: opt.burn,
+        overload: opt.overload,
+        land: opt.land ?? false,
+        score,
+        fuelSpent: comparisonCourse.fuelSpent,
+      });
 
       if (
         score > bestScore + 1e-9 ||
@@ -2052,6 +2100,7 @@ export const aiAstrogation = (
           bestBurn,
           bestOverload,
           bestLand,
+          scalarCandidates,
           checkpoints,
           passengerEscortMission,
           shipRole,
