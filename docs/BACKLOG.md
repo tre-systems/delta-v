@@ -56,7 +56,7 @@ score unless the fixture proves it generalizes.
 **Files:** `src/shared/ai/common.ts`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/scoring.ts`, `src/shared/ai.test.ts`
 
-### Introduce Intent-First AI Planning (P1)
+### Complete Intent-First AI Planning Architecture (P1)
 
 The AI has outgrown a single scalar course score. Future fixes should extract
 named plans and ordered evaluation vectors so objective safety, carrier
@@ -68,23 +68,42 @@ plans for `deliverPassengers`, `preserveLandingLine`, `escortCarrier`,
 `interceptPassengerCarrier`, `supportPassengerCarrier`,
 `postCarrierLossPursuit`, and `refuelAtReachableBase`.
 
-Remaining concrete steps:
+Remaining architecture tasks:
 
-1. Use paired seed sweeps and promoted fixtures to decide which doctrine should
-   change next. The first target is to improve convoy / evacuation objective
-   share or reduce fleet-elimination share without increasing invalid actions,
-   fuel stalls, or timeout-heavy stalemates.
-2. Keep adding named plans only when they support a concrete fixture or tuning
-   change. Avoid further extraction-only work unless it removes a blocker from
-   a measured behavior fix.
-3. Return chosen intents and short rejection diagnostics from more planning
-   paths when failure captures need better "why this plan won" context.
-4. Do not rewrite Grand Tour or fleet combat until passenger fixtures show the
-   pattern is stable.
+1. **Convert combat doctrine into named plans.** Move ship target selection
+   decisions such as `interceptPassengerCarrier`, `finishAttrition`,
+   `screenObjectiveRunner`, and nuke defense out of anonymous combat scoring
+   into `PlanDecision` candidates. Keep the low-level odds / range math in the
+   combat module, but make the strategic reason for firing explicit and covered
+   by intent assertions.
+2. **Return plan traces from astrogation decisions.** Failure captures should
+   include chosen and rejected movement intents, not only combat decisions.
+   This should explain why a carrier, escort, interceptor, or refuel ship chose
+   a burn without requiring a local debugger.
+3. **Add a passenger turn-level doctrine coordinator.** Evacuation and convoy
+   failures cross phase boundaries: route choice, escort screen, ordnance, and
+   combat affect each other. Add a small coordinator that can identify the
+   primary passenger objective, active threat, viable landing window, and
+   escort/interceptor posture for reuse by astrogation, ordnance, logistics,
+   and combat.
+4. **Split passenger plan modules by responsibility.** Break
+   `plans/passenger.ts` into narrower modules such as delivery, escort,
+   intercept, and combat once the next behavior fix touches that area. Avoid a
+   pure file shuffle; do it when a concrete fixture needs the split.
+5. **Standardize `PlanEvaluation` units and ranges.** Document expected ranges
+   for objective, survival, landing, fuel, combat, formation, tempo, risk, and
+   effort, then update plan candidates whose scores are currently informal
+   constants. Add comparison tests for at least one cross-domain decision
+   where objective safety should beat local combat.
 
 **Files:** new `src/shared/ai/plans/`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/combat.ts`, `src/shared/ai/logistics.ts`,
 `scripts/simulate-ai.ts`, `src/shared/ai.test.ts`
+
+Acceptance for each task: add or promote a fixture that failed before the
+change, assert the chosen intent where possible, and compare paired seed
+scorecards before / after without increasing invalid actions, fuel stalls,
+passenger-transfer mistakes, or timeout-heavy stalemates.
 
 ### Tighten Role-Aware Tactical Doctrine (P1)
 
