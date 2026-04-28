@@ -38,15 +38,15 @@ import {
   scoreObjectiveHomeDefenseCourse,
 } from './common';
 import { resolveAIConfig } from './config';
-import { buildAIDoctrineContext } from './doctrine';
+import {
+  buildAIDoctrineContext,
+  type PassengerDoctrineContext,
+} from './doctrine';
 import type { ShipRole } from './logistics';
 import {
   aiLogistics,
-  assignPassengerShipRoles,
   getPassengerTransferFormationOrders,
-  getPrimaryPassengerCarrier,
   getThreateningEnemies,
-  isPassengerEscortMission,
   scorePassengerCarrierEvasion,
   scorePassengerEscortCourse,
 } from './logistics';
@@ -728,6 +728,7 @@ const getPassengerEmergencyEscortOrders = (
   difficulty: AIDifficulty,
   enemyEscaping: boolean,
   enemyHasPassengerObjective: boolean,
+  passengerContext: PassengerDoctrineContext,
   // The lookahead no longer consumes the outer match RNG — it uses a
   // difficulty-biased constant via `createLookaheadRng` instead (easy 0.4,
   // normal 0.42, hard 0.7). We accept the parameter for API parity with the
@@ -736,21 +737,22 @@ const getPassengerEmergencyEscortOrders = (
   // misuse.
   _rng: () => number,
 ): Map<string, AstrogationOrder> => {
-  if (!isPassengerEscortMission(state, playerId)) {
+  if (!passengerContext.isPassengerMission) {
     return new Map();
   }
 
-  const passengerShipRoles = assignPassengerShipRoles(state, playerId, map);
-  const primaryCarrier = getPrimaryPassengerCarrier(state, playerId, map);
+  const passengerShipRoles = passengerContext.shipRoles;
+  const primaryCarrier = passengerContext.primaryCarrier;
 
   if (primaryCarrier == null) {
     return new Map();
   }
 
-  const threats = getThreateningEnemies(enemyShips);
-  const primaryThreat = minBy(threats, (enemy) =>
-    hexDistance(primaryCarrier.position, enemy.position),
-  );
+  const primaryThreat =
+    passengerContext.activeThreat ??
+    minBy(getThreateningEnemies(enemyShips), (enemy) =>
+      hexDistance(primaryCarrier.position, enemy.position),
+    );
 
   if (
     primaryThreat == null ||
@@ -1199,6 +1201,7 @@ export const aiAstrogation = (
     difficulty,
     enemyEscaping,
     enemyHasPassengerObjective,
+    doctrine.passenger,
     rng,
   );
   let shipIdx = 0;
