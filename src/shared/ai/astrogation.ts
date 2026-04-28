@@ -106,6 +106,10 @@ interface ScalarAstrogationCandidateInput extends ScalarAstrogationPlanAction {
   land: boolean;
 }
 
+interface SpecialAstrogationPlanAction extends ScalarAstrogationPlanAction {
+  reason: 'emergencyEscort' | 'transferFormation';
+}
+
 export type AstrogationPlanTraceCollector = (
   trace: AstrogationPlanTrace,
 ) => void;
@@ -214,6 +218,42 @@ const buildScalarAstrogationPlanDecision = (
       ),
   };
 };
+
+const buildSpecialAstrogationPlanDecision = (
+  order: AstrogationOrder,
+  reason: SpecialAstrogationPlanAction['reason'],
+): PlanDecision<SpecialAstrogationPlanAction> => ({
+  chosen: {
+    id: `special-astrogation:${reason}:${order.shipId}`,
+    intent:
+      reason === 'emergencyEscort' ? 'escortCarrier' : 'transferPassengers',
+    action: {
+      type: 'astrogationOrder',
+      shipId: order.shipId,
+      burn: order.burn,
+      overload: order.overload,
+      land: order.land ?? false,
+      reason,
+    },
+    evaluation: planEvaluation({
+      feasible: true,
+      objective: reason === 'transferFormation' ? 25 : 0,
+      survival: reason === 'emergencyEscort' ? 35 : 0,
+      formation: 30,
+      effort: order.burn == null ? 0 : 1,
+    }),
+    diagnostics: [
+      {
+        reason:
+          reason === 'emergencyEscort'
+            ? 'emergency passenger escort formation'
+            : 'shared burn keeps transfer pair in formation',
+        detail: order.shipId,
+      },
+    ],
+  },
+  rejected: [],
+});
 
 // Test/sweep-only override. Production callers never touch this.
 export const __setLookaheadBiasForSweep = (
@@ -1190,6 +1230,11 @@ export const aiAstrogation = (
     const emergencyOrder = passengerEmergencyEscortOrders.get(ship.id);
 
     if (emergencyOrder) {
+      traceAstrogationPlan(
+        tracePlan,
+        ship.id,
+        buildSpecialAstrogationPlanDecision(emergencyOrder, 'emergencyEscort'),
+      );
       orders.push(emergencyOrder);
       shipIdx++;
       continue;
@@ -1198,6 +1243,14 @@ export const aiAstrogation = (
     const formationOrder = passengerTransferFormationOrders.get(ship.id);
 
     if (formationOrder) {
+      traceAstrogationPlan(
+        tracePlan,
+        ship.id,
+        buildSpecialAstrogationPlanDecision(
+          formationOrder,
+          'transferFormation',
+        ),
+      );
       orders.push(formationOrder);
       shipIdx++;
       continue;

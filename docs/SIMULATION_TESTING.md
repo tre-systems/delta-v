@@ -106,7 +106,8 @@ applies. Astrogation captures include `planDecisions` for named passenger,
 escort, interceptor, and refuel plans, including each chosen intent and the top
 rejected candidates. Ordinary scalar-scored astrogation orders also emit a
 chosen-order trace with top rejected scalar burn candidates so captures show
-why each ship moved even when no named plan overrode the local course score. The
+why each ship moved even when no named plan overrode the local course score.
+Special emergency escort and transfer-formation orders are named too. The
 capture directory also gets a
 `capture-manifest.json` sidecar with one compact row per file, so reviewers can
 scan captured failure kinds without opening full states. To promote a capture,
