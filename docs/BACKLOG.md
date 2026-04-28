@@ -20,18 +20,17 @@ well enough that the intended passenger objective produces credible play.
 
 Current 2026-04-28 checks:
 
-- `convoy 40 --seed 21`: 7.5% passenger deliveries, 70% objective resolutions,
-  30% fleet eliminations, 0 invalid actions, 0 transfer mistakes, 0.25 fuel
-  stalls/game.
+- `convoy 40 --seed 21`: 7.5% passenger deliveries, 72.5% objective
+  resolutions, 27.5% fleet eliminations, 0 invalid actions, 0 transfer
+  mistakes, 0 fuel stalls.
 - `evacuation 40 --seed 21`: 80% passenger deliveries, 100% objective
   resolutions, average 2.1 turns, 80% P0 decided, 0 invalid actions, 0 fuel
   stalls.
 
-Action: promote representative convoy and evacuation captures into fixtures,
-then improve carrier survival, escort/screen formation, raider interception,
-and landing-safe abort/refuel choices through named plans or bounded movement
-planning. Do not add broad scalar weights without a fixture proving the change
-generalizes.
+Action: continue promoting representative convoy and evacuation captures into
+fixtures, then improve carrier survival, raider interception, and landing-safe
+abort/refuel choices through named plans or bounded movement planning. Do not
+add broad scalar weights without a fixture proving the change generalizes.
 
 Acceptance: paired scorecards should improve passenger delivery quality or
 reduce fleet-elimination drift without increasing invalid actions, fuel stalls,

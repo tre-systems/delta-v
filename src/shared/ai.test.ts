@@ -23,6 +23,7 @@ import {
   choosePassengerCarrierInterceptPlan,
   choosePassengerCombatPlan,
   choosePassengerDeliveryApproachPlan,
+  choosePassengerEscortFormationPlan,
   choosePassengerFuelSupportPlan,
   choosePassengerPostCarrierLossTargetPlan,
   choosePostCarrierLossPursuitPlan,
@@ -3187,6 +3188,80 @@ describe('aiAstrogation — pure combat positioning', () => {
     ).toBe(true);
     expect(
       findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
+    ).toEqual([]);
+  });
+  it('convoy: screens holding attack range for an active passenger carrier are not fuel stalls', () => {
+    const fixture = loadAIFailureFixture(
+      'convoy-active-screen-close-hold.json',
+    );
+    const capturedOrders = (fixture.action as { orders: AstrogationOrder[] })
+      .orders;
+    const carrier = must(
+      fixture.state.ships.find(
+        (ship) =>
+          ship.owner === fixture.activePlayer &&
+          ship.lifecycle === 'active' &&
+          (ship.passengersAboard ?? 0) > 0,
+      ),
+    );
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(fixture.stalledShipIds).toContain('p0s2');
+    expect(carrier.id).toBe('p0s0');
+    expect(
+      findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
+    ).toEqual([]);
+  });
+  it('convoy: idle escorts regroup toward an active passenger carrier', () => {
+    const fixture = loadAIFailureFixture(
+      'convoy-escort-regroup-to-carrier.json',
+    );
+    const stalledShipId = must(fixture.stalledShipIds?.[0]);
+    const escort = must(
+      fixture.state.ships.find((ship) => ship.id === stalledShipId),
+    );
+    const carrier = must(
+      fixture.state.ships.find(
+        (ship) =>
+          ship.owner === fixture.activePlayer &&
+          ship.lifecycle === 'active' &&
+          (ship.passengersAboard ?? 0) > 0,
+      ),
+    );
+    const orders = aiAstrogation(
+      fixture.state,
+      fixture.activePlayer,
+      map,
+      fixture.difficulty,
+    );
+    const escortOrder = must(
+      orders.find((candidate) => candidate.shipId === stalledShipId),
+    );
+    const plan = choosePassengerEscortFormationPlan(
+      fixture.state,
+      escort,
+      carrier,
+      fixture.state.ships.filter(
+        (ship) =>
+          ship.owner !== fixture.activePlayer && ship.lifecycle !== 'destroyed',
+      ),
+      map,
+    );
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(plan?.chosen).toMatchObject({
+      intent: 'escortCarrier',
+      action: {
+        type: 'astrogationOrder',
+        shipId: stalledShipId,
+        carrierShipId: carrier.id,
+        burn: escortOrder.burn,
+        overload: null,
+      },
+    });
+    expect(escortOrder.burn).not.toBeNull();
+    expect(
+      findFuelStallShipIds(fixture.state, fixture.activePlayer, orders),
     ).toEqual([]);
   });
   it('convoy: escorts holding close range after carrier loss are not fuel stalls', () => {

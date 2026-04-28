@@ -62,6 +62,7 @@ import {
   choosePassengerCarrierEscortTargetPlan,
   choosePassengerCarrierInterceptPlan,
   choosePassengerDeliveryApproachPlan,
+  choosePassengerEscortFormationPlan,
   choosePassengerFuelSupportPlan,
   choosePassengerPostCarrierLossTargetPlan,
   choosePostCarrierLossPursuitPlan,
@@ -2017,6 +2018,30 @@ export const aiAstrogation = (
         tracedAstrogationPlan;
       bestBurn = passengerDeliveryApproach.chosen.action.burn;
       bestOverload = passengerDeliveryApproach.chosen.action.overload;
+      bestWeakGrav = undefined;
+    }
+
+    const passengerEscortFormation =
+      passengerEscortMission &&
+      (shipRole === 'escort' || shipRole === 'screen') &&
+      bestBurn === null &&
+      !bestLand &&
+      canBurnFuel
+        ? choosePassengerEscortFormationPlan(
+            state,
+            ship,
+            primaryPassengerCarrier,
+            enemyShips,
+            map,
+          )
+        : null;
+
+    if (passengerEscortFormation) {
+      tracedAstrogationPlan =
+        traceAstrogationPlan(tracePlan, ship.id, passengerEscortFormation) ||
+        tracedAstrogationPlan;
+      bestBurn = passengerEscortFormation.chosen.action.burn;
+      bestOverload = passengerEscortFormation.chosen.action.overload;
       bestWeakGrav = undefined;
     }
 

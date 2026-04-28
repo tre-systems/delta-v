@@ -582,6 +582,31 @@ export const findFuelStallShipIds = (
         enemy.lifecycle !== 'destroyed' &&
         hexDistance(ship.position, enemy.position) <= 2,
     );
+  const isPassengerScreenStationKeeping = (ship: Ship): boolean => {
+    if (!state.scenarioRules.targetWinRequiresPassengers || !canAttack(ship)) {
+      return false;
+    }
+
+    const liveCarrier = state.ships.find(
+      (candidate) =>
+        candidate.owner === ship.owner &&
+        candidate.id !== ship.id &&
+        candidate.lifecycle === 'active' &&
+        (candidate.passengersAboard ?? 0) > 0,
+    );
+
+    if (liveCarrier == null) {
+      return false;
+    }
+
+    return state.ships.some(
+      (enemy) =>
+        enemy.owner !== ship.owner &&
+        enemy.lifecycle !== 'destroyed' &&
+        canAttack(enemy) &&
+        hexDistance(ship.position, enemy.position) <= 2,
+    );
+  };
   const isSupportShipWithoutMovementObjective = (ship: Ship): boolean =>
     !hasPlayerMovementObjective(ship.owner) && !canAttack(ship);
 
@@ -599,7 +624,8 @@ export const findFuelStallShipIds = (
         (order.overload ?? null) === null &&
         order.land !== true &&
         !isSupportShipWithoutMovementObjective(ship) &&
-        !isCloseCombatStationKeeping(ship)
+        !isCloseCombatStationKeeping(ship) &&
+        !isPassengerScreenStationKeeping(ship)
       );
     })
     .map((ship) => ship.id);

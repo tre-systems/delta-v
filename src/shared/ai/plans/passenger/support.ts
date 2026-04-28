@@ -1,4 +1,5 @@
-import { hexDistance, hexEqual, hexVecLength } from '../../../hex';
+import { canAttack } from '../../../combat';
+import { hexAdd, hexDistance, hexEqual, hexVecLength } from '../../../hex';
 import { computeCourse } from '../../../movement';
 import type {
   AstrogationOrder,
@@ -7,12 +8,16 @@ import type {
   Ship,
   SolarSystemMap,
 } from '../../../types';
-import { planShortHorizonMovementToHex } from '../../common';
+import {
+  findDirectionToward,
+  planShortHorizonMovementToHex,
+} from '../../common';
 import type { PassengerDoctrineContext } from '../../doctrine';
 import { chooseBestPlan, type PlanDecision, planEvaluation } from '..';
 import { findPrimaryPassengerCarrier } from './shared';
 import type {
   PassengerDeliveryApproachAction,
+  PassengerEscortFormationAction,
   PassengerFuelSupportAction,
 } from './types';
 
@@ -93,6 +98,97 @@ export const choosePassengerFuelSupportPlan = (
         {
           reason: 'tanker mirrors passenger carrier for fuel support',
           detail: `${ship.id} follows ${primaryCarrier.id}`,
+        },
+      ],
+    },
+  ]);
+};
+
+export const choosePassengerEscortFormationPlan = (
+  state: GameState,
+  ship: Ship,
+  primaryCarrier: Ship | null,
+  enemyShips: readonly Ship[],
+  map: SolarSystemMap,
+): PlanDecision<PassengerEscortFormationAction> | null => {
+  if (
+    primaryCarrier == null ||
+    ship.id === primaryCarrier.id ||
+    ship.owner !== primaryCarrier.owner ||
+    ship.lifecycle !== 'active' ||
+    ship.fuel <= 0 ||
+    !canAttack(ship) ||
+    (ship.passengersAboard ?? 0) > 0 ||
+    hexVecLength(ship.velocity) !== 0
+  ) {
+    return null;
+  }
+
+  const closeThreat = enemyShips.some(
+    (enemy) =>
+      enemy.lifecycle !== 'destroyed' &&
+      canAttack(enemy) &&
+      hexDistance(ship.position, enemy.position) <= 2,
+  );
+
+  if (closeThreat || hexDistance(ship.position, primaryCarrier.position) <= 3) {
+    return null;
+  }
+
+  const targetHex = hexAdd(primaryCarrier.position, primaryCarrier.velocity);
+  const plan = planShortHorizonMovementToHex(
+    ship,
+    targetHex,
+    map,
+    state.destroyedBases,
+  );
+  const burn = plan?.firstBurn ?? findDirectionToward(ship.position, targetHex);
+
+  if (burn == null) {
+    return null;
+  }
+
+  const course = computeCourse(ship, burn, map, {
+    destroyedBases: state.destroyedBases,
+  });
+
+  if (course.outcome === 'crash') {
+    return null;
+  }
+
+  const currentTargetDistance = hexDistance(ship.position, targetHex);
+  const newTargetDistance = hexDistance(course.destination, targetHex);
+
+  if (newTargetDistance >= currentTargetDistance) {
+    return null;
+  }
+
+  return chooseBestPlan([
+    {
+      id: `passenger-escort-formation:${ship.id}:${primaryCarrier.id}`,
+      intent: 'escortCarrier',
+      action: {
+        type: 'astrogationOrder',
+        shipId: ship.id,
+        carrierShipId: primaryCarrier.id,
+        targetHex,
+        burn,
+        overload: null,
+      },
+      evaluation: planEvaluation({
+        feasible: true,
+        objective: 35,
+        survival: 10,
+        fuel: ship.fuel - course.fuelSpent,
+        formation: Math.max(0, currentTargetDistance - newTargetDistance) * 20,
+        tempo: 5,
+        risk: hexDistance(course.destination, primaryCarrier.position),
+        effort: course.fuelSpent,
+      }),
+      diagnostics: [
+        {
+          reason: 'idle passenger escort regroups toward carrier formation',
+          detail: `${ship.id} closes on ${primaryCarrier.id}`,
         },
       ],
     },
