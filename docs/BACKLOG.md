@@ -100,8 +100,9 @@ Remaining architecture tasks:
    every plan candidate neutral defaults for omitted dimensions, and the docs
    define the intended comparison order / practical ranges for objective,
    survival, landing, fuel, combat, formation, tempo, risk, and effort.
-   Remaining work is to audit the actual numeric constants against those ranges
-   and tighten any candidates that still use informal values.
+   Higher-is-better fields have been cleaned up to avoid negative penalties.
+   Remaining work is to audit the remaining positive numeric constants against
+   those ranges and tighten any candidates that still use informal values.
 
 **Files:** new `src/shared/ai/plans/`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/combat.ts`, `src/shared/ai/logistics.ts`,

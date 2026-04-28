@@ -184,7 +184,6 @@ export const choosePassengerCombatPlan = (
             survival: 10,
             landing: landingTurns == null ? 0 : Math.max(0, 20 - landingTurns),
             fuel: ship.fuel,
-            combat: -10,
             tempo: landingTurns == null ? 0 : Math.max(0, 8 - landingTurns),
             effort: landingTurns ?? 10,
           }),
@@ -288,7 +287,7 @@ export const choosePassengerFuelSupportPlan = (
       evaluation: planEvaluation({
         feasible: true,
         objective: 40,
-        survival: mirroredCourse.outcome === 'landing' ? -5 : 0,
+        survival: 0,
         fuel: ship.fuel - mirroredCourse.fuelSpent,
         formation: 50,
         risk: mirroredCourse.outcome === 'landing' ? 1 : 0,
