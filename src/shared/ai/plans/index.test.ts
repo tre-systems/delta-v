@@ -46,8 +46,8 @@ describe('intent-first plan comparison', () => {
     const infeasible = {
       ...baseEvaluation,
       feasible: false,
-      objective: 999,
-      survival: 999,
+      objective: 100,
+      survival: 100,
     };
 
     expect(comparePlanEvaluations(feasible, infeasible)).toBeLessThan(0);

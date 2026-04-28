@@ -246,10 +246,12 @@ The intent-first shift is successful but incomplete:
   scalar-course trace for orders that do not come from a named plan. Generic
   scalar traces summarize the chosen order and the strongest rejected burn
   candidates.
-- Passenger doctrine has a shared turn context, but some phase-specific
-  decisions still duplicate carrier/threat reasoning outside that context.
-- `PlanEvaluation` ranges are documented here, but older candidates still use
-  informal constants.
+- Passenger doctrine has a shared turn context, and emergency escort planning
+  now consumes that context for carrier, threat, and role state. Future
+  passenger fixes should keep moving phase-specific decisions onto this shared
+  context when they need the same facts.
+- `PlanEvaluation` ranges are documented here and current named plans stay
+  inside those practical ranges for objective/survival/landing dimensions.
 
 The active work to finish those pieces lives in
 [BACKLOG.md#complete-intent-first-ai-planning-architecture-p1](./BACKLOG.md#complete-intent-first-ai-planning-architecture-p1).

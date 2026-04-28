@@ -90,29 +90,19 @@ Remaining architecture tasks:
   / rules-gate logic unless a player-facing fleet-choice failure appears; do
   not churn it only for architecture purity.
 
-1. **Complete astrogation trace coverage.** Failure captures now include chosen
-   and rejected named astrogation plan intents when a passenger, escort,
-   interceptor, or refuel plan is applied, plus a generic scalar-course trace
-   for ordinary astrogation orders with top rejected scalar candidates.
-   Emergency escort and transfer formation orders are now named as well.
-2. **Finish passenger doctrine coordinator adoption.** Evacuation and convoy
+1. **Finish passenger doctrine coordinator adoption.** Evacuation and convoy
    failures cross phase boundaries: route choice, escort screen, ordnance, and
    combat affect each other. A shared turn context now identifies the primary
    passenger carrier, active threat, landing window, and ship roles for
    astrogation, ordnance, combat, logistics, and the passenger plan helpers
-   that need carrier/threat context. Remaining work is to use it for the next
-   concrete passenger behavior fix.
-3. **Split passenger plan modules by responsibility.** Break
+   that need carrier/threat context. Astrogation's emergency escort planner now
+   consumes that shared context instead of recomputing carrier, threat, and
+   role state; remaining work is to route future passenger fixes through the
+   same context instead of adding phase-local rediscovery.
+2. **Split passenger plan modules by responsibility.** Break
    `plans/passenger.ts` into narrower modules such as delivery, escort,
    intercept, and combat once the next behavior fix touches that area. Avoid a
    pure file shuffle; do it when a concrete fixture needs the split.
-4. **Finish `PlanEvaluation` range cleanup.** `planEvaluation()` now gives
-   every plan candidate neutral defaults for omitted dimensions, and the docs
-   define the intended comparison order / practical ranges for objective,
-   survival, landing, fuel, combat, formation, tempo, risk, and effort.
-   Higher-is-better fields have been cleaned up to avoid negative penalties.
-   Remaining work is to audit the remaining positive numeric constants against
-   those ranges and tighten any candidates that still use informal values.
 
 **Files:** new `src/shared/ai/plans/`, `src/shared/ai/astrogation.ts`,
 `src/shared/ai/combat.ts`, `src/shared/ai/logistics.ts`,
@@ -160,10 +150,11 @@ changes:
   both shuffle directions and token-to-seat mapping. A local hard-vs-hard
   check on 2026-04-27 did **not** reproduce the live skew: `duel 200
   --seed 10` measured 45% P0, forced P0 start measured 41% P0, forced P1
-  start measured 55% P0, and a 16-seed x 80-game sweep averaged 45.3% P0.
-  Treat the remaining imbalance as a production-segmentation question first:
-  re-run the D1 audit after `rating_applied` carries `officialBotMatch`, and
-  split by official bot, human-vs-human, rematches, and winner seat before
+  start measured 55% P0, and the 2026-04-28 16-seed x 80-game sweep averaged
+  44.2% P0 with no invalid actions or fuel stalls. Treat the remaining
+  imbalance as a production-segmentation question first: use the Duel
+  segmentation query in [OBSERVABILITY.md](./OBSERVABILITY.md#operational-d1-queries)
+  to split by official bot, human-vs-human/rematches, and winner seat before
   changing Duel rules or doctrine.
 - **Grand Tour:** the 2026-04-27 cost-to-go checkpoint targeting pass moved
   focused `grandTour 60 --ci --seed 1` to a passing 55% P0 decided rate
@@ -179,7 +170,10 @@ changes:
   an explicit checkpoint so both home worlds are checkpoint bodies. Focused
   `grandTour 40 --seed 21` and `--seed 1` stayed at 100% objective completions
   with no invalid actions or fuel stalls, and moved P0 from 0% to 12.5% / 5%.
-  The remaining work is still to improve pacing without regressing objective
+  A 2026-04-28 inward-first Luna-route experiment regressed objective
+  completion to 10% / 2.5% with heavy fleet eliminations, so do not tune Grand
+  Tour by simple route reorder. The remaining work is to improve pacing through
+  landing-safe movement cost or start-state timing without regressing objective
   completions.
 - **FleetAction balance:** keep watching timeout rate and P0 blowout risk on
   broader seeded sweeps.
