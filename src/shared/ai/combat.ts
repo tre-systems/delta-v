@@ -21,6 +21,7 @@ import { minBy, sumBy } from '../util';
 import { estimateTurnsToTargetLanding } from './common';
 import { resolveAIConfig } from './config';
 import { buildAIDoctrineContext } from './doctrine';
+import type { PlanDecision } from './plans';
 import {
   chooseCombatAttackGroupPlan,
   chooseCombatHoldFirePlan,
@@ -38,11 +39,29 @@ interface ScoredTarget {
   disabledTurns?: number;
 }
 
+export interface CombatPlanTrace {
+  decision: PlanDecision<unknown>;
+}
+
+export type CombatPlanTraceCollector = (trace: CombatPlanTrace) => void;
+
+const traceCombatPlan = <TAction>(
+  tracePlan: CombatPlanTraceCollector | undefined,
+  decision: PlanDecision<TAction> | null,
+): boolean => {
+  if (!decision) return false;
+
+  tracePlan?.({ decision });
+
+  return true;
+};
+
 export const aiCombat = (
   state: GameState,
   playerId: PlayerId,
   map: SolarSystemMap,
   difficulty: AIDifficulty = 'normal',
+  tracePlan?: CombatPlanTraceCollector,
 ): CombatAttack[] => {
   const caps = deriveCapabilities(state.scenarioRules);
 
@@ -266,6 +285,8 @@ export const aiCombat = (
 
   if (!targetPlan) return [];
 
+  traceCombatPlan(tracePlan, targetPlan);
+
   const scoredByKey = new Map(
     scored.map((target) => [
       combatTargetKey(target.targetType, target.targetId),
@@ -311,7 +332,7 @@ export const aiCombat = (
       });
 
       if (!attackGroupPlan) {
-        chooseCombatHoldFirePlan(
+        const holdFirePlan = chooseCombatHoldFirePlan(
           {
             targetId: target.targetId,
             targetType: target.targetType,
@@ -326,8 +347,11 @@ export const aiCombat = (
             ? 'protectPassengerCarrier'
             : 'lowOdds',
         );
+        traceCombatPlan(tracePlan, holdFirePlan);
         continue;
       }
+
+      traceCombatPlan(tracePlan, attackGroupPlan);
 
       attacks.push({
         attackerIds: attackGroupPlan.chosen.action.attackerIds,
@@ -349,6 +373,8 @@ export const aiCombat = (
       });
 
       if (!attackGroupPlan) continue;
+
+      traceCombatPlan(tracePlan, attackGroupPlan);
 
       attacks.push({
         attackerIds: attackGroupPlan.chosen.action.attackerIds,

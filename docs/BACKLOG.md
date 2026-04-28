@@ -83,38 +83,29 @@ Remaining architecture tasks:
   named plan candidates. Remaining ordnance work is to expose landing-line
   hold and anti-nuke-reach rejection diagnostics in simulation captures while
   keeping intercept geometry helpers local.
-- **Combat:** target choice and attack grouping have named plans. Still missing
-  anti-nuke grouping intent in simulation diagnostics.
+- **Combat:** target choice, attack grouping, hold-fire, and anti-nuke grouping
+  now emit named plans into simulation diagnostics.
 - **Fleet building:** purchase search remains acceptable as bounded optimizer
   / rules-gate logic unless a player-facing fleet-choice failure appears; do
   not churn it only for architecture purity.
 
-1. **Complete combat doctrine plan extraction.** Ship and ordnance target
-   ordering now flows through named combat target plans, including
-   `interceptPassengerCarrier`, `finishAttrition`, `defendAgainstOrdnance`,
-   and `attackThreat`. Race-role attack grouping now flows through
-   `screenObjectiveRunner`, and low-odds / passenger-protection hold-fire now
-   has named plans. Remaining work is to expose anti-nuke grouping diagnostics
-   in simulation captures. Keep the low-level odds / range math in the combat
-   module, but make the strategic reason for firing or holding fire explicit
-   and covered by intent assertions.
-2. **Complete astrogation trace coverage.** Failure captures now include chosen
+1. **Complete astrogation trace coverage.** Failure captures now include chosen
    and rejected named astrogation plan intents when a passenger, escort,
    interceptor, or refuel plan is applied, plus a generic scalar-course trace
    for ordinary astrogation orders with top rejected scalar candidates.
    Emergency escort and transfer formation orders are now named as well.
-3. **Finish passenger doctrine coordinator adoption.** Evacuation and convoy
+2. **Finish passenger doctrine coordinator adoption.** Evacuation and convoy
    failures cross phase boundaries: route choice, escort screen, ordnance, and
    combat affect each other. A shared turn context now identifies the primary
    passenger carrier, active threat, landing window, and ship roles for
    astrogation, ordnance, combat, logistics, and the passenger plan helpers
    that need carrier/threat context. Remaining work is to use it for the next
    concrete passenger behavior fix.
-4. **Split passenger plan modules by responsibility.** Break
+3. **Split passenger plan modules by responsibility.** Break
    `plans/passenger.ts` into narrower modules such as delivery, escort,
    intercept, and combat once the next behavior fix touches that area. Avoid a
    pure file shuffle; do it when a concrete fixture needs the split.
-5. **Finish `PlanEvaluation` range cleanup.** `planEvaluation()` now gives
+4. **Finish `PlanEvaluation` range cleanup.** `planEvaluation()` now gives
    every plan candidate neutral defaults for omitted dimensions, and the docs
    define the intended comparison order / practical ranges for objective,
    survival, landing, fuel, combat, formation, tempo, risk, and effort.

@@ -3680,6 +3680,44 @@ describe('aiCombat — anti-nuke targeting', () => {
       expect(attacks[0].targetId).toBe('nuke-close');
     }
   });
+  it('traces anti-nuke target and attack grouping plans', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('NTRACE'),
+      findBaseHex,
+    );
+    const aiShip = must(state.ships.find((s) => s.owner === 1));
+    const enemy = must(state.ships.find((s) => s.owner === 0));
+    aiShip.position = { q: 0, r: 0 };
+    aiShip.lastMovementPath = [{ q: 0, r: 0 }];
+    aiShip.velocity = { dq: 0, dr: 0 };
+    aiShip.lifecycle = 'active';
+    enemy.position = { q: 8, r: 0 };
+    enemy.lastMovementPath = [{ q: 8, r: 0 }];
+    enemy.velocity = { dq: 0, dr: 0 };
+    enemy.lifecycle = 'active';
+    state.ordnance.push({
+      id: asOrdnanceId('nuke-trace'),
+      type: 'nuke',
+      owner: 0,
+      sourceShipId: null,
+      position: { q: 1, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      lifecycle: 'active' as const,
+      turnsRemaining: 3,
+    });
+    const tracedIntents: string[] = [];
+    const attacks = aiCombat(state, 1, openMap, 'hard', ({ decision }) => {
+      tracedIntents.push(decision.chosen.intent);
+    });
+
+    expect(attacks[0]).toMatchObject({
+      targetId: 'nuke-trace',
+      targetType: 'ordnance',
+    });
+    expect(tracedIntents).toContain('defendAgainstOrdnance');
+  });
 });
 describe('aiCombat — easy AI single attack', () => {
   it('easy AI only makes one attack per phase', () => {
