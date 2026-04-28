@@ -48,13 +48,7 @@ export const choosePassengerFuelSupportPlan = (
     passengerContext?.primaryCarrier ??
     findPrimaryPassengerCarrier(state, playerId);
 
-  if (
-    primaryCarrier == null ||
-    primaryCarrier.id === ship.id ||
-    !hexEqual(primaryCarrier.position, ship.position) ||
-    primaryCarrier.velocity.dq !== ship.velocity.dq ||
-    primaryCarrier.velocity.dr !== ship.velocity.dr
-  ) {
+  if (primaryCarrier == null || primaryCarrier.id === ship.id) {
     return null;
   }
 
@@ -66,38 +60,118 @@ export const choosePassengerFuelSupportPlan = (
     return null;
   }
 
-  const mirroredCourse = computeCourse(ship, carrierOrder.burn, map, {
+  const carrierCourse = computeCourse(primaryCarrier, carrierOrder.burn, map, {
+    ...(carrierOrder.overload !== null
+      ? { overload: carrierOrder.overload }
+      : {}),
+    ...(carrierOrder.land ? { land: true } : {}),
     destroyedBases: state.destroyedBases,
   });
 
-  if (mirroredCourse.outcome === 'crash') {
+  if (carrierCourse.outcome === 'crash') {
+    return null;
+  }
+
+  if (
+    hexEqual(primaryCarrier.position, ship.position) &&
+    primaryCarrier.velocity.dq === ship.velocity.dq &&
+    primaryCarrier.velocity.dr === ship.velocity.dr
+  ) {
+    const mirroredCourse = computeCourse(ship, carrierOrder.burn, map, {
+      destroyedBases: state.destroyedBases,
+    });
+
+    if (mirroredCourse.outcome === 'crash') {
+      return null;
+    }
+
+    return chooseBestPlan([
+      {
+        id: `passenger-fuel-support:${ship.id}:${primaryCarrier.id}`,
+        intent: 'supportPassengerCarrier',
+        action: {
+          type: 'astrogationOrder',
+          shipId: ship.id,
+          carrierShipId: primaryCarrier.id,
+          burn: carrierOrder.burn,
+          overload: null,
+        },
+        evaluation: planEvaluation({
+          feasible: true,
+          objective: 40,
+          survival: 0,
+          fuel: ship.fuel - mirroredCourse.fuelSpent,
+          formation: 50,
+          risk: mirroredCourse.outcome === 'landing' ? 1 : 0,
+          effort: mirroredCourse.fuelSpent,
+        }),
+        diagnostics: [
+          {
+            reason: 'tanker mirrors passenger carrier for fuel support',
+            detail: `${ship.id} follows ${primaryCarrier.id}`,
+          },
+        ],
+      },
+    ]);
+  }
+
+  if (carrierCourse.outcome === 'landing') {
+    return null;
+  }
+
+  const targetHex = carrierCourse.destination;
+  const plan = planShortHorizonMovementToHex(
+    ship,
+    targetHex,
+    map,
+    state.destroyedBases,
+  );
+  const burn = plan?.firstBurn ?? findDirectionToward(ship.position, targetHex);
+
+  if (burn === null) {
+    return null;
+  }
+
+  const course = computeCourse(ship, burn, map, {
+    destroyedBases: state.destroyedBases,
+  });
+
+  if (course.outcome === 'crash') {
+    return null;
+  }
+
+  const currentDistance = hexDistance(ship.position, targetHex);
+  const newDistance = hexDistance(course.destination, targetHex);
+
+  if (newDistance >= currentDistance) {
     return null;
   }
 
   return chooseBestPlan([
     {
-      id: `passenger-fuel-support:${ship.id}:${primaryCarrier.id}`,
+      id: `passenger-fuel-support-regroup:${ship.id}:${primaryCarrier.id}`,
       intent: 'supportPassengerCarrier',
       action: {
         type: 'astrogationOrder',
         shipId: ship.id,
         carrierShipId: primaryCarrier.id,
-        burn: carrierOrder.burn,
+        burn,
         overload: null,
       },
       evaluation: planEvaluation({
         feasible: true,
-        objective: 40,
+        objective: 30,
         survival: 0,
-        fuel: ship.fuel - mirroredCourse.fuelSpent,
-        formation: 50,
-        risk: mirroredCourse.outcome === 'landing' ? 1 : 0,
-        effort: mirroredCourse.fuelSpent,
+        fuel: ship.fuel - course.fuelSpent,
+        formation: Math.max(0, currentDistance - newDistance) * 10,
+        tempo: 3,
+        risk: newDistance,
+        effort: course.fuelSpent,
       }),
       diagnostics: [
         {
-          reason: 'tanker mirrors passenger carrier for fuel support',
-          detail: `${ship.id} follows ${primaryCarrier.id}`,
+          reason: 'detached tanker regroups with passenger carrier',
+          detail: `${ship.id} closes on ${primaryCarrier.id}`,
         },
       ],
     },

@@ -771,6 +771,110 @@ describe('aiAstrogation', () => {
     expect(tankerOrder.burn).toBe(linerOrder.burn);
   });
 
+  it('regroups a detached convoy tanker toward the moving passenger carrier', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('PAX-FUEL-REGROUP'),
+      findBaseHex,
+    );
+    const shipStates = new Map<
+      string,
+      {
+        lifecycle: 'active' | 'destroyed';
+        position: { q: number; r: number };
+        velocity: { dq: number; dr: number };
+        fuel: number;
+        disabledTurns: number;
+        passengersAboard?: number;
+      }
+    >([
+      [
+        'p0s0',
+        {
+          lifecycle: 'active',
+          position: { q: -5, r: 6 },
+          velocity: { dq: 1, dr: 1 },
+          fuel: 6,
+          disabledTurns: 0,
+          passengersAboard: 120,
+        },
+      ],
+      [
+        'p0s1',
+        {
+          lifecycle: 'active',
+          position: { q: -7, r: 4 },
+          velocity: { dq: 0, dr: 0 },
+          fuel: 42,
+          disabledTurns: 0,
+        },
+      ],
+      [
+        'p0s2',
+        {
+          lifecycle: 'active',
+          position: { q: -6, r: 2 },
+          velocity: { dq: 0, dr: 2 },
+          fuel: 13,
+          disabledTurns: 0,
+        },
+      ],
+      [
+        'p1s0',
+        {
+          lifecycle: 'destroyed',
+          position: { q: -6, r: -4 },
+          velocity: { dq: 0, dr: 0 },
+          fuel: 16,
+          disabledTurns: 8,
+        },
+      ],
+      [
+        'p1s1',
+        {
+          lifecycle: 'active',
+          position: { q: -6, r: -2 },
+          velocity: { dq: 0, dr: 1 },
+          fuel: 15,
+          disabledTurns: 0,
+        },
+      ],
+      [
+        'p1s2',
+        {
+          lifecycle: 'destroyed',
+          position: { q: -7, r: -3 },
+          velocity: { dq: 0, dr: 0 },
+          fuel: 20,
+          disabledTurns: 7,
+        },
+      ],
+    ]);
+
+    state.turnNumber = 9;
+    state.phase = 'astrogation';
+    state.activePlayer = 0;
+
+    for (const ship of state.ships) {
+      const next = must(shipStates.get(ship.id));
+      ship.lifecycle = next.lifecycle;
+      ship.position = next.position;
+      ship.velocity = next.velocity;
+      ship.fuel = next.fuel;
+      ship.damage = { disabledTurns: next.disabledTurns };
+      ship.pendingGravityEffects = [];
+      ship.detected = true;
+      ship.passengersAboard = next.passengersAboard;
+    }
+
+    const orders = aiAstrogation(state, 0, map, 'hard');
+    const tankerOrder = must(orders.find((order) => order.shipId === 'p0s1'));
+
+    expect(tankerOrder.burn).not.toBeNull();
+    expect(findFuelStallShipIds(state, 0, orders)).toEqual([]);
+  });
+
   it('builds shared passenger doctrine context for convoy planning', () => {
     const state = createGameOrThrow(
       SCENARIOS.convoy,
@@ -3661,6 +3765,49 @@ describe('aiAstrogation — pure combat positioning', () => {
         shipId: carrier.id,
         burn: null,
         overload: null,
+      },
+      {
+        shipId: tanker.id,
+        burn: null,
+        overload: null,
+      },
+    ];
+
+    expect(findFuelStallShipIds(state, 0, orders)).toEqual([]);
+  });
+  it('convoy: nearby support holding during passenger landing is not a fuel stall', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('CONVOY-SUPPORT-HOLD-LANDING'),
+      findBaseHex,
+    );
+    const carrier = must(state.ships.find((ship) => ship.id === 'p0s0'));
+    const tanker = must(state.ships.find((ship) => ship.id === 'p0s1'));
+
+    carrier.lifecycle = 'active';
+    carrier.position = { q: -7, r: 5 };
+    carrier.velocity = { dq: 0, dr: 1 };
+    carrier.fuel = 6;
+    carrier.passengersAboard = 120;
+    carrier.damage = { disabledTurns: 0 };
+    tanker.lifecycle = 'active';
+    tanker.position = { q: -7, r: 4 };
+    tanker.velocity = { dq: 0, dr: 0 };
+    tanker.fuel = 45;
+    tanker.damage = { disabledTurns: 0 };
+    for (const ship of state.ships) {
+      if (ship.owner === 1 || ship.id === 'p0s2') {
+        ship.lifecycle = 'destroyed';
+      }
+    }
+
+    const orders: AstrogationOrder[] = [
+      {
+        shipId: carrier.id,
+        burn: 1,
+        overload: null,
+        land: true,
       },
       {
         shipId: tanker.id,
