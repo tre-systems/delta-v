@@ -1985,6 +1985,53 @@ describe('aiCombat', () => {
     expect(attacks[0].attackerIds).toContain(escort.id);
     expect(attacks[0].attackerIds).not.toContain(racer.id);
   });
+
+  it('prioritizes passenger carriers over closer escorts in rescue combat', () => {
+    const interceptor = createTestShip({
+      id: asShipId('carrier-hunter'),
+      type: 'corsair',
+      owner: 1,
+      originalOwner: 1,
+      position: { q: 0, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      lastMovementPath: [{ q: 0, r: 0 }],
+    });
+    const escort = createTestShip({
+      id: asShipId('near-escort'),
+      type: 'corvette',
+      owner: 0,
+      originalOwner: 0,
+      position: { q: 1, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+      detected: true,
+      lastMovementPath: [{ q: 1, r: 0 }],
+    });
+    const carrier = createTestShip({
+      id: asShipId('passenger-carrier-target'),
+      type: 'transport',
+      owner: 0,
+      originalOwner: 0,
+      passengersAboard: 12,
+      position: { q: 0, r: 4 },
+      velocity: { dq: 0, dr: 0 },
+      detected: true,
+      lastMovementPath: [{ q: 0, r: 4 }],
+    });
+    const state = createTestState({
+      phase: 'combat',
+      activePlayer: 1,
+      scenarioRules: { targetWinRequiresPassengers: true },
+      players: [{ targetBody: 'Terra' }, { targetBody: '' }],
+      ships: [interceptor, escort, carrier],
+    });
+
+    expect(aiCombat(state, 1, openMap, 'hard')[0]).toMatchObject({
+      attackerIds: [interceptor.id],
+      targetId: carrier.id,
+      targetType: 'ship',
+    });
+  });
+
   it('skips targets that are blocked by a body', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
