@@ -46,7 +46,7 @@ export interface PassengerCarrierEscortTargetAction {
   shipId: Ship['id'];
   carrierShipId: Ship['id'];
   threatShipId: Ship['id'];
-  targetHex: null;
+  targetHex: { q: number; r: number } | null;
   targetBody: '';
 }
 
