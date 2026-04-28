@@ -5,6 +5,7 @@ import {
   comparePlanEvaluations,
   type PlanCandidate,
   type PlanEvaluation,
+  planEvaluation,
 } from '.';
 
 const baseEvaluation: PlanEvaluation = {
@@ -29,10 +30,17 @@ const candidate = (
   intent: 'deliverPassengers',
   action: id,
   priority,
-  evaluation: { ...baseEvaluation, ...evaluation },
+  evaluation: planEvaluation({ feasible: true, ...evaluation }),
 });
 
 describe('intent-first plan comparison', () => {
+  it('fills omitted plan evaluation dimensions with neutral values', () => {
+    expect(planEvaluation({ feasible: true, objective: 12 })).toEqual({
+      ...baseEvaluation,
+      objective: 12,
+    });
+  });
+
   it('always ranks feasible plans ahead of infeasible plans', () => {
     const feasible = { ...baseEvaluation, feasible: true };
     const infeasible = {
