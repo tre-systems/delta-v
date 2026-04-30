@@ -30,7 +30,7 @@ The config types and presets live in the AI config module. The scoring functions
 
 The scenario rules structure includes an optional AI config overrides field, which is a partial version of the full AI difficulty config. At every AI call site, a resolve-AI-config helper merges the scenario override on top of the difficulty preset. Fields not listed in the override fall through unchanged.
 
-For example, the Duel scenario sets its combat-closing weight to one (the default is three) and its combat-close bonus to ten (the default is forty). Every AI call site calls the resolve-AI-config helper with the current difficulty and the scenario's override object, then passes the resulting merged config into whichever AI phase function it needs — astrogation, ordnance, combat, or the passenger-escort look-ahead.
+For example, the Duel scenario sets its combat-closing weight and combat-close bonus to zero, compared with hard-difficulty defaults of three and forty. Every AI call site calls the resolve-AI-config helper with the current difficulty and the scenario's override object, then passes the resulting merged config into whichever AI phase function it needs — astrogation, ordnance, combat, or the passenger-escort look-ahead.
 
 The resolve-AI-config helper lives in the AI config module. The override field is defined on the scenario rules type in the domain types module. Scenarios opt in to overrides via the scenario definitions module. All four AI call sites thread the resolved config through.
 

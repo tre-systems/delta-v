@@ -60,7 +60,7 @@ The agent adapter communicates over the Model Context Protocol using standard in
 
 The canonical tool catalog for both local MCP using standard input and output and remote MCP over HTTP is described in the Delta-V MCP document. The canonical turn loop is: connect to a quick match, wait for your turn, pick a candidate, send the action, then repeat.
 
-The wait-for-turn tool blocks server-side until it is that agent's turn, so agents do not need to poll. The send-action tool automatically stamps submission guards by default, so stale submissions are rejected with fresh state rather than silently accepted. When an action result carries the auto-skip-likely flag, agents should call wait-for-turn again rather than immediately submitting the returned next phase. For hosted MCP, clients must send an Accept header that includes both JSON and text-event-stream on the MCP POST endpoint. A quick-match-connect tool remains available as a compatibility alias for the quick-match tool.
+The wait-for-turn tool blocks server-side until it is that agent's turn, so agents do not need to poll. The send-action tool automatically stamps submission guards by default, so stale submissions are rejected with fresh state rather than silently accepted. When an action result carries the auto-skip-likely flag, agents should call wait-for-turn again rather than immediately submitting the returned next phase. For hosted MCP, clients must send an Accept header that includes both JSON and text-event-stream on the MCP POST endpoint; new HTTP clients should initialize with Model Context Protocol version 2025-11-25 and send the MCP protocol-version header after initialization. A quick-match-connect tool remains available as a compatibility alias for the quick-match tool.
 
 ### 3.2 Resources
 
@@ -76,7 +76,7 @@ Observations are the per-turn payload an agent consumes. The shape is a superset
 
 ### 4.1 Base — AgentTurnInput
 
-Every agent path — bridge over standard-input-and-output or HTTP, and MCP local or remote — produces the same base payload. It includes a version number, the game code, the player identifier zero or one, the authoritative game state filtered for that viewer, a list of pre-computed legal candidate actions, the index of the built-in AI's preferred choice, an optional human-readable summary in Markdown, and optional legal-action metadata.
+Every agent path — bridge over standard-input-and-output or HTTP, and MCP local or remote — produces the same base payload. It includes a version number, the game code, the player identifier zero or one, the authoritative game state filtered for that viewer, a list of pre-computed legal candidate actions, the index of the candidate builder's recommended legal action, an optional human-readable summary in Markdown, and optional legal-action metadata.
 
 ### 4.2 Optional layers
 

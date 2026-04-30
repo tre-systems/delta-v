@@ -24,9 +24,9 @@ The root route serves the single-page application. The create route allocates a 
 
 The join route performs preflight join and reconnect validation. The replay route fetches a specific archived or player-authenticated replay. The WebSocket route upgrades into the room's authoritative game object.
 
-The agent-token route mints a twenty-four-hour HMAC-signed agent token and can optionally bind that agent to a leaderboard username. The claim-name route binds a human player key to a leaderboard username. Leaderboard routes expose the public ladder and the current player's rank lookup.
+The agent-token route mints a twenty-four-hour HMAC-signed agent token and can optionally bind that agent to a leaderboard username. The claim-name route binds a human player key to a leaderboard username. Player-recovery routes issue a human callsign recovery code, restore a profile from a valid code, or revoke the current code; the database stores only the one-way recovery-code hash. Leaderboard routes expose the public ladder and the current player's rank lookup.
 
-The hosted Model Context Protocol route accepts stateless JSON-RPC requests. There are also routes for the public matches listing, match-history HTML, leaderboard HTML, the agent landing page, the machine-readable agent manifest, the phase-and-action playbook, a version manifest, a health probe, and the telemetry and error-reporting endpoints.
+The hosted Model Context Protocol route accepts stateless JSON-RPC requests. There is also an internal metrics route that requires an operator bearer token in production. Public routes cover the matches listing, match-history HTML, leaderboard HTML, the agent landing page, the machine-readable agent manifest, the phase-and-action playbook, a version manifest, a health probe, and the telemetry and error-reporting endpoints.
 
 ## Room lifecycle
 

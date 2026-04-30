@@ -30,7 +30,7 @@ flowchart TB
   subgraph Storage
     D1["D1 events"]
     MA["D1 match_archive"]
-    P["D1 player + match_rating"]
+    P["D1 player + player_recovery + match_rating"]
     R2["R2 MATCH_ARCHIVE"]
   end
 
@@ -50,7 +50,7 @@ flowchart TB
 | **Worker + DO logs**            | `console.log` / `console.error` from `src/server/index.ts`, `GameDO`, handlers   | Cloudflare Workers **Logs** (observability enabled in `wrangler.toml`) |
 | **D1 `events`**                 | Client telemetry, client errors, DO `engine_error`, `projection_parity_mismatch`, `game_abandoned`, lifecycle/side-channel rows (30-day rolling window) | D1 **SQL** in dashboard or `wrangler d1 execute`                       |
 | **D1 `match_archive`**          | One row per completed match (metadata index)                                     | Same                                                                   |
-| **D1 `player` / `match_rating`**| Leaderboard identity + per-rated-match Glicko-2 snapshots                        | Same                                                                   |
+| **D1 `player` / `player_recovery` / `match_rating`** | Leaderboard identity, hashed callsign recovery codes, and per-rated-match Glicko-2 snapshots | Same                                                                   |
 | **R2 `MATCH_ARCHIVE`**          | Full JSON per match (`matches/{gameId}.json`)                                    | R2 bucket browser / API                                                |
 | **Client**                      | `track()` → `POST /telemetry`, `reportError()` → `POST /error`                   | Implemented in `src/client/telemetry.ts`                               |
 | **Internal `GET /api/metrics`** | Auth-gated aggregate snapshot over D1 `events` + `match_archive`                 | Worker route (`Authorization: Bearer <INTERNAL_METRICS_TOKEN>`)        |
@@ -566,6 +566,6 @@ User-facing policy copy is out of scope here; align any public privacy text with
 
 - No built-in **dashboards** or **alerts** — use Cloudflare + D1 exports or third-party tools. Operational D1 queries are documented above.
 - **Rate limits:** canonical table in [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture); optional cross-edge WAF if distributed abuse is observed.
-- **Retention:** `events` rows older than 30 days are deleted daily by `purgeOldEvents` (cron `0 4 * * *` in `wrangler.toml`); the same cron also calls `purgeExpiredMatchArchives` to remove `match_archive` rows and their R2 objects older than 180 days. Other tables (`player`, `match_rating`) have no automatic TTL — see [SECURITY.md § Data retention](./SECURITY.md#data-retention-d1-r2-do).
+- **Retention:** `events` rows older than 30 days are deleted daily by `purgeOldEvents` (cron `0 4 * * *` in `wrangler.toml`); the same cron also calls `purgeExpiredMatchArchives` to remove `match_archive` rows and their R2 objects older than 180 days. Other tables (`player`, `player_recovery`, `match_rating`) have no automatic TTL — see [SECURITY.md § Data retention](./SECURITY.md#data-retention-d1-r2-do).
 - **`match_rating` intent:** `pre_rating_*` / `post_rating_*` are intentionally kept as an audit/history trail for future player-profile charts, admin anti-cheat review, and balance analysis. They are not dead schema just because the current public app does not read them yet.
 - **Sampling** or caps can be added in `src/server/index.ts` before `insertEvent` if volume grows.

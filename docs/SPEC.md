@@ -287,7 +287,7 @@ then longer or more sophisticated scenarios.
 ### Grand Tour (race)
 
 - Each player starts with a corvette at a different habitable world.
-- Must pass through at least one gravity hex of each major body (Sol, Mercury, Venus, Terra, Mars, Jupiter, Io, Callisto) and return to land at the starting world.
+- Must pass through at least one gravity hex of each checkpoint body (Sol, Mercury, Venus, Terra, Luna, Mars, Jupiter, Io, Callisto) and return to land at the starting world.
 - No combat — pure navigation and gravity management.
 - Shared bases at Terra, Venus, Mars, and Callisto.
 - Starting player is randomized at game creation to avoid a fixed turn-order edge in the race.
@@ -301,7 +301,7 @@ then longer or more sophisticated scenarios.
 
 ### Lunar Evacuation (escort)
 
-- Evacuees (transport + corvette from Luna) vs Interceptor (corsair from Terra).
+- Evacuees (transport + corvette + frigate from Luna) vs Interceptor (corsair from Terra).
 - Logistics and passenger-rescue rules enabled.
 - Victory requires landing survivors at Terra.
 - If no colonists survive on any evacuee ship, the interceptor wins immediately.
@@ -314,13 +314,13 @@ then longer or more sophisticated scenarios.
 
 ### Fleet Action
 
-- Fleet-building battle with a tuned first-player order for a shorter balanced clash.
+- Fleet-building battle with asymmetric starting budgets (600 MC vs 400 MC) and a tuned first-player order for a shorter balanced clash.
 - Full combined-arms engagement.
 
 ### Interplanetary War
 
 - Tuned fleet-building war using Terran vs Rebel roles from the rulebook.
-- Uses a smaller MegaCredit budget than the full paper campaign.
+- Both sides receive 850 MC, a smaller MegaCredit budget than the full paper campaign.
 - Strategic home-base positioning and mixed-fleet combat.
 
 Scenario definition shape and `ScenarioRules` flags: [PROTOCOL.md#scenario-definition](./PROTOCOL.md#scenario-definition). Gameplay notes per scenario: [MANUAL_TEST_PLAN.md#6-scenarios](./MANUAL_TEST_PLAN.md#6-scenarios-verify-each-starts-correctly-and-applies-its-rules).

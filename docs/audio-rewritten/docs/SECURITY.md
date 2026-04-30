@@ -10,7 +10,7 @@ WebSocket actions are validated and resolved on the server against the shared en
 
 The room creator receives a reserved reconnect token for seat zero. Guest-seat claiming is still room-code based in the default friendly-match flow, but once a seat is claimed the reconnect flow is token-based and seat reclamation is keyed to player identity.
 
-Malformed client-to-server WebSocket messages are rejected at runtime before any engine handler executes. After a socket is accepted, per-socket rate limiting caps message flood at ten messages per second before closing the socket, and chat is separately throttled to at most one accepted message every five hundred milliseconds per player.
+Malformed client-to-server WebSocket messages are rejected at runtime before any engine handler executes. After a socket is accepted, per-socket rate limiting caps message flood at ten messages per second before closing the socket, and chat is separately throttled to at most one accepted message every five hundred milliseconds per player. Human callsign recovery endpoints share the create-class throttle and store only one-way recovery-code hashes in the database.
 
 Room codes come from a cryptographically strong random-number generator rather than a non-cryptographic helper.
 
@@ -52,7 +52,7 @@ Inside the game Durable Object, per-socket limits cap post-upgrade message flood
 
 All user-originating route limits are keyed per salted hashed IP rather than by the raw address.
 
-The route budgets are as follows. Create, agent-token, quick-match, and claim-name are limited to five requests per minute per salted hashed IP, using both the strict per-isolate bucket and the Cloudflare create rate limiter binding. WebSocket upgrades are limited to twenty per minute per salted hashed IP in the per-isolate bucket. Join-style reads — including join, quick-match ticket polling, match-list, leaderboard, and per-player leaderboard lookup — share a budget of one hundred per minute per salted hashed IP. Replay fetches have a separate bucket of two hundred fifty per minute per salted hashed IP so replay traffic cannot exhaust the join budget. Telemetry allows one hundred twenty per minute per salted hashed IP with a four-kilobyte body cap, backed by the Cloudflare telemetry limiter with in-memory fallback. Error reporting allows forty per minute per salted hashed IP with the same body cap, backed by the error limiter. Hosted MCP allows twenty per minute keyed by agent-token hash or salted hashed IP, with a sixteen-kilobyte body cap. Post-upgrade WebSocket messages are capped at ten per second per socket, and chat is limited to one accepted message every five hundred milliseconds per player.
+The route budgets are as follows. Create, agent-token, quick-match, claim-name, and player-recovery issue, restore, and revoke are limited to five requests per minute per salted hashed IP, using both the strict per-isolate bucket and the Cloudflare create rate limiter binding. WebSocket upgrades are limited to twenty per minute per salted hashed IP in the per-isolate bucket. Join-style reads — including join, quick-match ticket polling, match-list, leaderboard, and per-player leaderboard lookup — share a budget of one hundred per minute per salted hashed IP. Replay fetches have a separate bucket of two hundred fifty per minute per salted hashed IP so replay traffic cannot exhaust the join budget. Telemetry allows one hundred twenty per minute per salted hashed IP with a four-kilobyte body cap, backed by the Cloudflare telemetry limiter with in-memory fallback. Error reporting allows forty per minute per salted hashed IP with the same body cap, backed by the error limiter. Hosted MCP allows twenty per minute keyed by agent-token hash or salted hashed IP, with a sixteen-kilobyte body cap. Post-upgrade WebSocket messages are capped at ten per second per socket, and chat is limited to one accepted message every five hundred milliseconds per player.
 
 The practical caveat is that in-memory per-isolate limits are not global across all edge locations. If distributed abuse becomes real, WAF rules or additional edge rate-limit namespaces are the escalation path.
 
@@ -100,9 +100,9 @@ The events table has a thirty-day rolling purge run by a daily scheduled cron.
 
 The match-archive metadata table and the paired R2 match-JSON objects have a one-hundred-eighty-day rolling purge tied to the same scheduled cleanup path, which deletes both the database row and the archive object together.
 
-The player table, match-rating table, and some remaining Durable Object storage do not have automatic time-to-live behavior beyond the room-archive lifecycle.
+The player table, player-recovery table, match-rating table, and some remaining Durable Object storage do not have automatic time-to-live behavior beyond the room-archive lifecycle. Player-recovery rows store hashed human callsign recovery codes, not raw recovery codes.
 
-Operationally, the available levers are database export and delete operations, R2 lifecycle policies, and documented runbooks for any future user-erasure process. Erasure requests can be correlated by anonymous identifier for the events table within the thirty-day window, by player key for the player and match-rating tables, and by game identifier or room code for match-archive rows and R2 archives.
+Operationally, the available levers are database export and delete operations, R2 lifecycle policies, and documented runbooks for any future user-erasure process. Erasure requests can be correlated by anonymous identifier for the events table within the thirty-day window, by player key for the player, player-recovery, and match-rating tables, and by game identifier or room code for match-archive rows and R2 archives.
 
 ## Operational references
 

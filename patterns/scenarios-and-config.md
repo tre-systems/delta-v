@@ -55,8 +55,8 @@ const best = maxBy(candidates, (c) => scoreCourse(ship, c, map, cfg));
 ```ts
 // Duel's ScenarioRules:
 aiConfigOverrides: {
-  combatClosingWeight: 1,     // default is 3
-  combatCloseBonus: 10,       // default is 40
+  combatClosingWeight: 0,     // hard default is 3
+  combatCloseBonus: 0,        // hard default is 40
 }
 
 // Every AI call site:
@@ -167,7 +167,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       },
     ],
     rules: {
-      aiConfigOverrides: { combatClosingWeight: 1, combatCloseBonus: 10 },
+      aiConfigOverrides: { combatClosingWeight: 0, combatCloseBonus: 0 },
     },
   },
   …

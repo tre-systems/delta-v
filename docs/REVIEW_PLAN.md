@@ -112,12 +112,12 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 **Goal:** predictable upgrades and vulnerability response.
 
-**Key files:** `package.json`, `package-lock.json`, `.nvmrc`, `.github/workflows/ci.yml`.
+**Key files:** `package.json`, `package-lock.json`, `.nvmrc`, `.github/workflows/ci.yml`, `.github/workflows/audit.yml`.
 
 **Steps**
 
 1. Run `npm audit`. **Pass:** no high/critical vulnerabilities. **Fail:** fix or document accepted risk in BACKLOG.
-2. Compare Node version across `.nvmrc`, `package.json` engines (if set), and `.github/workflows/ci.yml`. **Pass:** all match. **Fail:** align them.
+2. Compare Node version across `.nvmrc`, `package.json` engines (if set), and GitHub workflows that run Node (`.github/workflows/*.yml`). **Pass:** all project workflows use the pinned version unless a workflow documents why it intentionally differs. **Fail:** align them or document the exception.
 3. Run `npm outdated`. Flag any dependencies more than 2 major versions behind. **Pass:** nothing critically outdated. **Fail:** file BACKLOG item for upgrade.
 
 ---
@@ -133,7 +133,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 | 5   | Error handling / resilience | 2026-04-04 | pass               | `game-do` 134 tests pass; `runGameDoAlarm` now has top-level try-catch with reschedule; 5 error-handling tests added |
 | 6   | Bundle / runtime            | 2026-04-04 | partial            | `dist/client.js` 655337 bytes raw / 135583 bytes gzip (~132 KB, within baseline); runtime heap profiling remains `[Human]` |
 | 7   | Supply chain / release      | 2026-04-04 | pass               | `npm audit` 0 vulnerabilities; `npm outdated` no packages 2+ major versions behind; Node 25 consistent across `.nvmrc` and CI |
-| 8   | Focused six-review sweep    | 2026-04-24 | pass (shipped fixes below) | A11y re-audit (axe 8/8; game-over + reconnect focus traps shipped). MCP reliability: 5 input-schema tightenings filed. Dependency: `hono` override path, dev-only `vite` advisories, CI audit gap filed. Rules-conformance: four SPEC rules verified; rulebook-constants lock shipped; SPEC torpedo-lifetime divergence documented. Perf: unminified 860 KB→397 KB minify shipped; hashed-URL cache P2 open. Privacy: salted `ip_hash` shipped; anonId-on-Forget + stack-scrub P2/P3 open. Cost/abuse: `cf-connecting-ip` spoof P1 + per-IP WS/room concurrency cap P2 filed. |
+| 8   | Focused six-review sweep    | 2026-04-24 | pass (shipped fixes below) | A11y re-audit (axe 8/8; game-over + reconnect focus traps shipped). MCP reliability: 5 input-schema tightenings filed. Dependency: `hono` override path, dev-only `vite` advisories, scheduled CI audit workflow later shipped. Rules-conformance: four SPEC rules verified; rulebook-constants lock shipped; SPEC torpedo-lifetime divergence documented. Perf: unminified 860 KB→397 KB minify shipped; hashed-URL cache P2 open. Privacy: salted `ip_hash` shipped; anonId-on-Forget and stack truncation later shipped. Cost/abuse: `cf-connecting-ip` spoof P1 + per-IP WS/room concurrency cap P2 filed. |
 
 **Decisions already recorded elsewhere (no recurring review needed):**
 - **i18n:** English-only — [ARCHITECTURE.md](./ARCHITECTURE.md#5-current-decisions-and-planned-shifts).
