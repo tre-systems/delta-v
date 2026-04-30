@@ -534,51 +534,37 @@ export const renderCombatOverlay = ({
     ctx.setLineDash([]);
   }
 
+  ctx.save();
   ctx.textAlign = 'center';
 
-  // Main odds label (e.g. "1:1  ATK 2/2")
+  // Compact shot quality label. Odds already captures attack vs defense; keep
+  // the map callout to the information needed for the immediate shot decision.
   ctx.font = scaledFont('bold 12px monospace', zoom);
+  ctx.textBaseline = 'middle';
   const oddsW = ctx.measureText(preview.label).width;
+  const gapW = preview.modLabel ? ctx.measureText('  ').width : 0;
+  const modW = preview.modLabel ? ctx.measureText(preview.modLabel).width : 0;
+  const textW = oddsW + gapW + modW;
+  const badgeW = Math.max(40, textW + 14);
+  const badgeH = 18;
+  const badgeY = targetPos.y - 43;
+  const badgeTextY = badgeY + badgeH / 2;
+  const textStartX = targetPos.x - textW / 2;
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-  ctx.fillRect(targetPos.x - oddsW / 2 - 5, targetPos.y - 32, oddsW + 10, 16);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.68)';
+  ctx.fillRect(targetPos.x - badgeW / 2, badgeY, badgeW, badgeH);
+
   ctx.fillStyle = '#ffdd57';
-  ctx.fillText(preview.label, targetPos.x, targetPos.y - 20);
+  ctx.fillText(preview.label, textStartX + oddsW / 2, badgeTextY);
 
-  // Compact sub-label: modifier and/or counter icon
-  const hasInfo = preview.modLabel || preview.canCounter;
-  if (hasInfo) {
-    const counterIcon = preview.canCounter ? '\u2694 COUNTER' : '';
-    const subParts = [preview.modLabel, counterIcon].filter(Boolean).join(' ');
-
-    ctx.font = scaledFont('bold 11px monospace', zoom);
-    const subW = ctx.measureText(subParts).width;
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(targetPos.x - subW / 2 - 4, targetPos.y - 46, subW + 8, 13);
-
-    // Draw modifier in its color, counter icon in orange
-    if (preview.modLabel && preview.canCounter) {
-      const modW = ctx.measureText(preview.modLabel).width;
-      const gap = ctx.measureText(' ').width;
-      const totalW = subW;
-      const startX = targetPos.x - totalW / 2;
-
-      ctx.fillStyle = preview.modColor;
-      ctx.fillText(preview.modLabel, startX + modW / 2, targetPos.y - 36);
-
-      ctx.fillStyle = 'rgba(255, 170, 0, 0.9)';
-      ctx.fillText(
-        counterIcon,
-        startX + modW + gap + ctx.measureText(counterIcon).width / 2,
-        targetPos.y - 36,
-      );
-    } else if (preview.modLabel) {
-      ctx.fillStyle = preview.modColor;
-      ctx.fillText(preview.modLabel, targetPos.x, targetPos.y - 36);
-    } else {
-      ctx.fillStyle = 'rgba(255, 170, 0, 0.9)';
-      ctx.fillText(counterIcon, targetPos.x, targetPos.y - 36);
-    }
+  if (preview.modLabel) {
+    ctx.fillStyle = preview.modColor;
+    ctx.fillText(
+      preview.modLabel,
+      textStartX + oddsW + gapW + modW / 2,
+      badgeTextY,
+    );
   }
+
+  ctx.restore();
 };

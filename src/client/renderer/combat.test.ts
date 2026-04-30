@@ -183,7 +183,7 @@ describe('renderer combat helpers', () => {
     });
   });
 
-  it('builds a ship combat preview with counterattack information', () => {
+  it('builds a compact ship combat preview', () => {
     const state = createState();
 
     const planning = createPlanning({
@@ -199,11 +199,10 @@ describe('renderer combat helpers', () => {
         { q: 0, r: 0 },
         { q: 0, r: 1 },
       ],
-      label: '1:2 · STR 6/6',
-      modLabel: 'MOD -1',
+      label: '1:2',
+      modLabel: '-1',
       modColor: '#ffcc00',
       totalMod: -1,
-      canCounter: true,
     });
   });
 
@@ -219,11 +218,10 @@ describe('renderer combat helpers', () => {
     expect(getCombatPreview(state, 0, planning, map)).toEqual({
       targetPosition: { q: 1, r: 0 },
       attackerPositions: [{ q: 0, r: 0 }],
-      label: '1:2 · STR 4/4',
-      modLabel: 'MOD -1',
+      label: '1:2',
+      modLabel: '-1',
       modColor: '#ffcc00',
       totalMod: -1,
-      canCounter: true,
     });
   });
 
@@ -245,10 +243,9 @@ describe('renderer combat helpers', () => {
         { q: 0, r: 1 },
       ],
       label: '2:1',
-      modLabel: 'MOD -1',
+      modLabel: '-1',
       modColor: '#ffcc00',
       totalMod: -1,
-      canCounter: false,
     });
   });
 

@@ -73,7 +73,7 @@ Start landed → take off → orbit → land on opponent's base. Booster takeoff
 
 ## 4. Combat (Duel vs AI Hard)
 
-- **Attack:** preview shows attacker/defender factors, odds, range modifier, velocity modifier, and "CAN COUNTER" where applicable. ATTACK queues; FIRE ALL resolves; result toast shows outcome.
+- **Attack:** preview shows a compact odds/modifier badge over the selected target. ATTACK resolves the selected attack; END COMBAT finishes the phase; result toast shows outcome.
 - **Counterattack:** fires at its own odds if defender is still eligible.
 - **Damage / recovery:** disabled ships drift for the stated number of turns, decrease by 1/turn. ≥ 6 cumulative disabled turns = elimination. Base landing repairs all damage.
 - **Planetary defense (Bi-Planetary):** enemy entering gravity hex above your base is fired at 2:1 with no range/velocity mods.

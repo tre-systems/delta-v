@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { hexKey } from '../../shared/hex';
-import { asGameId, asOrdnanceId, asShipId } from '../../shared/ids';
+import {
+  asGameId,
+  asOrdnanceId,
+  asShipId,
+  combatTargetKey,
+} from '../../shared/ids';
 import type {
   CombatAttack,
   GameState,
@@ -127,6 +132,10 @@ const map: SolarSystemMap = {
 describe('game client combat helpers', () => {
   it('reuses a split-fire group against another target in the same hex', () => {
     const state = createState();
+    const attackerB = state.ships.find((ship) => ship.id === 'b');
+    expect(attackerB).toBeDefined();
+    if (!attackerB) return;
+    attackerB.position = { q: 0, r: 0 };
     const queuedAttacks: CombatAttack[] = [
       {
         attackerIds: [asShipId('a'), asShipId('b')],
@@ -142,6 +151,45 @@ describe('game client combat helpers', () => {
     });
 
     expect(hasSplitFireOptions(state, 0, queuedAttacks)).toBe(true);
+  });
+
+  it('does not reuse a split-fire group when attackers are not stacked', () => {
+    const state = createState();
+    const queuedAttacks: CombatAttack[] = [
+      {
+        attackerIds: [asShipId('a'), asShipId('b')],
+        targetId: asShipId('x'),
+        targetType: 'ship',
+        attackStrength: 3,
+      },
+    ];
+
+    expect(getReusableCombatGroup(state, 0, queuedAttacks, 'y')).toBeNull();
+    expect(hasSplitFireOptions(state, 0, queuedAttacks)).toBe(false);
+  });
+
+  it('reuses a sequential split-fire group recorded by the engine', () => {
+    const state = createState({
+      combatAttackGroupsThisPhase: [
+        {
+          attackerIds: [asShipId('a')],
+          targetHexKey: hexKey({ q: 1, r: 0 }),
+          targetType: 'ship',
+          maxStrength: 4,
+          allocatedStrength: 2,
+        },
+      ],
+      combatTargetedThisPhase: [combatTargetKey('ship', asShipId('x'))],
+    });
+
+    expect(getReusableCombatGroup(state, 0, [], 'y')).toEqual({
+      attackerIds: [asShipId('a')],
+      remainingStrength: 2,
+    });
+    expect(getCombatTargetAtHex(state, 0, { q: 1, r: 0 }, map, [])).toEqual({
+      targetId: asShipId('y'),
+      targetType: 'ship',
+    });
   });
 
   it('builds a ship attack from selected legal attackers and clamps requested strength', () => {
@@ -375,6 +423,10 @@ describe('game client combat helpers', () => {
 
   it('creates and clears combat target plans from reusable or legal groups', () => {
     const state = createState();
+    const attackerB = state.ships.find((ship) => ship.id === 'b');
+    expect(attackerB).toBeDefined();
+    if (!attackerB) return;
+    attackerB.position = { q: 0, r: 0 };
     const queuedAttacks: CombatAttack[] = [
       {
         attackerIds: [asShipId('a'), asShipId('b')],

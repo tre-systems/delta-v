@@ -189,6 +189,14 @@ interface GameState {
   pendingAsteroidHazards: AsteroidHazard[];
   destroyedAsteroids: string[];            // hexKey[] — removed by nukes
   destroyedBases: string[];                // hexKey[] — destroyed by nukes
+  combatTargetedThisPhase?: string[];      // sequential combat target keys
+  combatAttackGroupsThisPhase?: {
+    attackerIds: string[];
+    targetHexKey: string;
+    targetType: 'ship';
+    maxStrength: number;
+    allocatedStrength: number;
+  }[];
   players: [PlayerState, PlayerState];
   outcome: { winner: number; reason: string } | null;
 }

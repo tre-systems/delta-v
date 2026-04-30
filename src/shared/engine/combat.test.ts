@@ -310,6 +310,62 @@ describe('processCombat', () => {
       'same hex',
     );
   });
+  it('rejects split fire from attackers that do not share one hex', () => {
+    const state = makeCombatState();
+    state.ships = [
+      makeShip({
+        id: asShipId('a0'),
+        type: 'corsair',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: asShipId('a1'),
+        type: 'corvette',
+        owner: 0,
+        position: { q: 0, r: 1 },
+        lastMovementPath: [{ q: 0, r: 1 }],
+      }),
+      makeShip({
+        id: asShipId('e0'),
+        type: 'transport',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
+      makeShip({
+        id: asShipId('e1'),
+        type: 'transport',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
+    ];
+    const result = processCombat(
+      state,
+      0,
+      [
+        {
+          attackerIds: [asShipId('a0'), asShipId('a1')],
+          targetId: asShipId('e0'),
+          targetType: 'ship',
+          attackStrength: 3,
+        },
+        {
+          attackerIds: [asShipId('a0'), asShipId('a1')],
+          targetId: asShipId('e1'),
+          targetType: 'ship',
+          attackStrength: 3,
+        },
+      ],
+      openMap,
+      () => 0.5,
+    );
+    expect('error' in result && getErrorMessage(result.error)).toContain(
+      'share one hex',
+    );
+  });
   it('rejects invalid declared attack strength', () => {
     const state = makeCombatState();
     const result = processCombat(
@@ -1335,6 +1391,86 @@ describe('processSingleCombat', () => {
       const attacker = result.state.ships.find((s) => s.id === 'a0');
       expect(attacker?.firedThisPhase).toBe(true);
     }
+  });
+  it('allows a same-hex group to split remaining strength across stacked targets', () => {
+    const state = makeCombatState();
+    state.ships = [
+      makeShip({
+        id: asShipId('a0'),
+        type: 'corsair',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: asShipId('a1'),
+        type: 'corvette',
+        owner: 0,
+        position: { q: 0, r: 0 },
+        lastMovementPath: [{ q: 0, r: 0 }],
+      }),
+      makeShip({
+        id: asShipId('e0'),
+        type: 'transport',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
+      makeShip({
+        id: asShipId('e1'),
+        type: 'transport',
+        owner: 1,
+        position: { q: 2, r: 0 },
+        lastMovementPath: [{ q: 2, r: 0 }],
+      }),
+    ];
+
+    const first = processSingleCombat(
+      state,
+      0,
+      {
+        attackerIds: [asShipId('a0'), asShipId('a1')],
+        targetId: asShipId('e0'),
+        targetType: 'ship',
+        attackStrength: 3,
+      },
+      openMap,
+      () => 0.5,
+    );
+    expect('error' in first).toBe(false);
+    if ('error' in first) return;
+
+    expect(first.state.combatAttackGroupsThisPhase?.[0]).toMatchObject({
+      attackerIds: [asShipId('a0'), asShipId('a1')],
+      allocatedStrength: 3,
+      maxStrength: 6,
+    });
+    expect(
+      first.state.ships.find((ship) => ship.id === 'a0')?.firedThisPhase,
+    ).toBeUndefined();
+
+    const second = processSingleCombat(
+      first.state,
+      0,
+      {
+        attackerIds: [asShipId('a0'), asShipId('a1')],
+        targetId: asShipId('e1'),
+        targetType: 'ship',
+        attackStrength: null,
+      },
+      openMap,
+      () => 0.5,
+    );
+    expect('error' in second).toBe(false);
+    if ('error' in second) return;
+
+    expect(second.state.combatAttackGroupsThisPhase).toEqual([]);
+    expect(
+      second.state.ships.find((ship) => ship.id === 'a0')?.firedThisPhase,
+    ).toBe(true);
+    expect(
+      second.state.ships.find((ship) => ship.id === 'a1')?.firedThisPhase,
+    ).toBe(true);
   });
   it('resolves anti-nuke attack against enemy nuke', () => {
     const state = makeCombatState();

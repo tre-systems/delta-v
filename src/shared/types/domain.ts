@@ -106,6 +106,9 @@ export interface GameState {
   // Tracks which targets have been attacked during the current combat
   // phase (sequential combat). Cleared by advanceTurn.
   combatTargetedThisPhase?: CombatTargetKey[];
+  // Tracks partially allocated split-fire groups during sequential combat.
+  // A group is retained until its declared strength has all been allocated.
+  combatAttackGroupsThisPhase?: CombatAttackGroupUsage[];
   players: [PlayerState, PlayerState];
   outcome: GameOutcome | null;
 }
@@ -333,6 +336,14 @@ export interface CombatAttack {
   targetId: ShipId | OrdnanceId;
   targetType: 'ship' | 'ordnance';
   attackStrength: number | null;
+}
+
+export interface CombatAttackGroupUsage {
+  attackerIds: ShipId[];
+  targetHexKey: HexKey;
+  targetType: 'ship';
+  maxStrength: number;
+  allocatedStrength: number;
 }
 
 export type ShipTargetCombatAttack = CombatAttack & {

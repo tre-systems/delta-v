@@ -426,6 +426,35 @@ describe('projectConflictEvent', () => {
     ]);
   });
 
+  it('keeps partial split-fire attackers available until their group is fully allocated', () => {
+    const state = baseState();
+    const event: ConflictProjectionEvent = {
+      type: 'combatAttack',
+      attackerIds: [asShipId('s1')],
+      targetId: asShipId('s2'),
+      targetType: 'ship',
+      attackType: 'gun',
+      attackStrength: 1,
+      roll: 4,
+      modifiedRoll: 4,
+      damageType: 'none',
+      disabledTurns: 0,
+    };
+
+    const result = projectConflictEvent(state, event);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(
+      must(result.value.ships.find((s) => s.id === 's1')).firedThisPhase,
+    ).toBeUndefined();
+    expect(result.value.combatAttackGroupsThisPhase?.[0]).toMatchObject({
+      attackerIds: [asShipId('s1')],
+      maxStrength: 2,
+      allocatedStrength: 1,
+    });
+  });
+
   it('does not mark opposing counterattackers as fired', () => {
     const state = baseState();
     const event: ConflictProjectionEvent = {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { hexKey } from '../../shared/hex';
 import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, Ship } from '../../shared/types/domain';
 import { getProjectionParityDiff, normalizeStateForParity } from './projection';
@@ -86,6 +87,23 @@ describe('normalizeStateForParity', () => {
     const normalized = normalizeStateForParity(live);
 
     expect(normalized.combatTargetedThisPhase).toBeUndefined();
+  });
+
+  it('strips combatAttackGroupsThisPhase (sequential combat residue)', () => {
+    const live = baseState();
+    live.combatAttackGroupsThisPhase = [
+      {
+        attackerIds: [],
+        targetHexKey: hexKey({ q: 0, r: 0 }),
+        targetType: 'ship',
+        maxStrength: 2,
+        allocatedStrength: 1,
+      },
+    ];
+
+    const normalized = normalizeStateForParity(live);
+
+    expect(normalized.combatAttackGroupsThisPhase).toBeUndefined();
   });
 
   it('strips per-player connected/ready (session residue)', () => {

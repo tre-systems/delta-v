@@ -6,7 +6,6 @@ import {
   computeGroupVelocityModToTarget,
   computeOdds,
   getCombatStrength,
-  getCounterattackers,
   hasLineOfSight,
   hasLineOfSightToTarget,
 } from '../../shared/combat';
@@ -53,7 +52,6 @@ export interface CombatPreview {
   modLabel: string;
   modColor: string;
   totalMod: number;
-  canCounter: boolean;
 }
 
 const getCommittedAttackers = (queuedAttacks: CombatAttack[]): Set<string> => {
@@ -236,14 +234,12 @@ const formatPreviewLabel = (
   target: Ship | Ordnance,
   targetType: 'ship' | 'ordnance',
   attackers: Ship[],
-  allShips: Ship[],
   requestedStrength: number | null,
 ): {
   label: string;
   modLabel: string;
   modColor: string;
   totalMod: number;
-  canCounter: boolean;
 } => {
   let label = '';
   let rangeMod = 0;
@@ -269,28 +265,22 @@ const formatPreviewLabel = (
     rangeMod = computeGroupRangeMod(attackers, shipTarget);
     velMod = computeGroupVelocityMod(attackers, shipTarget);
 
-    label = `${odds} · STR ${attackStrength}/${maxAttackStrength}`;
+    label = odds;
   }
 
   const totalMod = -(rangeMod + velMod);
 
   const modSign = totalMod > 0 ? '+' : '';
-  const modLabel = totalMod === 0 ? '' : `MOD ${modSign}${totalMod}`;
+  const modLabel = totalMod === 0 ? '' : `${modSign}${totalMod}`;
 
   const modColor =
     totalMod <= -3 ? '#ff6b6b' : totalMod <= -1 ? '#ffcc00' : '#8bc34a';
-
-  const canCounter =
-    targetType === 'ship'
-      ? getCounterattackers(target as Ship, allShips).length > 0
-      : false;
 
   return {
     label,
     modLabel,
     modColor,
     totalMod,
-    canCounter,
   };
 };
 
@@ -323,11 +313,10 @@ export const getCombatPreview = (
     return {
       targetPosition: targetInfo.target.position,
       attackerPositions: [],
-      label: 'NO LINE OF SIGHT',
-      modLabel: 'Target is blocked by a celestial body',
+      label: 'BLOCKED',
+      modLabel: '',
       modColor: '#ff6b6b',
       totalMod: 0,
-      canCounter: false,
     };
   }
 
@@ -341,7 +330,6 @@ export const getCombatPreview = (
     targetInfo.target,
     targetInfo.targetType,
     activeAttackers,
-    state.ships,
     planning.combatAttackStrength,
   );
 
@@ -352,7 +340,6 @@ export const getCombatPreview = (
     modLabel: preview.modLabel,
     modColor: preview.modColor,
     totalMod: preview.totalMod,
-    canCounter: preview.canCounter,
   };
 };
 
