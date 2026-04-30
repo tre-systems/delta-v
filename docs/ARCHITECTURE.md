@@ -1,5 +1,7 @@
 # Delta-V Architecture & Design Document
 
+![Delta-V system architecture infographic](./assets/delta-v-system-architecture-infographic.png)
+
 The module inventory, data flow, and Durable-Object model for the Delta-V server and shared engine. Read this to learn how a request becomes authoritative state and how state becomes bytes on the wire. Game rules live in [SPEC.md](./SPEC.md); wire format lives in [PROTOCOL.md](./PROTOCOL.md); conventions live in [CODING_STANDARDS.md](./CODING_STANDARDS.md); contributor workflow lives in [CONTRIBUTING.md](./CONTRIBUTING.md); open work lives in [BACKLOG.md](./BACKLOG.md); and the *why* behind the design choices lives in [patterns/](../patterns/README.md).
 
 The authoritative server model is event-sourced: the Durable Object persists a match-scoped event stream plus checkpoints, and recovers authoritative state from checkpoint + event tail (not from a separate persisted `gameState` snapshot slot).
@@ -104,6 +106,8 @@ flowchart TB
   DO --> ENGINE[src/shared/engine]
   DO --> STORES[(DO storage / optional R2 / D1 telemetry)]
 ```
+
+![Delta-V authoritative match flow infographic](./assets/delta-v-authoritative-match-flow-infographic.png)
 
 **Authoritative action path (multiplayer):**
 

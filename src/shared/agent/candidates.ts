@@ -1,6 +1,8 @@
 // Candidate action generation for agents. Produces legal C2S options per phase
-// using the built-in AI at all three difficulty levels, de-duplicated.
-// The first candidate (index 0) is the "recommended" choice from the hard AI.
+// using the built-in AI at all three difficulty levels, de-duplicated, plus a
+// few conservative variants. Index 0 is the recommended legal candidate; it is
+// normally the hard AI output, but phase-specific safety ordering may move a
+// safer candidate ahead of it.
 
 import {
   type AIDifficulty,
@@ -306,7 +308,7 @@ const prioritizeOrdnanceCandidates = (
 };
 
 // Generate the canonical candidate list for a given state/player.
-// Returns C2S[] where index 0 is the hard-difficulty "recommended" choice.
+// Returns C2S[] where index 0 is the recommended legal candidate.
 export const buildCandidates = (
   state: GameState,
   playerId: PlayerId,

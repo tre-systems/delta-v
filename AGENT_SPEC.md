@@ -110,7 +110,7 @@ sequenceDiagram
   end
 ```
 
-`delta_v_wait_for_turn` blocks until it is this agent's turn; agents do not poll. `delta_v_send_action` auto-stamps `ActionGuards` by default so stale submissions are rejected with fresh state rather than silently accepted. When the action result carries `autoSkipLikely: true`, agents should `wait_for_turn` instead of immediately submitting the returned `nextPhase`. For hosted MCP, clients must send `Accept: application/json, text/event-stream` on `POST /mcp`. `delta_v_quick_match_connect` remains available as a compatibility alias for `delta_v_quick_match`.
+`delta_v_wait_for_turn` blocks until it is this agent's turn; agents do not poll. `delta_v_send_action` auto-stamps `ActionGuards` by default so stale submissions are rejected with fresh state rather than silently accepted. When the action result carries `autoSkipLikely: true`, agents should `wait_for_turn` instead of immediately submitting the returned `nextPhase`. For hosted MCP, clients must send `Accept: application/json, text/event-stream` on `POST /mcp`; new HTTP clients should initialize with MCP protocol version `2025-11-25` and send `MCP-Protocol-Version: 2025-11-25` after initialization. `delta_v_quick_match_connect` remains available as a compatibility alias for `delta_v_quick_match`.
 
 ### 3.2 Resources
 
@@ -144,7 +144,7 @@ interface AgentTurnInput {
   playerId: 0 | 1;
   state: GameState;                 // authoritative raw state (filtered per viewer)
   candidates: C2S[];                // pre-computed legal actions
-  recommendedIndex: number;         // built-in AI preferred choice
+  recommendedIndex: number;         // candidate builder's recommended legal action
   summary?: string;                 // human-readable state report (Markdown)
   legalActionInfo?: LegalActionInfo;
 }
