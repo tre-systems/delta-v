@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { cpSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Matches `@import url('/path?query');` from static/style.css */
@@ -72,6 +72,8 @@ export function postprocessDistStatic() {
       2,
     )}\n`,
   );
+
+  copyFileSync('dist/.well-known/agent.json', 'dist/agent-manifest.json');
 
   return hash;
 }

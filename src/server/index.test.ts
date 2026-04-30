@@ -1085,6 +1085,39 @@ describe('server index worker', () => {
     });
   });
 
+  it('serves agent discovery from the deploy-safe asset alias', async () => {
+    const assetsFetch = vi.fn(async (request: Request) => {
+      const url = new URL(request.url);
+      if (url.pathname === '/agent-manifest.json') {
+        return new Response('{"name":"Delta-V"}', {
+          headers: { 'Content-Type': 'text/plain' },
+        });
+      }
+      return new Response('asset ok');
+    });
+    const { env } = createEnv(undefined, {
+      ASSETS: { fetch: assetsFetch },
+    });
+
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/.well-known/agent.json'),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('application/json');
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600');
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    await expect(response.json()).resolves.toEqual({ name: 'Delta-V' });
+    expect(assetsFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        url: 'https://delta-v.test/agent-manifest.json',
+      }),
+    );
+  });
+
   it('serves root icon aliases from existing static assets', async () => {
     const { env, assetsFetch } = createEnv();
 
