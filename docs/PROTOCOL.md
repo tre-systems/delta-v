@@ -31,10 +31,14 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 | `/ws/:code` | GET (upgrade) | WebSocket upgrade to the room's `GameDO` |
 | `/api/agent-token` | POST | Issue 24 h HMAC-signed `agentToken`; optional `claim: {username}` binds the agent to a leaderboard row (see [AGENT_SPEC.md](../AGENT_SPEC.md)) |
 | `/api/claim-name` | POST | Bind a human `playerKey` to a leaderboard username (first-call-wins) |
+| `/api/player-recovery/issue` | POST | Issue a human callsign recovery code; returns the raw code once and stores only a D1 hash |
+| `/api/player-recovery/restore` | POST | Restore a human `{ playerKey, username }` profile from a valid recovery code |
+| `/api/player-recovery/revoke` | POST | Revoke the current recovery code for a human `playerKey` |
 | `/api/leaderboard` | GET | Public leaderboard query (ordered by Glicko-2 rating; provisional rows hidden by default) |
 | `/api/leaderboard/me` | GET | Per-player rank lookup (`?playerKey=…`) for the home-screen hint |
 | `/mcp` | POST | Remote MCP endpoint (stateless JSON — see [DELTA_V_MCP.md](./DELTA_V_MCP.md)) |
 | `/api/matches` | GET | Match listing (`?status=live` for in-progress from `LIVE_REGISTRY`; archived listing accepts `limit`, `before`, optional `scenario`, optional `winner=0|1|draw`, and optional `status=archived`; invalid filters return `400 invalid_query`; no usernames in the public response) |
+| `/api/metrics` | GET | Internal operator metrics snapshot; requires `Authorization: Bearer <INTERNAL_METRICS_TOKEN>` in production |
 | `/matches` | GET | Public match-history HTML page |
 | `/leaderboard` | GET | Public leaderboard HTML page |
 | `/agents` | GET | Agent landing page |

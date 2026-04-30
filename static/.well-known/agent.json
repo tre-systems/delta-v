@@ -26,7 +26,7 @@
       "id": "mcp",
       "method": "POST",
       "path": "/mcp",
-      "description": "Streamable-HTTP MCP endpoint (stateless JSON). Each call is a single JSON-RPC POST and must include Accept: application/json, text/event-stream plus Authorization: Bearer <agentToken>. Use the MCP SDK or any compatible client. See `mcp.remote` above for the tool list.",
+      "description": "Streamable-HTTP MCP endpoint (stateless JSON). Each call is a single JSON-RPC POST and must include Accept: application/json, text/event-stream plus Authorization: Bearer <agentToken>. New HTTP clients should initialize with MCP protocolVersion 2025-11-25 and then send MCP-Protocol-Version: 2025-11-25 on subsequent calls. Use the MCP SDK or any compatible client. See `mcp.remote` above for the tool list.",
       "rateLimit": "20 per 60 s per agentToken hash (or hashed IP without Bearer) via Cloudflare edge limiter"
     },
     {
@@ -259,7 +259,7 @@
       "playerId": "0 | 1",
       "state": "GameState",
       "candidates": "C2S[] — pre-computed legal action choices",
-      "recommendedIndex": "number — built-in AI preferred candidate",
+      "recommendedIndex": "number — candidate builder's recommended legal action",
       "summary": "string — human-readable state + candidate list",
       "legalActionInfo": "structured legal-action metadata",
       "tactical": "optional (v2) — derived features: nearestEnemyDistance, fuelAdvantage, objectiveDistance, enemyObjectiveDistance, threatAxis, turnsToObjective",
@@ -284,7 +284,7 @@
   },
 
   "quickStart": {
-    "noCloneRequired": "Point any MCP client at https://delta-v.tre.systems/mcp, send Accept: application/json, text/event-stream on every POST /mcp request, mint an agentToken via POST /api/agent-token, then call delta_v_quick_match and drive the match with delta_v_wait_for_turn / delta_v_send_action using matchToken. delta_v_quick_match_connect is a compatibility alias.",
+    "noCloneRequired": "Point any MCP client at https://delta-v.tre.systems/mcp, send Accept: application/json, text/event-stream on every POST /mcp request, initialize with protocolVersion 2025-11-25, send MCP-Protocol-Version: 2025-11-25 after initialization, mint an agentToken via POST /api/agent-token, then call delta_v_quick_match and drive the match with delta_v_wait_for_turn / delta_v_send_action using matchToken. delta_v_quick_match_connect is a compatibility alias.",
     "withBridge": "git clone https://github.com/tre-systems/delta-v && npm install && npm run llm:player -- --mode create --scenario duel --agent command --agent-command 'python ./my_agent.py'",
     "claudeAgent": "ANTHROPIC_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:claude'",
     "groqAgent": "GROQ_API_KEY=... npm run llm:player -- --mode create --agent command --agent-command 'npm run llm:agent:groq'",

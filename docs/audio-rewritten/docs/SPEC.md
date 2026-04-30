@@ -148,7 +148,7 @@ The scenario uses hidden identity: one of the three transports carries the fugit
 
 ### Lunar Evacuation (escort)
 
-This escort scenario has Evacuees — a transport and corvette departing from Luna — facing an Interceptor controlling a corsair from Terra. Logistics and passenger-rescue rules are enabled. Victory requires landing survivors at Terra.
+This escort scenario has Evacuees — a transport, corvette, and frigate departing from Luna — facing an Interceptor controlling a corsair from Terra. Logistics and passenger-rescue rules are enabled. Victory requires landing survivors at Terra.
 
 ### Convoy (escort mission)
 
@@ -164,15 +164,15 @@ One packet ship faces one corvette in an asymmetric scenario where the packet mu
 
 ### Fleet Action
 
-A fleet-building battle with a tuned first-player ordering for a shorter, balanced clash. This is a full combined-arms engagement.
+A fleet-building battle with asymmetric starting budgets of six hundred megacredits versus four hundred megacredits, plus a tuned first-player ordering for a shorter, balanced clash. This is a full combined-arms engagement.
 
 ### Interplanetary War
 
-A tuned fleet-building war using Terran and Rebel roles drawn from the original rulebook. It uses a smaller budget than the full paper campaign. The scenario emphasizes strategic home-base positioning and mixed-fleet combat.
+A tuned fleet-building war using Terran and Rebel roles drawn from the original rulebook. Each side starts with eight hundred fifty megacredits, a smaller budget than the full paper campaign. The scenario emphasizes strategic home-base positioning and mixed-fleet combat.
 
 ### Grand Tour (race)
 
-Each player starts with a corvette at a different habitable world. To win, a player must pass through at least one gravity hex of each major body — Sol, Mercury, Venus, Terra, Mars, Jupiter, Io, and Callisto — and then return to land at their starting world. There is no combat; this is a pure navigation and gravity-management race. Bases at Terra, Venus, Mars, and Callisto are shared.
+Each player starts with a corvette at a different habitable world. To win, a player must pass through at least one gravity hex of each checkpoint body — Sol, Mercury, Venus, Terra, Luna, Mars, Jupiter, Io, and Callisto — and then return to land at their starting world. There is no combat; this is a pure navigation and gravity-management race. Bases at Terra, Venus, Mars, and Callisto are shared.
 
 ### Unimplemented rulebook scenarios
 

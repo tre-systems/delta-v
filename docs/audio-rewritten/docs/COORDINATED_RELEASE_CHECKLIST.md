@@ -20,7 +20,7 @@ Add any new migration as a numbered SQL file under the migrations directory — 
 
 ## Client bundle
 
-Run the build command so that the version manifest picks up a new assets hash. The build now minifies the client bundle on every invocation, so the baseline is roughly 397 kilobytes raw and 117 kilobytes gzipped. Confirm that the main HTML entry point's query-string cache-busting parameters reference the new hash.
+Run the build command so that the version manifest picks up a new assets hash. The build now minifies the client bundle on every invocation, so the current baseline is roughly 431 kilobytes raw and 129 kilobytes gzipped. Confirm that the main HTML entry point's query-string cache-busting parameters reference the new hash.
 
 ## Deploy
 

@@ -18,7 +18,7 @@ Command your fleet, master astrogation trajectories, slingshot around celestial 
 - **Vector physics spaceflight** — velocity persists between turns; burn fuel to alter course; gravity deflects you one turn later.
 - **Orbital mechanics** — planetary gravity wells enable slingshot maneuvers; "weak" gravity at moons is a player choice.
 - **Tactical combat** — odds-based dice resolution with range and relative-velocity modifiers; mines, torpedoes, and nukes with per-scenario availability.
-- **Nine scenarios** — _Bi-Planetary_, _Escape_, _Lunar Evacuation_, _Convoy_, _Duel_, _Blockade Runner_, _Fleet Action_, _Interplanetary War_, _Grand Tour_.
+- **Nine scenarios** — _Bi-Planetary_, _Duel_, _Blockade Runner_, _Grand Tour_, _Escape_, _Lunar Evacuation_, _Convoy_, _Fleet Action_, _Interplanetary War_.
 - **Play modes** — local AI at three difficulties, online multiplayer via 5-character room codes, quick-match queue, spectator mode, and a machine-native agent API ([`/agents`](https://delta-v.tre.systems/agents)).
 - **Public leaderboard** — unified Glicko-2 ladder for humans and agents ([`/leaderboard`](https://delta-v.tre.systems/leaderboard)); no login required.
 - **Continuous rendering, discrete logic** — HTML5 Canvas paints a smooth space view while the engine operates on a strict axial hex grid.

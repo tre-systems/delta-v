@@ -12,7 +12,7 @@ Second, the events table in the primary database stores client telemetry, client
 
 Third, the match-archive table stores one metadata row per completed match.
 
-Fourth, the player and match-rating tables store leaderboard identity and per-rated-match Glicko-2 snapshots.
+Fourth, the player, player-recovery, and match-rating tables store leaderboard identity, hashed callsign recovery codes, and per-rated-match Glicko-2 snapshots.
 
 Fifth, the match-archive object-storage bucket stores one full JSON record per completed match, keyed by game identifier.
 
@@ -24,7 +24,7 @@ In practical terms, browser signals and server-side events both feed the events 
 
 ## Events schema and catalog
 
-The events table stores a timestamp, an anonymous identifier, an event name, a JSON properties blob, a hashed client IP — or the literal word "server" for server-originated rows — a user-agent string, and a creation timestamp. The hashed IP is a salted hash of the connecting-IP header; production fails closed when the salt secret is missing.
+The events table stores a timestamp, an anonymous identifier, an event name, a JSON properties blob, a hashed client IP — or the literal word "server" for server-originated rows — a user-agent string, and a creation timestamp. The hashed IP is a salted hash of the connecting-IP header; the dedicated IP-hash salt is preferred, the agent-token secret is the fallback salt, and the server fails closed only when no usable secret exists outside development mode.
 
 On the client side, the table records create-game attempts and failures, join attempts and outcomes, the full quick-match flow, spectator joins, reconnect scheduling and outcomes, replay fetch success and failure, leaderboard and match-list views, replay engagement signals — including open, end, early-exit, and speed change — game-over summaries, server errors surfaced to the client, rejected actions, WebSocket parse and validation failures, WebSocket connect-error and connect-close metadata, turn timing for regular and first turns, tutorial state, scenario browsing and scenario-selected events, fleet-ready and surrender submissions, and local artificial-intelligence game starts.
 
@@ -92,8 +92,8 @@ The most useful searches in the Workers logs tab are "Engine error" for action f
 
 On the client side, the anonymous identifier is a random universally-unique identifier stored in local storage. Error reports may include URL, user agent, and arbitrary context, so that context should stay non-sensitive at call sites.
 
-On the server side, the events table stores a salted hashed IP — not a raw IP — for client-originated rows; production fails closed when the salt secret is missing. Chat text is not written to the events table by default and stays in-game only. Rate limits are now described as "per salted hashed IP" for the read-path throttles. User-facing policy copy is out of scope here; align any public privacy text with this behavior.
+On the server side, the events table stores a salted hashed IP — not a raw IP — for client-originated rows; a dedicated IP-hash salt is preferred, the agent-token secret is the fallback salt, and production fails closed if neither usable secret is present. Chat text is not written to the events table by default and stays in-game only. Rate limits are now described as "per salted hashed IP" for the read-path throttles. User-facing policy copy is out of scope here; align any public privacy text with this behavior.
 
 ## Gaps and follow-ups
 
-There are still no first-class dashboards or automated alerting built into the repository. Today the main operational tools are Cloudflare's own logging and database tooling plus the documented operational queries and the internal metrics endpoint. Canonical rate-limit numbers live in the security document, and an optional cross-edge web application firewall can be added if distributed abuse is observed. Events rows older than thirty days are deleted daily by a purge task scheduled via the Worker cron; the same cron also purges match-archive rows and their object-storage entries older than one hundred eighty days. Other tables — player and match-rating — have no automatic retention window. The rating-history columns are intentionally kept as an audit and history trail for future player-profile charts, administrator anti-cheat review, and balance analysis; they are not dead schema just because the current public app does not read them yet. Sampling or caps can be added before server-side inserts if volume grows.
+There are still no first-class dashboards or automated alerting built into the repository. Today the main operational tools are Cloudflare's own logging and database tooling plus the documented operational queries and the internal metrics endpoint. Canonical rate-limit numbers live in the security document, and an optional cross-edge web application firewall can be added if distributed abuse is observed. Events rows older than thirty days are deleted daily by a purge task scheduled via the Worker cron; the same cron also purges match-archive rows and their object-storage entries older than one hundred eighty days. Other tables — player, player-recovery, and match-rating — have no automatic retention window. The rating-history columns are intentionally kept as an audit and history trail for future player-profile charts, administrator anti-cheat review, and balance analysis; they are not dead schema just because the current public app does not read them yet. Sampling or caps can be added before server-side inserts if volume grows.
