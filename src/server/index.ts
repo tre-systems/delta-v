@@ -764,7 +764,7 @@ const fetchHandler = async (
 
     if (url.pathname === '/.well-known/agent.json') {
       const manifestUrl = new URL(request.url);
-      manifestUrl.pathname = '/.well-known/agent.json';
+      manifestUrl.pathname = '/agent-manifest.json';
       const manifestResponse = await env.ASSETS.fetch(
         new Request(manifestUrl.toString(), request),
       );
