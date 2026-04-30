@@ -26,8 +26,10 @@ const indexOfDescendant = (root: Element, selector: string): number => {
 };
 
 describe('home menu layout', () => {
-  it('orders Quick Match → Leaderboard → Create Private → Join code input', () => {
+  it('orders Play vs AI → Quick Match → Leaderboard → Create Private → Join code input', () => {
     const menu = parseMenu();
+    const playVsAi = indexOfDescendant(menu, '#singlePlayerBtn');
+    const difficulty = indexOfDescendant(menu, '#difficultySelect');
     const quickMatch = indexOfDescendant(menu, '#quickMatchBtn');
     const leaderboard = indexOfDescendant(menu, 'a[href="/leaderboard"]');
     const matches = indexOfDescendant(menu, 'a[href="/matches"]');
@@ -35,7 +37,9 @@ describe('home menu layout', () => {
     const codeInput = indexOfDescendant(menu, '#codeInput');
     const joinBtn = indexOfDescendant(menu, '#joinBtn');
 
-    expect(quickMatch).toBeGreaterThan(-1);
+    expect(playVsAi).toBeGreaterThan(-1);
+    expect(difficulty).toBeGreaterThan(playVsAi);
+    expect(quickMatch).toBeGreaterThan(difficulty);
     expect(leaderboard).toBeGreaterThan(quickMatch);
     expect(matches).toBeGreaterThan(leaderboard);
     expect(createBtn).toBeGreaterThan(matches);
