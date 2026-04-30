@@ -60,6 +60,44 @@ export interface CombatPhaseResult {
   engineEvents: EngineEvent[];
 }
 
+const getAttackGroupKey = (attackerIds: readonly string[]): string =>
+  [...attackerIds].sort().join('|');
+
+const areAttackersInSameHex = (attackers: readonly Ship[]): boolean => {
+  if (attackers.length <= 1) return true;
+
+  const first = attackers[0];
+  if (!first) return true;
+
+  const firstHex = hexKey(first.position);
+  return attackers.every((attacker) => hexKey(attacker.position) === firstHex);
+};
+
+const findSequentialAttackGroup = (
+  state: GameState,
+  attackerIds: readonly string[],
+) => {
+  const groupKey = getAttackGroupKey(attackerIds);
+
+  return (state.combatAttackGroupsThisPhase ?? []).find(
+    (group) => getAttackGroupKey(group.attackerIds) === groupKey,
+  );
+};
+
+const findConflictingSequentialAttackGroup = (
+  state: GameState,
+  attackerIds: readonly string[],
+) => {
+  const groupKey = getAttackGroupKey(attackerIds);
+  const ids = new Set(attackerIds);
+
+  return (state.combatAttackGroupsThisPhase ?? []).find(
+    (group) =>
+      getAttackGroupKey(group.attackerIds) !== groupKey &&
+      group.attackerIds.some((id) => ids.has(id)),
+  );
+};
+
 const toCombatResult = (r: CombatResolution): CombatResult => ({
   attackerIds: r.attackerIds,
   targetId: r.targetId,
@@ -416,6 +454,8 @@ export const processCombat = (
       );
     }
 
+    const attackersShareHex = areAttackersInSameHex(attackers);
+
     const { targetType } = attack;
     const targetKey = combatTargetKey(targetType, attack.targetId);
 
@@ -449,6 +489,11 @@ export const processCombat = (
       return engineFailure(
         ErrorCode.INVALID_INPUT,
         'An attacking group cannot split fire between ship and ordnance targets',
+      );
+    } else if (group.allocatedStrength > 0 && !attackersShareHex) {
+      return engineFailure(
+        ErrorCode.INVALID_INPUT,
+        'Split fire requires attackers to share one hex',
       );
     }
 
@@ -615,11 +660,23 @@ export const processSingleCombat = (
 
   const targeted = new Set(state.combatTargetedThisPhase ?? []);
   const targetKey = combatTargetKey(attack.targetType, attack.targetId);
+  const existingGroup = findSequentialAttackGroup(state, attack.attackerIds);
+  const conflictingGroup = findConflictingSequentialAttackGroup(
+    state,
+    attack.attackerIds,
+  );
 
   if (targeted.has(targetKey)) {
     return engineFailure(
       ErrorCode.STATE_CONFLICT,
       'Each target may be attacked only once per combat phase',
+    );
+  }
+
+  if (conflictingGroup) {
+    return engineFailure(
+      ErrorCode.STATE_CONFLICT,
+      'Split fire must reuse the same attacking group',
     );
   }
 
@@ -639,7 +696,7 @@ export const processSingleCombat = (
         'Invalid attacker selection',
       );
     }
-    if (ship.firedThisPhase) {
+    if (ship.firedThisPhase && !existingGroup) {
       return engineFailure(
         ErrorCode.STATE_CONFLICT,
         'Ship has already attacked this phase',
@@ -659,6 +716,13 @@ export const processSingleCombat = (
   const results: CombatResult[] = [];
 
   if (attack.targetType === 'ordnance') {
+    if (existingGroup) {
+      return engineFailure(
+        ErrorCode.INVALID_INPUT,
+        'An attacking group cannot split fire between ship and ordnance targets',
+      );
+    }
+
     if (attack.attackStrength != null) {
       return engineFailure(
         ErrorCode.INVALID_INPUT,
@@ -708,22 +772,44 @@ export const processSingleCombat = (
         'Attacker lacks line of sight to target',
       );
     }
-    const maxStrength = sumBy(
-      attackers,
-      (ship) => SHIP_STATS[ship.type]?.combat ?? 0,
-    );
+
+    const targetHexKey = hexKey(target.position);
+
+    if (existingGroup && existingGroup.targetHexKey !== targetHexKey) {
+      return engineFailure(
+        ErrorCode.INVALID_INPUT,
+        'Split fire may only target ships in the same hex',
+      );
+    }
+
+    const canTrackSplitGroup = areAttackersInSameHex(attackers);
+    const maxStrength =
+      existingGroup?.maxStrength ??
+      sumBy(attackers, (ship) => SHIP_STATS[ship.type]?.combat ?? 0);
+    const remainingStrength = existingGroup
+      ? existingGroup.maxStrength - existingGroup.allocatedStrength
+      : maxStrength;
+
+    if (existingGroup && remainingStrength <= 0) {
+      return engineFailure(
+        ErrorCode.RESOURCE_LIMIT,
+        'Attack group has no strength remaining to allocate',
+      );
+    }
+
     if (
       attack.attackStrength != null &&
       (!Number.isInteger(attack.attackStrength) ||
         attack.attackStrength < 1 ||
-        attack.attackStrength > maxStrength)
+        attack.attackStrength > remainingStrength)
     ) {
       return engineFailure(
         ErrorCode.INVALID_INPUT,
         'Invalid declared attack strength',
       );
     }
-    const allocatedStrength = attack.attackStrength ?? maxStrength;
+
+    const allocatedStrength = attack.attackStrength ?? remainingStrength;
     const resolution = resolveCombat(
       attackers,
       target,
@@ -733,12 +819,45 @@ export const processSingleCombat = (
       allocatedStrength,
     );
     results.push(toCombatResult(resolution));
+
+    const nextAllocated =
+      (existingGroup?.allocatedStrength ?? 0) + allocatedStrength;
+
+    if (canTrackSplitGroup && nextAllocated < maxStrength) {
+      state.combatAttackGroupsThisPhase = [
+        ...(state.combatAttackGroupsThisPhase ?? []).filter(
+          (group) =>
+            getAttackGroupKey(group.attackerIds) !==
+            getAttackGroupKey(attack.attackerIds),
+        ),
+        {
+          attackerIds: [...attack.attackerIds],
+          targetHexKey,
+          targetType: 'ship',
+          maxStrength,
+          allocatedStrength: nextAllocated,
+        },
+      ];
+    } else if (existingGroup) {
+      state.combatAttackGroupsThisPhase = (
+        state.combatAttackGroupsThisPhase ?? []
+      ).filter(
+        (group) =>
+          getAttackGroupKey(group.attackerIds) !==
+          getAttackGroupKey(attack.attackerIds),
+      );
+    }
   }
 
-  // Mark attackers as fired and target as attacked
-  for (const attacker of attackers) {
-    attacker.firedThisPhase = true;
+  const activeGroup = findSequentialAttackGroup(state, attack.attackerIds);
+  if (!activeGroup) {
+    // Mark attackers as fired once their full strength has been allocated.
+    for (const attacker of attackers) {
+      attacker.firedThisPhase = true;
+    }
   }
+
+  // Mark target as attacked.
   state.combatTargetedThisPhase = [...targeted, targetKey];
 
   // Clean up destroyed ordnance

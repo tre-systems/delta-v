@@ -1,4 +1,10 @@
-import { DAMAGE_ELIMINATION_THRESHOLD, ORDNANCE_MASS } from '../../constants';
+import {
+  DAMAGE_ELIMINATION_THRESHOLD,
+  ORDNANCE_MASS,
+  SHIP_STATS,
+} from '../../constants';
+import { hexKey } from '../../hex';
+import type { ShipId } from '../../ids';
 import { combatTargetKey } from '../../ids';
 import type { GameState, Result } from '../../types/domain';
 import { isShipTargetCombatAttackEvent } from '../engine-events';
@@ -9,6 +15,41 @@ import {
   requireShip,
   requireState,
 } from './support';
+
+const getAttackGroupKey = (attackerIds: readonly string[]): string =>
+  [...attackerIds].sort().join('|');
+
+const getCombatEventAttackStrength = (
+  state: GameState,
+  attackerIds: readonly ShipId[],
+): number =>
+  attackerIds.reduce((total, attackerId) => {
+    const ship = state.ships.find((candidate) => candidate.id === attackerId);
+
+    return total + (ship ? (SHIP_STATS[ship.type]?.combat ?? 0) : 0);
+  }, 0);
+
+const areCombatEventAttackersInSameHex = (
+  state: GameState,
+  attackerIds: readonly ShipId[],
+): boolean => {
+  if (attackerIds.length <= 1) return true;
+
+  const ships = attackerIds
+    .map((attackerId) =>
+      state.ships.find((candidate) => candidate.id === attackerId),
+    )
+    .filter((ship) => ship != null);
+
+  if (ships.length !== attackerIds.length) return false;
+
+  const first = ships[0];
+  if (!first) return false;
+
+  const firstHex = hexKey(first.position);
+
+  return ships.every((ship) => hexKey(ship.position) === firstHex);
+};
 
 export const projectConflictEvent = (
   state: GameState | null,
@@ -180,6 +221,8 @@ export const projectConflictEvent = (
       const targetKey = combatTargetKey(event.targetType, event.targetId);
 
       if (event.attackType !== 'baseDefense') {
+        const activeAttackerIds: ShipId[] = [];
+
         for (const attackerId of event.attackerIds) {
           const projectedAttacker = requireShip(state, attackerId);
 
@@ -188,7 +231,64 @@ export const projectConflictEvent = (
           }
 
           if (projectedAttacker.value.owner === state.activePlayer) {
-            projectedAttacker.value.firedThisPhase = true;
+            activeAttackerIds.push(attackerId);
+          }
+        }
+
+        if (activeAttackerIds.length > 0) {
+          const groupKey = getAttackGroupKey(activeAttackerIds);
+          const existingGroup = (state.combatAttackGroupsThisPhase ?? []).find(
+            (group) => getAttackGroupKey(group.attackerIds) === groupKey,
+          );
+          const maxStrength =
+            existingGroup?.maxStrength ??
+            getCombatEventAttackStrength(state, activeAttackerIds);
+          const allocatedStrength = event.attackStrength ?? maxStrength;
+          const nextAllocated =
+            (existingGroup?.allocatedStrength ?? 0) + allocatedStrength;
+          let groupStillActive = false;
+
+          if (
+            event.targetType === 'ship' &&
+            areCombatEventAttackersInSameHex(state, activeAttackerIds)
+          ) {
+            const target = state.ships.find(
+              (ship) => ship.id === event.targetId,
+            );
+
+            if (target && nextAllocated < maxStrength) {
+              state.combatAttackGroupsThisPhase = [
+                ...(state.combatAttackGroupsThisPhase ?? []).filter(
+                  (group) => getAttackGroupKey(group.attackerIds) !== groupKey,
+                ),
+                {
+                  attackerIds: activeAttackerIds,
+                  targetHexKey: hexKey(target.position),
+                  targetType: 'ship',
+                  maxStrength,
+                  allocatedStrength: nextAllocated,
+                },
+              ];
+              groupStillActive = true;
+            }
+          }
+
+          if (!groupStillActive) {
+            state.combatAttackGroupsThisPhase = (
+              state.combatAttackGroupsThisPhase ?? []
+            ).filter(
+              (group) => getAttackGroupKey(group.attackerIds) !== groupKey,
+            );
+
+            for (const attackerId of activeAttackerIds) {
+              const projectedAttacker = requireShip(state, attackerId);
+
+              if (!projectedAttacker.ok) {
+                return projectedAttacker;
+              }
+
+              projectedAttacker.value.firedThisPhase = true;
+            }
           }
         }
       }

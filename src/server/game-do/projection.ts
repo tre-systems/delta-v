@@ -270,7 +270,8 @@ export const projectReplayTimeline = (
 // Strip fields that legitimately diverge between projected and live state:
 // - connected / ready: session-level flags updated outside the engine
 // - detected: visibility recomputed each tick from sensor data
-// - firedThisPhase / combatTargetedThisPhase: UI/planning-only combat residue
+// - firedThisPhase / combatTargetedThisPhase / combatAttackGroupsThisPhase:
+//   sequential combat residue
 // - pendingAsteroidHazards: transient mid-phase queue. The live engine
 //   pushes onto it during movement and drains it at combat-resolution
 //   start, but no EngineEvent records the push, so event-stream replay
@@ -282,6 +283,7 @@ export const projectReplayTimeline = (
 //   2026-04-19 → 2026-04-24 traffic.
 export const normalizeStateForParity = (state: GameState): GameState => ({
   ...state,
+  combatAttackGroupsThisPhase: undefined,
   combatTargetedThisPhase: undefined,
   pendingAsteroidHazards: [],
   players: state.players.map((player) => ({

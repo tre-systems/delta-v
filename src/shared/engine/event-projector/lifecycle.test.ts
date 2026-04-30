@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { hexKey } from '../../hex';
 import { asGameId, asShipId, combatTargetKey } from '../../ids';
 import { createTestShip, createTestState } from '../../test-helpers';
 import { projectLifecycleEvent } from './lifecycle';
@@ -10,6 +11,15 @@ describe('projectLifecycleEvent', () => {
       activePlayer: 1,
       turnNumber: 3,
       combatTargetedThisPhase: [combatTargetKey('ship', asShipId('enemy-1'))],
+      combatAttackGroupsThisPhase: [
+        {
+          attackerIds: [asShipId('attacker')],
+          targetHexKey: hexKey({ q: 0, r: 0 }),
+          targetType: 'ship',
+          maxStrength: 2,
+          allocatedStrength: 1,
+        },
+      ],
       ships: [
         createTestShip({
           id: asShipId('attacker'),
@@ -42,6 +52,7 @@ describe('projectLifecycleEvent', () => {
     if (!result.ok) return;
 
     expect(result.value.combatTargetedThisPhase).toBeUndefined();
+    expect(result.value.combatAttackGroupsThisPhase).toBeUndefined();
     expect(
       result.value.ships.find((ship) => ship.id === 'attacker')?.firedThisPhase,
     ).toBeUndefined();

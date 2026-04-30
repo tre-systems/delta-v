@@ -66,6 +66,7 @@ export const applyTurnAdvanceMutations = (state: GameState): void => {
   applyReinforcements(state);
   applyFleetConversion(state);
   state.combatTargetedThisPhase = undefined;
+  state.combatAttackGroupsThisPhase = undefined;
 };
 
 const getNextShipId = (state: GameState) => {

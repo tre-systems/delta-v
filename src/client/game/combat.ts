@@ -9,7 +9,7 @@ import {
   lookupGunCombat,
 } from '../../shared/combat';
 import { ANTI_NUKE_ODDS } from '../../shared/constants';
-import { type HexCoord, hexDistance, hexEqual } from '../../shared/hex';
+import { type HexCoord, hexDistance, hexEqual, hexKey } from '../../shared/hex';
 import { asShipId, type OrdnanceId, type ShipId } from '../../shared/ids';
 import type {
   CombatAttack,
@@ -56,6 +56,31 @@ const getGroupKey = (attackerIds: string[]): string => {
   return [...attackerIds].sort().join('|');
 };
 
+const getActiveSplitGroupAttackers = (state: GameState): Set<string> => {
+  return new Set(
+    (state.combatAttackGroupsThisPhase ?? [])
+      .filter((group) => group.allocatedStrength < group.maxStrength)
+      .flatMap((group) => group.attackerIds),
+  );
+};
+
+const getActiveSplitGroupForAttacker = (state: GameState, attackerId: string) =>
+  (state.combatAttackGroupsThisPhase ?? []).find(
+    (group) =>
+      group.allocatedStrength < group.maxStrength &&
+      group.attackerIds.includes(attackerId as ShipId),
+  ) ?? null;
+
+const areShipsInSameHex = (ships: readonly Ship[]): boolean => {
+  if (ships.length <= 1) return true;
+
+  const first = ships[0];
+  if (!first) return true;
+
+  const firstHex = hexKey(first.position);
+  return ships.every((ship) => hexKey(ship.position) === firstHex);
+};
+
 const getCommittedAttackers = (queuedAttacks: CombatAttack[]): Set<string> => {
   return new Set(queuedAttacks.flatMap((attack) => attack.attackerIds));
 };
@@ -71,12 +96,16 @@ const getAvailableCombatAttackers = (
   playerId: PlayerId,
   committedAttackers: Set<string>,
 ) => {
+  const splitGroupAttackers = getActiveSplitGroupAttackers(state);
+
   return state.ships.filter(
     (ship) =>
       ship.owner === playerId &&
       ship.lifecycle !== 'destroyed' &&
       canAttack(ship) &&
-      !committedAttackers.has(ship.id),
+      !ship.firedThisPhase &&
+      !committedAttackers.has(ship.id) &&
+      !splitGroupAttackers.has(ship.id),
   );
 };
 
@@ -211,6 +240,31 @@ export const listCycleableCombatTargets = (
   }
 
   const byKey = new Map<string, CombatTargetSelection>();
+
+  for (const group of state.combatAttackGroupsThisPhase ?? []) {
+    if (group.allocatedStrength >= group.maxStrength) continue;
+
+    const attackers = getAttackersByIds(state, group.attackerIds);
+
+    for (const target of findTargets(
+      state,
+      playerId,
+      'ship',
+      (ship) =>
+        hexKey(ship.position) === group.targetHexKey &&
+        !excludedKeys.has(`ship:${ship.id}`) &&
+        attackers.some((attacker) => hasLineOfSight(attacker, ship, map)),
+    )) {
+      const key = `ship:${target.id}`;
+
+      if (!byKey.has(key)) {
+        byKey.set(key, {
+          targetId: target.id,
+          targetType: 'ship',
+        });
+      }
+    }
+  }
 
   for (const attacker of availableAttackers) {
     for (const targetType of ['ship', 'ordnance'] as const) {
@@ -421,6 +475,21 @@ export const getReusableCombatGroup = (
 
   if (!target) return null;
 
+  const targetHexKey = hexKey(target.position);
+
+  for (const group of state.combatAttackGroupsThisPhase ?? []) {
+    const remainingStrength = group.maxStrength - group.allocatedStrength;
+
+    if (remainingStrength <= 0 || group.targetHexKey !== targetHexKey) {
+      continue;
+    }
+
+    return {
+      attackerIds: [...group.attackerIds],
+      remainingStrength,
+    };
+  }
+
   for (let index = queuedAttacks.length - 1; index >= 0; index--) {
     const queued = queuedAttacks[index];
 
@@ -437,6 +506,13 @@ export const getReusableCombatGroup = (
     const groupKey = getGroupKey(queued.attackerIds);
 
     const attackers = getAttackersByIds(state, queued.attackerIds);
+
+    if (
+      attackers.length !== queued.attackerIds.length ||
+      !areShipsInSameHex(attackers)
+    ) {
+      continue;
+    }
 
     const maxStrength = getCombatStrength(attackers);
     let allocatedStrength = 0;
@@ -552,6 +628,32 @@ export const getCombatTargetAtHex = (
     return null;
   }
 
+  const queuedTargets = getTargetedKeys(queuedAttacks);
+  for (const key of state.combatTargetedThisPhase ?? []) {
+    queuedTargets.add(key);
+  }
+
+  const splitTarget = getCycledSelection(
+    findTargets(
+      state,
+      playerId,
+      'ship',
+      (ship) =>
+        !queuedTargets.has(`ship:${ship.id}`) &&
+        hexEqual(clickHex, ship.position) &&
+        getReusableCombatGroup(state, playerId, queuedAttacks, ship.id) !==
+          null,
+    ),
+    currentTargetId,
+  );
+
+  if (splitTarget) {
+    return {
+      targetId: splitTarget.id,
+      targetType: 'ship',
+    };
+  }
+
   const committedAttackers = getCommittedAttackers(queuedAttacks);
   const availableAttackers = getAvailableCombatAttackers(
     state,
@@ -581,7 +683,6 @@ export const getCombatTargetAtHex = (
     };
   }
 
-  const queuedTargets = getTargetedKeys(queuedAttacks);
   const target = getCycledSelection(
     findTargets(
       state,
@@ -836,18 +937,22 @@ export const findPreferredTarget = (
   for (const key of state.combatTargetedThisPhase ?? []) {
     queuedTargets.add(key);
   }
+  const splitGroup = getActiveSplitGroupForAttacker(state, attacker.id);
   const enemyShips = findTargets(state, playerId, 'ship', (ship) => {
     return (
       !queuedTargets.has(`ship:${ship.id}`) &&
+      (!splitGroup || hexKey(ship.position) === splitGroup.targetHexKey) &&
       hasLineOfSight(attacker, ship, map)
     );
   });
-  const enemyNukes = findTargets(state, playerId, 'ordnance', (item) => {
-    return (
-      !queuedTargets.has(`ordnance:${item.id}`) &&
-      hasLineOfSightToTarget(attacker, item, map)
-    );
-  });
+  const enemyNukes = splitGroup
+    ? []
+    : findTargets(state, playerId, 'ordnance', (item) => {
+        return (
+          !queuedTargets.has(`ordnance:${item.id}`) &&
+          hasLineOfSightToTarget(attacker, item, map)
+        );
+      });
 
   let best: ScoredCombatTarget | null = null;
 
@@ -1077,6 +1182,15 @@ export const getAttackStrengthForSelection = (
   state: GameState,
   attackerIds: string[],
 ): number => {
+  const selectedGroupKey = getGroupKey(attackerIds);
+  const splitGroup = (state.combatAttackGroupsThisPhase ?? []).find(
+    (group) => getGroupKey(group.attackerIds) === selectedGroupKey,
+  );
+
+  if (splitGroup) {
+    return Math.max(0, splitGroup.maxStrength - splitGroup.allocatedStrength);
+  }
+
   return getCombatStrength(
     state.ships.filter((ship) => attackerIds.includes(ship.id)),
   );
