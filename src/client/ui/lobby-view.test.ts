@@ -12,9 +12,6 @@ const installFixture = () => {
   document.body.innerHTML = `
     <div id="menuOfflineBanner" hidden></div>
     <div class="menu-surface menu-surface-primary">
-      <input id="playerNameInput" />
-      <div id="callsignStatus"></div>
-      <button id="quickMatchBtn">Quick Match</button>
       <button id="singlePlayerBtn">Single Player</button>
       <div class="difficulty-group">
         <div id="difficultySelect" role="radiogroup">
@@ -23,9 +20,25 @@ const installFixture = () => {
           <button class="btn-difficulty" data-difficulty="hard">Hard</button>
         </div>
       </div>
+    </div>
+    <div class="menu-surface menu-surface-online">
+      <button id="quickMatchBtn">Quick Match</button>
+    </div>
+    <div class="menu-discover">
+      <a id="leaderboardLink" class="menu-online-only" href="/leaderboard">Leaderboard</a>
+      <a id="matchesLink" class="menu-online-only" href="/matches">Recent matches</a>
+    </div>
+    <div class="menu-surface menu-surface-friends">
+      <button id="createBtn">Create Game</button>
+      <input id="codeInput" />
+      <button id="joinBtn">Join</button>
+    </div>
+    <div class="menu-surface menu-surface-profile">
+      <input id="playerNameInput" />
+      <div id="callsignStatus"></div>
       <button id="saveRecoveryCodeBtn">Save recovery code</button>
       <button id="restoreCallsignBtn">Restore callsign</button>
-      <button id="forgetCallsignBtn">Forget my callsign</button>
+      <button id="forgetCallsignBtn" hidden>Forget my callsign</button>
       <div id="recoveryPanel" hidden>
         <div id="recoveryCodeBlock" hidden>
           <div id="recoveryCodeText"></div>
@@ -36,15 +49,6 @@ const installFixture = () => {
           <button id="submitRecoveryCodeBtn">Restore</button>
         </div>
       </div>
-    </div>
-    <div class="menu-discover">
-      <a id="leaderboardLink" class="menu-online-only" href="/leaderboard">Leaderboard</a>
-      <a id="matchesLink" class="menu-online-only" href="/matches">Recent matches</a>
-    </div>
-    <div class="menu-surface menu-surface-friends">
-      <button id="createBtn">Create Game</button>
-      <input id="codeInput" />
-      <button id="joinBtn">Join</button>
     </div>
     <button id="backBtn">Back</button>
     <div id="scenarioList"></div>

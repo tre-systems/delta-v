@@ -130,11 +130,7 @@
         </div>
       </div>
       <div class="menu-surface menu-surface-primary">
-        <div class="menu-profile">
-          <label class="menu-profile-label" for="playerNameInput">Callsign</label>
-          <input id="playerNameInput" class="menu-profile-input" maxlength="20" placeholder="Pilot" autocapitalize="words" spellcheck="false" aria-label="Callsign">
-          <div id="callsignStatus" class="menu-profile-status" role="status" aria-live="polite"></div>
-        </div>
+        <div class="menu-section-heading">Play solo</div>
         <div id="aiSection" class="ai-section">
           <button id="singlePlayerBtn" data-testid="singlePlayerBtn" class="btn btn-secondary btn-ai">Play vs AI</button>
           <div class="difficulty-group">
@@ -146,24 +142,11 @@
             </div>
           </div>
         </div>
+      </div>
+      <div class="menu-surface menu-surface-online">
+        <div class="menu-section-heading">Online duel</div>
         <button id="quickMatchBtn" data-testid="quickMatchBtn" class="btn btn-primary">Quick Match</button>
         <div class="menu-surface-note">Find the next available commander in the duel queue.</div>
-        <div class="menu-profile-actions">
-          <button id="saveRecoveryCodeBtn" type="button" class="menu-profile-clear">Save recovery code</button>
-          <button id="restoreCallsignBtn" type="button" class="menu-profile-clear">Restore callsign</button>
-          <button id="forgetCallsignBtn" type="button" class="menu-profile-clear">Forget my callsign</button>
-        </div>
-        <div id="recoveryPanel" class="menu-recovery" hidden>
-          <div id="recoveryCodeBlock" class="menu-recovery-block" hidden>
-            <div id="recoveryCodeText" class="menu-recovery-code" aria-live="polite" aria-atomic="true"></div>
-            <button id="copyRecoveryCodeBtn" type="button" class="menu-profile-clear">Copy code</button>
-            <p class="menu-recovery-warning">Anyone with this code can use your callsign.</p>
-          </div>
-          <div id="recoveryRestoreForm" class="menu-recovery-form" hidden>
-            <input id="recoveryCodeInput" class="menu-recovery-input" placeholder="dv1-..." autocapitalize="characters" spellcheck="false" aria-label="Recovery code">
-            <button id="submitRecoveryCodeBtn" type="button" class="menu-profile-clear">Restore</button>
-          </div>
-        </div>
       </div>
       <div class="menu-discover">
         <a href="/leaderboard" class="menu-discover-tile menu-online-only" aria-label="Open leaderboard">
@@ -184,6 +167,30 @@
         <div class="join-row">
           <input id="codeInput" data-testid="codeInput" class="code-input" maxlength="5" placeholder="GAME CODE" autocapitalize="characters" spellcheck="false" aria-label="Game code">
           <button id="joinBtn" data-testid="joinBtn" class="btn btn-secondary" title="Enter a game code to join" disabled>Join</button>
+        </div>
+      </div>
+      <div class="menu-surface menu-surface-profile">
+        <div class="menu-section-heading">Pilot profile</div>
+        <div class="menu-profile">
+          <label class="menu-profile-label" for="playerNameInput">Callsign</label>
+          <input id="playerNameInput" class="menu-profile-input" maxlength="20" placeholder="Pilot" autocapitalize="words" spellcheck="false" aria-label="Callsign">
+          <div id="callsignStatus" class="menu-profile-status" role="status" aria-live="polite"></div>
+        </div>
+        <div class="menu-profile-actions">
+          <button id="saveRecoveryCodeBtn" type="button" class="menu-profile-clear">Save recovery code</button>
+          <button id="restoreCallsignBtn" type="button" class="menu-profile-clear">Restore callsign</button>
+          <button id="forgetCallsignBtn" type="button" class="menu-profile-clear" hidden>Forget my callsign</button>
+        </div>
+        <div id="recoveryPanel" class="menu-recovery" hidden>
+          <div id="recoveryCodeBlock" class="menu-recovery-block" hidden>
+            <div id="recoveryCodeText" class="menu-recovery-code" aria-live="polite" aria-atomic="true"></div>
+            <button id="copyRecoveryCodeBtn" type="button" class="menu-profile-clear">Copy code</button>
+            <p class="menu-recovery-warning">Anyone with this code can use your callsign.</p>
+          </div>
+          <div id="recoveryRestoreForm" class="menu-recovery-form" hidden>
+            <input id="recoveryCodeInput" class="menu-recovery-input" placeholder="dv1-..." autocapitalize="characters" spellcheck="false" aria-label="Recovery code">
+            <button id="submitRecoveryCodeBtn" type="button" class="menu-profile-clear">Restore</button>
+          </div>
         </div>
       </div>
       <div class="menu-footer">

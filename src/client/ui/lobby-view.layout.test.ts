@@ -26,7 +26,7 @@ const indexOfDescendant = (root: Element, selector: string): number => {
 };
 
 describe('home menu layout', () => {
-  it('orders Play vs AI → Quick Match → Leaderboard → Create Private → Join code input', () => {
+  it('orders play choices before pilot profile controls', () => {
     const menu = parseMenu();
     const playVsAi = indexOfDescendant(menu, '#singlePlayerBtn');
     const difficulty = indexOfDescendant(menu, '#difficultySelect');
@@ -36,6 +36,9 @@ describe('home menu layout', () => {
     const createBtn = indexOfDescendant(menu, '#createBtn');
     const codeInput = indexOfDescendant(menu, '#codeInput');
     const joinBtn = indexOfDescendant(menu, '#joinBtn');
+    const callsign = indexOfDescendant(menu, '#playerNameInput');
+    const saveRecovery = indexOfDescendant(menu, '#saveRecoveryCodeBtn');
+    const restoreCallsign = indexOfDescendant(menu, '#restoreCallsignBtn');
 
     expect(playVsAi).toBeGreaterThan(-1);
     expect(difficulty).toBeGreaterThan(playVsAi);
@@ -45,6 +48,22 @@ describe('home menu layout', () => {
     expect(createBtn).toBeGreaterThan(matches);
     expect(codeInput).toBeGreaterThan(createBtn);
     expect(joinBtn).toBeGreaterThan(codeInput);
+    expect(callsign).toBeGreaterThan(joinBtn);
+    expect(saveRecovery).toBeGreaterThan(callsign);
+    expect(restoreCallsign).toBeGreaterThan(saveRecovery);
+  });
+
+  it('keeps callsign controls with profile recovery actions', () => {
+    const menu = parseMenu();
+    const surface = menu.querySelector('.menu-surface-profile');
+    expect(surface).not.toBeNull();
+    expect(surface?.querySelector('#playerNameInput')).not.toBeNull();
+    expect(surface?.querySelector('#saveRecoveryCodeBtn')).not.toBeNull();
+    expect(surface?.querySelector('#restoreCallsignBtn')).not.toBeNull();
+    expect(surface?.querySelector('#recoveryPanel')).not.toBeNull();
+    expect(
+      surface?.querySelector('#forgetCallsignBtn')?.hasAttribute('hidden'),
+    ).toBe(true);
   });
 
   it('pairs Create Private Match with the Join form in a single surface', () => {

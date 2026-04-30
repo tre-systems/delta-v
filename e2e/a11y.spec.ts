@@ -59,17 +59,12 @@ test.describe('accessibility smoke checks', () => {
     page,
   }) => {
     // Home screen tab order (top-to-bottom DOM, confirmed against
-    // static/index.html): callsign → Play vs AI → difficulty →
-    // Quick Match → discover tiles → Create Private Match → join code.
-    // Play vs AI is first because the home menu prioritizes immediate
-    // local play, while Create lives with the join form under friends.
+    // static/index.html): Play vs AI → difficulty → Quick Match →
+    // discover tiles → Create Private Match → join code → callsign.
+    // Callsign lives with profile recovery because local AI play does
+    // not need a claimed online identity.
     await openHomePage(page);
     await waitForDisplay(page, '[data-testid="menu"]', 'flex');
-
-    await page.keyboard.press('Tab');
-    await expect
-      .poll(async () => activeElementId(page))
-      .toBe('playerNameInput');
 
     await page.keyboard.press('Tab');
     await expect
