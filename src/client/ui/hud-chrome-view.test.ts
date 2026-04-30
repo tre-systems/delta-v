@@ -8,7 +8,7 @@ import { createHUDChromeView } from './hud-chrome-view';
 
 const installFixture = () => {
   const actionButtons = ACTION_BUTTON_IDS.map(
-    (id) => `<button id="${id}" style="display:inline-block"></button>`,
+    (id) => `<button id="${id}" style="display:inline-flex"></button>`,
   ).join('');
 
   document.body.innerHTML = `
@@ -117,7 +117,7 @@ describe('HUDChromeView', () => {
     const undoBtn = document.getElementById('undoBtn') as HTMLElement;
     const confirmBtn = document.getElementById('confirmBtn') as HTMLElement;
     expect(undoBtn.hasAttribute('hidden')).toBe(false);
-    expect(undoBtn.style.display).toBe('inline-block');
+    expect(undoBtn.style.display).toBe('inline-flex');
     expect(confirmBtn.hasAttribute('hidden')).toBe(true);
     expect(queueLayoutSync).toHaveBeenCalled();
     expect(
@@ -251,10 +251,12 @@ describe('HUDChromeView', () => {
     view.showAttackButton(true);
     const attackBtn = document.getElementById('attackBtn') as HTMLElement;
     expect(attackBtn.hasAttribute('hidden')).toBe(false);
-    expect(attackBtn.style.display).toBe('inline-block');
+    expect(attackBtn.style.display).toBe('inline-flex');
 
     view.showFireButton(true, 3);
-    expect(document.getElementById('fireBtn')?.textContent).toBe('END COMBAT');
+    const fireBtn = document.getElementById('fireBtn') as HTMLElement;
+    expect(fireBtn.textContent).toBe('END COMBAT');
+    expect(fireBtn.style.display).toBe('inline-flex');
 
     view.update(
       buildInput({

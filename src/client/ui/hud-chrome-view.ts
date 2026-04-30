@@ -51,6 +51,7 @@ export interface HUDChromeView {
 
 const HELP_OVERLAY_FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+const HUD_ACTION_BUTTON_DISPLAY = 'inline-flex';
 
 const getFocusableHelpElements = (container: HTMLElement): HTMLElement[] => {
   return Array.from(
@@ -302,21 +303,25 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
 
       text(fuelGaugeEl, hudView.fuelGaugeText);
 
-      visible(undoBtn, !hideActions && hudView.undoVisible, 'inline-block');
+      visible(
+        undoBtn,
+        !hideActions && hudView.undoVisible,
+        HUD_ACTION_BUTTON_DISPLAY,
+      );
       visible(
         skipShipBtn,
         !hideActions && hudView.skipShipVisible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       visible(
         confirmBtn,
         !hideActions && hudView.confirmVisible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       visible(
         landFromOrbitBtn,
         !hideActions && hudView.landFromOrbit.visible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       landFromOrbitBtn.disabled = hudView.landFromOrbit.disabled;
       landFromOrbitBtn.style.opacity = hudView.landFromOrbit.opacity;
@@ -329,32 +334,32 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       visible(
         launchMineBtn,
         !hideActions && hudView.launchMine.visible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       visible(
         launchTorpedoBtn,
         !hideActions && hudView.launchTorpedo.visible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       visible(
         launchNukeBtn,
         !hideActions && hudView.launchNuke.visible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       visible(
         emplaceBaseBtn,
         !hideActions && hudView.emplaceBase.visible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       visible(
         nextOrdnanceBtn,
         !hideActions && hudView.nextOrdnance.visible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       visible(
         confirmOrdnanceBtn,
         !hideActions && hudView.confirmOrdnance.visible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       setBtnLabel(nextOrdnanceBtn, hudView.nextOrdnance.label);
       nextOrdnanceBtn.className = hudView.nextOrdnance.className;
@@ -398,17 +403,17 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       visible(
         skipCombatBtn,
         !hideActions && hudView.skipCombatVisible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       visible(
         skipLogisticsBtn,
         !hideActions && hudView.skipLogisticsVisible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       visible(
         confirmTransfersBtn,
         !hideActions && hudView.confirmTransfersVisible,
-        'inline-block',
+        HUD_ACTION_BUTTON_DISPLAY,
       );
       visible(
         transferPanelEl,
@@ -507,14 +512,22 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       const hideActions = viewSignal.value?.suppressActionButtons ?? false;
       const attackVisible = attackButtonVisibleSignal.value;
 
-      visible(attackBtn, !hideActions && attackVisible, 'inline-block');
+      visible(
+        attackBtn,
+        !hideActions && attackVisible,
+        HUD_ACTION_BUTTON_DISPLAY,
+      );
     });
 
     effect(() => {
       const hideActions = viewSignal.value?.suppressActionButtons ?? false;
       const fireButton = fireButtonSignal.value;
 
-      visible(fireBtn, !hideActions && fireButton.isVisible, 'inline-block');
+      visible(
+        fireBtn,
+        !hideActions && fireButton.isVisible,
+        HUD_ACTION_BUTTON_DISPLAY,
+      );
       setBtnLabel(fireBtn, 'END COMBAT');
       fireBtn.className = 'btn btn-skip';
     });
