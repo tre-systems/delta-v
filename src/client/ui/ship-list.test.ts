@@ -102,7 +102,7 @@ describe('ui ship list helpers', () => {
     expect(view[0].detailRows).toEqual([
       { label: 'Combat', value: '2 ★', tone: null },
       { label: 'Cargo', value: '35/50', tone: null },
-      { label: 'Velocity', value: '2, -1', tone: null },
+      { label: 'Velocity', value: '2', tone: null },
       { label: 'Status', value: 'Landed', tone: 'success' },
     ]);
 
@@ -147,8 +147,28 @@ describe('ui ship list helpers', () => {
 
     expect(view[0].detailRows).toEqual([
       { label: 'Combat', value: '2', tone: null },
-      { label: 'Velocity', value: '1, -1', tone: null },
+      { label: 'Velocity', value: '1', tone: null },
     ]);
+  });
+
+  it('shows axial velocity magnitude as a single number', () => {
+    const view = buildShipListView(
+      [
+        createShip({
+          id: asShipId('a'),
+          type: 'corvette',
+          velocity: { dq: -1, dr: -1 },
+        }),
+      ],
+      'a',
+      new Map(),
+    );
+
+    expect(view[0].detailRows).toContainEqual({
+      label: 'Velocity',
+      value: '2',
+      tone: null,
+    });
   });
 
   it('shows disabled and captured detail rows for selected ships', () => {

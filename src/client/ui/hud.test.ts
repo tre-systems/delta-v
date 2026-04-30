@@ -231,8 +231,7 @@ describe('ui hud helpers', () => {
       buildHUDView(buildInput({ turn: 5, phase: 'combat' })),
     ).toMatchObject({
       phaseText: 'COMBAT',
-      statusText:
-        'Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done \u00b7 [ ] Cycle targets \u00b7 { } Cycle attackers',
+      statusText: 'Choose target \u00b7 ATTACK/Enter fires \u00b7 END COMBAT',
       skipCombatVisible: false,
     });
 
@@ -246,7 +245,7 @@ describe('ui hud helpers', () => {
       ),
     ).toMatchObject({
       statusText:
-        'Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done \u00b7 2 attacks queued \u00b7 [ ] Cycle targets \u00b7 { } Cycle attackers',
+        'Choose target \u00b7 ATTACK/Enter fires \u00b7 END COMBAT \u00b7 2 attacks queued',
     });
 
     expect(
@@ -283,7 +282,7 @@ describe('ui hud helpers', () => {
       ),
     ).toMatchObject({
       statusText:
-        'Target: Frigate · Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done \u00b7 [ ] Cycle targets \u00b7 { } Cycle attackers',
+        'Target: Frigate · Choose target \u00b7 ATTACK/Enter fires \u00b7 END COMBAT',
     });
   });
 
@@ -426,9 +425,7 @@ describe('ui hud helpers', () => {
 
     expect(
       buildHUDView(buildInput({ isMobile: true, phase: 'combat' })).statusText,
-    ).toBe(
-      'Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done',
-    );
+    ).toBe('Choose target \u00b7 ATTACK fires \u00b7 END COMBAT');
 
     expect(
       buildHUDView(
@@ -439,7 +436,7 @@ describe('ui hud helpers', () => {
         }),
       ).statusText,
     ).toBe(
-      'Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done \u00b7 1 queued',
+      'Choose target \u00b7 ATTACK fires \u00b7 END COMBAT \u00b7 1 queued',
     );
 
     expect(
