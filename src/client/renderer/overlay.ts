@@ -544,15 +544,25 @@ export const renderCombatOverlay = ({
   const oddsW = ctx.measureText(preview.label).width;
   const gapW = preview.modLabel ? ctx.measureText('  ').width : 0;
   const modW = preview.modLabel ? ctx.measureText(preview.modLabel).width : 0;
+  const uiScale = 1 / Math.max(zoom, 0.001);
   const textW = oddsW + gapW + modW;
-  const badgeW = Math.max(40, textW + 14);
-  const badgeH = 18;
-  const badgeY = targetPos.y - 43;
+  const padX = 7 * uiScale;
+  const badgeW = Math.max(38 * uiScale, textW + padX * 2);
+  const badgeH = 18 * uiScale;
+  const badgeRadius = 5 * uiScale;
+  const badgeBottomY = targetPos.y - 24;
+  const badgeY = badgeBottomY - badgeH;
   const badgeTextY = badgeY + badgeH / 2;
   const textStartX = targetPos.x - textW / 2;
+  const badgeX = targetPos.x - badgeW / 2;
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.68)';
-  ctx.fillRect(targetPos.x - badgeW / 2, badgeY, badgeW, badgeH);
+  ctx.fillStyle = 'rgba(5, 8, 18, 0.78)';
+  ctx.strokeStyle = 'rgba(255, 221, 87, 0.32)';
+  ctx.lineWidth = 1 * uiScale;
+  ctx.beginPath();
+  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeRadius);
+  ctx.fill();
+  ctx.stroke();
 
   ctx.fillStyle = '#ffdd57';
   ctx.fillText(preview.label, textStartX + oddsW / 2, badgeTextY);
