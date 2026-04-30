@@ -59,10 +59,10 @@ test.describe('accessibility smoke checks', () => {
     page,
   }) => {
     // Home screen tab order (top-to-bottom DOM, confirmed against
-    // static/index.html): callsign → Quick Match → Play vs AI →
-    // difficulty → discover tiles → Create Private Match → join code.
-    // Create moved out of the primary action surface on 2026-04-22 to
-    // sit next to the join form under "Play with a friend".
+    // static/index.html): callsign → Play vs AI → difficulty →
+    // Quick Match → discover tiles → Create Private Match → join code.
+    // Play vs AI is first because the home menu prioritizes immediate
+    // local play, while Create lives with the join form under friends.
     await openHomePage(page);
     await waitForDisplay(page, '[data-testid="menu"]', 'flex');
 
@@ -70,9 +70,6 @@ test.describe('accessibility smoke checks', () => {
     await expect
       .poll(async () => activeElementId(page))
       .toBe('playerNameInput');
-
-    await page.keyboard.press('Tab');
-    await expect.poll(async () => activeElementId(page)).toBe('quickMatchBtn');
 
     await page.keyboard.press('Tab');
     await expect
