@@ -344,16 +344,13 @@ export const buildHUDView = (input: HUDInput): HUDView => {
                       : ` \u00b7 ${q} attack${q === 1 ? '' : 's'} queued`
                     : '';
                 const hintPrefix = combatHudHint ? `${combatHudHint} · ` : '';
-                const kbCycle = isMobile
-                  ? ''
-                  : ' · [ ] Cycle targets · { } Cycle attackers';
                 return isMobile
                   ? astrogationCtx.hasSelection
-                    ? `${hintPrefix}Tap highlighted enemies to target \u00b7 ATTACK fires \u00b7 END COMBAT when done${queueSuffix}`
-                    : `${hintPrefix}Select a ship or tap a highlighted enemy${queueSuffix}`
+                    ? `${hintPrefix}Choose target \u00b7 ATTACK fires \u00b7 END COMBAT${queueSuffix}`
+                    : `${hintPrefix}Select ship or target enemy${queueSuffix}`
                   : astrogationCtx.hasSelection
-                    ? `${hintPrefix}Click highlighted enemies to target \u00b7 ATTACK or Enter fires \u00b7 END COMBAT when done${queueSuffix}${kbCycle}`
-                    : `${hintPrefix}Select a ship or click a highlighted enemy${queueSuffix}${kbCycle}`;
+                    ? `${hintPrefix}Choose target \u00b7 ATTACK/Enter fires \u00b7 END COMBAT${queueSuffix}`
+                    : `${hintPrefix}Select ship or target enemy${queueSuffix}`;
               })()
             : phase === 'logistics'
               ? isMobile

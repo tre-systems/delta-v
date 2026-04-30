@@ -1,4 +1,5 @@
 import { SHIP_STATS } from '../../shared/constants';
+import { hexVecLength } from '../../shared/hex';
 import type { PlayerId, Ship } from '../../shared/types/domain';
 
 export interface ShipDetailRowView {
@@ -61,11 +62,9 @@ const getStatusText = (ship: Ship): string =>
     .join(' ');
 
 const getVelocityLabel = (ship: Ship): string => {
-  const speed = Math.abs(ship.velocity.dq) + Math.abs(ship.velocity.dr);
+  const speed = hexVecLength(ship.velocity);
 
-  return speed === 0
-    ? 'Stationary'
-    : `${ship.velocity.dq}, ${ship.velocity.dr}`;
+  return speed === 0 ? 'Stationary' : `${speed}`;
 };
 
 const getShipDetailRows = (
@@ -118,7 +117,7 @@ const getShipDetailRows = (
   ).filter((row): row is ShipDetailRowView => row !== null);
 
   if (compact) {
-    const speed = Math.abs(ship.velocity.dq) + Math.abs(ship.velocity.dr);
+    const speed = hexVecLength(ship.velocity);
     const rows: ShipDetailRowView[] = [combatRow];
 
     if (speed > 0) {
