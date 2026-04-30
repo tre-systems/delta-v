@@ -59,6 +59,7 @@ class HostedMcpClient:
         return {
             "Authorization": f"Bearer {self.agent_token}",
             "Accept": "application/json, text/event-stream",
+            "MCP-Protocol-Version": "2025-11-25",
         }
 
     def _issue_agent_token(self) -> str:
@@ -92,7 +93,7 @@ class HostedMcpClient:
         self._rpc(
             "initialize",
             {
-                "protocolVersion": "2025-06-18",
+                "protocolVersion": "2025-11-25",
                 "capabilities": {},
                 "clientInfo": {
                     "name": "delta-v-hosted-mcp-starter",

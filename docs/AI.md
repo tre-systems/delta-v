@@ -1,5 +1,7 @@
 # AI Architecture and Tuning Guide
 
+![Delta-V AI system infographic](./assets/delta-v-ai-system-infographic.png)
+
 This guide is for changing the built-in Delta-V AI safely. It explains the
 current architecture, how to decide whether a behavior belongs in a named plan
 or a scalar score, and the verification loop expected for AI changes.
@@ -7,6 +9,12 @@ or a scalar score, and the verification loop expected for AI changes.
 For the broader system architecture, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 For simulation commands and scorecard fields, see
 [SIMULATION_TESTING.md](./SIMULATION_TESTING.md).
+For external agent integration, see [AGENTS.md](./AGENTS.md) and
+[DELTA_V_MCP.md](./DELTA_V_MCP.md).
+
+This page covers the in-process policy in `src/shared/ai`. That policy powers
+local single-player bots, scheduled server bot seats, simulation harnesses, and
+the recommended candidate exposed to external agents.
 
 ## Goals
 
@@ -20,6 +28,17 @@ It is not trying to be a perfect minimax player. The game has simultaneous
 movement, hidden information, ordnance, fuel, gravity, logistics, and asymmetric
 scenario objectives. The AI should be readable, deterministic under a supplied
 RNG, and easy to tune from captured failures.
+
+## Runtime Surfaces
+
+The same shared helpers run in every built-in path:
+
+| Surface | Entry point | Notes |
+| --- | --- | --- |
+| Local single-player | `src/client/game/ai-flow.ts` (`deriveAIActionPlan`) | Filters state for the AI seat with `filterStateForPlayer`, then submits the proposed action through the local engine flow. |
+| Server agent seat / Official Bot | `src/server/game-do/bot.ts` (`buildBotAction`) | Scheduled by `GameDO` after `BOT_THINK_TIME_MS`; default difficulty is `normal`; the server passes the match-derived action RNG. |
+| Headless simulation | `scripts/simulate-ai.ts` | Calls the same phase helpers directly and fails CI on engine crashes or rejected built-in AI actions. |
+| External agent observations | `src/shared/agent/candidates.ts` (`buildCandidates`) | Builds legal candidate actions from hard/normal/easy policy outputs plus safe variants; `recommendedIndex` points at the candidate builder's recommendation, usually the hard policy but safety-prioritized in some ordnance states. |
 
 ## Mental Model
 
@@ -63,6 +82,9 @@ difficulty, and RNG stream. Do not use `Math.random()`.
 | `src/shared/ai/fleet.ts` | Fleet purchase search and purchase preferences. |
 | `src/shared/ai/plans/` | Named doctrine decisions with comparable plan evaluations. |
 | `src/shared/ai/plans/passenger.ts` | Stable passenger-plan barrel; implementation is split under `plans/passenger/`. |
+| `src/shared/agent/candidates.ts` | Agent-facing candidate list derived from the built-in AI policies. |
+| `src/client/game/ai-flow.ts` | Client-side local AI action-plan derivation. |
+| `src/server/game-do/bot.ts` | Server-side bot action construction and default difficulty. |
 
 ## Decision Layers
 
@@ -112,6 +134,7 @@ Current named intents include:
 | `supportPassengerCarrier` | Keep a tanker aligned with the carrier. |
 | `transferPassengers` | Move passengers to a better carrier during logistics. |
 | `postCarrierLossPursuit` | Release ships to pursue after passenger delivery is impossible. |
+| `completeCheckpointRoute` | Continue Grand Tour-style checkpoint progress. |
 | `refuelAtReachableBase` | Divert to a reachable base instead of a tempting unreachable target. |
 | `defendAgainstOrdnance` | Prefer anti-ordnance fire when incoming ordnance is the threat. |
 | `launchNuke` | Commit an expensive nuke after strategic value and interception gates pass. |
@@ -228,10 +251,20 @@ Risk:
 - Do not add broad weights from one anecdotal game.
 - Do not assert exact burns when the intended behavior is strategic.
 - Do not use randomness outside the supplied RNG.
+- Do not bypass `filterStateForPlayer` or equivalent viewer filtering when
+  making agent- or bot-facing observations.
+- Do not hand-roll legality in the AI layer. Use scenario capabilities and let
+  the engine validator remain the final authority.
 - Do not make passenger carriers fight unless the doctrine explicitly says the
   objective is already lost or the target is safe.
 - Do not make scenario setup changes to hide an AI doctrine bug.
 - Do not leave completed implementation tasks in [BACKLOG.md](./BACKLOG.md).
+
+## External References
+
+- [Model Context Protocol specification](https://modelcontextprotocol.io/specification/) — background for Delta-V's MCP agent surface and tool/resource model.
+- [Cloudflare Durable Objects WebSocket guidance](https://developers.cloudflare.com/durable-objects/best-practices/websockets/) — runtime model behind authoritative rooms and scheduled server-side bot turns.
+- [Martin Fowler: Event Sourcing](https://www.martinfowler.com/eaaDev/EventSourcing.html) — architectural background for the event stream and replay/reconstruction model the AI simulation and diagnostics rely on.
 
 ## Current Architecture Limits
 

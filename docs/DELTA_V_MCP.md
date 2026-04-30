@@ -1,6 +1,6 @@
 # Delta-V MCP Reference
 
-The canonical tool-and-transport reference for the Delta-V MCP server. Lists transports (local stdio / hosted HTTP / local HTTP), every tool and its args, host configuration, and rate limits — the page an agent author consults while wiring things up.
+The canonical tool-and-transport reference for the Delta-V MCP server. Lists transports (local stdio / hosted HTTP / local HTTP), every tool and its args, host configuration, and rate limits — the page an agent author consults while wiring things up. Delta-V's hosted transport follows the [Model Context Protocol Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports).
 
 Related docs:
 
@@ -14,7 +14,7 @@ Related docs:
 | Transport | Entry point | Shape | Session model |
 | --- | --- | --- | --- |
 | **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_reconnect`, `delta_v_close_session`). Outbound responses are **queued** so concurrent tool completions cannot corrupt stdout framing. Many MCP hosts still invoke tools **serially** (next call starts after the prior returns); use **local HTTP** (`npm run mcp:delta-v:http`) when you need concurrent tool requests from **separate processes** or hosts that pipeline multiple `tools/call` before prior responses return. |
-| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Requires `Authorization: Bearer <agentToken>` on every call, plus opaque per-match `matchToken` tool args for in-match tools. Hosted also accepts `sessionId` as a compatibility alias for the same opaque token. Clients must send `Accept: application/json, text/event-stream` or the endpoint rejects the call. The GAME DO now persists hosted seat event buffers so `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` work without Worker memory. `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
+| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Requires `Authorization: Bearer <agentToken>` on every call, plus opaque per-match `matchToken` tool args for in-match tools. Hosted also accepts `sessionId` as a compatibility alias for the same opaque token. Clients must send `Accept: application/json, text/event-stream` or the endpoint rejects the call. New clients should initialize with MCP protocol version `2025-11-25` and send `MCP-Protocol-Version: 2025-11-25` on subsequent HTTP requests. The GAME DO now persists hosted seat event buffers so `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` work without Worker memory. `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
 | **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
 
 ```mermaid
@@ -151,6 +151,7 @@ Hosted MCP is plain JSON-RPC over `POST /mcp`. Every request must send:
 - `Content-Type: application/json`
 - `Accept: application/json, text/event-stream`
 - `Authorization: Bearer <agentToken>`
+- `MCP-Protocol-Version: 2025-11-25` after initialization; examples include it on every request for simplicity.
 
 Initialize once per client session:
 
@@ -158,13 +159,14 @@ Initialize once per client session:
 curl -s https://delta-v.tre.systems/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2025-11-25' \
   -H "Authorization: Bearer $AGENT_TOKEN" \
   -d '{
     "jsonrpc":"2.0",
     "id":1,
     "method":"initialize",
     "params":{
-      "protocolVersion":"2025-06-18",
+      "protocolVersion":"2025-11-25",
       "capabilities":{},
       "clientInfo":{"name":"example-bot","version":"1.0"}
     }
@@ -177,6 +179,7 @@ Queue into a match:
 curl -s https://delta-v.tre.systems/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2025-11-25' \
   -H "Authorization: Bearer $AGENT_TOKEN" \
   -d '{
     "jsonrpc":"2.0",
@@ -197,6 +200,7 @@ Wait for an actionable turn:
 curl -s https://delta-v.tre.systems/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2025-11-25' \
   -H "Authorization: Bearer $AGENT_TOKEN" \
   -d "{
     \"jsonrpc\":\"2.0\",
@@ -220,6 +224,7 @@ Send the chosen action:
 curl -s https://delta-v.tre.systems/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2025-11-25' \
   -H "Authorization: Bearer $AGENT_TOKEN" \
   -d "{
     \"jsonrpc\":\"2.0\",
@@ -244,6 +249,7 @@ Read a rules resource:
 curl -s https://delta-v.tre.systems/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2025-11-25' \
   -H "Authorization: Bearer $AGENT_TOKEN" \
   -d '{
     "jsonrpc":"2.0",
@@ -259,6 +265,7 @@ Close the hosted helper session when done:
 curl -s https://delta-v.tre.systems/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2025-11-25' \
   -H "Authorization: Bearer $AGENT_TOKEN" \
   -d "{
     \"jsonrpc\":\"2.0\",
@@ -306,7 +313,7 @@ Notes:
 - **Local MCP** now defaults `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action(...includeNextObservation)` to compact `state` output. Pass `compactState: false` to force the full `GameState`.
 - **Hosted MCP** still forwards optional `compactState` on `delta_v_get_observation` (query string), `delta_v_wait_for_turn`, and `delta_v_send_action` (JSON body) to the GAME DO — unchanged from the previous explicit opt-in behavior.
 - When `delta_v_send_action(...waitForResult=true)` returns `autoSkipLikely: true`, treat the returned `nextPhase` as transient and call `delta_v_wait_for_turn` instead of immediately chaining a skip for that phase.
-- **Hosted MCP** requires `Accept: application/json, text/event-stream` on every `POST /mcp` request, even though Delta-V currently returns the JSON response path rather than an SSE stream.
+- **Hosted MCP** requires `Accept: application/json, text/event-stream` on every `POST /mcp` request, even though Delta-V currently returns the JSON response path rather than an SSE stream. Spec-compliant HTTP clients should also carry `MCP-Protocol-Version` after initialization.
 - When `delta_v_send_action` waits for a result, accepted responses include `guardStatus` (`inSync` or `stalePhaseForgiven`) so agents can tell whether an expected-phase guard was forgiven even though the action went through.
 - `delta_v_wait_for_turn` throws on timeout and may return/reject when game reaches `gameOver`.
 - `delta_v_reconnect` remains local-only. `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` now also work on hosted MCP when an agent Bearer token is present.

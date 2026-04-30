@@ -33,7 +33,7 @@ The canonical hosted loop is:
 
 Important operating rules:
 
-- Send `Authorization: Bearer <agentToken>` and `Accept: application/json, text/event-stream` on every hosted `POST /mcp`.
+- Send `Authorization: Bearer <agentToken>` and `Accept: application/json, text/event-stream` on every hosted `POST /mcp`; new HTTP clients should also initialize with MCP protocol version `2025-11-25` and send `MCP-Protocol-Version: 2025-11-25` after initialization.
 - Treat `delta_v_quick_match` as the canonical name. `delta_v_quick_match_connect` is only a compatibility alias.
 - If the first actionable observation is still `fleetBuilding`, you still need to send `fleetReady` explicitly.
 - If `delta_v_send_action(...waitForResult=true)` returns `autoSkipLikely: true`, call `delta_v_wait_for_turn` instead of immediately chaining the returned `nextPhase`.
