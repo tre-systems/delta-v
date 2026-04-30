@@ -225,6 +225,31 @@
   gap: 0.8rem;
 }
 
+.menu-surface-online {
+  --menu-surface-bg:
+    radial-gradient(circle at 10% 0%, rgba(122, 215, 255, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(16, 30, 52, 0.9), rgba(9, 17, 32, 0.84));
+}
+
+.menu-surface-profile {
+  --menu-surface-bg: linear-gradient(
+    180deg,
+    rgba(13, 24, 43, 0.86),
+    rgba(8, 15, 28, 0.82)
+  );
+  gap: 0.7rem;
+}
+
+.menu-section-heading,
+#menu .menu-friends-heading {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(199, 212, 234, 0.72);
+  text-align: center;
+}
+
 .menu-profile {
   display: flex;
   flex-direction: column;
@@ -272,7 +297,7 @@
 .menu-profile-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0.55rem 0.75rem;
 }
 
@@ -382,6 +407,16 @@
   color: rgba(255, 143, 143, 0.9);
 }
 
+.menu-surface-profile .menu-profile {
+  gap: 0.42rem;
+}
+
+.menu-surface-profile .menu-profile-input {
+  min-height: 46px;
+  padding: 0.78rem 0.9rem;
+  border-radius: 14px;
+}
+
 #menu #createBtn {
   width: 100%;
 }
@@ -406,15 +441,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-#menu .menu-friends-heading {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(199, 212, 234, 0.72);
-  text-align: center;
 }
 
 #menu .menu-friends-divider {
