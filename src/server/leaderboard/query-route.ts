@@ -17,6 +17,7 @@ import { OFFICIAL_QUICK_MATCH_BOT_USERNAME } from '../../shared/player';
 import { isProvisional } from '../../shared/rating/provisional';
 import type { Env } from '../env';
 import { type JsonErrorBody, jsonError, jsonErrorBody } from '../json-errors';
+import { isReservedTestUsername } from './username';
 
 interface PlayerRow {
   username: string;
@@ -52,7 +53,6 @@ type LeaderboardQueryError = {
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 200;
-const RESERVED_TEST_USERNAME_PREFIXES = ['bot_', 'probe_', 'qa_'];
 
 const error = (message: string): LeaderboardQueryError => ({
   status: 400,
@@ -100,13 +100,6 @@ const toEntry = (row: PlayerRow): LeaderboardEntry => {
     provisional,
     lastPlayedAt: row.last_match_at,
   };
-};
-
-const isReservedTestUsername = (username: string): boolean => {
-  const lowered = username.toLowerCase();
-  return RESERVED_TEST_USERNAME_PREFIXES.some((prefix) =>
-    lowered.startsWith(prefix),
-  );
 };
 
 // Canonical cache URL for this request: strip every query param except

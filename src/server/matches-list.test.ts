@@ -43,6 +43,10 @@ const makeRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
     'winner_username' in overrides ? overrides.winner_username : null,
   loser_username:
     'loser_username' in overrides ? overrides.loser_username : null,
+  player_a_username:
+    'player_a_username' in overrides ? overrides.player_a_username : null,
+  player_b_username:
+    'player_b_username' in overrides ? overrides.player_b_username : null,
 });
 
 describe('handleMatchesList', () => {
@@ -310,6 +314,8 @@ describe('handleMatchesList', () => {
       officialBotMatch: false,
       winnerUsername: null,
       loserUsername: null,
+      playerAUsername: null,
+      playerBUsername: null,
     });
   });
 
@@ -324,11 +330,33 @@ describe('handleMatchesList', () => {
     expect(body.matches[0].officialBotMatch).toBe(true);
   });
 
-  it('does not surface public usernames in the matches listing', async () => {
+  it('surfaces public callsigns from leaderboard-backed matches', async () => {
     const { db } = mockDb([
       makeRow({
         winner_username: 'Zephyr',
         loser_username: 'Pilot_42',
+        player_a_username: 'Pilot_42',
+        player_b_username: 'Zephyr',
+      }),
+    ]);
+    const response = await handleMatchesList(
+      new Request('https://example/api/matches'),
+      buildEnv(db),
+    );
+    const body = (await response.json()) as MatchListingResponse;
+    expect(body.matches[0].winnerUsername).toBe('Zephyr');
+    expect(body.matches[0].loserUsername).toBe('Pilot_42');
+    expect(body.matches[0].playerAUsername).toBe('Pilot_42');
+    expect(body.matches[0].playerBUsername).toBe('Zephyr');
+  });
+
+  it('suppresses reserved exploratory callsigns in the matches listing', async () => {
+    const { db } = mockDb([
+      makeRow({
+        winner_username: 'QA_Probe_A',
+        loser_username: 'ActualPilot',
+        player_a_username: 'QA_Probe_A',
+        player_b_username: 'ActualPilot',
       }),
     ]);
     const response = await handleMatchesList(
@@ -337,7 +365,9 @@ describe('handleMatchesList', () => {
     );
     const body = (await response.json()) as MatchListingResponse;
     expect(body.matches[0].winnerUsername).toBeNull();
-    expect(body.matches[0].loserUsername).toBeNull();
+    expect(body.matches[0].loserUsername).toBe('ActualPilot');
+    expect(body.matches[0].playerAUsername).toBeNull();
+    expect(body.matches[0].playerBUsername).toBe('ActualPilot');
   });
 
   it('leaves usernames null when unclaimed / private-room matches', async () => {
@@ -349,6 +379,8 @@ describe('handleMatchesList', () => {
     const body = (await response.json()) as MatchListingResponse;
     expect(body.matches[0].winnerUsername).toBeNull();
     expect(body.matches[0].loserUsername).toBeNull();
+    expect(body.matches[0].playerAUsername).toBeNull();
+    expect(body.matches[0].playerBUsername).toBeNull();
   });
 
   it('normalises invalid winner values to null (draw)', async () => {

@@ -2,11 +2,10 @@
 // pagination over the `match_archive` D1 table. Shown in the public
 // `/matches` page.
 //
-// The data surfaced here is intentionally non-identifying by default:
-// scenario, winner, win reason, turn count, timestamps, coached flag.
-// Username fields are preserved in the response shape for compatibility,
-// but are always null so the public match log does not publish user-chosen
-// names independently of the leaderboard.
+// The data surfaced here stays within public discovery boundaries:
+// scenario, outcome, turn count, timestamps, replay ids, and public
+// callsigns only when a match has leaderboard/rating metadata. Player keys
+// are never returned.
 //
 // Room codes and game ids are included only so the page can construct
 // replay links (the existing `/replay/{code}?viewer=spectator` route is
@@ -16,13 +15,14 @@
 import { isValidScenario, type ScenarioKey } from '../shared/map-data';
 import type { Env } from './env';
 import { type JsonErrorBody, jsonErrorBody } from './json-errors';
+import { isReservedTestUsername } from './leaderboard/username';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 // Shape a single row. Keys are camelCase for the HTTP client; the D1
-// columns are snake_case. Username fields are always null in the public
-// match listing.
+// columns are snake_case. Callsigns come from the public leaderboard tables
+// when a match has rating metadata; player keys are never returned.
 export interface MatchListingRow {
   gameId: string;
   roomCode: string;
@@ -36,6 +36,8 @@ export interface MatchListingRow {
   officialBotMatch: boolean;
   winnerUsername: string | null;
   loserUsername: string | null;
+  playerAUsername: string | null;
+  playerBUsername: string | null;
 }
 
 export interface MatchListingResponse {
@@ -240,7 +242,18 @@ interface MatchArchiveRow {
   completed_at: number;
   match_coached: number | null;
   official_bot_match: number | null;
+  winner_username: string | null;
+  loser_username: string | null;
+  player_a_username: string | null;
+  player_b_username: string | null;
 }
+
+const publicCallsign = (value: string | null): string | null => {
+  if (typeof value !== 'string' || isReservedTestUsername(value)) {
+    return null;
+  }
+  return value;
+};
 
 const toListingRow = (row: MatchArchiveRow): MatchListingRow => ({
   gameId: row.game_id,
@@ -253,8 +266,10 @@ const toListingRow = (row: MatchArchiveRow): MatchListingRow => ({
   completedAt: row.completed_at,
   coached: Boolean(row.match_coached),
   officialBotMatch: Boolean(row.official_bot_match),
-  winnerUsername: null,
-  loserUsername: null,
+  winnerUsername: publicCallsign(row.winner_username),
+  loserUsername: publicCallsign(row.loser_username),
+  playerAUsername: publicCallsign(row.player_a_username),
+  playerBUsername: publicCallsign(row.player_b_username),
 });
 
 export const handleMatchesList = async (
@@ -289,8 +304,21 @@ export const handleMatchesList = async (
 
   const SELECT_COLUMNS =
     'ma.game_id, ma.room_code, ma.scenario, ma.winner, ma.win_reason, ' +
-    'ma.turns, ma.created_at, ma.completed_at, ma.match_coached, ma.official_bot_match';
-  const JOINS = 'FROM match_archive ma';
+    'ma.turns, ma.created_at, ma.completed_at, ma.match_coached, ma.official_bot_match, ' +
+    'winner_player.username AS winner_username, ' +
+    'loser_player.username AS loser_username, ' +
+    'player_a.username AS player_a_username, ' +
+    'player_b.username AS player_b_username';
+  const JOINS =
+    'FROM match_archive ma ' +
+    'LEFT JOIN match_rating mr ON mr.game_id = ma.game_id ' +
+    'LEFT JOIN player winner_player ON winner_player.player_key = mr.winner_key ' +
+    'LEFT JOIN player loser_player ON loser_player.player_key = ' +
+    'CASE WHEN mr.winner_key IS NULL THEN NULL ' +
+    'WHEN mr.player_a_key = mr.winner_key THEN mr.player_b_key ' +
+    'ELSE mr.player_a_key END ' +
+    'LEFT JOIN player player_a ON player_a.player_key = mr.player_a_key ' +
+    'LEFT JOIN player player_b ON player_b.player_key = mr.player_b_key';
 
   const whereClauses: string[] = [];
   const bindings: unknown[] = [];

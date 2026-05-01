@@ -82,8 +82,8 @@
       --success: #95d687;
       --warning: #ffc56a;
       --danger: #ff8a8a;
-      --radius: 14px;
-      --radius-sm: 8px;
+      --radius: 8px;
+      --radius-sm: 6px;
       --font-display: 'Space Grotesk', sans-serif;
       --font-mono: 'IBM Plex Mono', monospace;
     }
@@ -163,7 +163,7 @@
     }
 
     .container {
-      max-width: 960px;
+      max-width: 1080px;
       margin: 0 auto;
       padding: 3rem 2rem 6rem;
     }
@@ -224,8 +224,14 @@
     .match-table td {
       padding: 0.9rem 1rem;
       border-bottom: 1px solid var(--border);
-      vertical-align: middle;
+      vertical-align: top;
     }
+
+    .match-table th:nth-child(1) { width: 24%; }
+    .match-table th:nth-child(2) { width: 36%; }
+    .match-table th:nth-child(3) { width: 10%; }
+    .match-table th:nth-child(4) { width: 16%; }
+    .match-table th:nth-child(5) { width: 14%; }
 
     .match-table tr:last-child td {
       border-bottom: none;
@@ -240,12 +246,37 @@
     }
 
     .scenario-name {
+      display: block;
       font-weight: 600;
       color: var(--text);
+      line-height: 1.25;
+    }
+
+    .game-id {
+      display: block;
+      margin-top: 0.28rem;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .outcome-cell {
+      min-width: 230px;
+    }
+
+    .outcome-main {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.35rem;
     }
 
     .outcome-winner {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      min-height: 1.65rem;
       padding: 0.15rem 0.5rem;
       font-family: var(--font-mono);
       font-size: 0.7rem;
@@ -254,31 +285,59 @@
       border-radius: var(--radius-sm);
     }
 
-    .outcome-p1 { color: var(--accent); border: 1px solid var(--border-strong); }
-    .outcome-p2 { color: var(--warning); border: 1px solid rgba(255, 197, 106, 0.4); }
-    .outcome-draw { color: var(--muted); border: 1px solid var(--border); }
-
-    .outcome-named {
-      color: var(--accent);
-      border: 1px solid var(--border-strong);
-      font-family: var(--font-display);
-      text-transform: none;
-      letter-spacing: 0;
-      font-size: 0.85rem;
-      font-weight: 600;
+    .outcome-p1,
+    .outcome-p2 {
+      color: var(--success);
+      background: rgba(149, 214, 135, 0.08);
+      border: 1px solid rgba(149, 214, 135, 0.34);
     }
 
-    .loser-suffix {
+    .outcome-draw {
+      color: var(--muted-strong);
+      background: rgba(144, 160, 186, 0.08);
+      border: 1px solid var(--border);
+    }
+
+    .outcome-named {
+      max-width: 14rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-transform: none;
+      letter-spacing: 0.01em;
+    }
+
+    .outcome-label,
+    .participant-vs {
       color: var(--muted);
-      font-size: 0.8rem;
-      margin-left: 0.35rem;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .participant-name {
+      max-width: 11rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted-strong);
+      font-size: 0.82rem;
+      line-height: 1.25;
+    }
+
+    .outcome-notes {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.35rem;
     }
 
     .win-reason {
-      display: block;
+      display: inline;
       color: var(--muted);
       font-size: 0.75rem;
-      margin-top: 0.2rem;
+      line-height: 1.25;
     }
 
     .turns-cell {
@@ -308,7 +367,6 @@
 
     .official-bot-badge {
       display: inline-block;
-      margin-left: 0.4rem;
       padding: 0.15rem 0.5rem;
       font-family: var(--font-mono);
       font-size: 0.65rem;
@@ -319,13 +377,6 @@
       border: 1px solid rgba(122, 215, 255, 0.28);
       border-radius: var(--radius-sm);
       vertical-align: middle;
-    }
-
-    .game-id {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      color: var(--muted);
-      white-space: nowrap;
     }
 
     .replay-link {
@@ -343,6 +394,10 @@
       white-space: nowrap;
     }
 
+    .actions-cell {
+      text-align: right;
+    }
+
     .replay-copy-btn {
       padding: 0.25rem 0.5rem;
       border: 1px solid rgba(122, 215, 255, 0.28);
@@ -354,6 +409,7 @@
       font-size: 0.68rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
+      min-width: 4rem;
     }
 
     .replay-copy-btn:hover,
@@ -487,6 +543,14 @@
       .match-table th, .match-table td { padding: 0.6rem 0.6rem; }
       .date-cell { font-size: 0.7rem; }
       .match-table .hide-mobile { display: none; }
+      .outcome-cell { min-width: 0; }
+      .outcome-named { max-width: 10rem; }
+      .participant-name { max-width: 8rem; }
+      .replay-actions {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.35rem;
+      }
     }
   </style>
 </head>
@@ -529,7 +593,7 @@
     <thead>
       <tr>
         <th>Scenario</th>
-        <th>Winner</th>
+        <th>Outcome</th>
         <th>Turns</th>
         <th class="hide-mobile">Played</th>
         <th></th>
@@ -600,35 +664,57 @@
     return el.innerHTML;
   };
 
-  const renderRow = (match) => {
-    const scenarioName = SCENARIO_NAMES[match.scenario] || match.scenario;
+  const renderParticipantName = (name) =>
+    name ? `<span class="participant-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>` : '';
 
-    let winnerCell;
-    if (match.winnerUsername) {
-      const loserSuffix = match.loserUsername
-        ? `<span class="loser-suffix">vs ${escapeHtml(match.loserUsername)}</span>`
-        : '';
-      winnerCell =
-        `<span class="outcome-winner outcome-named">${escapeHtml(match.winnerUsername)}</span>` +
-        loserSuffix;
-    } else if (match.winner === 0) {
-      winnerCell = '<span class="outcome-winner outcome-p1">Player 1</span>';
-    } else if (match.winner === 1) {
-      winnerCell = '<span class="outcome-winner outcome-p2">Player 2</span>';
-    } else {
-      winnerCell = '<span class="outcome-winner outcome-draw">Draw</span>';
+  const renderOutcome = (match) => {
+    const hasWinner = match.winner === 0 || match.winner === 1;
+    const winnerFallback =
+      match.winner === 0 ? 'Player 1' : match.winner === 1 ? 'Player 2' : 'Draw';
+    const loserFallback =
+      match.winner === 0 ? 'Player 2' : match.winner === 1 ? 'Player 1' : null;
+    const winnerLabel = match.winnerUsername || winnerFallback;
+    const loserLabel = match.loserUsername || loserFallback;
+    const outcomeClass = hasWinner
+      ? `outcome-p${match.winner + 1}`
+      : 'outcome-draw';
+    const namedClass = match.winnerUsername ? ' outcome-named' : '';
+    const winnerTitle = hasWinner ? `Winner: ${winnerLabel}` : 'Draw';
+
+    const participantLine = hasWinner
+      ? [
+          `<span class="outcome-winner ${outcomeClass}${namedClass}" title="${escapeHtml(winnerTitle)}">${escapeHtml(winnerLabel)}</span>`,
+          '<span class="outcome-label">def.</span>',
+          renderParticipantName(loserLabel),
+        ].join('')
+      : [
+          '<span class="outcome-winner outcome-draw">Draw</span>',
+          renderParticipantName(match.playerAUsername),
+          match.playerAUsername && match.playerBUsername
+            ? '<span class="participant-vs">vs</span>'
+            : '',
+          renderParticipantName(match.playerBUsername),
+        ].join('');
+
+    const notes = [];
+    if (match.winReason) {
+      notes.push(`<span class="win-reason">${escapeHtml(match.winReason)}</span>`);
+    }
+    if (match.coached) {
+      notes.push('<span class="coached-badge" title="This match used the /coach whisper">Coached</span>');
+    }
+    if (match.officialBotMatch) {
+      notes.push('<span class="official-bot-badge" title="This match was played against the platform-operated Official Bot">Official Bot</span>');
     }
 
-    const winReason = match.winReason
-      ? `<span class="win-reason">${escapeHtml(match.winReason)}</span>`
-      : '';
+    return `
+      <div class="outcome-main">${participantLine}</div>
+      ${notes.length > 0 ? `<div class="outcome-notes">${notes.join('')}</div>` : ''}
+    `;
+  };
 
-    const coachedBadge = match.coached
-      ? ' <span class="coached-badge" title="This match used the /coach whisper">Coached</span>'
-      : '';
-    const officialBotBadge = match.officialBotMatch
-      ? ' <span class="official-bot-badge" title="This match was played against the platform-operated Official Bot">Official Bot</span>'
-      : '';
+  const renderRow = (match) => {
+    const scenarioName = SCENARIO_NAMES[match.scenario] || match.scenario;
 
     const replayUrl = `/?code=${encodeURIComponent(match.roomCode)}&archivedReplay=${encodeURIComponent(match.gameId)}`;
     const absoluteReplayUrl = new URL(replayUrl, window.location.origin).toString();
@@ -637,11 +723,12 @@
       <tr>
         <td>
           <span class="scenario-name">${escapeHtml(scenarioName)}</span>
+          <span class="game-id">${escapeHtml(match.gameId)}</span>
         </td>
-        <td>${winnerCell}${coachedBadge}${officialBotBadge}${winReason}</td>
+        <td class="outcome-cell">${renderOutcome(match)}</td>
         <td class="turns-cell">${match.turns}</td>
         <td class="date-cell hide-mobile" title="${new Date(match.completedAt).toISOString()}">${formatDate(match.completedAt)}</td>
-        <td>
+        <td class="actions-cell">
           <span class="replay-actions">
             <a class="replay-link" href="${replayUrl}" title="Watch ${escapeHtml(match.gameId)}">Replay →</a>
             <button type="button" class="replay-copy-btn" data-replay-url="${escapeHtml(absoluteReplayUrl)}" aria-label="Copy replay link for ${escapeHtml(match.gameId)}">Copy</button>
