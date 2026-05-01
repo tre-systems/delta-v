@@ -7,7 +7,6 @@ import { PDFDocument } from "pdf-lib";
 
 import {
   BOOK_CSS,
-  annexBreakHtml,
   buildChapterIdByFile,
   chapterHtml,
   displayPath,
@@ -24,7 +23,6 @@ const repoRoot = process.cwd();
 const outDir = path.join(repoRoot, "tmp", "documentation-book");
 const outHtml = path.join(outDir, "delta-v-documentation-book.html");
 const outPdf = path.join(outDir, "delta-v-documentation-book.pdf");
-const outMainPdf = path.join(outDir, "delta-v-documentation-book.main.pdf");
 const publishedPdf = path.join(repoRoot, "docs", "delta-v-documentation-book.pdf");
 
 const appendixAssets = [
@@ -36,8 +34,6 @@ const appendixAssets = [
     .map((entry) => path.posix.join("docs/assets", entry.name))
     .sort(),
 ];
-
-const externalPdfAppendix = "docs/Triplanetary2018.pdf";
 
 const chapters = await loadChapters(repoRoot);
 const chapterIdByFile = buildChapterIdByFile(chapters);
@@ -84,12 +80,6 @@ function visualAppendixHtml() {
         ${assetFigures}
       </div>
     </section>
-    ${annexBreakHtml(
-      "External Reference PDF",
-      `The original ${displayPath(
-        externalPdfAppendix,
-      )} is appended after this divider so the final output remains a single consolidated PDF.`,
-    )}
   `;
 }
 
@@ -172,7 +162,7 @@ const html = `<!doctype html>
           </div>
         </div>
         <p class="source-note">
-          Includes all canonical Markdown docs, the visual reference boards under docs/assets/, and the original appended ${escapeHtml(displayPath(externalPdfAppendix))}.
+          Includes all canonical Markdown docs and the visual reference boards under docs/assets/.
         </p>
       </div>
       <div>
@@ -219,7 +209,7 @@ await page.waitForFunction(() => window.__mermaidReady === true, null, {
 }).catch(() => null);
 await page.emulateMedia({ media: "print" });
 await page.pdf({
-  path: outMainPdf,
+  path: outPdf,
   format: "A4",
   printBackground: true,
   displayHeaderFooter: true,
@@ -239,23 +229,14 @@ await page.pdf({
 });
 await browser.close();
 
-const mergedPdf = await PDFDocument.create();
-
-for (const pdfPath of [outMainPdf, path.join(repoRoot, externalPdfAppendix)]) {
-  const pdfBytes = await fs.readFile(pdfPath);
-  const pdf = await PDFDocument.load(pdfBytes);
-  const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-  for (const copiedPage of copiedPages) {
-    mergedPdf.addPage(copiedPage);
-  }
-}
-
-mergedPdf.setTitle("Delta-V Documentation Book");
-mergedPdf.setAuthor("Delta-V repository");
-mergedPdf.setSubject(
+const pdfBytes = await fs.readFile(outPdf);
+const pdf = await PDFDocument.load(pdfBytes);
+pdf.setTitle("Delta-V Documentation Book");
+pdf.setAuthor("Delta-V repository");
+pdf.setSubject(
   "Technical handbook compiled from the canonical Delta-V repository documentation.",
 );
-mergedPdf.setKeywords([
+pdf.setKeywords([
   "Delta-V",
   "documentation",
   "architecture",
@@ -263,11 +244,11 @@ mergedPdf.setKeywords([
   "MCP",
   "agents",
 ]);
-mergedPdf.setProducer("pdf-lib");
-mergedPdf.setCreator("Delta-V documentation pipeline");
+pdf.setProducer("pdf-lib");
+pdf.setCreator("Delta-V documentation pipeline");
 
-const mergedBytes = await mergedPdf.save();
-await fs.writeFile(outPdf, mergedBytes);
+const rewrittenBytes = await pdf.save();
+await fs.writeFile(outPdf, rewrittenBytes);
 await fs.copyFile(outPdf, publishedPdf);
 
 console.log(
@@ -275,7 +256,6 @@ console.log(
     {
       html: outHtml,
       pdf: outPdf,
-      mainPdf: outMainPdf,
       publishedPdf,
     },
     null,
