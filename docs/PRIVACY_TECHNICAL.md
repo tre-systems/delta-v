@@ -33,7 +33,7 @@ Telemetry/error collection, server-side diagnostics, and match-archive storage. 
 - `POST /api/player-recovery/issue` lets a claimed human player create a recovery code. The raw code is displayed only in the response; D1 `player_recovery` stores `player_key`, one-way `recovery_hash`, and `issued_at`. `POST /api/player-recovery/restore` hashes the supplied code and returns the matching `{ playerKey, username }` profile; `POST /api/player-recovery/revoke` deletes the row for that player. Agent callsigns are intentionally unsupported.
 - D1 `match_rating` stores one row per rated match (`game_id`, both `player_key`s, winner, and Glicko-2 before/after snapshots). Rows are keyed on `game_id` so replays / retries are idempotent via `INSERT OR IGNORE`.
 - Public API (`GET /api/leaderboard`, `GET /api/leaderboard/me`) exposes only `username`, rating triple, `games_played`, `distinct_opponents`, `last_match_at`, and `is_agent`; `playerKey` is never returned in responses.
-- Public API `GET /api/matches` does not expose usernames; the public match log includes only match metadata plus replay-identifying room/game ids.
+- Public API `GET /api/matches` exposes public callsigns only when a completed match has leaderboard/rating metadata. It never exposes `playerKey`s; private, unrated, unclaimed, and reserved exploratory callsigns fall back to generic labels.
 
 ## Operational note
 

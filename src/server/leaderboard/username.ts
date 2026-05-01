@@ -36,6 +36,12 @@ const RESERVED_USERNAMES: readonly string[] = [
   'test user',
 ];
 
+const RESERVED_TEST_USERNAME_PREFIXES: readonly string[] = [
+  'bot_',
+  'probe_',
+  'qa_',
+];
+
 export type UsernameValidationError = 'invalid_format' | 'blocked' | 'reserved';
 
 export type UsernameValidation =
@@ -50,6 +56,13 @@ export const isBlockedUsername = (username: string): boolean => {
 export const isReservedUsername = (username: string): boolean => {
   const lower = username.toLowerCase();
   return RESERVED_USERNAMES.includes(lower);
+};
+
+export const isReservedTestUsername = (username: string): boolean => {
+  const lower = username.toLowerCase();
+  return RESERVED_TEST_USERNAME_PREFIXES.some((prefix) =>
+    lower.startsWith(prefix),
+  );
 };
 
 export const validateUsername = (raw: unknown): UsernameValidation => {
