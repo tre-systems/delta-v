@@ -667,6 +667,8 @@
   const renderParticipantName = (name) =>
     name ? `<span class="participant-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>` : '';
 
+  const isOfficialBotCallsign = (name) => name === 'Official Bot';
+
   const renderOutcome = (match) => {
     const hasWinner = match.winner === 0 || match.winner === 1;
     const winnerFallback =
@@ -703,7 +705,13 @@
     if (match.coached) {
       notes.push('<span class="coached-badge" title="This match used the /coach whisper">Coached</span>');
     }
-    if (match.officialBotMatch) {
+    const officialBotVisible = [
+      winnerLabel,
+      loserLabel,
+      match.playerAUsername,
+      match.playerBUsername,
+    ].some(isOfficialBotCallsign);
+    if (match.officialBotMatch && !officialBotVisible) {
       notes.push('<span class="official-bot-badge" title="This match was played against the platform-operated Official Bot">Official Bot</span>');
     }
 
