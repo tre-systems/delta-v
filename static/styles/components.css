@@ -572,16 +572,6 @@
     0 12px 24px rgba(21, 66, 128, 0.2);
 }
 
-#menu .divider {
-  margin: 0.1rem 0;
-  color: rgba(199, 212, 234, 0.42);
-}
-
-#menu .divider::before,
-#menu .divider::after {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
-}
-
 #menu .join-row {
   gap: 0.8rem;
 }
@@ -596,20 +586,6 @@
 
 #menu .code-input::placeholder {
   color: rgba(199, 212, 234, 0.3);
-}
-
-#menu .kofi-link {
-  margin-top: 0.15rem;
-  opacity: 0.72;
-}
-
-#menu .kofi-link:hover {
-  opacity: 1;
-}
-
-#menu .kofi-link img {
-  border-radius: var(--radius-pill);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 .btn {
@@ -825,25 +801,6 @@
   --btn-bg-hover: rgba(79, 195, 247, 0.18);
 }
 
-.divider {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  color: rgba(255, 255, 255, 0.36);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
 .join-row {
   display: flex;
   gap: 0.7rem;
@@ -853,23 +810,6 @@
 .join-row .btn {
   flex-shrink: 0;
   min-width: 88px;
-}
-
-.kofi-link {
-  display: inline-block;
-  margin-top: 1.2rem;
-  opacity: 0.5;
-  transition: opacity 0.2s;
-  align-self: center;
-}
-
-.kofi-link:hover {
-  opacity: 0.9;
-}
-
-.kofi-link img {
-  display: block;
-  border: 0;
 }
 
 .code-input {

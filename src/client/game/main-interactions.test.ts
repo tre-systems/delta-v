@@ -407,7 +407,7 @@ describe('main-interactions', () => {
     controller.handleUIEvent({ type: 'exitReplay' });
     controller.handleUIEvent({ type: 'replayEnd' });
     controller.handleUIEvent({ type: 'chat', text: 'hello' });
-    controller.handleUIEvent({ type: 'backToMenu' });
+    controller.handleUIEvent({ type: 'browseScenarios' });
     await Promise.resolve();
 
     expect(deps.sessionApi.createGame).toHaveBeenCalledWith('duel');

@@ -5,6 +5,7 @@ export type { AIDifficulty } from '../../shared/ai/types';
 
 export type UIEvent =
   // Menu / lobby
+  | { type: 'browseScenarios' }
   | { type: 'quickMatch' }
   | { type: 'cancelQuickMatch' }
   | { type: 'acceptOfficialBotMatch' }
@@ -40,6 +41,4 @@ export type UIEvent =
   | { type: 'exitReplay' }
   | { type: 'exit' }
   | { type: 'selectShip'; shipId: string }
-  | { type: 'chat'; text: string }
-  // Navigation
-  | { type: 'backToMenu' };
+  | { type: 'chat'; text: string };

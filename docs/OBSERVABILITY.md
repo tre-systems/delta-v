@@ -95,7 +95,7 @@ From `migrations/0001_create_events.sql`:
   - `ws_session_quality` with `{ durationMs, samples, latencyAvgMs, latencyMinMs, latencyMaxMs, closeCode }` (one event per WS lifecycle that received at least one pong; aggregates the 5-second RTT samples so we can spot players on consistently slow / jittery connections without piling per-pong rows into D1)
   - `turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
   - `first_turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
-  - `scenario_browsed` with no additional props
+  - `scenario_browsed` with no additional props (fires when the player opens scenario selection from the menu)
   - `scenario_selected` with `{ scenario, from: 'ai' | 'private', difficulty? }` (fires when the player commits to a scenario from the menu, before the round-trip — captures intent even when the user bails out of the waiting room)
   - `tutorial_started` with `{ step }` (id of the first step shown — typically `welcome`)
   - `tutorial_step_shown` with `{ step }` (per-step display; lets the funnel be measured even when the player doesn't click "Got it" — added 2026-04-27 after a D1 audit found 116 starts vs 0 completes with no per-step signal)

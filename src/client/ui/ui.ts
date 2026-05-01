@@ -262,7 +262,6 @@ export const createUIManager = (deps: UIManagerDeps) => {
     setMenuLoading: lobbyView.setMenuLoading,
     setWaitingState: lobbyView.setWaitingState,
     showScenarioBriefing: scenarioBriefingView.show,
-    hideScenarioBriefing: scenarioBriefingView.hide,
     showMenu,
     showScenarioSelect,
     showFleetBuilding,

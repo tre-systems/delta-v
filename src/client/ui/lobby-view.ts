@@ -172,16 +172,31 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   const waitingShareHintEl = document.getElementById(
     'waitingShareHint',
   ) as HTMLElement | null;
-  let copyResetTimer: number | null = null;
+  let copyLinkResetTimer: number | null = null;
+  let copySpectateResetTimer: number | null = null;
   const spectatorModeEnabled = isClientFeatureEnabled('spectatorMode');
 
-  const clearCopyResetTimer = () => {
-    if (copyResetTimer === null) {
+  const clearCopyLinkResetTimer = () => {
+    if (copyLinkResetTimer === null) {
       return;
     }
 
-    window.clearTimeout(copyResetTimer);
-    copyResetTimer = null;
+    window.clearTimeout(copyLinkResetTimer);
+    copyLinkResetTimer = null;
+  };
+
+  const clearCopySpectateResetTimer = () => {
+    if (copySpectateResetTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(copySpectateResetTimer);
+    copySpectateResetTimer = null;
+  };
+
+  const clearCopyResetTimers = () => {
+    clearCopyLinkResetTimer();
+    clearCopySpectateResetTimer();
   };
 
   const isJoinInputValid = (rawValue: string): boolean => {
@@ -352,7 +367,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   };
 
   const dispose = (): void => {
-    clearCopyResetTimer();
+    clearCopyResetTimers();
     scope.dispose();
   };
 
@@ -391,6 +406,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     });
 
     listen(createBtn, 'click', () => {
+      deps.emit({ type: 'browseScenarios' });
       deps.showScenarioSelect();
     });
 
@@ -411,11 +427,11 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
 
     listen(singlePlayerBtn, 'click', () => {
       pendingAIGameSignal.value = true;
+      deps.emit({ type: 'browseScenarios' });
       deps.showScenarioSelect();
     });
 
     listen(backBtn, 'click', () => {
-      deps.emit({ type: 'backToMenu' });
       deps.showMenu();
     });
 
@@ -805,10 +821,10 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       void copyPromise
         ?.then(() => {
           copyButtonTextSignal.value = 'Copied!';
-          clearCopyResetTimer();
-          copyResetTimer = window.setTimeout(() => {
+          clearCopyLinkResetTimer();
+          copyLinkResetTimer = window.setTimeout(() => {
             copyButtonTextSignal.value = 'Copy Link';
-            copyResetTimer = null;
+            copyLinkResetTimer = null;
           }, 2000);
         })
         .catch(() => {});
@@ -825,10 +841,10 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         void copyPromise
           ?.then(() => {
             copySpectateTextSignal.value = 'Copied!';
-            clearCopyResetTimer();
-            copyResetTimer = window.setTimeout(() => {
+            clearCopySpectateResetTimer();
+            copySpectateResetTimer = window.setTimeout(() => {
               copySpectateTextSignal.value = 'Copy Observer Link (view-only)';
-              copyResetTimer = null;
+              copySpectateResetTimer = null;
             }, 2000);
           })
           .catch(() => {});
