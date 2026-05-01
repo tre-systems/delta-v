@@ -250,15 +250,20 @@ describe('UIManager', () => {
     expect(hud.hasAttribute('hidden')).toBe(true);
     expect(gameOver.hasAttribute('hidden')).toBe(true);
     expect(document.body.classList.contains('ui-mode-menu')).toBe(true);
-    expect(document.body.classList.contains('ui-mode-overlay')).toBe(true);
+    expect(document.getElementById('soundBtn')?.hasAttribute('hidden')).toBe(
+      true,
+    );
   });
 
-  it('uses overlay chrome for scenario, waiting, and fleet-building screens', () => {
+  it('keeps the sound control hidden for setup screens', () => {
     const ui = createTestUIManager();
     const state = bindClientState(ui, 'menu');
+    const soundBtn = document.getElementById('soundBtn') as HTMLElement;
+
+    expect(soundBtn.hasAttribute('hidden')).toBe(true);
 
     ui.showScenarioSelect();
-    expect(document.body.classList.contains('ui-mode-overlay')).toBe(true);
+    expect(soundBtn.hasAttribute('hidden')).toBe(true);
 
     ui.setWaitingState({
       kind: 'private',
@@ -266,10 +271,10 @@ describe('UIManager', () => {
       connecting: false,
     });
     state.value = 'waitingForOpponent';
-    expect(document.body.classList.contains('ui-mode-overlay')).toBe(true);
+    expect(soundBtn.hasAttribute('hidden')).toBe(true);
 
     state.value = 'playing_fleetBuilding';
-    expect(document.body.classList.contains('ui-mode-overlay')).toBe(true);
+    expect(soundBtn.hasAttribute('hidden')).toBe(true);
   });
 
   it('shows HUD when interaction mode is astrogation', () => {
@@ -286,7 +291,9 @@ describe('UIManager', () => {
     expect(shipList.style.display).toBe('flex');
     expect(shipList.hasAttribute('hidden')).toBe(false);
     expect(document.body.classList.contains('ui-mode-menu')).toBe(false);
-    expect(document.body.classList.contains('ui-mode-overlay')).toBe(false);
+    expect(document.getElementById('soundBtn')?.hasAttribute('hidden')).toBe(
+      false,
+    );
   });
 
   it('shows waiting screen when interaction mode is waiting', () => {
