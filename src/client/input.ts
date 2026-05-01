@@ -2,6 +2,7 @@ import { pixelToHex } from '../shared/hex';
 import type { SolarSystemMap } from '../shared/types/domain';
 import { listen } from './dom';
 import type { InputEvent } from './game/input-events';
+import { deriveMinimapBottomOffset } from './game/minimap';
 import {
   createPointerInteractionManager,
   getPinchDistance,
@@ -39,8 +40,13 @@ export const createInputHandler = (
     const hudTopOffset = parseFloat(
       rootStyles.getPropertyValue('--hud-top-offset') || '0',
     );
-    const hudBottomOffset = parseFloat(
-      rootStyles.getPropertyValue('--hud-bottom-offset') || '0',
+    const replayBarRect = document.body.classList.contains('replay-bar-active')
+      ? (document.getElementById('replayBar')?.getBoundingClientRect() ?? null)
+      : null;
+    const hudBottomOffset = deriveMinimapBottomOffset(
+      window.innerWidth,
+      window.innerHeight,
+      replayBarRect,
     );
 
     const target = resolveMinimapCameraTarget({

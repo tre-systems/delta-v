@@ -29,6 +29,40 @@ export interface ScreenRect extends ScreenPoint {
   height: number;
 }
 
+export interface ReplayBarRect {
+  left: number;
+  right: number;
+  top: number;
+}
+
+const MINIMAP_EDGE_PX = 12;
+const MINIMAP_COMPACT_BASE_WIDTH_PX = 90;
+const MINIMAP_DESKTOP_BASE_WIDTH_PX = 120;
+const MINIMAP_COMPACT_EXTRA_BOTTOM_GAP_PX = 14;
+
+const isCompactMinimap = (screenWidth: number, screenHeight: number): boolean =>
+  screenWidth < 600 || (screenHeight <= 560 && screenWidth > screenHeight);
+
+export const deriveMinimapBottomOffset = (
+  screenWidth: number,
+  screenHeight: number,
+  replayBarRect: ReplayBarRect | null,
+): number => {
+  if (!isCompactMinimap(screenWidth, screenHeight) || !replayBarRect) {
+    return 0;
+  }
+
+  const minimapRightEdge =
+    MINIMAP_EDGE_PX + MINIMAP_COMPACT_BASE_WIDTH_PX + MINIMAP_EDGE_PX;
+  const replayBarTouchesMinimapRail =
+    replayBarRect.left < minimapRightEdge &&
+    replayBarRect.right > MINIMAP_EDGE_PX;
+
+  return replayBarTouchesMinimapRail
+    ? Math.max(0, Math.ceil(screenHeight - replayBarRect.top))
+    : 0;
+};
+
 export const getMinimapFrame = (
   screenWidth: number,
   screenHeight: number,
@@ -36,15 +70,17 @@ export const getMinimapFrame = (
   mapAspect = 1,
   hudBottomOffset = 0,
 ): MinimapFrame => {
-  const isMobile = screenWidth < 600;
-  const isShortLandscape = screenHeight <= 560 && screenWidth > screenHeight;
-  const isCompact = isMobile || isShortLandscape;
-  const baseWidth = isCompact ? 90 : 120;
+  const isCompact = isCompactMinimap(screenWidth, screenHeight);
+  const baseWidth = isCompact
+    ? MINIMAP_COMPACT_BASE_WIDTH_PX
+    : MINIMAP_DESKTOP_BASE_WIDTH_PX;
   const aspect = Math.max(1, Math.min(mapAspect, 2));
   const compactTopInset = Math.max(90, hudTopOffset + 8);
+  const compactBottomGap =
+    hudBottomOffset > 0 ? MINIMAP_COMPACT_EXTRA_BOTTOM_GAP_PX : 0;
   const compactBottomInset = Math.max(
     12,
-    hudBottomOffset + 8 + (isCompact ? 14 : 0),
+    hudBottomOffset + 8 + (isCompact ? compactBottomGap : 0),
   );
   const compactAvailableHeight = Math.max(
     60,

@@ -484,9 +484,8 @@
 .help-btn,
 .sound-btn {
   position: fixed;
-  /* Snug to the bottom-right edge of the viewport on every game view
-   * (gameplay, spectator, archived replay). They sit below the game log
-   * panel, whose bottom is pushed above them by --hud-bottom-offset. */
+  /* Snug to the bottom-right edge of the viewport on every game view. On
+   * narrow replay views they lift above the centered replay bar below. */
   right: var(--hud-edge-right);
   z-index: 5;
   display: flex;
@@ -538,10 +537,15 @@
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-/* Replay mode: keep the sound/help icons pinned to the far bottom
- * right corner where they live during gameplay — the replay bar gets
- * shifted up instead (see .replay-bar rule) so it no longer collides
- * with them or the game log. */
+@media (max-width: 560px) {
+  body.replay-bar-active .help-btn {
+    bottom: calc(4.55rem + var(--safe-bottom));
+  }
+
+  body.replay-bar-active .sound-btn {
+    bottom: calc(6.95rem + var(--safe-bottom));
+  }
+}
 
 /* New-version prompt banner. Appears only after the client detects a
  * fresh deploy via /version.json polling (see src/client/version-check.ts).
@@ -1175,15 +1179,9 @@ h2.game-over-neutral {
 
 .replay-bar {
   position: fixed;
-  /* Float above the sound/help icons (≈3.5rem tall at the bottom-right)
-   * so those stay pinned to the corner and the game log panel stays
-   * legible behind the bar. */
-  bottom: calc(4.5rem + var(--safe-bottom));
-  /* Sit horizontally in the map area, not the log column. The game log
-   * occupies ~230px on the right — leave room so the bar's EXIT button
-   * never sits on top of a log entry. */
-  left: 0.75rem;
-  right: calc(230px + var(--hud-edge-right) + 0.75rem);
+  bottom: calc(0.5rem + var(--safe-bottom));
+  left: 50%;
+  right: auto;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -1192,9 +1190,8 @@ h2.game-over-neutral {
   margin: 0 auto;
   padding: 0.45rem 0.55rem 0.45rem 0.45rem;
   border-radius: 22px;
-  /* Never exceed viewport — the EXIT button was getting clipped on
-   * narrow screens when the bar overflowed its centered anchor. */
-  max-width: calc(100vw - 1.5rem);
+  transform: translateX(-50%);
+  max-width: calc(100vw - var(--safe-left) - var(--safe-right) - 1rem);
   width: fit-content;
   flex-wrap: nowrap;
   overflow: hidden;
@@ -1209,14 +1206,13 @@ h2.game-over-neutral {
     display: none;
   }
   .replay-bar {
-    /* On narrow screens the log collapses, so give the bar the full
-     * horizontal span minus padding instead of reserving the desktop
-     * log column. */
-    left: 0.5rem;
-    right: 0.5rem;
+    left: 50%;
+    right: auto;
     gap: 0.4rem;
+    max-width: calc(100vw - var(--safe-left) - var(--safe-right) - 0.7rem);
     padding: 0.4rem 0.45rem;
     border-radius: 18px;
+    transform: translateX(-50%);
   }
   .replay-bar-progress-wrap {
     padding: 0 0.3rem;

@@ -4,6 +4,7 @@ import { hexToPixel } from '../../shared/hex';
 import {
   clipViewportToMinimap,
   createMinimapLayout,
+  deriveMinimapBottomOffset,
   getMinimapFrame,
   isPointInMinimap,
   projectMinimapToWorld,
@@ -42,6 +43,28 @@ describe('game client minimap helpers', () => {
       height: 145,
       padding: 6,
     });
+
+    expect(getMinimapFrame(480, 900, 130, 1, 0)).toEqual({
+      x: 12,
+      y: 798,
+      width: 90,
+      height: 90,
+      padding: 6,
+    });
+  });
+
+  it('only reserves minimap bottom space when replay controls overlap it', () => {
+    expect(
+      deriveMinimapBottomOffset(480, 900, { left: 4, right: 476, top: 832 }),
+    ).toBe(68);
+
+    expect(
+      deriveMinimapBottomOffset(480, 900, { left: 150, right: 476, top: 832 }),
+    ).toBe(0);
+
+    expect(
+      deriveMinimapBottomOffset(1024, 768, { left: 0, right: 1024, top: 700 }),
+    ).toBe(0);
   });
 
   it('projects world coordinates into minimap space and back again', () => {
