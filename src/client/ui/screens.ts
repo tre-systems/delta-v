@@ -158,21 +158,18 @@ export const buildScreenVisibility = (
       return {
         ...HIDDEN_VISIBILITY,
         menu: 'flex',
-        soundBtn: 'flex',
       };
 
     case 'scenario':
       return {
         ...HIDDEN_VISIBILITY,
         scenario: 'flex',
-        soundBtn: 'flex',
       };
 
     case 'waiting':
       return {
         ...HIDDEN_VISIBILITY,
         waiting: 'flex',
-        soundBtn: 'flex',
       };
 
     case 'hud':
@@ -189,7 +186,6 @@ export const buildScreenVisibility = (
       return {
         ...HIDDEN_VISIBILITY,
         fleetBuilding: 'flex',
-        soundBtn: 'flex',
       };
 
     case 'hidden':

@@ -1,4 +1,3 @@
-import { playAmbientDrone, stopAmbientDrone } from '../audio';
 import { byId, visible } from '../dom';
 import { buildScreenVisibility, type UIScreenMode } from './screens';
 
@@ -12,13 +11,6 @@ type UIVisibilityElements = {
   fleetBuildingEl: HTMLElement;
 };
 
-const OVERLAY_CHROME_MODES = new Set<UIScreenMode>([
-  'menu',
-  'scenario',
-  'waiting',
-  'fleetBuilding',
-]);
-
 export const applyUIVisibility = (
   elements: UIVisibilityElements,
   mode: UIScreenMode,
@@ -26,15 +18,6 @@ export const applyUIVisibility = (
   const v = buildScreenVisibility(mode);
 
   document.body.classList.toggle('ui-mode-menu', mode === 'menu');
-  document.body.classList.toggle(
-    'ui-mode-overlay',
-    OVERLAY_CHROME_MODES.has(mode),
-  );
-  if (mode === 'menu') {
-    playAmbientDrone();
-  } else {
-    stopAmbientDrone();
-  }
 
   visible(elements.menuEl, v.menu !== 'none', v.menu);
   visible(elements.scenarioEl, v.scenario !== 'none', v.scenario);

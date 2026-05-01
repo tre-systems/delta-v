@@ -37,6 +37,17 @@ describe('ui-screens', () => {
     });
   });
 
+  it('hides the sound toggle outside the game HUD', () => {
+    for (const mode of [
+      'menu',
+      'scenario',
+      'waiting',
+      'fleetBuilding',
+    ] as const) {
+      expect(buildScreenVisibility(mode).soundBtn).toBe('none');
+    }
+  });
+
   it('builds waiting-screen copy for both waiting modes', () => {
     expect(
       buildWaitingScreenCopy({

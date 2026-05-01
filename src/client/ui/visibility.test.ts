@@ -1,13 +1,7 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { playAmbientDrone, stopAmbientDrone } from '../audio';
 import { applyUIVisibility } from './visibility';
-
-vi.mock('../audio', () => ({
-  playAmbientDrone: vi.fn(),
-  stopAmbientDrone: vi.fn(),
-}));
 
 const installFixture = () => {
   document.body.innerHTML = `
@@ -36,18 +30,20 @@ const installFixture = () => {
 
 describe('applyUIVisibility', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     document.body.innerHTML = '';
   });
 
-  it('arms the ambient drone only on the home menu', () => {
+  it('only shows the sound button in the game HUD', () => {
     const elements = installFixture();
+    const soundBtn = document.getElementById('soundBtn') as HTMLElement;
 
     applyUIVisibility(elements, 'menu');
-    expect(playAmbientDrone).toHaveBeenCalledOnce();
-    expect(stopAmbientDrone).not.toHaveBeenCalled();
+    expect(soundBtn.hasAttribute('hidden')).toBe(true);
+    expect(document.body.classList.contains('ui-mode-menu')).toBe(true);
 
     applyUIVisibility(elements, 'hud');
-    expect(stopAmbientDrone).toHaveBeenCalledOnce();
+    expect(soundBtn.hasAttribute('hidden')).toBe(false);
+    expect(soundBtn.style.display).toBe('flex');
+    expect(document.body.classList.contains('ui-mode-menu')).toBe(false);
   });
 });
