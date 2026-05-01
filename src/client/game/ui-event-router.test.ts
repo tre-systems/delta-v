@@ -44,6 +44,11 @@ describe('game-client-ui-event-router', () => {
   });
 
   it('routes in-game events to commands, chat, and tracking', () => {
+    expect(resolveUIEventPlan({ type: 'browseScenarios' })).toEqual({
+      kind: 'trackOnly',
+      event: 'scenario_browsed',
+    });
+
     expect(
       resolveUIEventPlan({
         type: 'launchOrdnance',
@@ -103,11 +108,6 @@ describe('game-client-ui-event-router', () => {
     expect(resolveUIEventPlan({ type: 'skipCombat' })).toEqual({
       kind: 'command',
       command: { type: 'endCombat' },
-    });
-
-    expect(resolveUIEventPlan({ type: 'backToMenu' })).toEqual({
-      kind: 'trackOnly',
-      event: 'scenario_browsed',
     });
   });
 

@@ -25,6 +25,8 @@ export type UIEventPlan =
 
 export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
   switch (event.type) {
+    case 'browseScenarios':
+      return { kind: 'trackOnly', event: 'scenario_browsed' };
     case 'quickMatch':
       return { kind: 'quickMatch' };
     case 'cancelQuickMatch':
@@ -121,8 +123,6 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
       };
     case 'chat':
       return { kind: 'sendChat', text: event.text };
-    case 'backToMenu':
-      return { kind: 'trackOnly', event: 'scenario_browsed' };
     default: {
       const _exhaustive: never = event;
       return _exhaustive;

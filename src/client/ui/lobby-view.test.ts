@@ -250,6 +250,7 @@ describe('LobbyView', () => {
 
     document.getElementById('createBtn')?.click();
     expect(showScenarioSelect).toHaveBeenCalledTimes(1);
+    expect(emit).toHaveBeenCalledWith({ type: 'browseScenarios' });
 
     const scenarioButtons = Array.from(
       document.querySelectorAll<HTMLElement>('#scenarioList .btn-scenario'),
@@ -271,6 +272,7 @@ describe('LobbyView', () => {
     });
 
     document.getElementById('singlePlayerBtn')?.click();
+    expect(emit).toHaveBeenCalledWith({ type: 'browseScenarios' });
     (
       document.querySelector('[data-difficulty="hard"]') as HTMLElement
     )?.click();
@@ -321,7 +323,6 @@ describe('LobbyView', () => {
     });
 
     document.getElementById('backBtn')?.click();
-    expect(emit).toHaveBeenCalledWith({ type: 'backToMenu' });
     expect(showMenu).toHaveBeenCalledTimes(1);
   });
 
@@ -413,6 +414,65 @@ describe('LobbyView', () => {
 
     vi.advanceTimersByTime(2000);
     expect(document.getElementById('copyBtn')?.textContent).toBe('Copy Link');
+    vi.useRealTimers();
+  });
+
+  it('resets room and observer copy labels independently', async () => {
+    vi.useFakeTimers();
+    const copyText = vi
+      .fn<(text: string) => Promise<void>>()
+      .mockResolvedValue();
+    const view = createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot 1',
+      setPlayerName: (name) => name,
+      getPlayerKey: () => 'humankey12345678',
+      resetPlayerIdentity: () => ({ username: 'Pilot ABC' }),
+      postClaimName: async () => ({
+        ok: true,
+        player: {
+          username: 'Pilot 1',
+          isAgent: false,
+          rating: 1500,
+          rd: 350,
+          gamesPlayed: 0,
+        },
+        renamed: false,
+      }),
+      copyText,
+    });
+
+    view.setWaitingState({
+      kind: 'private',
+      code: 'ABCDE',
+      connecting: false,
+    });
+
+    document.getElementById('copyBtn')?.click();
+    await Promise.resolve();
+    expect(document.getElementById('copyBtn')?.textContent).toBe('Copied!');
+
+    vi.advanceTimersByTime(1000);
+    document.getElementById('copySpectateBtn')?.click();
+    await Promise.resolve();
+    expect(document.getElementById('copySpectateBtn')?.textContent).toBe(
+      'Copied!',
+    );
+
+    vi.advanceTimersByTime(1000);
+    expect(document.getElementById('copyBtn')?.textContent).toBe('Copy Link');
+    expect(document.getElementById('copySpectateBtn')?.textContent).toBe(
+      'Copied!',
+    );
+
+    vi.advanceTimersByTime(1000);
+    expect(document.getElementById('copySpectateBtn')?.textContent).toBe(
+      'Copy Observer Link (view-only)',
+    );
     vi.useRealTimers();
   });
 
