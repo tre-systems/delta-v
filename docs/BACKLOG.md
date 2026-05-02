@@ -74,6 +74,24 @@ Primary write ownership: `src/client/ui/scenario-briefing-view.ts`,
 Avoid touching AI heuristics, `src/shared/map-data.ts`, Cloudflare data schemas,
 archive retention, or leaderboard telemetry.
 
+### Agent D — Onboarding and Scenario Flow UX
+
+Goal: keep first-run and scenario-entry flows escapable, measurable, and clear
+without changing engine rules.
+
+1. **Restore Fleet Builder Escape Hatch (P2)** — Fleet Action and
+   Interplanetary War must let a player leave fleet building before launch.
+2. **Make Tutorial Completion Reachable (P2)** — tutorial completion should be
+   possible in the first-run Beginner path and observable in telemetry.
+
+Primary write ownership: `src/client/ui/screens.ts`,
+`src/client/ui/visibility.ts`, `src/client/ui/fleet-building-view.ts`,
+`src/client/tutorial.ts`, first-run/tutorial tests, and targeted manual-test
+docs.
+
+Avoid touching scenario geometry, AI tuning, Cloudflare migrations, or
+leaderboard/rating paths.
+
 ## Verified Not Active
 
 The following items were checked against the current code/docs on 2026-05-02 and
@@ -126,6 +144,45 @@ leaderboard rows are still inert. Add it only in the same change that makes rows
 interactive.
 
 ## Remaining Backlog Detail
+
+### Restore Fleet Builder Escape Hatch (P2)
+
+The 2026-05-02 live exploratory pass against deployed assets hash `c713f124`
+found that both Fleet Action and Interplanetary War enter `fleetBuilding` with
+`LAUNCH FLEET` and `CLEAR`, but no visible `Exit to menu` / `Back` control; the
+Escape key also leaves the player on the same fleet builder. A player who opens
+one of the two long fleet scenarios by mistake is trapped until they buy at
+least one ship and launch.
+
+Fix by exposing a clear exit/back affordance in `fleetBuilding` mode and cover
+it with a visibility/unit test plus a live-style manual check for both fleet
+scenarios. Acceptance: Fleet Action and Interplanetary War can be opened from
+Play vs AI, then returned to the menu without selecting or launching a fleet,
+with keyboard focus and mobile tap targets still reachable.
+
+**Files:** `src/client/ui/screens.ts`, `src/client/ui/visibility.ts`,
+`src/client/ui/fleet-building-view.ts`, `static/index.html`,
+`docs/MANUAL_TEST_PLAN.md`
+
+### Make Tutorial Completion Reachable (P2)
+
+The tutorial still has no observed completions in production:
+`tutorial_started = 127`, `tutorial_step_shown = 25`, `tutorial_skipped = 24`,
+and `tutorial_completed = 0` in the 2026-05-02 D1 audit. The current
+implementation has six steps and only emits completion after the player clicks
+through every step; phase-gated ordnance/combat steps are unreachable in common
+first-run routes such as Bi-Planetary.
+
+Fix either by making completion mean "all eligible steps for this scenario were
+shown/acknowledged" or by splitting the full combat/ordnance tutorial from the
+Beginner onboarding path. Acceptance: a fresh-profile Bi-Planetary Easy run can
+emit `tutorial_completed` without forcing the player into a combat-heavy
+scenario, while scenarios that do include ordnance/combat still show their
+specialized tips.
+
+**Files:** `src/client/tutorial.ts`, `src/client/tutorial.test.ts`,
+`src/client/game/phase-entry.ts`, `docs/MANUAL_TEST_PLAN.md`,
+`docs/OBSERVABILITY.md`
 
 ### Maintain Fixture-Backed AI Workflow (P1, ongoing)
 
