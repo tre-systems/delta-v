@@ -41,13 +41,10 @@ pages except for narrow type fallout.
 Goal: make hard-vs-hard scenario play resolve credibly without invalid actions,
 fuel-stall loops, or timeout-heavy stalemates.
 
-1. **Reduce Fleet Action Fuel-Stall Drift (P2)** — investigate and fix fueled
-   coasting in large-fleet simulations.
-2. **Rebalance Blockade Runner Objective Pressure (P2)** — either make the
-   landing race resolve by objective more often or update scenario copy/manual
-   tests to match the actual attrition-heavy product experience.
-3. **Maintain Fixture-Backed AI Workflow (guardrail)** — promote representative
-   captures into fixtures before changing heuristics or score weights.
+Both queue items have shipped — see "Verified Not Active" below for acceptance
+evidence. Reopen this stream when a fresh paired scorecard shows
+`fuelStallsPerGame > 0.1` in Fleet Action, Blockade Runner objective share below
+50%, or a new repeated AI decision class that lacks a fixture.
 
 Primary write ownership: `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
 `src/shared/map-data.ts`, `src/shared/simulate-ai-policy.test.ts`,
@@ -94,7 +91,7 @@ should not be assigned as active backlog work:
 - **Reconcile Rating Rows With Archive/R2 Retention** — implemented via
   migration 0010 (`archive_retired_at` / `archive_retired_reason` on
   `match_rating`), the `rating-archive-retention` helper module, and the
-  invariant query in [EXPLORATORY_TESTING.md § R20](./EXPLORATORY_TESTING.md#r20-d1--r2-storage-audit).
+  invariant query in [EXPLORATORY_TESTING.md § R20](./EXPLORATORY_TESTING.md#r20-d1-r2-storage-audit).
   The 11 historic 2026-05-02 orphans were backfilled with reason
   `pre_audit_cleanup`; live audit shows `unretired_orphans = 0`.
 - **Keep D1 and R2 Archive Completion Times Consistent** — implemented in
@@ -108,6 +105,17 @@ should not be assigned as active backlog work:
   Blockade Runner P0/P1 each render seat-specific narration; symmetric
   scenarios fall through to the shared description. Coverage asserted
   by `scenario-briefing-copy.test.ts`.
+- **Reduce Fleet Action Fuel-Stall Drift** — the `fleetAction 60 --seed
+  -403487708 --ci --quiet --json` scorecard now reports 0 fuel stalls, 0
+  invalid actions, 0 crashes, and 2/60 timeouts (3.3%). The captured
+  terminal-fuel endgame is preserved as
+  `fleet-action-terminal-intercept-stall.json` so the stall metric no longer
+  treats a stranded no-progress hold as a fueled coasting regression.
+- **Rebalance Blockade Runner Objective Pressure** — the packet/corvette
+  opening geometry now produces 47 Mars landings in 60 hard-vs-hard games
+  (78.3% objective share) with 0 invalid actions, 0 crashes, 0 stalls, and 0
+  timeouts on seed `-403487708`. The simulation policy now warns if Blockade
+  objective share drops below 50%, matching the public landing-race framing.
 - **Improve Passenger Objective AI** — current paired scorecards landed; keep
   only the fixture workflow guardrail for future AI changes.
 - **Small Accessibility Polish** — current a11y pass is complete; reopen only
@@ -118,51 +126,6 @@ leaderboard rows are still inert. Add it only in the same change that makes rows
 interactive.
 
 ## Remaining Backlog Detail
-
-### Reduce Fleet Action Fuel-Stall Drift (P2)
-
-The 2026-05-02 post-deploy simulation sweep surfaced a strong Fleet Action AI
-quality issue even though engine stability passed. `npm run simulate -- all 60
---ci --quiet --json` produced 442 `fuelStalls` in Fleet Action, or 7.37 per
-game, with 2 timeouts. A narrower capture run,
-`fleetAction 20 --seed -403487708 --capture-failure-kind fuelStall`, reproduced
-442 stalls in 20 games, or 22.1 per game, with 10% timeouts and P0 decided rate
-38.9%.
-
-Triage whether the metric is over-classifying legitimate station-keeping in
-large fleet fights or whether the hard AI is genuinely leaving fueled ships
-idle without a movement/combat objective. Promote representative captures from
-`tmp/live-pass-fleetaction-fuel` into fixtures before changing weights or fleet
-plans.
-
-Acceptance: Fleet Action keeps zero invalid actions and no crash regressions,
-while `fuelStallsPerGame` drops below 0.1 on a paired 60+ game seed sweep and
-timeouts remain below 5%.
-
-**Files:** `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
-`scripts/simulate-ai.ts`, `src/shared/simulate-ai-policy.test.ts`
-
-### Rebalance Blockade Runner Objective Pressure (P2)
-
-Blockade Runner is marketed as a speed/landing race, but the live archive and
-AI simulation both show it resolving mainly by attrition. The post-cleanup
-archive has 7/7 Blockade rows ending `Fleet eliminated!`. The 2026-05-02
-post-deploy simulation sweep produced only 8 Mars landings in 60 games
-(13.3% objective share), and a focused `blockade 40 --seed -403487708` run
-landed only 6/40 (15% objective share).
-
-Investigate whether the packet ship needs more initial separation, fuel,
-defensive survivability, or a clearer route heuristic. If the intended product
-experience is actually interception combat, change the lobby/manual copy
-instead of calling it a landing race.
-
-Acceptance: on a 60+ game hard-vs-hard seed sweep, Blockade Runner should either
-exceed 50% landing/objective resolutions or have scenario copy and manual tests
-updated to describe it as a combat-heavy interception scenario.
-
-**Files:** `src/shared/map-data.ts`, `src/shared/ai/`,
-`src/shared/ai/__fixtures__/`, `docs/MANUAL_TEST_PLAN.md`,
-`docs/SIMULATION_TESTING.md`
 
 ### Maintain Fixture-Backed AI Workflow (P1, ongoing)
 

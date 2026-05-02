@@ -327,8 +327,8 @@ const SCENARIOS_INTERNAL = {
         ships: [
           {
             type: 'packet',
-            position: { q: -7, r: 3 },
-            velocity: { dq: 0, dr: -2 },
+            position: { q: -6, r: 3 },
+            velocity: { dq: 0, dr: -3 },
             startLanded: false,
           },
         ],
@@ -340,7 +340,7 @@ const SCENARIOS_INTERNAL = {
         ships: [
           {
             type: 'corvette',
-            position: { q: -8, r: 1 },
+            position: { q: -9, r: 1 },
             velocity: { dq: 0, dr: 0 },
             startLanded: false,
           },
