@@ -762,6 +762,24 @@ npx wrangler d1 execute delta-v-telemetry --remote --json --command \
   "SELECT COALESCE(identity_kind, '<null>') AS kind, COUNT(*) AS n
    FROM player GROUP BY identity_kind ORDER BY n DESC;"
 
+# Rating-archive retention invariant (post-migration 0010). Every
+# `match_rating` row should either still have its `match_archive` row
+# + R2 object, or be explicitly marked `archive_retired_at` /
+# `archive_retired_reason`. Steady state for both queries below is 0;
+# a non-zero `unretired_orphans` is a real finding (operator-only
+# cleanup deleted only one side of the rating/archive/R2 relationship,
+# breaking the "every rated game has a replay" invariant).
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT COUNT(*) AS unretired_orphans
+   FROM match_rating mr
+   LEFT JOIN match_archive ma ON ma.game_id = mr.game_id
+   WHERE ma.game_id IS NULL AND mr.archive_retired_at IS NULL;"
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT archive_retired_reason, COUNT(*) AS n
+   FROM match_rating
+   WHERE archive_retired_at IS NOT NULL
+   GROUP BY archive_retired_reason ORDER BY n DESC;"
+
 # Telemetry-redaction proof (post-Stream-A.4). After the redaction
 # deploy, no future `events.props` should carry a raw `playerKey` /
 # `aKey` / `bKey` / `winnerKey` / `seat[01]Key`. Older rows still hold
