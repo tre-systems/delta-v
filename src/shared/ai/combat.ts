@@ -151,6 +151,7 @@ export const aiCombat = (
       )
     : null;
   const shipRoles = doctrine.shipRoles;
+  const primaryPassengerCarrier = doctrine.passenger.primaryCarrier;
 
   if (enemyShips.length === 0 && enemyNukes.length === 0) {
     return [];
@@ -223,11 +224,23 @@ export const aiCombat = (
       caps.targetWinRequiresPassengers && (enemy.passengersAboard ?? 0) > 0
         ? 80
         : 0;
+    const passengerCarrierThreatBonus =
+      caps.targetWinRequiresPassengers &&
+      primaryPassengerCarrier != null &&
+      canAttack(enemy) &&
+      hasLineOfSight(enemy, primaryPassengerCarrier, map)
+        ? Math.max(
+            0,
+            70 -
+              hexDistance(enemy.position, primaryPassengerCarrier.position) * 8,
+          )
+        : 0;
     const score =
       passengerObjectiveTargetBonus -
       avgDist * cfg.targetDistPenalty -
       totalMod * cfg.targetModPenalty +
-      enemy.damage.disabledTurns * cfg.targetDisabledBonus;
+      enemy.damage.disabledTurns * cfg.targetDisabledBonus +
+      passengerCarrierThreatBonus;
 
     scored.push({
       targetId: enemy.id,
