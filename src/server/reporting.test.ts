@@ -91,6 +91,30 @@ describe('scrubReportPayload', () => {
     expect(result.nested).toEqual({ a: 1 });
     expect(result.ts).toBe(12345);
   });
+
+  it('redacts known credential-shaped key fields at the gateway', () => {
+    const result = scrubReportPayload({
+      event: 'rating_applied',
+      gameId: 'ABCDE-m1',
+      playerKey: 'human-rob',
+      aKey: 'human-aaa',
+      bKey: 'human-bbb',
+      winnerKey: 'human-aaa',
+      seat0Key: 'human-rob',
+      seat1Key: 'agent_official_quickmatch_normal',
+      benignField: 'fine',
+    });
+    expect(result.playerKey).toBe('<redacted>');
+    expect(result.aKey).toBe('<redacted>');
+    expect(result.bKey).toBe('<redacted>');
+    expect(result.winnerKey).toBe('<redacted>');
+    expect(result.seat0Key).toBe('<redacted>');
+    expect(result.seat1Key).toBe('<redacted>');
+    // Non-key fields and other identifiers (gameId, ticket, etc.) pass
+    // through untouched so operational metadata is preserved.
+    expect(result.gameId).toBe('ABCDE-m1');
+    expect(result.benignField).toBe('fine');
+  });
 });
 
 describe('purgeOldEvents', () => {

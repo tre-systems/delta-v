@@ -359,11 +359,36 @@ const clipString = (value: unknown): unknown => {
     : value;
 };
 
+// Field names that historically carried raw `playerKey` strings or
+// shaped equivalents (a/b/winner key triplet from match_rating). The
+// 2026-05-02 audit moved the lifecycle/matchmaker emit sites to role
+// labels, but the public /telemetry gateway still accepts arbitrary
+// JSON props from the client; this allow-list-by-name redaction is a
+// defence in depth so a future caller can't immortalise an opaque
+// account-shaped identifier in the 30-day events table by accident.
+const REDACTED_KEY_FIELDS = new Set([
+  'playerKey',
+  'aKey',
+  'bKey',
+  'winnerKey',
+  'loserKey',
+  'leftKey',
+  'rightKey',
+  'seat0Key',
+  'seat1Key',
+  'opponentKey',
+]);
+const REDACTION_PLACEHOLDER = '<redacted>';
+
 export const scrubReportPayload = (
   payload: Record<string, unknown>,
 ): Record<string, unknown> => {
   const scrubbed: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(payload)) {
+    if (REDACTED_KEY_FIELDS.has(key) && typeof value === 'string') {
+      scrubbed[key] = REDACTION_PLACEHOLDER;
+      continue;
+    }
     scrubbed[key] = clipString(value);
   }
   return scrubbed;
