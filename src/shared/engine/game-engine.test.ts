@@ -540,6 +540,43 @@ describe('resupply on landing', () => {
     expect(landedIndex).toBeGreaterThan(-1);
     expect(resupplyIndex).toBeGreaterThan(landedIndex);
   });
+
+  it('lands an orbiting ship from an explicit LAND order with no directional burn', () => {
+    const ship = initialState.ships[0];
+    const marsBase = must(findBaseHex(map, 'Mars'));
+    ship.position = { q: marsBase.q, r: marsBase.r + 1 };
+    ship.velocity = { dq: 0, dr: -1 };
+    ship.lifecycle = 'active';
+    ship.fuel = 5;
+    ship.pendingGravityEffects = [
+      {
+        hex: { q: marsBase.q, r: marsBase.r + 1 },
+        direction: 3,
+        bodyName: 'Mars',
+        strength: 'full',
+        ignored: false,
+      },
+    ];
+
+    const result = processAstrogation(
+      initialState,
+      0,
+      [{ shipId: ship.id, burn: null, overload: null, land: true }],
+      map,
+      Math.random,
+    );
+
+    expect('error' in result).toBe(false);
+    if ('error' in result) return;
+    const movement = expectMovement(result);
+    const landedShip = result.state.ships[0];
+    expect(landedShip.lifecycle).toBe('landed');
+    expect(movement.movements[0]).toMatchObject({
+      outcome: 'landing',
+      fuelSpent: 1,
+    });
+  });
+
   it('does not resupply when landing at an unowned base', () => {
     const ship = initialState.ships[0];
     const orders: AstrogationOrder[] = [

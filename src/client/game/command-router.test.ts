@@ -247,6 +247,34 @@ describe('game-command-router', () => {
     expect(deps.ctx.planningState.overloads.get('ship-0')).toBe(3);
   });
 
+  it('queues landing as an acknowledged one-fuel touchdown without overload', () => {
+    const { deps } = createDeps();
+    deps.ctx.planningState.selectShip(asShipId('ship-0'));
+    deps.ctx.planningState.setShipOverload(asShipId('ship-0'), 2);
+
+    dispatchGameCommand(deps, { type: 'landFromOrbit' });
+
+    expect(deps.ctx.planningState.landingShips.has('ship-0')).toBe(true);
+    expect(deps.ctx.planningState.burns.get('ship-0')).toBe(0);
+    expect(deps.ctx.planningState.overloads.has('ship-0')).toBe(false);
+    expect(deps.ctx.planningState.acknowledgedShips.has('ship-0')).toBe(true);
+  });
+
+  it('clears queued landing when the player manually changes burn', () => {
+    const { deps } = createDeps();
+    deps.ctx.planningState.selectShip(asShipId('ship-0'));
+    deps.ctx.planningState.setShipLanding(asShipId('ship-0'), true);
+
+    dispatchGameCommand(deps, {
+      type: 'setBurnDirection',
+      shipId: asShipId('ship-0'),
+      direction: 2,
+    });
+
+    expect(deps.ctx.planningState.landingShips.has('ship-0')).toBe(false);
+    expect(deps.ctx.planningState.burns.get('ship-0')).toBe(2);
+  });
+
   it('undoes queued attacks through HUD-visible queue state only', () => {
     const { deps } = createDeps();
     deps.ctx.planningState.queuedAttacks = [

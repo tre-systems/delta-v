@@ -315,6 +315,43 @@ type ComputeCourseInput = {
   land: boolean;
 };
 
+const buildOrbitalLandingCourse = (
+  ship: Ship,
+  orbitBody: string,
+  map: SolarSystemMap,
+  weakGravityChoices: Record<HexKey, boolean>,
+  destroyedBases: Set<HexKey>,
+  fuelSpent: number,
+): CourseResult | null => {
+  const baseHex = findLandingBase(
+    orbitBody,
+    ship.position,
+    map,
+    destroyedBases,
+  );
+
+  if (!baseHex) return null;
+
+  const landPath = hexLineDraw(ship.position, baseHex);
+
+  return {
+    destination: baseHex,
+    path: landPath,
+    newVelocity: hexSubtract(baseHex, ship.position),
+    fuelSpent,
+    gravityEffects: (ship.pendingGravityEffects ?? []).map((e) => ({
+      ...e,
+    })),
+    enteredGravityEffects: collectEnteredGravityEffects(
+      landPath,
+      map,
+      weakGravityChoices,
+    ),
+    outcome: 'landing' as const,
+    landedAt: orbitBody,
+  };
+};
+
 const computeNormalCourse = ({
   ship,
   burn,
@@ -338,6 +375,31 @@ const computeNormalCourse = ({
       outcome: 'landing',
       landedAt: bodyName,
     };
+  }
+
+  // The explicit LAND action is a one-fuel touchdown burn. It does not
+  // need a directional burn queued as long as the ship is already in a
+  // legal orbit around a body with an available base.
+  if (
+    land &&
+    burn === null &&
+    ship.lifecycle === 'active' &&
+    ship.fuel > 0 &&
+    ship.damage.disabledTurns === 0
+  ) {
+    const orbitBody = detectOrbit(ship, map);
+    const landing = orbitBody
+      ? buildOrbitalLandingCourse(
+          ship,
+          orbitBody,
+          map,
+          weakGravityChoices,
+          destroyedBases,
+          1,
+        )
+      : null;
+
+    if (landing) return landing;
   }
 
   let destination: HexCoord = hexAdd(ship.position, ship.velocity);
@@ -383,33 +445,16 @@ const computeNormalCourse = ({
     const orbitBody = detectOrbit(ship, map) ?? detectOrbit(postBurnShip, map);
 
     if (orbitBody) {
-      const baseHex = findLandingBase(
+      const landing = buildOrbitalLandingCourse(
+        ship,
         orbitBody,
-        ship.position,
         map,
+        weakGravityChoices,
         destroyedBases,
+        fuelSpent,
       );
 
-      if (baseHex) {
-        const landPath = hexLineDraw(ship.position, baseHex);
-
-        return {
-          destination: baseHex,
-          path: landPath,
-          newVelocity: hexSubtract(baseHex, ship.position),
-          fuelSpent,
-          gravityEffects: (ship.pendingGravityEffects ?? []).map((e) => ({
-            ...e,
-          })),
-          enteredGravityEffects: collectEnteredGravityEffects(
-            landPath,
-            map,
-            weakGravityChoices,
-          ),
-          outcome: 'landing' as const,
-          landedAt: orbitBody,
-        };
-      }
+      if (landing) return landing;
     }
 
     const currentHex = map.hexes.get(hexKey(ship.position));

@@ -5,8 +5,8 @@ import {
   isOrderableShip,
   validateOrdnanceLaunch,
 } from '../../shared/engine/util';
-import { HEX_DIRECTIONS, hexAdd, hexVecLength } from '../../shared/hex';
-import { detectOrbit, predictDestination } from '../../shared/movement';
+import { hexVecLength } from '../../shared/hex';
+import { computeCourse } from '../../shared/movement';
 import type {
   GameState,
   Ordnance,
@@ -315,24 +315,20 @@ export const deriveHudViewModel = (
       : false,
     selectedShipInOrbit: (() => {
       if (!selectedShip || !map) return false;
-      if (detectOrbit(selectedShip, map)) return true;
+      if (selectedShip.lifecycle !== 'active') return false;
+      if (selectedShip.fuel <= 0 || selectedShip.damage.disabledTurns > 0) {
+        return false;
+      }
       const burn = planning.burns.get(selectedShip.id) ?? null;
-      if (burn === null || selectedShip.fuel <= 0) return false;
-      const dest = hexAdd(
-        predictDestination(selectedShip),
-        HEX_DIRECTIONS[burn],
-      );
-      const dir = HEX_DIRECTIONS[burn];
-      const postBurnShip = {
-        ...selectedShip,
-        position: dest,
-        velocity: {
-          dq: selectedShip.velocity.dq + dir.dq,
-          dr: selectedShip.velocity.dr + dir.dr,
-        },
-        pendingGravityEffects: [],
-      };
-      return detectOrbit(postBurnShip, map) !== null;
+      const weakGravityChoices =
+        planning.weakGravityChoices.get(selectedShip.id) ?? {};
+      const course = computeCourse(selectedShip, burn, map, {
+        overload: null,
+        weakGravityChoices,
+        destroyedBases: state.destroyedBases,
+        land: true,
+      });
+      return course.outcome === 'landing' && course.fuelSpent === 1;
     })(),
     selectedShipLandingSet: selectedShip
       ? planning.landingShips.has(selectedShip.id)
