@@ -10,15 +10,34 @@ You are an autonomous agent playing Delta-V, a turn-based space combat game with
 
 ## Arguments
 
-- `scenario` (optional): scenario name (default: `duel`). Options: duel, biplanetary, escape, convoy, evacuation
+- `scenario` (optional): scenario key (default: `duel`). Player-facing options: `duel`, `biplanetary`, `blockade`, `grandTour`, `escape`, `convoy`, `fleetAction`, `interplanetaryWar`. Engine/agent-only option: `evacuation` (Lunar Evacuation is hidden from the public picker while balance work continues).
 - `server` (optional): server URL (default: production `https://delta-v.tre.systems`)
+- `mode` (optional): `single` (default, queue one seat) or `paired-local` (create two local MCP seats with a rendezvous code for deterministic testing)
+- `quiet` (optional): if true, report only important state changes, errors, and the final result
 
 ## MCP entry (pick one)
 
-- **This skill + Cursor:** configure the repo’s stdio server (`npm run mcp:delta-v`, tool `delta_v_quick_match_connect`). For a **single** agent against production matchmaking you still need a second human/agent client unless the Worker is in **`DEV_MODE=1`**, where a lone ticket can pair with a dev bot after ~10s (local `wrangler dev` with `.dev.vars`). Local MCP returns the **full** observation `state` by default; pass **`compactState: true`** on `get_observation` / `wait_for_turn` / `send_action` if you need a smaller token footprint.
+- **This skill + Cursor/local MCP:** configure the repo’s stdio server (`npm run mcp:delta-v`). Use `delta_v_quick_match` or its compatibility alias `delta_v_quick_match_connect`. For a **single** agent against production matchmaking you still need a second human/agent client; do not block forever waiting for a public opponent. Local MCP defaults observation `state` to a compact `{ phase, turnNumber, activePlayer }` shape; pass **`compactState: false`** on `get_observation` / `wait_for_turn` / `send_action` only when you need the full `GameState`.
 - **Hosted / evaluation:** use remote MCP with `agentToken` + `delta_v_quick_match` / `matchToken` as in [`AGENTS.md`](../../../docs/AGENTS.md).
+- **Deterministic local two-seat test:** queue two seats with the same `rendezvousCode` and `waitForOpponent: false`, then connect them with `delta_v_pair_quick_match_tickets`. This avoids the public queue and is the best way to test whether the skill can actually complete turns.
 
-## Game Loop
+## Recommended Observation Shape
+
+For ordinary play, request:
+
+```json
+{
+  "includeSummary": true,
+  "includeTactical": true,
+  "includeCandidateLabels": true,
+  "includeLegalActionInfo": true,
+  "compactState": true
+}
+```
+
+Add `includeSpatialGrid: true` during astrogation, pursuit, landing, and ordnance decisions. Use `compactState: false` only when crafting custom actions or debugging missing context. Candidate labels and summaries usually contain enough geometry to choose a legal action without embedding the full state.
+
+## Game Loop: Single Seat
 
 Execute this loop autonomously with no user input needed:
 
@@ -28,21 +47,59 @@ Execute this loop autonomously with no user input needed:
 delta_v_quick_match_connect({
   username: "Claude-<4 random hex chars>",
   scenario: "<scenario or duel>",
-  serverUrl: "<server if provided>"
+  serverUrl: "<server if provided>",
+  timeoutMs: 120000
 })
 ```
 
-Note your `sessionId` and tell the user you're queued.
+Note your `sessionId` / `matchToken` when connected. If the call times out, use `waitForOpponent: false` next time and tell the user you queued a ticket but did not find an opponent.
+
+### 1a. Deterministic paired-local setup
+
+Use this when the goal is testing the MCP/skill loop rather than playing a public opponent:
+
+```
+delta_v_quick_match_connect({
+  username: "Claude-A",
+  playerKey: "agent_claude_a_<suffix>",
+  scenario: "<scenario or duel>",
+  serverUrl: "http://127.0.0.1:8787",
+  rendezvousCode: "skilltest<suffix>",
+  waitForOpponent: false
+})
+
+delta_v_quick_match_connect({
+  username: "Claude-B",
+  playerKey: "agent_claude_b_<suffix>",
+  scenario: "<same scenario>",
+  serverUrl: "http://127.0.0.1:8787",
+  rendezvousCode: "skilltest<suffix>",
+  waitForOpponent: false
+})
+
+delta_v_pair_quick_match_tickets({
+  serverUrl: "http://127.0.0.1:8787",
+  leftTicket: "<first ticket>",
+  rightTicket: "<second ticket>"
+})
+```
+
+Then play each returned `sessionId` as a separate seat, alternating `wait_for_turn` and `send_action`.
 
 ### 2. Get initial observation
 
-Call `delta_v_wait_for_turn` with ALL enrichments enabled to block until the game starts and it's your turn:
+Call `delta_v_wait_for_turn` with useful enrichments to block until the game starts and it's your turn:
 
 ```
 delta_v_wait_for_turn({
-  sessionId, includeSummary: true, includeTactical: true,
-  includeSpatialGrid: true, includeCandidateLabels: true,
-  includeLegalActionInfo: true, timeoutMs: 120000
+  sessionId,
+  includeSummary: true,
+  includeTactical: true,
+  includeSpatialGrid: true,
+  includeCandidateLabels: true,
+  includeLegalActionInfo: true,
+  compactState: true,
+  timeoutMs: 120000
 })
 ```
 
@@ -66,13 +123,16 @@ delta_v_send_action({
   waitForResult: true, includeNextObservation: true,
   includeSummary: true, includeTactical: true,
   includeSpatialGrid: true, includeCandidateLabels: true,
-  includeLegalActionInfo: true
+  includeLegalActionInfo: true, compactState: true
 })
 ```
 
-8. Check the response: if `accepted: true`, read the `nextObservation` and go to step 1. If `accepted: false`, the action was rejected (wrong phase, stale state) — get a fresh observation and retry. If `accepted: null` (pending), the server is waiting for the other player — call `delta_v_wait_for_turn`.
+8. Check the response:
+   - `accepted: true`: read `nextObservation`. If `autoSkipLikely: true`, call `delta_v_wait_for_turn` instead of immediately chaining a skip.
+   - `accepted: false`: the action was rejected (wrong phase, stale state, illegal payload). Get a fresh observation and retry once.
+   - `accepted: null`: the server is waiting for a simultaneous step, usually fleet building. Call `delta_v_wait_for_turn`.
 
-For each turn, tell the user in 1-2 sentences what you see and your reasoning.
+If `quiet` is not set, give the user 1-2 sentences per significant turn. If `quiet` is set, report only connection, errors, and final result.
 
 ### 4. Chat
 
@@ -82,7 +142,7 @@ Send one thematic chat via `delta_v_send_chat` at game start. Keep under 200 cha
 
 ### fleetBuilding (simultaneous)
 
-Always send `{ "type": "fleetReady", "purchases": [] }` when `state.phase === 'fleetBuilding'` unless you are intentionally customizing purchases. The phase is simultaneous, but it does not auto-submit on connect: `delta_v_wait_for_turn` may return while fleet building is still open for your seat, and the game only advances to `astrogation` after both seats have sent `fleetReady`. Fleet building requires deep scenario knowledge; defaults are competitive.
+Always send `{ "type": "fleetReady", "purchases": [] }` when `state.phase === 'fleetBuilding'` unless you are intentionally customizing purchases. The phase is simultaneous, but it does not auto-submit on connect: `delta_v_wait_for_turn` may return while fleet building is still open for your seat, and the game only advances to `astrogation` after both seats have sent `fleetReady`. In default scenarios, empty purchases use the scenario defaults and are competitive. For Fleet Action / Interplanetary War, candidate labels or scenario defaults are safer than hand-written purchases unless you have full scenario context.
 
 ### astrogation (sequential)
 
@@ -248,6 +308,15 @@ Protect or destroy a convoy crossing the map. Escort ships screen the transports
 ### Evacuation
 Evacuate passengers from a doomed station. Speed is everything — get transports loaded and moving before the enemy arrives.
 
+### Blockade Runner
+Packet ship vs corvette. Packet seat: avoid combat, preserve speed, land on Mars. Corvette seat: cut the packet's projected path instead of chasing its current hex.
+
+### Grand Tour
+Pure navigation race. Prioritize checkpoint progress and fuel efficiency; combat actions should not be relevant.
+
+### Fleet Action / Interplanetary War
+Fleet-building combined-arms scenarios. Submit default fleet-ready unless you have a candidate-backed purchase plan. In play, focus fire, preserve fuel, and avoid splitting ships so far apart that combat phases become isolated duels.
+
 ## Error Handling
 
 - **`accepted: false`** means the action was rejected. Common causes: wrong phase (the game advanced while you were deciding), invalid ship ID, illegal action. Get a fresh observation and retry.
@@ -255,3 +324,4 @@ Evacuate passengers from a doomed station. Speed is everything — get transport
 - **`wait_for_turn` error: gameOver** means the game ended while you were waiting. Call `delta_v_get_observation` to see the final state, announce the result.
 - **`wait_for_turn` timeout** means the opponent hasn't moved yet. Retry with a fresh `wait_for_turn`.
 - **Keep playing through errors.** Don't give up on a game because of one rejected action.
+- **Public queue timeout** means no opponent was found quickly. Either ask for a human opponent, switch to paired-local setup, or queue with a rendezvous partner.

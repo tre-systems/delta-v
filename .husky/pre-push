@@ -2,7 +2,7 @@ zero_sha="0000000000000000000000000000000000000000"
 
 is_doc_path() {
   case "$1" in
-    README.md|AGENTS.md|AGENT_SPEC.md|docs/*|patterns/*)
+    README.md|AGENTS.md|AGENT_SPEC.md|docs/*|patterns/*|.claude/skills/*)
       return 0
       ;;
     *)
