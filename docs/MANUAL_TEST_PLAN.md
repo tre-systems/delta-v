@@ -267,9 +267,9 @@ Run when changes touch `src/server/leaderboard/`, `src/shared/rating/`, or `migr
 
 Run when `/server/index.ts` route handlers, public endpoints, or HTTP method handling change.
 
-- **HEAD/GET parity (R18):** for each public path, `HEAD == GET` status. The static-asset path `/robots.txt` is a known-bad case (HEAD 404 / GET 200) — confirm it has not regressed elsewhere.
+- **HEAD/GET parity (R18):** for each public path, `HEAD == GET` status. Older deployed hashes exposed `/robots.txt` as a HEAD/GET drift case; current releases should keep status parity across public GET routes unless a route is intentionally unsupported.
 - **Error-shape consistency (R19):** every public JSON endpoint returns `{ok: false, error, message}`. Notable exception: `GET /join/{CODE}` returns `{code, message}` for backwards compat with the existing client mapping; do not change this without coordinating both sides. New endpoints must follow the unified shape.
-- **Status-param validation:** `/api/matches?status=anything` should reject unknown values with `invalid_query` rather than silently returning `[]`. The current behaviour silently accepts and returns empty for any unknown status string.
+- **Status-param validation:** `/api/matches?status=anything` should reject unknown values with `invalid_query` rather than silently returning `[]`. Pass: unknown values return HTTP 400 with `invalid_query`. Fail: unknown values return HTTP 200 or an empty list.
 - **Matchmaker scenario set:** `QUICK_MATCH_SCENARIO` in `src/shared/matchmaking.ts` is `'duel'` only. Quick Match never routes to other scenarios. If a release advertises Quick Match for another scenario (Bi-Planetary, Grand Tour, …), update both the matchmaker default and the lobby copy that says "Find the next available commander in the duel queue."
 
 ---
