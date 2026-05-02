@@ -66,6 +66,7 @@ import {
 import { drawAnimatedMovementPaths, drawShipAndOrdnanceTrails } from './trails';
 import { buildBaseThreatZoneViews } from './vectors';
 import { drawVelocityVectorLayer } from './vel-draw';
+import { screenLineWidth } from './visibility';
 
 export const HEX_SIZE = 28;
 
@@ -139,9 +140,9 @@ export const createRenderer = (
     if (animState()) return;
     const zones = buildBaseThreatZoneViews(state, playerId, solarMap, HEX_SIZE);
     for (const zone of zones) {
-      layerCtx.fillStyle = 'rgba(255, 80, 60, 0.08)';
-      layerCtx.strokeStyle = 'rgba(255, 80, 60, 0.2)';
-      layerCtx.lineWidth = 1;
+      layerCtx.fillStyle = 'rgba(255, 88, 72, 0.11)';
+      layerCtx.strokeStyle = 'rgba(255, 110, 88, 0.34)';
+      layerCtx.lineWidth = screenLineWidth(1.2, camera.zoom);
       layerCtx.beginPath();
       layerCtx.arc(
         zone.hexCenter.x,
@@ -259,8 +260,12 @@ export const createRenderer = (
     if (map) {
       if (!renderedStatic) {
         renderStars(layerCtx, stars, camera.zoom);
-        renderHexGrid(layerCtx, map, HEX_SIZE, (x, y) =>
-          camera.isVisible(x, y),
+        renderHexGrid(
+          layerCtx,
+          map,
+          HEX_SIZE,
+          (x, y) => camera.isVisible(x, y),
+          camera.zoom,
         );
         renderAsteroids(
           layerCtx,
@@ -268,18 +273,45 @@ export const createRenderer = (
           gameState?.destroyedAsteroids ?? [],
           HEX_SIZE,
           (x, y) => camera.isVisible(x, y),
+          camera.zoom,
         );
-        renderGravityIndicators(layerCtx, map, HEX_SIZE, (x, y) =>
-          camera.isVisible(x, y),
+        renderGravityIndicators(
+          layerCtx,
+          map,
+          HEX_SIZE,
+          (x, y) => camera.isVisible(x, y),
+          camera.zoom,
         );
         renderBodies(layerCtx, map, HEX_SIZE, now, camera.zoom);
       }
       if (gameState) {
-        renderMapBorder(layerCtx, map, gameState, playerId, HEX_SIZE, now);
+        renderMapBorder(
+          layerCtx,
+          map,
+          gameState,
+          playerId,
+          HEX_SIZE,
+          now,
+          camera.zoom,
+        );
       }
-      renderBaseMarkers(layerCtx, map, gameState, playerId, HEX_SIZE);
+      renderBaseMarkers(
+        layerCtx,
+        map,
+        gameState,
+        playerId,
+        HEX_SIZE,
+        camera.zoom,
+      );
       if (gameState) {
-        renderCheckpoints(layerCtx, gameState, playerId, map, HEX_SIZE);
+        renderCheckpoints(
+          layerCtx,
+          gameState,
+          playerId,
+          map,
+          HEX_SIZE,
+          camera.zoom,
+        );
         renderLandingTarget(
           layerCtx,
           map,
@@ -302,6 +334,7 @@ export const createRenderer = (
         map,
         HEX_SIZE,
         animState() !== null,
+        camera.zoom,
       );
       drawCourseLayers(layerCtx, gameState, map);
       renderOrdnance({
@@ -354,6 +387,7 @@ export const createRenderer = (
           a,
           now,
           HEX_SIZE,
+          camera.zoom,
         );
       }
       drawShipsLayer({

@@ -24,6 +24,7 @@ import {
 } from './map';
 import { scaledFont } from './text';
 import { buildDetectionRangeViews } from './vectors';
+import { minScreenScale, screenDash, screenLineWidth } from './visibility';
 export interface Star {
   x: number;
   y: number;
@@ -55,9 +56,15 @@ export const renderStars = (
   zoom: number,
 ): void => {
   for (const star of stars) {
-    ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * 0.6})`;
+    ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * 0.78})`;
     ctx.beginPath();
-    ctx.arc(star.x, star.y, star.size / zoom, 0, Math.PI * 2);
+    ctx.arc(
+      star.x,
+      star.y,
+      Math.max(star.size / zoom, 0.9 / zoom),
+      0,
+      Math.PI * 2,
+    );
     ctx.fill();
   }
 };
@@ -67,9 +74,10 @@ export const renderHexGrid = (
   map: SolarSystemMap,
   hexSize: number,
   isVisible: (x: number, y: number) => boolean,
+  zoom = 1,
 ): void => {
-  ctx.strokeStyle = 'rgba(100, 140, 200, 0.14)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(132, 172, 236, 0.24)';
+  ctx.lineWidth = screenLineWidth(1.15, zoom);
   const size = hexSize;
   const { minQ, maxQ, minR, maxR } = map.bounds;
 
@@ -111,7 +119,11 @@ export const renderGravityIndicators = (
   map: SolarSystemMap,
   hexSize: number,
   isVisible: (x: number, y: number) => boolean,
+  zoom = 1,
 ): void => {
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   for (const [key, hex] of map.hexes) {
     if (!hex.gravity) continue;
     const coord = parseHexKey(key);
@@ -122,9 +134,17 @@ export const renderGravityIndicators = (
     const target = hexToPixel(hexAdd(coord, dir), hexSize);
     ctx.strokeStyle =
       hex.gravity.strength === 'weak'
-        ? 'rgba(100, 140, 255, 0.12)'
-        : 'rgba(100, 140, 255, 0.2)';
-    ctx.lineWidth = 1;
+        ? 'rgba(120, 164, 255, 0.2)'
+        : 'rgba(130, 178, 255, 0.34)';
+    ctx.shadowColor =
+      hex.gravity.strength === 'weak'
+        ? 'rgba(120, 164, 255, 0.18)'
+        : 'rgba(130, 178, 255, 0.35)';
+    ctx.shadowBlur = hex.gravity.strength === 'weak' ? 2 : 4;
+    ctx.lineWidth = screenLineWidth(
+      hex.gravity.strength === 'weak' ? 1.2 : 1.35,
+      zoom,
+    );
     ctx.beginPath();
     ctx.moveTo(p.x, p.y);
     ctx.lineTo(p.x + (target.x - p.x) * 0.4, p.y + (target.y - p.y) * 0.4);
@@ -146,6 +166,7 @@ export const renderGravityIndicators = (
     );
     ctx.stroke();
   }
+  ctx.restore();
 };
 
 export const renderBodies = (
@@ -162,7 +183,7 @@ export const renderBodies = (
     for (const ripple of view.ripples) {
       ctx.strokeStyle = view.rippleColor;
       ctx.globalAlpha = ripple.alpha;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = screenLineWidth(1.15, zoom);
       ctx.beginPath();
       ctx.arc(p.x, p.y, ripple.radius, 0, Math.PI * 2);
       ctx.stroke();
@@ -191,7 +212,7 @@ export const renderBodies = (
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fillStyle = 'rgba(245, 248, 255, 0.88)';
     ctx.font = scaledFont('600 13px var(--font-display), sans-serif', zoom);
     ctx.textAlign = 'center';
     ctx.fillText(view.label, p.x, view.labelY);
@@ -204,6 +225,7 @@ export const renderBaseMarkers = (
   state: GameState | null,
   playerId: PlayerId,
   hexSize: number,
+  zoom = 1,
 ): void => {
   for (const [key, hex] of map.hexes) {
     if (!hex.base) continue;
@@ -212,20 +234,27 @@ export const renderBaseMarkers = (
     const markerView = buildBaseMarkerView(key, state, playerId);
 
     if (markerView.kind === 'destroyed') {
-      ctx.strokeStyle = 'rgba(255, 90, 90, 0.8)';
-      ctx.lineWidth = markerView.lineWidth;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 112, 112, 0.95)';
+      ctx.lineWidth = screenLineWidth(markerView.lineWidth, zoom);
+      ctx.shadowColor = 'rgba(255, 90, 90, 0.55)';
+      ctx.shadowBlur = 6;
       ctx.beginPath();
       ctx.moveTo(p.x - 5, p.y - 5);
       ctx.lineTo(p.x + 5, p.y + 5);
       ctx.moveTo(p.x + 5, p.y - 5);
       ctx.lineTo(p.x - 5, p.y + 5);
       ctx.stroke();
+      ctx.restore();
       continue;
     }
+    ctx.save();
     ctx.fillStyle = must(markerView.fillStyle);
     ctx.strokeStyle = markerView.strokeStyle;
-    ctx.lineWidth = markerView.lineWidth;
-    const s = 5;
+    ctx.lineWidth = screenLineWidth(markerView.lineWidth, zoom);
+    ctx.shadowColor = markerView.strokeStyle;
+    ctx.shadowBlur = 5;
+    const s = 5 * minScreenScale(zoom);
     ctx.beginPath();
     ctx.moveTo(p.x, p.y - s);
     ctx.lineTo(p.x + s, p.y);
@@ -234,6 +263,7 @@ export const renderBaseMarkers = (
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
   }
 };
 
@@ -244,6 +274,7 @@ export const renderMapBorder = (
   playerId: PlayerId,
   hexSize: number,
   now: number,
+  zoom = 1,
 ): void => {
   const borderView = buildMapBorderView(
     map.bounds,
@@ -252,8 +283,8 @@ export const renderMapBorder = (
     hexSize,
   );
   ctx.strokeStyle = borderView.strokeStyle;
-  ctx.lineWidth = borderView.lineWidth;
-  ctx.setLineDash(borderView.lineDash);
+  ctx.lineWidth = screenLineWidth(borderView.lineWidth, zoom);
+  ctx.setLineDash(screenDash(borderView.lineDash, zoom));
   ctx.strokeRect(
     borderView.topLeft.x,
     borderView.topLeft.y,
@@ -269,6 +300,7 @@ export const renderAsteroids = (
   destroyedAsteroids: string[],
   hexSize: number,
   isVisible: (x: number, y: number) => boolean,
+  zoom = 1,
 ): void => {
   const destroyed = new Set(destroyedAsteroids);
   for (const [key, hex] of map.hexes) {
@@ -279,13 +311,14 @@ export const renderAsteroids = (
 
     if (!isVisible(debrisView.center.x, debrisView.center.y)) continue;
     // Rock particles
-    ctx.fillStyle = 'rgba(100, 100, 100, 0.65)';
+    ctx.fillStyle = 'rgba(148, 160, 178, 0.78)';
+    const scale = minScreenScale(zoom, 0.85);
     for (const particle of debrisView.particles) {
       ctx.beginPath();
       ctx.arc(
         debrisView.center.x + particle.xOffset,
         debrisView.center.y + particle.yOffset,
-        particle.size,
+        particle.size * scale,
         0,
         Math.PI * 2,
       );
@@ -300,14 +333,15 @@ export const renderCheckpoints = (
   playerId: PlayerId,
   map: SolarSystemMap,
   hexSize: number,
+  zoom = 1,
 ): void => {
   const views = buildCheckpointMarkerViews(state, playerId, map, hexSize);
   if (views.length === 0) return;
 
   for (const view of views) {
     ctx.strokeStyle = view.strokeStyle;
-    ctx.lineWidth = view.lineWidth;
-    ctx.setLineDash(view.lineDash);
+    ctx.lineWidth = screenLineWidth(view.lineWidth, zoom);
+    ctx.setLineDash(screenDash(view.lineDash, zoom));
     ctx.beginPath();
     ctx.arc(view.center.x, view.center.y, view.radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -379,6 +413,7 @@ export const renderDetectionRanges = (
   map: SolarSystemMap,
   hexSize: number,
   isAnimating: boolean,
+  zoom = 1,
 ): void => {
   if (isAnimating) return;
   const overlays = buildDetectionRangeViews(
@@ -390,8 +425,8 @@ export const renderDetectionRanges = (
   );
   for (const overlay of overlays) {
     ctx.strokeStyle = overlay.color;
-    ctx.lineWidth = overlay.lineWidth;
-    ctx.setLineDash(overlay.lineDash);
+    ctx.lineWidth = screenLineWidth(overlay.lineWidth, zoom);
+    ctx.setLineDash(screenDash(overlay.lineDash, zoom));
     ctx.beginPath();
     ctx.arc(overlay.center.x, overlay.center.y, overlay.radius, 0, Math.PI * 2);
     ctx.stroke();

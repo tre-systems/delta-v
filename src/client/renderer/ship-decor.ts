@@ -9,6 +9,7 @@ import {
   shouldShowOrbitIndicator,
 } from './entities';
 import { scaledFont } from './text';
+import { screenDash, screenLineWidth } from './visibility';
 
 type DrawIdentityMarkersInput = {
   ctx: CanvasRenderingContext2D;
@@ -27,6 +28,7 @@ type DrawOrbitAndLandedRingsInput = {
   now: number;
   inGravity: boolean;
   animState: AnimationState | null;
+  zoom: number;
 };
 
 type DrawShipLabelsInput = {
@@ -129,25 +131,32 @@ export const drawOrbitAndLandedRings = ({
   now,
   inGravity,
   animState,
+  zoom,
 }: DrawOrbitAndLandedRingsInput): void => {
   if (shouldShowOrbitIndicator(ship, inGravity, animState !== null)) {
     const phase = now / 2000 + pos.x * 0.01;
 
-    ctx.strokeStyle = 'rgba(150, 200, 255, 0.35)';
-    ctx.lineWidth = 1;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(170, 220, 255, 0.58)';
+    ctx.lineWidth = screenLineWidth(1.35, zoom);
+    ctx.shadowColor = 'rgba(120, 190, 255, 0.35)';
+    ctx.shadowBlur = 4;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, 16, phase, phase + Math.PI * 1.5);
     ctx.stroke();
+    ctx.restore();
   }
 
   if (shouldShowLandedIndicator(ship, animState !== null)) {
-    ctx.strokeStyle = 'rgba(100, 200, 100, 0.5)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 2]);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(140, 235, 130, 0.7)';
+    ctx.lineWidth = screenLineWidth(1.35, zoom);
+    ctx.setLineDash(screenDash([2, 2], zoom));
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, 12, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.restore();
   }
 };
 

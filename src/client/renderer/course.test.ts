@@ -99,7 +99,7 @@ describe('renderer course helpers', () => {
     expect(previews).toHaveLength(1);
     expect(previews[0]).toMatchObject({
       shipId: asShipId('ship-0'),
-      lineColor: '#4fc3f7',
+      lineColor: '#64dcff',
       lineDash: [6, 4],
       ghostShip: { shipType: 'corvette', owner: 0, alpha: 0.4 },
     });
@@ -190,8 +190,8 @@ describe('renderer course helpers', () => {
 
     expect(previews[0].gravityArrows).toHaveLength(1);
     expect(previews[0].gravityArrows[0]).toMatchObject({
-      color: 'rgba(255, 200, 50, 0.6)',
-      lineWidth: 1.5,
+      color: 'rgba(255, 214, 84, 0.82)',
+      lineWidth: 1.75,
     });
   });
 
@@ -213,7 +213,7 @@ describe('renderer course helpers', () => {
     );
 
     expect(previews).toHaveLength(1);
-    expect(previews[0].lineColor).toBe('#ff4444');
+    expect(previews[0].lineColor).toBe('#ff5555');
     expect(previews[0].ghostShip).toBeNull();
     expect(previews[0].crashMarker).not.toBeNull();
   });

@@ -12,6 +12,7 @@ import {
 } from '../../shared/hex';
 import type { PlayerId } from '../../shared/types/domain';
 import { isOwnShipForViewer } from './colours';
+import { minScreenScale, screenLineWidth } from './visibility';
 
 export type DrawShipIconInput = {
   ctx: CanvasRenderingContext2D;
@@ -23,6 +24,7 @@ export type DrawShipIconInput = {
   heading: number;
   disabledTurns?: number;
   shipType?: ShipType;
+  zoom?: number;
 };
 
 // Draw a ship icon (arrow or octagon for orbital base)
@@ -37,15 +39,25 @@ export const drawShipIcon = ({
   heading,
   disabledTurns = 0,
   shipType,
+  zoom = 1,
 }: DrawShipIconInput): void => {
-  const color = isOwnShipForViewer(owner, playerId)
-    ? `rgba(79, 195, 247, ${alpha})`
-    : `rgba(255, 152, 0, ${alpha})`;
+  const isOwn = isOwnShipForViewer(owner, playerId);
+  const color = isOwn
+    ? `rgba(100, 220, 255, ${alpha})`
+    : `rgba(255, 177, 59, ${alpha})`;
+  const glowColor = isOwn
+    ? `rgba(100, 220, 255, ${alpha * 0.65})`
+    : `rgba(255, 177, 59, ${alpha * 0.65})`;
+  const haloColor = isOwn
+    ? `rgba(100, 220, 255, ${alpha * 0.14})`
+    : `rgba(255, 177, 59, ${alpha * 0.14})`;
 
   const stats = shipType ? SHIP_STATS[shipType] : undefined;
   const combat = stats?.combat ?? 2;
 
-  const size = combat >= 15 ? 14 : combat >= 8 ? 12 : combat >= 4 ? 11 : 10;
+  const visibilityScale = minScreenScale(zoom);
+  const baseSize = combat >= 15 ? 14 : combat >= 8 ? 12 : combat >= 4 ? 11 : 10;
+  const size = baseSize * visibilityScale;
 
   ctx.save();
   ctx.translate(x, y);
@@ -70,12 +82,19 @@ export const drawShipIcon = ({
     ctx.fill();
   }
 
+  ctx.fillStyle = haloColor;
+  ctx.beginPath();
+  ctx.arc(0, 0, (size + 8) * 0.9, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.rotate(heading);
   ctx.fillStyle = color;
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 7 * visibilityScale;
   ctx.beginPath();
 
   if (shipType === 'orbitalBase') {
-    const r = 12;
+    const r = 12 * visibilityScale;
 
     for (let i = 0; i < 8; i++) {
       const angle = (Math.PI * 2 * i) / 8 - Math.PI / 8;
@@ -90,9 +109,9 @@ export const drawShipIcon = ({
     ctx.fill();
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = screenLineWidth(1.8, zoom);
     ctx.beginPath();
-    ctx.arc(0, 0, 6, 0, Math.PI * 2);
+    ctx.arc(0, 0, 6 * visibilityScale, 0, Math.PI * 2);
     ctx.stroke();
   } else {
     ctx.moveTo(size, 0);
@@ -103,7 +122,7 @@ export const drawShipIcon = ({
     ctx.fill();
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = screenLineWidth(1.45, zoom);
     ctx.stroke();
   }
 
@@ -185,8 +204,8 @@ export const drawOrdnanceVelocity = (
   const dest = hexToPixel(hexAdd(position, velocity), hexSize);
 
   ctx.strokeStyle = color;
-  ctx.globalAlpha = 0.3;
-  ctx.lineWidth = 0.5;
+  ctx.globalAlpha = 0.42;
+  ctx.lineWidth = 0.75;
   ctx.setLineDash([2, 3]);
   ctx.beginPath();
   ctx.moveTo(px.x, px.y);

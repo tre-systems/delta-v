@@ -1,10 +1,12 @@
 import type { GameState, PlayerId } from '../../shared/types/domain';
 import { scaledFont } from './text';
 import { buildVelocityVectorViews, type VelocityVectorView } from './vectors';
+import { screenDash, screenLineWidth } from './visibility';
 
 const drawVectorArrowHead = (
   ctx: CanvasRenderingContext2D,
   vector: VelocityVectorView,
+  zoom: number,
 ): void => {
   if (!vector.arrowHead) return;
   // Draw the head as one path so the tip uses canvas line joining
@@ -12,6 +14,7 @@ const drawVectorArrowHead = (
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+  ctx.lineWidth = screenLineWidth(vector.lineWidth, zoom);
   ctx.beginPath();
   ctx.moveTo(vector.arrowHead.left.x, vector.arrowHead.left.y);
   ctx.lineTo(vector.to.x, vector.to.y);
@@ -61,15 +64,19 @@ export const drawVelocityVectorLayer = (
   zoom: number,
 ): void => {
   for (const vector of buildVelocityVectorViews(state, playerId, hexSize)) {
+    ctx.save();
     ctx.strokeStyle = vector.color;
-    ctx.lineWidth = vector.lineWidth;
-    ctx.setLineDash(vector.lineDash);
+    ctx.lineWidth = screenLineWidth(vector.lineWidth, zoom);
+    ctx.shadowColor = vector.color;
+    ctx.shadowBlur = 3;
+    ctx.setLineDash(screenDash(vector.lineDash, zoom));
     ctx.beginPath();
     ctx.moveTo(vector.from.x, vector.from.y);
     ctx.lineTo(vector.to.x, vector.to.y);
     ctx.stroke();
     ctx.setLineDash([]);
-    drawVectorArrowHead(ctx, vector);
+    drawVectorArrowHead(ctx, vector, zoom);
+    ctx.restore();
     drawVectorGhostDot(ctx, vector);
     drawVectorSpeedLabel(ctx, vector, zoom);
   }

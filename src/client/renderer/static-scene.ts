@@ -33,8 +33,12 @@ const repaintStaticLayer = (
   lctx.save();
   input.camera.applyTransform(lctx);
   renderStars(lctx, input.stars, input.camera.zoom);
-  renderHexGrid(lctx, input.map, input.hexSize, (x, y) =>
-    input.camera.isVisible(x, y),
+  renderHexGrid(
+    lctx,
+    input.map,
+    input.hexSize,
+    (x, y) => input.camera.isVisible(x, y),
+    input.camera.zoom,
   );
   renderAsteroids(
     lctx,
@@ -42,9 +46,14 @@ const repaintStaticLayer = (
     input.gameState?.destroyedAsteroids ?? [],
     input.hexSize,
     (x, y) => input.camera.isVisible(x, y),
+    input.camera.zoom,
   );
-  renderGravityIndicators(lctx, input.map, input.hexSize, (x, y) =>
-    input.camera.isVisible(x, y),
+  renderGravityIndicators(
+    lctx,
+    input.map,
+    input.hexSize,
+    (x, y) => input.camera.isVisible(x, y),
+    input.camera.zoom,
   );
   renderBodies(lctx, input.map, input.hexSize, input.now, input.camera.zoom);
   lctx.restore();

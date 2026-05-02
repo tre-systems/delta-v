@@ -138,7 +138,7 @@ const buildGravityArrow = (
   hex: HexCoord,
   direction: number,
   hexSize: number,
-  color = 'rgba(255, 200, 50, 0.6)',
+  color = 'rgba(255, 214, 84, 0.82)',
 ): CourseArrowView => {
   const start = hexToPixel(hex, hexSize);
   const target = hexToPixel(hexAdd(hex, HEX_DIRECTIONS[direction]), hexSize);
@@ -165,7 +165,7 @@ const buildGravityArrow = (
       y: tip.y - headLength * Math.sin(angle + 0.5),
     },
     color,
-    lineWidth: 1.5,
+    lineWidth: 1.75,
   };
 };
 
@@ -179,14 +179,14 @@ const buildWeakGravityMarker = (
   return {
     position,
     fillColor: ignored
-      ? 'rgba(180, 130, 255, 0.1)'
-      : 'rgba(180, 130, 255, 0.35)',
+      ? 'rgba(190, 150, 255, 0.16)'
+      : 'rgba(190, 150, 255, 0.48)',
     strokeColor: ignored
-      ? 'rgba(180, 130, 255, 0.5)'
-      : 'rgba(180, 130, 255, 0.8)',
+      ? 'rgba(190, 150, 255, 0.68)'
+      : 'rgba(210, 180, 255, 0.92)',
     labelColor: ignored
-      ? 'rgba(180, 130, 255, 0.4)'
-      : 'rgba(180, 130, 255, 0.9)',
+      ? 'rgba(210, 180, 255, 0.58)'
+      : 'rgba(236, 226, 255, 0.96)',
     strikeFrom: ignored ? { x: position.x - 6, y: position.y + 4 } : null,
     strikeTo: ignored ? { x: position.x + 6, y: position.y - 4 } : null,
   };
@@ -249,13 +249,13 @@ const buildBurnMarkers = (
       16,
       20,
       3,
-      'rgba(79, 195, 247, 0.8)',
-      'rgba(79, 195, 247, 0.4)',
-      'rgba(79, 195, 247, 0.2)',
-      '#4fc3f7',
-      'rgba(79, 195, 247, 0.3)',
-      '#4fc3f7',
-      '#4fc3f7',
+      'rgba(100, 220, 255, 0.88)',
+      'rgba(100, 220, 255, 0.52)',
+      'rgba(100, 220, 255, 0.28)',
+      '#64dcff',
+      'rgba(100, 220, 255, 0.42)',
+      '#64dcff',
+      'rgba(100, 220, 255, 0.9)',
       8,
       12,
     );
@@ -265,7 +265,7 @@ const buildBurnMarkers = (
     marker.label = showLabel ? String(direction + 1) : null;
     marker.labelColor = isHovered
       ? 'rgba(0, 0, 0, 0.9)'
-      : 'rgba(79, 195, 247, 0.7)';
+      : 'rgba(210, 246, 255, 0.9)';
 
     markers.push(marker);
   });
@@ -309,7 +309,7 @@ const buildBurnArrow = (
   const targetHex = hexAdd(predictedDestination, HEX_DIRECTIONS[burn]);
   const from = hexToPixel(predictedDestination, hexSize);
   const to = hexToPixel(targetHex, hexSize);
-  return buildDirectionArrow(from, to, '#4fc3f7', 2.5, 8, hexSize * 0.35);
+  return buildDirectionArrow(from, to, '#64dcff', 2.75, 8, hexSize * 0.35);
 };
 
 const buildOverloadMarkers = (
@@ -351,13 +351,13 @@ const buildOverloadMarkers = (
         10,
         14,
         3,
-        'rgba(255, 183, 77, 0.8)',
-        'rgba(255, 183, 77, 0.4)',
-        'rgba(255, 183, 77, 0.1)',
-        '#ffb74d',
-        'rgba(255, 183, 77, 0.25)',
-        '#ffb74d',
-        '#ffb74d',
+        'rgba(255, 190, 86, 0.9)',
+        'rgba(255, 190, 86, 0.52)',
+        'rgba(255, 190, 86, 0.18)',
+        '#ffbe56',
+        'rgba(255, 190, 86, 0.38)',
+        '#ffbe56',
+        'rgba(255, 190, 86, 0.88)',
         4,
         8,
       ),
@@ -390,10 +390,10 @@ const buildOverloadArrow = (
   const overloadTarget = hexAdd(burnDestination, HEX_DIRECTIONS[overload]);
   const from = hexToPixel(burnDestination, hexSize);
   const to = hexToPixel(overloadTarget, hexSize);
-  return buildDirectionArrow(from, to, '#ffb74d', 2, 7, hexSize * 0.32);
+  return buildDirectionArrow(from, to, '#ffbe56', 2.35, 7, hexSize * 0.32);
 };
 
-const DRIFT_ALPHAS = [0.25, 0.15];
+const DRIFT_ALPHAS = [0.34, 0.22];
 
 const buildDriftSegments = (
   ship: Ship,
@@ -425,7 +425,7 @@ const buildDriftSegments = (
 
     segments.push({
       points,
-      color: drift.outcome === 'crash' ? '#ff4444' : '#4fc3f7',
+      color: drift.outcome === 'crash' ? '#ff5555' : '#64dcff',
       alpha: DRIFT_ALPHAS[i],
     });
 
@@ -483,8 +483,8 @@ export const buildAstrogationCoursePreviewViews = (
     previews.push({
       shipId: ship.id,
       linePoints: mainPath.map((hex) => hexToPixel(hex, hexSize)),
-      lineColor: course.outcome === 'crash' ? '#ff4444' : '#4fc3f7',
-      lineWidth: 2,
+      lineColor: course.outcome === 'crash' ? '#ff5555' : '#64dcff',
+      lineWidth: 2.35,
       lineDash: burn !== null ? [] : [6, 4],
       takeoffSegment,
 
@@ -571,7 +571,7 @@ export const buildAstrogationCoursePreviewViews = (
                   gravity.hex,
                   gravity.direction,
                   hexSize,
-                  'rgba(100, 220, 220, 0.5)',
+                  'rgba(120, 240, 240, 0.68)',
                 ),
               )
           : [],
