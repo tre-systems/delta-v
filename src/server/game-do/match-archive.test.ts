@@ -48,6 +48,9 @@ const createMockR2 = () => {
       if (!body) return null;
       return { json: async () => JSON.parse(body) };
     }),
+    head: vi.fn(async (key: string) =>
+      objects.has(key) ? { key, size: (objects.get(key) ?? '').length } : null,
+    ),
     objects: objects,
   };
 };
@@ -353,6 +356,57 @@ describe('match archival', () => {
     expect(body.playerAUsername).toBeNull();
     expect(body.playerBUsername).toBeNull();
     expect(body.winnerUsername).toBeNull();
+  });
+
+  it('skips the R2/D1 write when the archive already exists', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const r2 = createMockR2();
+    const db = createMockDb();
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('IDEMP-m1'),
+      findBaseHex,
+    );
+    state.phase = 'gameOver';
+    state.outcome = { winner: 0, reason: 'Fleet eliminated!' };
+
+    await appendEnvelopedEvents(storage, asGameId('IDEMP-m1'), null, {
+      type: 'gameCreated',
+      scenario: 'Duel',
+      turn: 1,
+      phase: 'astrogation',
+      matchSeed: 0,
+    });
+
+    // First archive: R2 is empty, the writer lays down the canonical
+    // object and the D1 row.
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      db as unknown as D1Database,
+      state,
+      'IDEMPRM',
+    );
+    expect(r2.put).toHaveBeenCalledTimes(1);
+    const firstBody = r2.objects.get('matches/IDEMP-m1.json') ?? '';
+    expect(db.prepare).toHaveBeenCalledTimes(1);
+
+    // Second archive (e.g. alarm path firing after the publication
+    // path already wrote): r2.head sees the existing object so the
+    // rewrite is skipped. D1 is also untouched, so completed_at can
+    // never drift away from the canonical first-write value.
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      db as unknown as D1Database,
+      state,
+      'IDEMPRM',
+    );
+    expect(r2.put).toHaveBeenCalledTimes(1);
+    expect(db.prepare).toHaveBeenCalledTimes(1);
+    expect(r2.objects.get('matches/IDEMP-m1.json')).toBe(firstBody);
   });
 
   it('hides 1-turn disconnect-forfeit rows from the public listing', async () => {
