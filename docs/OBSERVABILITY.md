@@ -125,8 +125,9 @@ flowchart LR
 
 **Lifecycle (normal signals):**
 
-- `game_started` — `{ gameId, code, scenario }`
-- `game_ended` — `{ gameId, code, turn, winner, reason }` (`winner` is `null` on draws)
+- `game_started` — `{ gameId, code, scenario, officialBotMatch, agentSandbox }`
+- `game_ended` — `{ gameId, code, turn, winner, reason, officialBotMatch, agentSandbox }` (`winner` is `null` on draws)
+- `agent_autoplay_fired` — `{ gameId, code, turn, phase, playerId, officialBot, agentSandbox, actionType }`
 - `disconnect_grace_started` — `{ code, player, disconnectAt }` (ms epoch the grace expires)
 - `disconnect_grace_resolved` — `{ code, player }` (marker cleared because the player reconnected)
 - `disconnect_grace_expired` — `{ code, player }` (grace ran out; engine will forfeit)
@@ -135,6 +136,7 @@ flowchart LR
 - `matchmaker_official_bot_filled` — `{ code, scenario, waitedMs, playerKey }` (explicit quick-match fallback acceptance)
 - `matchmaker_official_bot_declined` — `{ scenario, ticket, waitedMs, playerKey }` (player explicitly chose “keep waiting” after the offer appeared)
 - `rating_applied` / `rating_skipped` / `rating_failed` — per-match Glicko-2 outcomes (see `src/server/game-do/telemetry.ts` for props)
+- `mcp_action_accepted` / `mcp_action_rejected` / `mcp_action_failed` / `mcp_action_pending` / `mcp_action_validated` — hosted MCP agent action telemetry, with room code, game id, scenario, turn/phase, player kind, sandbox flag, action type, and compact verdict fields
 
 Official-bot segmentation is now carried through the authoritative server path:
 
@@ -143,6 +145,8 @@ Official-bot segmentation is now carried through the authoritative server path:
 - `match_archive` rows and `GET /api/matches` rows include `officialBotMatch`
 
 That means queue relief, rating impact, and replay/history uptake can all be segmented without inferring from player keys.
+
+Agent sandbox matches set `agentSandbox: true`, skip leaderboard rating/profile writes, are hidden from public live/history listings, and archive with the `agent_sandbox` quality flag.
 
 **Side-channel failures (investigate on spike):**
 
@@ -505,6 +509,20 @@ SELECT COUNT(*) AS n
 FROM events
 WHERE event = 'mcp_observation_timeout'
   AND ts > (strftime('%s','now') - 86400) * 1000;
+
+-- MCP action health (last 24h). Rejection/failure spikes usually point to
+-- stale guards, low decision budgets, or an agent emitting custom malformed
+-- actions instead of candidate indexes.
+SELECT
+  event,
+  json_extract(props, '$.agentSandbox') AS agent_sandbox,
+  json_extract(props, '$.actionType') AS action_type,
+  COUNT(*) AS n
+FROM events
+WHERE event LIKE 'mcp_action_%'
+  AND ts > (strftime('%s','now') - 86400) * 1000
+GROUP BY event, agent_sandbox, action_type
+ORDER BY n DESC;
 
 -- LIVE_REGISTRY failures (last 24h). Non-zero means some matches never
 -- appeared on /matches (register) or stayed visible after end (deregister).

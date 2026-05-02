@@ -12,6 +12,7 @@ export interface LiveMatchEntry {
   code: string;
   scenario: string;
   startedAt: number;
+  publicVisible?: boolean;
 }
 
 interface StoredLiveMatchEntry extends LiveMatchEntry {
@@ -149,17 +150,24 @@ export class LiveRegistryDO extends DurableObject<Env> {
       return new Response('OK', { status: 200 });
     }
 
-    // GET /list — return all live (non-stale) entries
+    // GET /list — return live (non-stale) entries. Hidden entries are
+    // available only to internal callers that pass includeHidden=1.
     if (request.method === 'GET' && url.pathname === '/list') {
       const map = await this.loadIfNeeded();
       const now = Date.now();
+      const includeHidden = url.searchParams.get('includeHidden') === '1';
       const entries: LiveMatchEntry[] = [];
       for (const entry of map.values()) {
-        if (now - entry.startedAt <= MAX_LIVE_AGE_MS) {
+        const visible = entry.publicVisible !== false;
+        if (
+          now - entry.startedAt <= MAX_LIVE_AGE_MS &&
+          (visible || includeHidden)
+        ) {
           entries.push({
             code: entry.code,
             scenario: entry.scenario,
             startedAt: entry.startedAt,
+            ...(visible ? {} : { publicVisible: false }),
           });
         }
       }

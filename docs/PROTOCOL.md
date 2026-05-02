@@ -24,7 +24,7 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 | --- | --- | --- |
 | `/` | GET | Serve the SPA |
 | `/create` | POST | Generate a 5-char room code + creator reconnect token; lock the scenario |
-| `/quick-match` | POST | Enqueue a matchmaking ticket |
+| `/quick-match` | POST | Enqueue a matchmaking ticket; optional `agentSandbox: true` / `unrated: true` creates an unrated evaluation match isolated from rated quick match |
 | `/quick-match/:ticket` | GET | Poll ticket state (`waiting`, `matched`, `expired`) |
 | `/join/:code` | GET | Preflight join / reconnect validation; returns `{ ok, scenario, seatStatus }` on success |
 | `/replay/:code` | GET | Replay for a specific match: public archived replay via `?viewer=spectator&gameId=ROOMCODE-mN`, or player-authenticated replay via `playerToken` |

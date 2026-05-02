@@ -704,6 +704,35 @@ describe('handleMcpRequest', () => {
     expect(consume).toHaveBeenCalledWith(1);
   });
 
+  it('observation route includes agent-ready deadline metadata', async () => {
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(10_000);
+    const stateRef = { current: buildDuelState() };
+    const storage = buildStorageStub();
+    await storage.put('botTurnAt', 40_000);
+    const deps = buildDeps({
+      storage,
+      getCurrentGameState: async () => stateRef.current,
+    });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/observation', { playerToken: TOKEN_B }), {
+        method: 'GET',
+      }),
+    );
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as {
+      agentReady?: Record<string, unknown>;
+    };
+    expect(body.agentReady).toMatchObject({
+      actionable: true,
+      reason: 'your_turn',
+      actionDeadlineAt: 40_000,
+      msUntilAutoplay: 30_000,
+      fallbackAutoplayPending: true,
+    });
+    nowSpy.mockRestore();
+  });
+
   it('observation route returns full structured observation', async () => {
     const stateRef = { current: buildDuelState() };
     const deps = buildDeps({
@@ -820,6 +849,83 @@ describe('handleMcpRequest', () => {
     // stateRef.current was reassigned (we just don't pin a specific phase
     // here because turn-advance behavior depends on the opponent submitting).
     void initialPhase;
+  });
+
+  it('validate-action route dry-runs without publishing state', async () => {
+    const stateRef = { current: buildDuelState() };
+    const originalState = stateRef.current;
+    const built = buildHandlersAgainst(stateRef);
+    const reportMcpEvent = vi.fn();
+    const deps = buildDeps({
+      getCurrentGameState: async () => stateRef.current,
+      handlers: built.handlers,
+      reportMcpEvent,
+    });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/validate-action', { playerToken: TOKEN_B }), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: {
+            type: 'astrogation',
+            orders: stateRef.current.ships
+              .filter((ship) => ship.owner === 1)
+              .map((ship) => ({ shipId: ship.id, burn: null, overload: null })),
+          },
+          autoGuards: false,
+        }),
+      }),
+    );
+
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      ok: true,
+      valid: true,
+      actionType: 'astrogation',
+    });
+    expect(body.predicted).toBeDefined();
+    expect(stateRef.current).toBe(originalState);
+    expect(built.publishCalls).toBe(0);
+    expect(reportMcpEvent).toHaveBeenCalledWith(
+      'mcp_action_validated',
+      expect.objectContaining({ valid: true, actionType: 'astrogation' }),
+    );
+  });
+
+  it('validate-action route explains guard mismatches', async () => {
+    const stateRef = { current: buildDuelState() };
+    const built = buildHandlersAgainst(stateRef);
+    const deps = buildDeps({
+      getCurrentGameState: async () => stateRef.current,
+      handlers: built.handlers,
+    });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(url('/mcp/validate-action', { playerToken: TOKEN_B }), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: {
+            type: 'astrogation',
+            orders: [],
+            guards: { expectedTurn: 999 },
+          },
+          autoGuards: false,
+        }),
+      }),
+    );
+
+    expect(res?.status).toBe(200);
+    const body = (await res?.json()) as {
+      valid: boolean;
+      stage: string;
+      rejection?: { reason: string };
+    };
+    expect(body.valid).toBe(false);
+    expect(body.stage).toBe('guards');
+    expect(body.rejection?.reason).toBe('staleTurn');
   });
 
   it('action route flags autoSkipLikely when control passes away after a phase change', async () => {

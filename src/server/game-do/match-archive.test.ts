@@ -503,6 +503,55 @@ describe('match archival', () => {
     expect(body.qualityFlags).toEqual([]);
   });
 
+  it('hides agent sandbox archives from public history', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const r2 = createMockR2();
+    const db = createMockDb();
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('SANDBOX-m1'),
+      findBaseHex,
+    );
+    state.phase = 'gameOver';
+    state.outcome = { winner: 0, reason: 'Fleet eliminated!' };
+    state.turnNumber = 6;
+
+    await appendEnvelopedEvents(storage, asGameId('SANDBOX-m1'), null, {
+      type: 'gameCreated',
+      scenario: 'Duel',
+      turn: 1,
+      phase: 'astrogation',
+      matchSeed: 0,
+    });
+    await storage.put('roomConfig', {
+      code: 'SBOX1',
+      scenario: 'duel',
+      agentSandbox: true,
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      players: [
+        { playerKey: 'agent_sandbox_a', username: 'Sandbox A', kind: 'agent' },
+        { playerKey: 'agent_sandbox_b', username: 'Sandbox B', kind: 'agent' },
+      ],
+    });
+
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      db as unknown as D1Database,
+      state,
+      'SBOX1',
+    );
+
+    const body = JSON.parse(
+      r2.objects.get('matches/SANDBOX-m1.json') ?? '{}',
+    ) as MatchArchive;
+    expect(body.agentSandbox).toBe(true);
+    expect(body.publicVisible).toBe(false);
+    expect(body.qualityFlags).toContain('agent_sandbox');
+  });
+
   it('flags reserved-test callsign matches as low-quality', async () => {
     const storage = new MockStorage() as unknown as DurableObjectStorage;
     const r2 = createMockR2();

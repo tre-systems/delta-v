@@ -213,6 +213,7 @@ Discrepancies — missing rows, double-writes, mismatched counts, log lines that
 Run against a connected session OR with a fabricated `sessionId` to exercise rejection paths.
 
 - Send actions with: unknown shipId, wrong phase, malformed orders array, oversize cargo, empty `attackerIds`.
+- Before submitting custom actions, call `delta_v_validate_action` and verify invalid actions return a useful `stage` / `message` / `rejection` without changing state.
 - `delta_v_send_chat({ text: "x".repeat(500) })` → should be rejected at the 200-char limit.
 - `delta_v_get_observation({ sessionId: "definitely-not-real" })` → check error shape.
 - `delta_v_quick_match_connect({ scenario: "definitely-not-a-scenario" })` → see if validation happens at queue time.
@@ -220,8 +221,9 @@ Run against a connected session OR with a fabricated `sessionId` to exercise rej
 
 ### R6. MCP-vs-browser pairing without disturbing real users
 
-The public Quick Match queue contains real humans. Two intended pair-mates can be split across other players. Two safer options:
+The public Quick Match queue contains real humans. Two intended pair-mates can be split across other players. Three safer options:
 
+- **Agent sandbox** — for MCP-vs-MCP evaluation, pass `agentSandbox: true` (alias: `unrated: true`) plus a unique `rendezvousCode`. This keeps the match unrated, hidden from public live/history listings, and isolated from the rated queue.
 - **Less popular scenario** — pair MCP and browser on `grandTour` or `interplanetaryWar`, where the queue is usually empty. Still not guaranteed.
 - **Private match by code** — better, but **not currently exposed by local MCP**. Until then, prefer **Play vs AI** for any test that doesn't strictly require a second human-driven seat.
 

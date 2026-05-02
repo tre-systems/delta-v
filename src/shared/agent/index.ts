@@ -80,6 +80,8 @@ export {
 } from './spatial-grid';
 export { buildTacticalFeatures, type TacticalFeatures } from './tactical';
 export type {
+  AgentReadyInfo,
+  AgentReadyReason,
   AgentTurnInput,
   AgentTurnResponse,
   CoachDirective,

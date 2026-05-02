@@ -204,6 +204,10 @@ export const writeMatchRatingIfEligible = async (
     return { ok: true, wrote: false, reason: 'not_matchmaker_paired' };
   }
 
+  if (roomConfig.agentSandbox === true) {
+    return { ok: true, wrote: false, reason: 'agent_sandbox' };
+  }
+
   const [key0, key1] = [
     roomConfig.players[0].playerKey,
     roomConfig.players[1].playerKey,

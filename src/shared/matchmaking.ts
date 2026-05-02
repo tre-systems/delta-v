@@ -8,6 +8,12 @@ export interface QuickMatchRequest {
   scenario?: string;
   rendezvousCode?: string;
   /**
+   * When true, this match is an unrated agent/evaluation sandbox. Sandbox
+   * matches are isolated from the public queue, hidden from public match
+   * listings, and skipped by leaderboard rating/profile writes.
+   */
+  agentSandbox?: boolean;
+  /**
    * When true, the server may convert an already-queued ticket into a
    * rated match against the platform-operated Official Bot once the
    * human-first wait threshold has elapsed.
@@ -25,6 +31,7 @@ export interface QuickMatchQueuedResponse {
   status: 'queued';
   ticket: string;
   scenario: string;
+  agentSandbox?: boolean;
   /** Server-authored signal for whether the explicit Official Bot fallback can be shown now. */
   officialBotOfferAvailable: boolean;
   /** Milliseconds until the fallback becomes available; `null` when the feature is disabled. */
@@ -35,6 +42,7 @@ export interface QuickMatchMatchedResponse {
   status: 'matched';
   ticket: string;
   scenario: string;
+  agentSandbox?: boolean;
   code: RoomCode;
   playerToken: PlayerToken;
 }

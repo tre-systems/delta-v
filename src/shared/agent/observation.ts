@@ -17,6 +17,7 @@ import { buildLegalActionInfo } from './legal-actions';
 import { renderSpatialGrid } from './spatial-grid';
 import { buildTacticalFeatures } from './tactical';
 import type {
+  AgentReadyInfo,
   AgentTurnInput,
   CoachDirective,
   LastTurnAutoPlayed,
@@ -124,6 +125,8 @@ export interface BuildObservationOptions {
   gameCode: string;
   /** When set, attached to the observation once (caller clears after emit). */
   lastTurnAutoPlayed?: LastTurnAutoPlayed;
+  /** Turn-readiness/deadline metadata supplied by the transport layer. */
+  agentReady?: AgentReadyInfo;
   // Pre-built map, when the caller already has one (e.g. the bridge).
   // Omit to build a fresh one.
   map?: SolarSystemMap;
@@ -168,6 +171,7 @@ export const buildObservation = (
     ...(options.lastTurnAutoPlayed
       ? { lastTurnAutoPlayed: options.lastTurnAutoPlayed }
       : {}),
+    ...(options.agentReady ? { agentReady: options.agentReady } : {}),
     summary: includeSummary
       ? buildStateSummary(
           state,

@@ -27,16 +27,19 @@ The canonical hosted loop is:
 3. `tools/call` `delta_v_quick_match`
 4. `tools/call` `delta_v_wait_for_turn`
 5. choose `candidates[recommendedIndex]`
-6. `tools/call` `delta_v_send_action`
-7. repeat until `gameOver`
-8. `tools/call` `delta_v_close_session`
+6. optionally `tools/call` `delta_v_validate_action` for custom/risky actions
+7. `tools/call` `delta_v_send_action`
+8. repeat until `gameOver`
+9. `tools/call` `delta_v_close_session`
 
 Important operating rules:
 
 - Send `Authorization: Bearer <agentToken>` and `Accept: application/json, text/event-stream` on every hosted `POST /mcp`; new HTTP clients should also initialize with MCP protocol version `2025-11-25` and send `MCP-Protocol-Version: 2025-11-25` after initialization.
 - Treat `delta_v_quick_match` as the canonical name. `delta_v_quick_match_connect` is only a compatibility alias.
+- Use `agentSandbox: true` (alias: `unrated: true`) plus a unique `rendezvousCode` for smoke/evaluation games. Omit it only for intentional rated leaderboard play.
 - If the first actionable observation is still `fleetBuilding`, you still need to send `fleetReady` explicitly.
 - If `delta_v_send_action(...waitForResult=true)` returns `autoSkipLikely: true`, call `delta_v_wait_for_turn` instead of immediately chaining the returned `nextPhase`.
+- Use `agentReady.msUntilAutoplay` as a hard budget signal when present.
 
 ## Decision table
 
@@ -44,6 +47,7 @@ Important operating rules:
 | --- | --- |
 | `state.phase === 'fleetBuilding'` | Send `fleetReady`, even if `purchases` is empty |
 | `actionRejected.reason = staleTurn / stalePhase / wrongActivePlayer` | throw away the old plan and re-decide from the returned fresh state |
+| `delta_v_validate_action.valid = false` | read `stage` / `message` / `rejection`, then choose a fresh candidate |
 | `actionResult.autoSkipLikely = true` | call `delta_v_wait_for_turn` instead of chaining the returned `nextPhase` |
 | local MCP disconnect | inspect `delta_v_list_sessions`, then call `delta_v_reconnect` on the same `sessionId` |
 | `state.phase === 'gameOver'` or `state.outcome` exists | stop sending actions and call `delta_v_close_session` |
@@ -57,7 +61,9 @@ Use when you want the smallest possible real example of the hosted MCP path. It 
 - issues an `agentToken`
 - initializes the MCP session
 - queues one quick match
+- supports `AGENT_SANDBOX=1` and `RENDEZVOUS_CODE=...` for unrated paired evaluation
 - waits for turns with summary + candidate labels
+- validates the selected action before submitting it
 - sends the recommended legal action
 - closes the session when the match ends
 
@@ -85,6 +91,7 @@ Use when you need to verify the hosted MCP surface under parallel usage:
 
 - multiple agents
 - repeated `delta_v_wait_for_turn` / `delta_v_send_action`
+- sandboxed by default (`AGENT_SANDBOX=0` opts back into rated/public quick match)
 - useful for regression and operational smoke checks
 
 ## Recommended packaging pattern for external agents

@@ -46,6 +46,7 @@ export interface MatchArchive {
   // and qualityFlags=null.
   publicVisible: boolean;
   qualityFlags: ArchiveQualityFlag[];
+  agentSandbox?: boolean;
 }
 
 // Reasons an archived match should be hidden from the public listing.
@@ -55,7 +56,8 @@ export type ArchiveQualityFlag =
   | 'short_disconnect_forfeit'
   | 'no_outcome'
   | 'unidentified_participants'
-  | 'reserved_test_callsign';
+  | 'reserved_test_callsign'
+  | 'agent_sandbox';
 
 const SHORT_MATCH_TURN_LIMIT = 2;
 
@@ -68,8 +70,13 @@ const computeArchiveQuality = (input: {
   winner: PlayerId | null;
   playerAUsername: string | null;
   playerBUsername: string | null;
+  agentSandbox: boolean;
 }): { publicVisible: boolean; qualityFlags: ArchiveQualityFlag[] } => {
   const flags: ArchiveQualityFlag[] = [];
+
+  if (input.agentSandbox) {
+    flags.push('agent_sandbox');
+  }
 
   // Short disconnect-forfeit rows are the dominant noise source — a
   // create-and-walk-away leaves a 1-turn 'Opponent disconnected' row
@@ -170,6 +177,7 @@ export const archiveCompletedMatch = async (
     const officialBotMatch = hasOfficialQuickMatchBot(
       roomConfig?.players ?? [],
     );
+    const agentSandbox = roomConfig?.agentSandbox === true;
 
     // Snapshot participant callsigns at archive time. Default-only
     // identities are normalised to null so the public listing renders a
@@ -219,6 +227,7 @@ export const archiveCompletedMatch = async (
       winner,
       playerAUsername,
       playerBUsername,
+      agentSandbox,
     });
     const qualityFlagsJson =
       qualityFlags.length > 0 ? JSON.stringify(qualityFlags) : null;
@@ -241,6 +250,7 @@ export const archiveCompletedMatch = async (
       winnerUsername,
       publicVisible,
       qualityFlags,
+      ...(agentSandbox ? { agentSandbox: true } : {}),
     };
 
     await r2.put(r2Key(gameId), JSON.stringify(archive), {

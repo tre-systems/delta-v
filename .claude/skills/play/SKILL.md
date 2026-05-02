@@ -18,14 +18,15 @@ You are an autonomous agent playing Delta-V, a turn-based space combat game with
 ## MCP entry (pick one)
 
 - **This skill + Cursor/local MCP:** configure the repo’s stdio server (`npm run mcp:delta-v`). Use `delta_v_quick_match` or its compatibility alias `delta_v_quick_match_connect`. For a **single** agent against production matchmaking you still need a second human/agent client; do not block forever waiting for a public opponent. Local MCP defaults observation `state` to a compact `{ phase, turnNumber, activePlayer }` shape; pass **`compactState: false`** on `get_observation` / `wait_for_turn` / `send_action` only when you need the full `GameState`.
-- **Hosted / evaluation:** use remote MCP with `agentToken` + `delta_v_quick_match` / `matchToken` as in [`AGENTS.md`](../../../docs/AGENTS.md).
+- **Hosted / evaluation:** use remote MCP with `agentToken` + `delta_v_quick_match` / `matchToken` as in [`AGENTS.md`](../../../docs/AGENTS.md). Pass `agentSandbox: true` for smoke/evaluation games that must not affect ratings, public live matches, or public history.
 - **Deterministic local two-seat test:** queue two seats with the same `rendezvousCode` and `waitForOpponent: false`, then connect them with `delta_v_pair_quick_match_tickets`. This avoids the public queue and is the best way to test whether the skill can actually complete turns.
 
 ## Live Production Cautions
 
-- Completed production matches are rated and can create provisional leaderboard rows. Use obvious throwaway `agent_skill...` keys / `Pilot XXXX` callsigns only when the operator is comfortable cleaning them up afterward.
+- Rated production quick-match creates leaderboard/history rows. For skill tests and evaluation games, pass `agentSandbox: true` (alias: `unrated: true`) plus a unique `rendezvousCode`.
 - Quick-match traffic should use a unique `rendezvousCode`; never let automated skill tests enter the public queue.
 - External user-agent seats get a fallback autoplay window before the server applies a built-in policy action. If an observation includes `lastTurnAutoPlayed`, you missed that window; inspect the applied candidate, tighten your loop, and continue.
+- Read `agentReady.actionDeadlineAt` / `agentReady.msUntilAutoplay` when present. Submit before that deadline or expect fallback autoplay.
 - The platform Official Bot is different: it is intentionally server-controlled and acts quickly.
 
 ## Recommended Observation Shape
@@ -72,6 +73,7 @@ delta_v_quick_match_connect({
   scenario: "<scenario or duel>",
   serverUrl: "http://127.0.0.1:8787",
   rendezvousCode: "skilltest<suffix>",
+  agentSandbox: true,
   waitForOpponent: false
 })
 
@@ -81,6 +83,7 @@ delta_v_quick_match_connect({
   scenario: "<same scenario>",
   serverUrl: "http://127.0.0.1:8787",
   rendezvousCode: "skilltest<suffix>",
+  agentSandbox: true,
   waitForOpponent: false
 })
 
@@ -121,7 +124,7 @@ On each observation:
 3. If `coachDirective` is present, read it first: it is short human coaching for this seat. Prefer candidates that honor it when they remain tactically sound; if it conflicts with obvious survival, say so briefly and favor survival.
 4. Read the `summary`, `spatialGrid`, `tactical`, and `labeledCandidates`.
 5. **Analyze the position** using the tactical principles below — don't just pick `recommendedIndex`.
-6. Choose an action: pick a candidate OR craft a custom action.
+6. Choose an action: pick a candidate OR craft a custom action. Before sending a custom/risky action, call `delta_v_validate_action` and re-decide if it returns `valid: false`.
 7. Send via `delta_v_send_action` with closed-loop response:
 
 ```

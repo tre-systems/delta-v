@@ -11,7 +11,9 @@ import {
 import WebSocket from 'ws';
 
 import {
+  type AgentReadyInfo,
   type AgentTurnInput,
+  allowedActionTypesForPhase,
   buildLeaderboardAgentsResourceDocument,
   buildMatchLogResourceDocument,
   buildMatchObservationResourceDocument,
@@ -36,6 +38,7 @@ import {
   shapeObservationState,
 } from '../src/shared/agent';
 import { patchTransportWithSerializedSends } from '../src/shared/mcp-stdio-serialized-send';
+import { validateClientMessage } from '../src/shared/protocol';
 import type { ReplayTimeline } from '../src/shared/replay';
 import type { GameState } from '../src/shared/types/domain';
 import type { C2S, S2C } from '../src/shared/types/protocol';
@@ -248,6 +251,24 @@ const isActionable = (state: GameState, playerId: PlayerSeat): boolean => {
   }
 };
 
+const buildLocalAgentReadyInfo = (
+  state: GameState,
+  playerId: PlayerSeat,
+): AgentReadyInfo => ({
+  actionable: isActionable(state, playerId),
+  reason:
+    state.phase === 'gameOver'
+      ? 'game_over'
+      : state.phase === 'fleetBuilding'
+        ? 'fleet_building'
+        : state.activePlayer === playerId
+          ? 'your_turn'
+          : 'waiting_for_opponent',
+  actionDeadlineAt: null,
+  msUntilAutoplay: null,
+  fallbackAutoplayPending: false,
+});
+
 // Wait for the next state-bearing S2C message or a timeout.
 // Returns true if a state arrived, false on timeout.
 const waitForNextState = async (
@@ -408,6 +429,119 @@ const inferSurrenderShipIds = (session: DeltaVSession, action: C2S): C2S => {
   };
 };
 
+const validateLocalActionForSession = (
+  session: DeltaVSession,
+  rawAction: unknown,
+  autoGuards: boolean | undefined,
+): Record<string, unknown> => {
+  if (session.lastState === null) {
+    return {
+      valid: false,
+      stage: 'state',
+      message: 'Session has no state yet',
+    };
+  }
+  if (session.playerId === null) {
+    return {
+      valid: false,
+      stage: 'state',
+      message: 'Session has not received playerId yet',
+    };
+  }
+  const state = session.lastState;
+  if (!rawAction || typeof rawAction !== 'object') {
+    return {
+      valid: false,
+      stage: 'shape',
+      message: 'action must be an object with a `type` field',
+    };
+  }
+
+  const shouldAutoGuard = autoGuards ?? true;
+  let candidateRaw: C2S;
+  try {
+    candidateRaw = inferSurrenderShipIds(session, rawAction as C2S);
+  } catch (error) {
+    return {
+      valid: false,
+      stage: 'shape',
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+  const action: C2S =
+    shouldAutoGuard && !candidateRaw.guards
+      ? ({
+          ...candidateRaw,
+          guards: {
+            expectedTurn: state.turnNumber,
+            expectedPhase: state.phase,
+            idempotencyKey: `t${state.turnNumber}-${state.phase}-${randomUUID()}`,
+          },
+        } as C2S)
+      : candidateRaw;
+
+  const parsed = validateClientMessage(action);
+  if (!parsed.ok) {
+    return {
+      valid: false,
+      stage: 'shape',
+      message: parsed.error,
+      action,
+    };
+  }
+
+  const allowedTypes = allowedActionTypesForPhase(state.phase);
+  if (!allowedTypes.has(parsed.value.type)) {
+    return {
+      valid: false,
+      stage: 'phase',
+      actionType: parsed.value.type,
+      phase: state.phase,
+      allowedTypes: [...allowedTypes],
+      message: `Action type "${parsed.value.type}" is not allowed during ${state.phase}`,
+      action: parsed.value,
+    };
+  }
+
+  const sequential =
+    state.phase === 'astrogation' ||
+    state.phase === 'ordnance' ||
+    state.phase === 'combat' ||
+    state.phase === 'logistics';
+  if (sequential && state.activePlayer !== session.playerId) {
+    return {
+      valid: false,
+      stage: 'turn',
+      actionType: parsed.value.type,
+      message: `not your turn in ${state.phase} (active player is ${state.activePlayer})`,
+      action: parsed.value,
+    };
+  }
+
+  const candidates = buildObservation(state, session.playerId, {
+    gameCode: session.code,
+    includeSummary: false,
+    includeLegalActionInfo: false,
+  }).candidates;
+  const actionWithoutGuards = { ...parsed.value, guards: undefined };
+  const candidateIndex = candidates.findIndex(
+    (candidate) =>
+      JSON.stringify(candidate) === JSON.stringify(actionWithoutGuards),
+  );
+
+  return {
+    valid: true,
+    stage: 'static',
+    actionType: parsed.value.type,
+    action: parsed.value,
+    candidateIndex: candidateIndex >= 0 ? candidateIndex : null,
+    message:
+      candidateIndex >= 0
+        ? `Matches candidate ${candidateIndex}.`
+        : 'Shape, phase, and turn checks pass; action is custom and will be engine-validated on submit.',
+  };
+};
+
 const buildLocalMatchObservationResource = (session: DeltaVSession): string => {
   if (!session.lastState) {
     throw new Error(
@@ -424,6 +558,7 @@ const buildLocalMatchObservationResource = (session: DeltaVSession): string => {
     includeSummary: true,
     includeLegalActionInfo: true,
     includeCandidateLabels: true,
+    agentReady: buildLocalAgentReadyInfo(session.lastState, session.playerId),
   });
   return JSON.stringify(
     buildMatchObservationResourceDocument(
@@ -692,6 +827,8 @@ const QUICK_MATCH_CONNECT_SCHEMA = {
   rendezvousCode: z.string().min(3).max(16).optional(),
   username: z.string().min(2).max(20).optional(),
   playerKey: z.string().min(8).max(64).optional(),
+  agentSandbox: z.boolean().optional(),
+  unrated: z.boolean().optional(),
   waitForOpponent: z.boolean().optional(),
   pollMs: z.number().int().min(200).max(10_000).optional(),
   timeoutMs: z.number().int().min(5_000).max(600_000).optional(),
@@ -743,6 +880,8 @@ const handleQuickMatchConnect = async (args: {
   rendezvousCode?: string;
   username?: string;
   playerKey?: string;
+  agentSandbox?: boolean;
+  unrated?: boolean;
   waitForOpponent?: boolean;
   pollMs?: number;
   timeoutMs?: number;
@@ -757,6 +896,7 @@ const handleQuickMatchConnect = async (args: {
   if (!playerKey.startsWith('agent_')) {
     throw new Error('playerKey must start with "agent_"');
   }
+  const agentSandbox = args.agentSandbox === true || args.unrated === true;
 
   const matched = await queueForMatch({
     serverUrl,
@@ -764,6 +904,7 @@ const handleQuickMatchConnect = async (args: {
     rendezvousCode: args.rendezvousCode,
     username: args.username ?? 'Agent',
     playerKey,
+    agentSandbox,
     waitForOpponent: args.waitForOpponent,
     pollMs: args.pollMs ?? 1000,
     timeoutMs: args.timeoutMs ?? 120_000,
@@ -778,6 +919,7 @@ const handleQuickMatchConnect = async (args: {
         ticket: matched.ticket,
         playerKey,
         rendezvousCode: args.rendezvousCode ?? null,
+        agentSandbox,
         status: 'queued',
         connected: false,
         sessionId: null,
@@ -805,6 +947,7 @@ const handleQuickMatchConnect = async (args: {
       ticket: matched.ticket,
       playerKey,
       rendezvousCode: args.rendezvousCode ?? null,
+      agentSandbox: matched.agentSandbox === true || agentSandbox,
       connectionStatus: session.connectionStatus,
       connected: true,
     },
@@ -815,7 +958,7 @@ server.registerTool(
   'delta_v_quick_match_connect',
   {
     description:
-      'Queue for quick match, optionally return the ticket immediately with waitForOpponent=false, or wait for match and connect a player WebSocket session. Returns sessionId and matchToken (alias of sessionId) for local/hosted payload parity when connected. If the first actionable observation is still fleetBuilding, send fleetReady explicitly; the game only advances after both seats submit it.',
+      'Queue for quick match, optionally return the ticket immediately with waitForOpponent=false, or wait for match and connect a player WebSocket session. Pass agentSandbox=true (alias: unrated=true) for unrated evaluation matches isolated from the public/rated queue. Returns sessionId and matchToken (alias of sessionId) for local/hosted payload parity when connected. If the first actionable observation is still fleetBuilding, send fleetReady explicitly; the game only advances after both seats submit it.',
     inputSchema: QUICK_MATCH_CONNECT_SCHEMA,
   },
   handleQuickMatchConnect,
@@ -879,6 +1022,8 @@ server.registerTool(
         serverUrl: resolvedServerUrl,
         code: leftMatch.code,
         scenario: leftMatch.scenario,
+        agentSandbox:
+          leftMatch.agentSandbox === true || rightMatch.agentSandbox === true,
         left: {
           ticket: leftMatch.ticket,
           sessionId: leftSession.sessionId,
@@ -1013,6 +1158,7 @@ server.registerTool(
       includeTactical,
       includeSpatialGrid,
       includeCandidateLabels,
+      agentReady: buildLocalAgentReadyInfo(session.lastState, session.playerId),
     });
     const out = shapeObservationForTool(observation, compactState);
 
@@ -1127,6 +1273,7 @@ server.registerTool(
             includeTactical,
             includeSpatialGrid,
             includeCandidateLabels,
+            agentReady: buildLocalAgentReadyInfo(state, playerId),
           });
           const out = shapeObservationForTool(observation, compactState);
           return toolOk(
@@ -1288,6 +1435,7 @@ server.registerTool(
         includeTactical,
         includeSpatialGrid,
         includeCandidateLabels,
+        agentReady: buildLocalAgentReadyInfo(state, session.playerId),
       });
       return shapeObservationForTool(
         observation,
@@ -1407,6 +1555,45 @@ server.registerTool(
         guardStatus: pendingGuardStatus,
         pending: true,
         guarded: Boolean(payload.guards),
+      },
+    );
+  },
+);
+
+server.registerTool(
+  'delta_v_validate_action',
+  {
+    description:
+      'Dry-run a C2S game-state action for the current local MCP session without applying it. Local validation checks shape, phase, active player, and whether it matches a recommended candidate; hosted MCP additionally engine-validates the action.',
+    inputSchema: {
+      sessionId: z.string().optional(),
+      matchToken: z.string().optional(),
+      action: z.object({ type: z.string() }).passthrough(),
+      autoGuards: z.boolean().optional(),
+    },
+  },
+  async ({ sessionId, matchToken, action, autoGuards }) => {
+    const resolvedSessionId = resolveSessionIdOrThrow({
+      sessionId,
+      matchToken,
+    });
+    const session = getSessionOrThrow(resolvedSessionId);
+    const validation = validateLocalActionForSession(
+      session,
+      action,
+      autoGuards,
+    );
+    return toolOk(
+      `Action ${action.type} on session ${resolvedSessionId} is ${validation.valid === true ? 'valid' : 'invalid'}.`,
+      {
+        sessionId: session.sessionId,
+        matchToken: session.sessionId,
+        code: session.code,
+        playerId: session.playerId,
+        turn: session.lastState?.turnNumber ?? null,
+        phase: session.lastState?.phase ?? null,
+        activePlayer: session.lastState?.activePlayer ?? null,
+        ...validation,
       },
     );
   },

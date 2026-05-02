@@ -484,6 +484,8 @@ export const buildMcpServer = (
         .optional(),
       username: z.string().min(2).max(20).optional(),
       playerKey: z.string().min(8).max(64).optional(),
+      agentSandbox: z.boolean().optional(),
+      unrated: z.boolean().optional(),
       waitForOpponent: z.boolean().optional(),
       pollMs: z.number().int().min(200).max(5_000).optional(),
       timeoutMs: z.number().int().min(5_000).max(120_000).optional(),
@@ -510,11 +512,13 @@ export const buildMcpServer = (
       playerKey.startsWith('agent_') &&
         authenticatedAgent.payload.playerKey === playerKey,
     );
+    const agentSandbox = args.agentSandbox === true || args.unrated === true;
     const matched = await queueRemoteMatch(env, {
       scenario: args.scenario ?? 'duel',
       rendezvousCode: args.rendezvousCode,
       username,
       playerKey,
+      agentSandbox,
       waitForOpponent: args.waitForOpponent,
       pollMs: args.pollMs,
       timeoutMs: args.timeoutMs,
@@ -529,6 +533,7 @@ export const buildMcpServer = (
           ticket: matched.ticket,
           scenario: matched.scenario,
           rendezvousCode: args.rendezvousCode ?? null,
+          agentSandbox,
           playerKey,
         },
       );
@@ -547,6 +552,7 @@ export const buildMcpServer = (
       matchTokenExpiresAt: expiresAt,
       scenario: matched.scenario,
       rendezvousCode: args.rendezvousCode ?? null,
+      agentSandbox: matched.agentSandbox === true || agentSandbox,
       ticket: matched.ticket,
       playerKey,
     });
@@ -556,7 +562,7 @@ export const buildMcpServer = (
     'delta_v_quick_match',
     {
       description:
-        'Queue for public matchmaking. Requires Authorization: Bearer <agentToken>. With waitForOpponent=false, returns a queued ticket immediately so another client can join later; otherwise blocks until paired. On match, returns { matchToken, sessionId, scenario } where matchToken is the canonical opaque handle for later tool calls and sessionId is a hosted compatibility alias. username/playerKey are inferred from the agentToken when present.',
+        'Queue for matchmaking. Requires Authorization: Bearer <agentToken>. With agentSandbox=true (alias: unrated=true), creates an unrated evaluation match isolated from the public/rated queue. With waitForOpponent=false, returns a queued ticket immediately so another client can join later; otherwise blocks until paired. On match, returns { matchToken, sessionId, scenario } where matchToken is the canonical opaque handle for later tool calls and sessionId is a hosted compatibility alias. username/playerKey are inferred from the agentToken when present.',
       inputSchema: quickMatchInputSchema,
     },
     quickMatchHandler,
@@ -585,7 +591,7 @@ export const buildMcpServer = (
         );
       }
       const authenticatedAgent: AgentIdentity = agentIdentity;
-      const live = await handleLiveMatchesList(env);
+      const live = await handleLiveMatchesList(env, { includeHidden: true });
       const body = (await live.json()) as {
         matches?: Array<{ code: string; scenario: string; startedAt: number }>;
       };
@@ -787,6 +793,40 @@ export const buildMcpServer = (
       const accepted = body.accepted === true ? 'accepted' : 'not accepted';
       return ok(
         `Action ${args.action.type} on ${target.code}: ${accepted}.`,
+        body,
+      );
+    },
+  );
+
+  server.registerTool(
+    'delta_v_validate_action',
+    {
+      description:
+        'Dry-run a C2S game-state action for the current hosted match without applying it. Returns valid=false with a stage/message/rejection when the action shape, phase, guards, idempotency key, or engine rules would reject it; returns predicted next turn/phase/effects when valid.',
+      inputSchema: {
+        ...matchTargetSchema,
+        action: z.object({ type: z.string() }).passthrough(),
+        autoGuards: z.boolean().optional(),
+      },
+    },
+    async (args) => {
+      const target = await resolveMatchTarget(args, env, agentIdentity);
+      const response = await callDurableObject(env, target.code, {
+        url: `${SERVER_INTERNAL}/mcp/validate-action?playerToken=${encodeURIComponent(target.playerToken)}`,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: args.action,
+          autoGuards: args.autoGuards,
+        }),
+      });
+      const body = (await response.json()) as JsonRecord;
+      if (!response.ok) {
+        return ok(`validate_action failed for ${target.code}.`, body);
+      }
+      const verdict = body.valid === true ? 'valid' : 'invalid';
+      return ok(
+        `Action ${args.action.type} on ${target.code} is ${verdict}.`,
         body,
       );
     },

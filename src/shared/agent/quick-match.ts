@@ -15,6 +15,8 @@ export interface QuickMatchArgs {
   pollMs?: number;
   timeoutMs?: number;
   waitForOpponent?: boolean;
+  /** Unrated agent/evaluation sandbox; isolated from public/rated queue. */
+  agentSandbox?: boolean;
   /**
    * When omitted and `playerKey` starts with `agent_`, a token is minted via
    * POST /api/agent-token then sent as Authorization on `/quick-match`.
@@ -34,6 +36,7 @@ export type QuickMatchResult =
       status: 'queued';
       ticket: string;
       scenario: string;
+      agentSandbox?: boolean;
     }
   | {
       status: 'matched';
@@ -41,6 +44,7 @@ export type QuickMatchResult =
       playerToken: string;
       ticket: string;
       scenario: string;
+      agentSandbox?: boolean;
     };
 
 export const requireMatchedQuickMatch = (
@@ -101,6 +105,7 @@ export const pollQuickMatchTicket = async (
         playerToken: poll.playerToken,
         ticket: poll.ticket,
         scenario: poll.scenario,
+        ...(poll.agentSandbox ? { agentSandbox: true } : {}),
       };
     }
     if (poll.status === 'expired') {
@@ -159,6 +164,7 @@ export const queueForMatch = async (
       body: JSON.stringify({
         scenario: args.scenario,
         rendezvousCode: args.rendezvousCode,
+        ...(args.agentSandbox ? { agentSandbox: true } : {}),
         player: {
           playerKey: args.playerKey,
           username: args.username,
@@ -174,6 +180,7 @@ export const queueForMatch = async (
       playerToken: enqueue.playerToken,
       ticket: enqueue.ticket,
       scenario: enqueue.scenario,
+      ...(enqueue.agentSandbox ? { agentSandbox: true } : {}),
     };
   }
 
@@ -186,6 +193,7 @@ export const queueForMatch = async (
       status: 'queued',
       ticket: enqueue.ticket,
       scenario: enqueue.scenario,
+      ...(enqueue.agentSandbox ? { agentSandbox: true } : {}),
     };
   }
 

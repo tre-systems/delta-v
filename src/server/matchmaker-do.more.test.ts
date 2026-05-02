@@ -294,6 +294,84 @@ describe('MatchmakerDO additional coverage', () => {
     ).toEqual([{ playerKey: 'playerpub1', rendezvousCode: null }]);
   });
 
+  it('isolates agent sandbox tickets from rated quick match and marks init payload unrated', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { matchmaker, initFetch, storage } = createMatchmaker();
+
+    await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'duel',
+          player: {
+            playerKey: 'agent_rated_a',
+            username: 'Rated A',
+          },
+        }),
+      }),
+    );
+
+    const sandboxA = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'duel',
+          agentSandbox: true,
+          player: {
+            playerKey: 'agent_sandbox_a',
+            username: 'Sandbox A',
+          },
+        }),
+      }),
+    );
+    await expect(sandboxA.json()).resolves.toMatchObject({
+      status: 'queued',
+      agentSandbox: true,
+    });
+    expect(initFetch).not.toHaveBeenCalled();
+
+    const sandboxB = await matchmaker.fetch(
+      new Request('https://matchmaker.internal/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: 'duel',
+          unrated: true,
+          player: {
+            playerKey: 'agent_sandbox_b',
+            username: 'Sandbox B',
+          },
+        }),
+      }),
+    );
+    await expect(sandboxB.json()).resolves.toMatchObject({
+      status: 'matched',
+      agentSandbox: true,
+    });
+
+    expect(initFetch).toHaveBeenCalledTimes(1);
+    const initBody = JSON.parse(
+      await initFetch.mock.calls[0][0].text(),
+    ) as Record<string, unknown>;
+    expect(initBody.agentSandbox).toBe(true);
+
+    const queue = (await storage.get('quickMatchQueue')) as Array<{
+      player: { playerKey: string };
+      agentSandbox?: boolean;
+      status: string;
+    }>;
+    expect(
+      queue
+        .filter((entry) => entry.status === 'queued')
+        .map((entry) => ({
+          playerKey: entry.player.playerKey,
+          agentSandbox: entry.agentSandbox === true,
+        })),
+    ).toEqual([{ playerKey: 'agent_rated_a', agentSandbox: false }]);
+  });
+
   it('returns a matched response when an already-matched player re-enqueues', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1_000);
     const { matchmaker } = createMatchmaker();

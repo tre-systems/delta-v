@@ -20,6 +20,8 @@ export interface QuickMatchArgs {
   pollMs?: number;
   timeoutMs?: number;
   waitForOpponent?: boolean;
+  /** Unrated agent/evaluation sandbox; isolated from public/rated queue. */
+  agentSandbox?: boolean;
   /** When true, enqueue carries the internal verified-agent header for leaderboard isAgent. */
   verifiedLeaderboardAgent?: boolean;
 }
@@ -29,6 +31,7 @@ export type QuickMatchResult =
       status: 'queued';
       ticket: string;
       scenario: string;
+      agentSandbox?: boolean;
     }
   | {
       status: 'matched';
@@ -36,6 +39,7 @@ export type QuickMatchResult =
       playerToken: string;
       ticket: string;
       scenario: string;
+      agentSandbox?: boolean;
     };
 
 const MATCHMAKER_BASE = 'https://matchmaker.internal';
@@ -71,6 +75,7 @@ export const queueRemoteMatch = async (
       body: JSON.stringify({
         scenario: args.scenario,
         rendezvousCode: args.rendezvousCode,
+        ...(args.agentSandbox ? { agentSandbox: true } : {}),
         player: {
           playerKey: args.playerKey,
           username: args.username,
@@ -91,6 +96,7 @@ export const queueRemoteMatch = async (
       playerToken: enqueued.playerToken,
       ticket: enqueued.ticket,
       scenario: enqueued.scenario,
+      ...(enqueued.agentSandbox ? { agentSandbox: true } : {}),
     };
   }
   if (enqueued.status !== 'queued') {
@@ -104,6 +110,7 @@ export const queueRemoteMatch = async (
       status: 'queued',
       ticket,
       scenario: enqueued.scenario,
+      ...(enqueued.agentSandbox ? { agentSandbox: true } : {}),
     };
   }
   const pollMs = args.pollMs ?? 750;
@@ -125,6 +132,7 @@ export const queueRemoteMatch = async (
         playerToken: body.playerToken,
         ticket,
         scenario: body.scenario,
+        ...(body.agentSandbox ? { agentSandbox: true } : {}),
       };
     }
     if (body.status === 'expired') {
