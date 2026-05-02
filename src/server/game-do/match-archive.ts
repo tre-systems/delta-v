@@ -2,6 +2,7 @@ import type { EventEnvelope } from '../../shared/engine/engine-events';
 import type { GameId } from '../../shared/ids';
 import { hasOfficialQuickMatchBot } from '../../shared/player';
 import type { GameState, PlayerId } from '../../shared/types/domain';
+import { isReservedTestUsername } from '../leaderboard/username';
 import type { RoomConfig } from '../protocol';
 import {
   type Checkpoint,
@@ -37,7 +38,81 @@ export interface MatchArchive {
   playerAUsername: string | null;
   playerBUsername: string | null;
   winnerUsername: string | null;
+  // Quality / visibility metadata persisted alongside the archive
+  // (migration 0008). `publicVisible` is the toggle the public
+  // `/api/matches` listing filters on; `qualityFlags` records the
+  // reasons the row was hidden so operators can audit later. Older
+  // archives written before migration 0008 default to publicVisible=true
+  // and qualityFlags=null.
+  publicVisible: boolean;
+  qualityFlags: ArchiveQualityFlag[];
 }
+
+// Reasons an archived match should be hidden from the public listing.
+// Each value names the specific noise pattern that fired the hide so
+// operators can audit visibility decisions later.
+export type ArchiveQualityFlag =
+  | 'short_disconnect_forfeit'
+  | 'no_outcome'
+  | 'unidentified_participants'
+  | 'reserved_test_callsign';
+
+const SHORT_MATCH_TURN_LIMIT = 2;
+
+// Compute the visibility / quality-flag set for a freshly archived
+// match. Returns `publicVisible: false` if any flag fires; the row is
+// still written to D1 + R2 so internal audit queries can reach it.
+const computeArchiveQuality = (input: {
+  turnCount: number;
+  winReason: string | null;
+  winner: PlayerId | null;
+  playerAUsername: string | null;
+  playerBUsername: string | null;
+}): { publicVisible: boolean; qualityFlags: ArchiveQualityFlag[] } => {
+  const flags: ArchiveQualityFlag[] = [];
+
+  // Short disconnect-forfeit rows are the dominant noise source — a
+  // create-and-walk-away leaves a 1-turn 'Opponent disconnected' row
+  // that has no real game content and pushes real matches off the
+  // listing. The 2026-05-02 audit found 14 of 94 archived rows (15%)
+  // matched this shape.
+  if (
+    input.winReason === 'Opponent disconnected' &&
+    input.turnCount <= SHORT_MATCH_TURN_LIMIT
+  ) {
+    flags.push('short_disconnect_forfeit');
+  }
+
+  // A match completed with no winner and no win_reason is an
+  // interrupted / abandoned game that never reached an engine
+  // resolution. Useful for audit but not for public history.
+  if (input.winner === null && input.winReason === null) {
+    flags.push('no_outcome');
+  }
+
+  // Both participants snapshot to null means the row will display as
+  // "PLAYER 1 vs Player 2" — no real identity to surface. Listing it
+  // adds nothing for visitors.
+  if (input.playerAUsername === null && input.playerBUsername === null) {
+    flags.push('unidentified_participants');
+  }
+
+  // Reserved test prefixes (`QA_`, `Probe_`, `Bot_`, etc.) are seeded
+  // identities used by exploratory passes; keep them out of the public
+  // listing even when the match itself is well-formed.
+  const isReservedSnapshot = (username: string | null): boolean =>
+    typeof username === 'string' && isReservedTestUsername(username);
+  if (
+    isReservedSnapshot(input.playerAUsername) ||
+    isReservedSnapshot(input.playerBUsername)
+  ) {
+    flags.push('reserved_test_callsign');
+  }
+
+  return { publicVisible: flags.length === 0, qualityFlags: flags };
+};
+
+export const archiveQualityForTest = computeArchiveQuality;
 
 const r2Key = (gameId: GameId): string => `matches/${gameId}.json`;
 export const MATCH_ARCHIVE_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
@@ -116,13 +191,24 @@ export const archiveCompletedMatch = async (
     const winner = state.outcome?.winner ?? null;
     const winnerUsername =
       winner === 0 ? playerAUsername : winner === 1 ? playerBUsername : null;
+    const winReason = state.outcome?.reason ?? null;
+
+    const { publicVisible, qualityFlags } = computeArchiveQuality({
+      turnCount: state.turnNumber,
+      winReason,
+      winner,
+      playerAUsername,
+      playerBUsername,
+    });
+    const qualityFlagsJson =
+      qualityFlags.length > 0 ? JSON.stringify(qualityFlags) : null;
 
     const archive: MatchArchive = {
       gameId,
       roomCode,
       scenario: state.scenario,
       winner,
-      winReason: state.outcome?.reason ?? null,
+      winReason,
       turnCount: state.turnNumber,
       createdAt: matchCreatedAt ?? checkpoint?.savedAt ?? Date.now(),
       completedAt: Date.now(),
@@ -133,6 +219,8 @@ export const archiveCompletedMatch = async (
       playerAUsername,
       playerBUsername,
       winnerUsername,
+      publicVisible,
+      qualityFlags,
     };
 
     await r2.put(r2Key(gameId), JSON.stringify(archive), {
@@ -149,15 +237,16 @@ export const archiveCompletedMatch = async (
           'INSERT OR IGNORE INTO match_archive ' +
             '(game_id, room_code, scenario, winner, ' +
             'win_reason, turns, created_at, completed_at, match_coached, official_bot_match, ' +
-            'player_a_username, player_b_username, winner_username) ' +
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'player_a_username, player_b_username, winner_username, ' +
+            'public_visible, quality_flags) ' +
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .bind(
           gameId,
           roomCode,
           state.scenario,
           winner,
-          state.outcome?.reason ?? null,
+          winReason,
           state.turnNumber,
           archive.createdAt,
           archive.completedAt,
@@ -166,6 +255,8 @@ export const archiveCompletedMatch = async (
           playerAUsername,
           playerBUsername,
           winnerUsername,
+          publicVisible ? 1 : 0,
+          qualityFlagsJson,
         )
         .run();
     }
