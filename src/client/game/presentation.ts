@@ -11,10 +11,16 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import {
+  playCapture,
+  playCollision,
   playCombat,
+  playDamage,
   playDefeat,
   playExplosion,
+  playLanding,
+  playOrdnanceImpact,
   playThrust,
+  playTrajectory,
   playVictory,
 } from '../audio';
 import { deriveLandingLogEntries } from './landings';
@@ -73,11 +79,15 @@ const logLandings = (deps: PresentationDeps, movements: ShipMovement[]) => {
 
   if (!gameState) return;
   const entries = deriveLandingLogEntries(gameState, movements, deps.getMap());
-  for (const entry of entries) {
+  entries.forEach((entry, index) => {
     deps.ui.log.logLanding(entry.shipName, entry.bodyName);
     deps.renderer.showLandingEffect(entry.destination);
     deps.ui.log.logText(entry.reasonText, entry.reasonClass);
-  }
+    setTimeout(
+      () => playLanding(entry.reasonClass === 'log-info'),
+      index * 180,
+    );
+  });
 };
 
 // Surface the silent "queued a burn while disabled" case as an explicit
@@ -106,6 +116,85 @@ const logDisabledBurnCancellations = (
   }
 };
 
+const flattenCombatResults = (results: CombatResult[]): CombatResult[] => {
+  const out: CombatResult[] = [];
+
+  for (const result of results) {
+    out.push(result);
+    if (result.counterattack) {
+      out.push(...flattenCombatResults([result.counterattack]));
+    }
+  }
+
+  return out;
+};
+
+const mostSevereMovementDamage = (
+  events: MovementEvent[],
+): MovementEvent['damageType'] => {
+  if (events.some((event) => event.damageType === 'eliminated')) {
+    return 'eliminated';
+  }
+
+  if (events.some((event) => event.damageType === 'captured')) {
+    return 'captured';
+  }
+
+  if (events.some((event) => event.damageType === 'disabled')) {
+    return 'disabled';
+  }
+
+  return 'none';
+};
+
+const isOrdnanceImpactEvent = (
+  event: MovementEvent,
+): event is MovementEvent & {
+  type: 'mineDetonation' | 'torpedoHit' | 'nukeDetonation';
+} =>
+  event.type === 'nukeDetonation' ||
+  event.type === 'torpedoHit' ||
+  event.type === 'mineDetonation';
+
+const playMovementEventSounds = (events: MovementEvent[]): void => {
+  if (events.length === 0) return;
+
+  const damageType = mostSevereMovementDamage(events);
+  const ordnanceImpact = events.find(isOrdnanceImpactEvent);
+
+  if (ordnanceImpact) {
+    setTimeout(
+      () => playOrdnanceImpact(ordnanceImpact.type, damageType),
+      ordnanceImpact.type === 'nukeDetonation' ? 120 : 180,
+    );
+  } else if (
+    events.some(
+      (event) =>
+        event.type === 'crash' ||
+        event.type === 'ramming' ||
+        event.type === 'asteroidHit',
+    )
+  ) {
+    setTimeout(() => playCollision(), 160);
+  }
+
+  if (events.some((event) => event.type === 'capture')) {
+    setTimeout(() => playCapture(), 320);
+    return;
+  }
+
+  if (damageType === 'disabled' && !ordnanceImpact) {
+    setTimeout(() => playDamage('disabled'), 260);
+  }
+
+  if (
+    damageType === 'eliminated' &&
+    ordnanceImpact?.type !== 'nukeDetonation'
+  ) {
+    setTimeout(() => playExplosion(), 500);
+  }
+};
+
 export const presentMovementResult = (
   deps: PresentationDeps,
   state: GameState,
@@ -116,19 +205,22 @@ export const presentMovementResult = (
 ) => {
   deps.applyGameState(state);
   deps.setState('playing_movementAnim');
-  playThrust();
+
+  const hasMovement = movements.length > 0 || ordnanceMovements.length > 0;
+  const hasPoweredMovement =
+    movements.some((movement) => movement.fuelSpent > 0) ||
+    ordnanceMovements.length > 0;
+
+  if (hasPoweredMovement) {
+    playThrust();
+  } else if (hasMovement) {
+    playTrajectory();
+  }
 
   if (events.length > 0) {
     deps.renderer.showMovementEvents(events);
     deps.ui.log.logMovementEvents(events, state.ships);
-
-    if (
-      events.some(
-        (event) => event.damageType === 'eliminated' || event.type === 'crash',
-      )
-    ) {
-      setTimeout(() => playExplosion(), 500);
-    }
+    playMovementEventSounds(events);
   }
 
   logDisabledBurnCancellations(deps, state, movements);
@@ -151,9 +243,14 @@ export const presentCombatResults = (
     deps.resetCombatState();
   }
 
+  const allResults = flattenCombatResults(results);
   playCombat();
 
-  if (results.some((result) => result.damageType === 'eliminated')) {
+  if (allResults.some((result) => result.damageType === 'disabled')) {
+    setTimeout(() => playDamage('disabled'), 220);
+  }
+
+  if (allResults.some((result) => result.damageType === 'eliminated')) {
     setTimeout(() => playExplosion(), 300);
   }
 };

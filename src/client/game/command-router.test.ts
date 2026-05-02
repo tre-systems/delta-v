@@ -20,6 +20,11 @@ import type { GameTransport } from './transport';
 
 vi.mock('../audio', () => ({
   isMuted: () => false,
+  playBaseEmplaced: vi.fn(),
+  playCancel: vi.fn(),
+  playConfirm: vi.fn(),
+  playInvalid: vi.fn(),
+  playOrdnanceLaunch: vi.fn(),
   playSelect: vi.fn(),
   setMuted: vi.fn(),
 }));

@@ -7,7 +7,7 @@ import type {
   PlayerId,
 } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
-import { playPhaseChange } from '../audio';
+import { playInvalid, playPhaseChange } from '../audio';
 import { getServerErrorToastMessage } from '../messages/server-error-presentation';
 import { TOAST } from '../messages/toasts';
 import { batch } from '../reactive';
@@ -157,6 +157,7 @@ const applyErrorPlan = (
   });
   const displayMessage = getServerErrorToastMessage(plan.message, plan.code);
   deps.ui.overlay.showToast(displayMessage, 'error');
+  playInvalid();
   if (deps.ctx.state === 'connecting') {
     deps.setState('menu');
   }
@@ -184,6 +185,7 @@ const applyActionRejectedPlan = (
           ? TOAST.actionRejected.wrongActivePlayer
           : plan.message;
   deps.ui.log.logText(hint, 'log-system');
+  playInvalid();
 };
 
 const applyOpponentStatusPlan = (

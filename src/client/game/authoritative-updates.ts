@@ -7,6 +7,7 @@ import type {
   PlayerId,
 } from '../../shared/types/domain';
 import type { LogisticsTransferLogEvent } from '../../shared/types/protocol';
+import { playTransfer } from '../audio';
 import { formatLogisticsTransferLogLines } from '../ui/formatters';
 import type { LocalResolution } from './local';
 
@@ -216,6 +217,7 @@ export const applyAuthoritativeUpdate = (
 
       if (update.transferEvents?.length) {
         logTransferEvents(deps, update.transferEvents, state);
+        playTransfer();
       }
 
       deps.applyGameState(state);
