@@ -176,6 +176,7 @@ The documentation book compiles every doc in this index into a single consolidat
 | `npm run verify` / `npm run verify:full` | Full pre-release sweep (lint, typecheck, coverage, build, e2e smoke, a11y, simulation) |
 | `npm run simulate -- [scenario] [iterations] [--ci]` | Headless AI-vs-AI matches |
 | `npm run simulate:smoke` | Short all-scenarios AI smoke run for local push checks |
+| `npm run mcp:sandbox-smoke` | Two-seat sandbox MCP smoke against the configured `SERVER_URL` |
 | `npm run load:test -- --games 20 --concurrency 5` | WebSocket load / chaos harness |
 | `npm run deploy` | Deploy to Cloudflare Workers |
 
