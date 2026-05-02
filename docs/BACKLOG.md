@@ -6,7 +6,7 @@ Outstanding tasks that deserve a named home between PRs. Shipped work belongs in
 [ARCHITECTURE.md](./ARCHITECTURE.md). Exploratory-pass technique lives in
 [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md).
 
-Sections are grouped by priority and trigger. Last reviewed: 2026-04-28.
+Sections are grouped by priority and trigger. Last reviewed: 2026-05-02.
 
 ## Active Priority
 
@@ -36,6 +36,15 @@ Current 2026-04-28 checks:
   resolutions, average 2.075 turns, 76.25% P0 decided, 0 invalid actions, 0
   fuel stalls.
 
+2026-05-02 live exploratory follow-up:
+
+- `evacuation 60 --seed 1777706300 --ci --quiet --json`: 47-13 P0, 78.3%
+  P0 decided, 100% objective resolutions, 78.3% passenger deliveries, average
+  2.05 turns, 0 crashes, 0 invalid actions, 0 fuel stalls.
+- `convoy` remains watch-listed from the 2026-04-28 checks rather than newly
+  failing this pass; the live browser launch path and one-turn Play-vs-AI smoke
+  passed for Convoy.
+
 Action: continue promoting representative convoy and evacuation captures into
 fixtures, then improve carrier survival, raider interception, and landing-safe
 abort/refuel choices through named plans or bounded movement planning. Recent
@@ -54,6 +63,26 @@ passenger-transfer mistakes, or timeout-heavy stalemates.
 **Files:** `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
 `src/shared/simulate-ai-policy.test.ts`, `scripts/simulate-ai.ts`
 
+### Fix Protocol Surrender Resolution (P2)
+
+The 2026-05-02 live exploratory pass reproduced a protocol-level surrender
+soft-lock in private Duel rooms. A direct WebSocket game starts cleanly, but
+when the active player sends `{"type":"surrender","shipIds":["pXs0"]}` for all
+eligible ships, the server accepts the action and broadcasts `stateUpdate` with
+that ship marked `control: "surrendered"`, while `phase` and `activePlayer`
+remain unchanged and `outcome` stays `null`. The match only resolved later
+because both test sockets disconnected and the disconnect-forfeit path fired.
+
+Expected behavior: surrendering all eligible ships should either immediately
+produce `gameOver` or advance through the same game-end check used by other
+phase-resolution paths. Also decide whether empty `shipIds: []` is a supported
+shorthand on raw WebSocket as it is on the HTTP/MCP action path; if not, keep
+the rejection but document the difference.
+
+**Files:** `src/shared/engine/logistics.ts`,
+`src/server/game-do/actions.ts`, `src/shared/protocol.ts`,
+`src/server/game-do/mcp-handlers.ts`, `src/server/game-do/*.test.ts`
+
 ### Maintain Fixture-Backed AI Workflow (P1, ongoing)
 
 This is the guardrail for future AI fixes, not a standalone refactor project.
@@ -69,6 +98,26 @@ misses a recurring symptom. Pure tuning belongs in existing counters.
 `src/shared/simulate-ai-policy.test.ts`, `docs/SIMULATION_TESTING.md`
 
 ## Opportunistic Polish
+
+### Keep D1 and R2 Archive Completion Times Consistent (P3)
+
+The 2026-05-02 D1/R2 parity sample found older archived matches where D1
+`match_archive.completed_at` matches the final `gameOver` event timestamp, but
+the R2 archive top-level `completedAt` is several minutes later. Examples:
+`BCFV9-m1` D1 `1777617952527`, R2 `1777618319354`, final event
+`1777617952525`; `3PJYX-m1` D1 `1777395957287`, R2 `1777396266883`, final
+event `1777395957284`. Newer disconnect-forfeit archives from the same pass
+were consistent.
+
+Likely cause: a later alarm/archive path rewrites the R2 object with
+`Date.now()` while the D1 row is protected by `INSERT OR IGNORE`, leaving the
+metadata surfaces disagreeing. Preserve the original completed time on
+re-archive, derive it from the final `gameOver` event/state, or skip R2 rewrites
+when an archive already exists.
+
+**Files:** `src/server/game-do/match-archive.ts`,
+`src/server/game-do/alarm.ts`, `src/server/game-do/publication.ts`,
+`src/server/game-do/match-archive.test.ts`
 
 ### Small Accessibility Polish (P3)
 

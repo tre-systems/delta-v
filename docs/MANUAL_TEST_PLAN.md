@@ -12,6 +12,8 @@ Any of these is a blocker:
 - Mobile / touch has blocked actions, overlapping HUD, or unreadable text.
 - PWA offline single-player is broken.
 - A 20-30 minute session shows serious stutter, dropped input, stale UI, or unclear win/loss messaging.
+- An asymmetric scenario (Convoy, Lunar Evacuation, Escape) hides which side the player is on. The briefing **description** plus the per-seat objective must together communicate the role; if `getObjective()` returns "Destroy all enemies" while the description describes a passenger-rescue mission, fix before release.
+- A Beginner-tagged race scenario (Bi-Planetary, Blockade Runner) is functionally a combat scenario in a 5+ game live sample — i.e. zero of those games end on the intended landing. Confirm with the Lens 11 query in [EXPLORATORY_TESTING.md § R20](./EXPLORATORY_TESTING.md#r20-d1-r2-storage-audit).
 
 When a test fails, record browser, device, scenario, seat, steps, and whether the failure is correctness, clarity, performance, or recovery.
 
@@ -94,12 +96,33 @@ Scenarios and their rules are fully specified in [SPEC.md § Scenarios](./SPEC.m
 - **Bi-Planetary** — land on opposite planet.
 - **Escape** — hidden fugitive ship; only nukes (no mines/torpedoes); planetary defense disabled; moral victory on Enforcer disable.
 - **Convoy** — liner + tanker + frigate escort; logistics enabled; land a ship on Venus with colonists, or verify pirates win immediately once no colonists survive.
-- **Lunar Evacuation** — transport + corvette + frigate evacuation force; passenger rescue enabled; win requires passengers aboard; interceptor wins immediately once no colonists survive.
+- **Lunar Evacuation** — currently hidden from the player-facing scenario picker; keep engine/simulation checks active before re-enabling. Transport + corvette + frigate evacuation force; passenger rescue enabled; win requires passengers aboard; interceptor wins immediately once no colonists survive.
 - **Duel** — last ship standing.
 - **Blockade Runner** — packet with head-start velocity; land on Mars.
 - **Fleet Action** — asymmetric 600/400 MC fleet build (section 8).
 - **Interplanetary War** — 850 MC fleet build; logistics; longer play.
 - **Grand Tour** — combat disabled; shared bases; visit 9 checkpoint bodies and return home.
+
+### 6a. Per-seat briefing & objective (asymmetric scenarios)
+
+For Convoy, Lunar Evacuation, and Escape, the human is randomly assigned P0 or P1 by `Math.random()`. The briefing description is fixed per scenario, but the objective is per-seat. Force each seat (`globalThis.__DELTAV_FORCE_PLAYER_SIDE = 0` then `= 1` before clicking the scenario card) and verify. Lunar Evacuation is hidden from the picker for now; run this check only if exercising a dev-only launch path or before re-enabling the card:
+
+- **Convoy P0** (escort): description names the colonist mission; objective shows `Land on Venus`. Pass.
+- **Convoy P1** (corsair): description still names the colonist mission; objective shows `Destroy all enemies`. **Fail** if the player has no in-briefing cue that they're the *intercepting* side — they will believe they should be escorting the liner. Either change the description per seat or add a "You are: corsair / escort" banner.
+- **Lunar Evacuation P0** (rescue): objective `Land on Terra` (with passengers). Pass.
+- **Lunar Evacuation P1** (corsair interceptor): objective `Destroy all enemies` against the rescue description. Same fail condition as Convoy P1.
+- **Escape P0** (fugitive transports): objective `Fly ★ ship off the north map edge`. Pass.
+- **Escape P1** (enforcer): objective `Inspect, capture, or destroy fugitives`. Pass — both seats here read clearly.
+
+### 6b. Intended-objective conformance (live data)
+
+After a release that touches scenario rules, AI behaviour, or scenario-specific UI affordances, run the Lens-11 D1 query in [EXPLORATORY_TESTING.md § R20](./EXPLORATORY_TESTING.md#r20-d1-r2-storage-audit). For each scenario with > 5 archived live games, expect:
+
+- **Bi-Planetary, Blockade Runner, Grand Tour:** > 50 % of decided games end on a `Landed on …` / `Grand Tour complete!` outcome (the intended objective). 0 % means the scenario is functionally a combat scenario in production even when the briefing promises a race.
+- **Convoy, Lunar Evacuation:** decided games should be a mix of `Landed on … with colonists!` (escort) and `Fleet eliminated!` (corsair). 100 % elimination on either side suggests AI/balance pressure pushes both seats to attrition regardless of objective.
+- **Duel, Fleet Action, Interplanetary War, Escape:** elimination-dominated outcomes are expected.
+
+If the live distribution diverges from the AI-vs-AI Hard simulation (`npm run simulate -- <scenario> 30 --ci`) by more than ~30 percentage points on the intended-objective share, that is a release-blocking scenario-design finding regardless of test pass/fail in any other section.
 
 ## 7. Multi-ship management (Escape vs AI)
 
@@ -173,6 +196,7 @@ Land a damaged or low-fuel ship at a friendly base → next turn: fuel restored,
 - **Turn timer:** appears after grace; styling gets urgent near expiry; warning sound/visual fires once; action resets it.
 - **Reconnect:** refresh one tab → reconnects to same seat; stale tab stops receiving updates; close-and-reopen under 30 s with stored token continues the match; post-reconnect UI matches the other player's view.
 - **Disconnect forfeit:** one player disconnected > 30 s → the other wins by forfeit with a clear reason.
+- **Protocol surrender:** in a private Duel, send a raw WebSocket or MCP `surrender` action for every active ship owned by the current player. **Pass:** the game resolves immediately or advances through a documented end-of-turn path; it must not leave the same surrendered player active with `outcome: null` and require disconnect forfeit to finish.
 - **Rematch / exit:** REMATCH starts a fresh match with reset state; EXIT returns to menu cleanly.
 - **Post-game replay selector:** finished two matches in the same room → `-m1` / `-m2` in the selector; start / prev / next / end navigation works; EXIT REPLAY restores the latest match outcome.
 - **Archived replay (connecting):** open a spectator/archived replay URL (room code plus `gameId`, or the in-app path) so the **Connecting** overlay appears while the timeline fetch runs. Press **Cancel** or exit to the menu before loading finishes. **Pass:** you land on the menu without a flash of wrong endgame state from a late response; starting the same or another replay afterward behaves normally.
@@ -182,6 +206,7 @@ Land a damaged or low-fuel ship at a friendly base → next turn: fuel restored,
 - **Easy:** basic moves; beatable by a beginner.
 - **Normal:** uses gravity assists; tactical choices; fair challenge.
 - **Hard:** aggressive; optimal movement; uses ordnance.
+- **Known scenario risk:** Lunar Evacuation is hidden from the player-facing scenario picker for now while passenger-rescue balance and briefing clarity are watched. Keep engine/simulation coverage active; do not sign off a release that changes passenger rescue, scenario setup, or AI movement without a focused Evacuation scorecard before considering re-enabling it.
 
 Then `npm run simulate -- all 60 --ci` (the canonical form used by pre-push and CI) → expect **0 engine crashes** across all scenarios. The harness randomises starting seat during bulk runs.
 
@@ -192,6 +217,15 @@ No audio before user interaction. **M** toggles; thrust / gun / explosion / phas
 ## 19. Help & tutorial
 
 **?** opens overlay with sections matching current controls. Fresh profile: tutorial tips appear in each relevant phase; copy matches device ("Click" / "Tap"); tips don't cover primary buttons or linger; skipping returns control cleanly. Returning players aren't forced through the tutorial.
+
+### 19a. Tutorial completion reachability
+
+Run when `src/client/tutorial.ts`, scenario phase rules, or the `STEPS` list change. The tutorial only marks itself completed when *every* `STEPS[]` entry has been shown. Steps `ordnance-intro` and `combat-intro` only fire on `phase === 'ordnance'` / `phase === 'combat'`.
+
+- Start a fresh profile, pick **Bi-Planetary** Easy, walk through the welcome / select-ship / gravity / fuel tips, then play to the natural game-over.
+- Confirm `tutorial_completed` appears in `events` for the session (D1: `SELECT props FROM events WHERE event='tutorial_completed' ORDER BY ts DESC LIMIT 1;`).
+- **Fail** if completion is structurally unreachable in the chosen scenario (e.g. a scenario without an ordnance phase or without a combat phase). The 2026-05-02 D1 audit confirmed `tutorial_started: 126` and `tutorial_completed: 0` in real traffic; the structural cause is the per-phase gating.
+- Either gate `ordnance-intro` / `combat-intro` to skip when the scenario rules disable them, or change the completion rule to "all *eligible* steps shown for the current scenario".
 
 ## 20. PWA / offline single-player
 
@@ -217,6 +251,17 @@ Run when changes touch `src/server/leaderboard/`, `src/shared/rating/`, or `migr
 6. **Stacked ships:** click cycles through them.
 7. **Turn timer:** after 2 min idle → timeout; warning at 30 s.
 8. **Rematch:** same scenario, same opponent, cleared state.
+9. **`/?code=COMPLETED` URL:** if a friend sends a link to a finished game, the toast should say "That game has already completed", not the generic "No game found with that code". (Server returns `code:"GAME_COMPLETED"` with HTTP 410; client mapping is in `JOIN_ERROR_MESSAGES`.) For best UX, offer a "View replay" affordance when a `gameId` is known.
+10. **`/matches` noise filter:** the public list should not be dominated by 1-turn `Opponent disconnected` rows from `POST /create` calls that never opened a WebSocket. Confirm with the Lens 13 query in [EXPLORATORY_TESTING.md § R20](./EXPLORATORY_TESTING.md#r20-d1-r2-storage-audit) and ensure the noise share stays under ~5 % — either by hiding 1-turn no-pair rows from the public listing or by not archiving rooms that never had two seats fill.
+
+## 23. Public API surface conformance
+
+Run when `/server/index.ts` route handlers, public endpoints, or HTTP method handling change.
+
+- **HEAD/GET parity (R18):** for each public path, `HEAD == GET` status. The static-asset path `/robots.txt` is a known-bad case (HEAD 404 / GET 200) — confirm it has not regressed elsewhere.
+- **Error-shape consistency (R19):** every public JSON endpoint returns `{ok: false, error, message}`. Notable exception: `GET /join/{CODE}` returns `{code, message}` for backwards compat with the existing client mapping; do not change this without coordinating both sides. New endpoints must follow the unified shape.
+- **Status-param validation:** `/api/matches?status=anything` should reject unknown values with `invalid_query` rather than silently returning `[]`. The current behaviour silently accepts and returns empty for any unknown status string.
+- **Matchmaker scenario set:** `QUICK_MATCH_SCENARIO` in `src/shared/matchmaking.ts` is `'duel'` only. Quick Match never routes to other scenarios. If a release advertises Quick Match for another scenario (Bi-Planetary, Grand Tour, …), update both the matchmaker default and the lobby copy that says "Find the next available commander in the duel queue."
 
 ---
 
