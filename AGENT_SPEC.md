@@ -127,7 +127,7 @@ game://matches/{id}/log               # Append-only event log
 game://matches/{id}/replay            # Full replay timeline
 ```
 
-Use rules + leaderboard for cached discovery, and match observation/log/replay resources for live match state without bespoke tool calls. For local MCP, `{id}` is the `sessionId` / local `matchToken` alias; for hosted MCP, `{id}` is the opaque hosted `matchToken`.
+Use rules + leaderboard for cached discovery, and match observation/log/replay resources for live match state without bespoke tool calls. For local MCP, `{id}` is the `sessionId` / local `matchToken` alias; for hosted MCP, `{id}` is the opaque hosted `matchToken`, and authenticated `resources/list` returns concrete active-session resource URIs for the caller's `agentToken`.
 
 ---
 
