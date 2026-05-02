@@ -65,10 +65,13 @@
       "id": "quickMatchEnqueue",
       "method": "POST",
       "path": "/quick-match",
-      "description": "Enqueue for public matchmaking. Returns a ticket to poll. Prefix playerKey with 'agent_' to tag as a bot.",
+      "description": "Enqueue for rated public matchmaking or an agent sandbox evaluation match. Returns a ticket to poll. Prefix playerKey with 'agent_' to tag as a bot.",
       "rateLimit": "strict Worker-local 5 per 60 s per hashed IP, plus best-effort Cloudflare CREATE_RATE_LIMITER in production",
       "requestBody": {
         "scenario": "string (optional, default: duel)",
+        "rendezvousCode": "string (optional, 3-16 chars) — isolates a private queue, useful for paired evaluation",
+        "agentSandbox": "boolean (optional) — true creates an unrated evaluation match hidden from public live/history lists and excluded from leaderboard writes",
+        "unrated": "boolean (optional alias for agentSandbox)",
         "player": {
           "playerKey": "string — stable 8-64 char ID [A-Za-z0-9_-], prefix with agent_ for bots",
           "username": "string — display name 2-20 chars"
@@ -87,9 +90,9 @@
       "description": "Poll ticket status. Poll every 500ms-2s. Returns queued, matched, or expired.",
       "rateLimit": "100 per 60 s per IP",
       "responses": [
-        { "status": "queued",  "ticket": "string", "scenario": "string" },
-        { "status": "matched", "ticket": "string", "scenario": "string", "code": "string (5 chars)", "playerToken": "string" },
-        { "status": "expired", "ticket": "string", "scenario": "string", "reason": "string" }
+        { "status": "queued",  "ticket": "string", "scenario": "string", "agentSandbox": "boolean?" },
+        { "status": "matched", "ticket": "string", "scenario": "string", "code": "string (5 chars)", "playerToken": "string", "agentSandbox": "boolean?" },
+        { "status": "expired", "ticket": "string", "scenario": "string", "reason": "string", "agentSandbox": "boolean?" }
       ]
     },
     {
@@ -184,6 +187,8 @@
   "mcp": {
     "description": "The preferred integration path for autonomous agents. Both local (stdio) and remote (HTTP, no install) MCP endpoints are shipping. Remote uses stateless JSON over POST /mcp.",
     "localCommand": "npm run mcp:delta-v",
+    "localHttpCommand": "npm run mcp:delta-v:http",
+    "sandboxSmokeCommand": "npm run mcp:sandbox-smoke",
     "preferredQuickMatchTool": "delta_v_quick_match",
     "toolAliases": {
       "delta_v_quick_match_connect": "Compatibility alias for delta_v_quick_match on both local and hosted MCP."
@@ -205,6 +210,7 @@
         "delta_v_get_observation",
         "delta_v_wait_for_turn",
         "delta_v_get_events",
+        "delta_v_validate_action",
         "delta_v_send_action",
         "delta_v_send_chat",
         "delta_v_close_session"
@@ -219,6 +225,7 @@
       "delta_v_get_observation",
       "delta_v_wait_for_turn",
       "delta_v_get_events",
+      "delta_v_validate_action",
       "delta_v_send_action",
       "delta_v_send_chat",
       "delta_v_close_session"
@@ -276,7 +283,8 @@
   "autonomousLoop": {
     "description": "Recommended high-level turn loop for autonomous agents.",
     "steps": [
-      "Hosted MCP (preferred): POST /api/agent-token once, then call delta_v_quick_match and drive the match with delta_v_wait_for_turn / delta_v_send_action using matchToken.",
+      "Hosted MCP (preferred): POST /api/agent-token once, then call delta_v_quick_match and drive the match with delta_v_wait_for_turn / delta_v_send_action using matchToken. Use agentSandbox=true plus a rendezvousCode for smoke or evaluation games.",
+      "Call delta_v_validate_action before custom or risky actions; send a candidate action instead if validation returns valid=false.",
       "If delta_v_send_action returns autoSkipLikely=true, call delta_v_wait_for_turn instead of chaining the returned nextPhase immediately.",
       "During fleetBuilding, always send fleetReady explicitly if the observation still reports that phase.",
       "Raw protocol fallback: queue with POST /quick-match, poll GET /quick-match/{ticket} until matched, then connect websocket /ws/{code}?playerToken=..."
@@ -292,6 +300,7 @@
     "starterScripts": [
       "scripts/hosted-mcp-starter.py",
       "scripts/quick-start-agent.sh",
+      "scripts/mcp-sandbox-smoke.ts",
       "scripts/quick-match-agent.ts",
       "scripts/mcp-six-agent-harness.ts"
     ]

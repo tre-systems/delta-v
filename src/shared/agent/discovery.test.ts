@@ -35,6 +35,8 @@ interface AgentManifest {
     serverToClient: Array<{ type: string }>;
   };
   mcp?: {
+    localHttpCommand?: string;
+    sandboxSmokeCommand?: string;
     resources?: string[];
     preferredQuickMatchTool?: string;
     remote?: {
@@ -151,6 +153,13 @@ describe('.well-known/agent.json', () => {
   it('advertises the MCP observation and wait-for-turn tools', () => {
     expect(manifest.mcp?.tools).toContain('delta_v_get_observation');
     expect(manifest.mcp?.tools).toContain('delta_v_wait_for_turn');
+    expect(manifest.mcp?.tools).toContain('delta_v_validate_action');
+    expect(manifest.mcp?.remote?.tools).toContain('delta_v_validate_action');
+  });
+
+  it('does not publish duplicate MCP tool names', () => {
+    const tools = manifest.mcp?.tools ?? [];
+    expect(new Set(tools).size).toBe(tools.length);
   });
 
   it('advertises the canonical quick-match tool and compatibility alias', () => {
@@ -165,6 +174,11 @@ describe('.well-known/agent.json', () => {
 
   it('advertises the local quick-match pairing helper', () => {
     expect(manifest.mcp?.tools).toContain('delta_v_pair_quick_match_tickets');
+  });
+
+  it('advertises the local HTTP bridge and sandbox smoke command', () => {
+    expect(manifest.mcp?.localHttpCommand).toBe('npm run mcp:delta-v:http');
+    expect(manifest.mcp?.sandboxSmokeCommand).toBe('npm run mcp:sandbox-smoke');
   });
 
   it('documents the archived replay endpoint rate limit', () => {
