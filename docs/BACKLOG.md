@@ -21,16 +21,17 @@ or the handoff is explicit.
 Goal: keep Cloudflare D1 rating history, D1 archive metadata, and R2 replay
 objects consistent without destructive cleanup.
 
-1. **Reconcile Rating Rows With Archive/R2 Retention (P2)** — define and
-   enforce the invariant for rated games whose archive row or R2 object is
-   missing.
-2. **Keep D1 and R2 Archive Completion Times Consistent (P3)** — preserve the
-   original completion timestamp when archive code runs more than once.
+Both queue items have shipped — see "Verified Not Active" below for the
+acceptance evidence. Reopen this stream only if a new retention drift
+surfaces in the R20 audit (`unretired_orphans` non-zero, or D1/R2
+`completed_at` drift on a freshly archived match).
 
 Primary write ownership: `migrations/`, `src/server/game-do/match-archive.ts`,
 `src/server/game-do/alarm.ts`, `src/server/game-do/publication.ts`,
-`src/server/leaderboard/rating-writer.ts`, `src/server/matches-list.ts`,
-archive/rating tests, and Cloudflare data-audit docs.
+`src/server/leaderboard/rating-writer.ts`,
+`src/server/leaderboard/rating-archive-retention.ts`,
+`src/server/matches-list.ts`, archive/rating tests, and Cloudflare
+data-audit docs.
 
 Avoid touching AI policy, scenario tuning, briefing UI, or static marketing
 pages except for narrow type fallout.
@@ -88,6 +89,17 @@ should not be assigned as active backlog work:
 - **Minimize Raw Player Keys in Telemetry Props** — implemented for future
   writes through lifecycle role labels and `/telemetry` payload redaction. Old
   D1 event rows age out under retention.
+- **Reconcile Rating Rows With Archive/R2 Retention** — implemented via
+  migration 0010 (`archive_retired_at` / `archive_retired_reason` on
+  `match_rating`), the `rating-archive-retention` helper module, and the
+  invariant query in [EXPLORATORY_TESTING.md § R20](./EXPLORATORY_TESTING.md#r20-d1--r2-storage-audit).
+  The 11 historic 2026-05-02 orphans were backfilled with reason
+  `pre_audit_cleanup`; live audit shows `unretired_orphans = 0`.
+- **Keep D1 and R2 Archive Completion Times Consistent** — implemented in
+  `archiveCompletedMatch` via the `r2.head()` short-circuit. The alarm
+  path no longer rewrites a canonical R2 object, and the unit test
+  ("skips the R2/D1 write when the archive already exists") guards the
+  invariant.
 - **Improve Passenger Objective AI** — current paired scorecards landed; keep
   only the fixture workflow guardrail for future AI changes.
 - **Small Accessibility Polish** — current a11y pass is complete; reopen only
@@ -164,32 +176,6 @@ cover Lunar Evacuation before re-enabling its card.
 **Files:** `src/client/ui/scenario-briefing-view.ts`, new briefing-copy helper
 if needed, `src/client/ui/*briefing*.test.ts`, `docs/MANUAL_TEST_PLAN.md`
 
-### Reconcile Rating Rows With Archive/R2 Retention (P2)
-
-The 2026-05-02 post-deploy Cloudflare audit found `match_rating` rows whose
-`game_id` no longer has a corresponding `match_archive` row or R2 object. The
-live examples included `BCFV9-m1` and `3PJYX-m1`: both have `rating_applied`
-events and earlier `archived_replay_fetch_succeeded` telemetry, but
-`match_rating LEFT JOIN match_archive` reports no archive and `wrangler r2
-object get delta-v-match-archive/matches/<gameId>.json` now returns missing.
-That leaves leaderboard/rating history referring to games that cannot be
-inspected through the archive/replay path.
-
-Define the retention invariant explicitly. Either every rated game keeps a
-hidden/internal archive row and R2 object, or a rating row can be marked as
-`archive_retired` with a reason so operators and public surfaces do not imply a
-replay exists. Avoid destructive cleanup paths that delete only one side of the
-rating/archive/R2 relationship.
-
-Acceptance: `SELECT COUNT(*) FROM match_rating mr LEFT JOIN match_archive ma ON
-ma.game_id = mr.game_id WHERE ma.game_id IS NULL` is zero, or every non-zero row
-has an explicit retired/hidden status and no public route links to a missing
-replay. Recent D1 archive rows should still have non-empty R2 objects.
-
-**Files:** `migrations/`, `src/server/game-do/match-archive.ts`,
-`src/server/leaderboard/rating-writer.ts`, `src/server/matches-list.ts`,
-`docs/EXPLORATORY_TESTING.md`, `src/server/*match*.test.ts`
-
 ### Maintain Fixture-Backed AI Workflow (P1, ongoing)
 
 This is the guardrail for future AI fixes, not a standalone refactor project.
@@ -206,25 +192,8 @@ misses a recurring symptom. Pure tuning belongs in existing counters.
 
 ## Opportunistic Polish
 
-### Keep D1 and R2 Archive Completion Times Consistent (P3)
-
-The 2026-05-02 D1/R2 parity sample found older archived matches where D1
-`match_archive.completed_at` matches the final `gameOver` event timestamp, but
-the R2 archive top-level `completedAt` is several minutes later. Examples:
-`BCFV9-m1` D1 `1777617952527`, R2 `1777618319354`, final event
-`1777617952525`; `3PJYX-m1` D1 `1777395957287`, R2 `1777396266883`, final
-event `1777395957284`. Newer disconnect-forfeit archives from the same pass
-were consistent.
-
-Likely cause: a later alarm/archive path rewrites the R2 object with
-`Date.now()` while the D1 row is protected by `INSERT OR IGNORE`, leaving the
-metadata surfaces disagreeing. Preserve the original completed time on
-re-archive, derive it from the final `gameOver` event/state, or skip R2 rewrites
-when an archive already exists.
-
-**Files:** `src/server/game-do/match-archive.ts`,
-`src/server/game-do/alarm.ts`, `src/server/game-do/publication.ts`,
-`src/server/game-do/match-archive.test.ts`
+(empty — see "Verified Not Active" for items recently retired from this
+section.)
 
 ## Future Features
 
