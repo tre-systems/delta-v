@@ -14,6 +14,7 @@ Any of these is a blocker:
 - A 20-30 minute session shows serious stutter, dropped input, stale UI, or unclear win/loss messaging.
 - An asymmetric scenario (Convoy, Lunar Evacuation, Escape, Blockade Runner) hides which side the player is on. The briefing **description** plus the per-seat objective must together communicate the role. Per-seat copy lives in [src/client/ui/scenario-briefing-copy.ts](../src/client/ui/scenario-briefing-copy.ts); if a new asymmetric scenario lands without a per-seat entry, players will see the shared description beside a misaligned objective. See § 6a.
 - A Beginner-tagged race scenario (Bi-Planetary, Blockade Runner) is functionally a combat scenario in a 5+ game live sample — i.e. zero of those games end on the intended landing. Confirm with the Lens 11 query in [EXPLORATORY_TESTING.md § R20](./EXPLORATORY_TESTING.md#r20-d1-r2-storage-audit).
+- A fleet-build scenario traps the player in fleet building without a visible exit/back affordance before launch.
 
 When a test fails, record browser, device, scenario, seat, steps, and whether the failure is correctness, clarity, performance, or recovery.
 
@@ -134,7 +135,7 @@ No ship auto-selected; HUD prompts selection. Clicking ships toasts the selectio
 
 ## 8. Fleet building (Fleet Action / Interplanetary War)
 
-Budget shown; ship cards show stats + cost; over-budget ships greyed. × removes a ship; **CLEAR** resets; **LAUNCH FLEET** starts the match. AI also builds a fleet.
+Budget shown; ship cards show stats + cost; over-budget ships greyed. × removes a ship; **CLEAR** resets; **LAUNCH FLEET** starts the match. AI also builds a fleet. **Exit to menu** / **Back** must be available before launch; a player who opens Fleet Action or Interplanetary War by mistake must not have to buy and launch a fleet to leave.
 
 ## 9. Logistics (Convoy vs AI)
 
@@ -210,14 +211,9 @@ Land a damaged or low-fuel ship at a friendly base → next turn: fuel restored,
 - **Easy:** basic moves; beatable by a beginner.
 - **Normal:** uses gravity assists; tactical choices; fair challenge.
 - **Hard:** aggressive; optimal movement; uses ordnance.
-- **Known scenario risk:** Lunar Evacuation is hidden from the player-facing scenario picker for now while passenger-rescue balance and briefing clarity are watched. Keep engine/simulation coverage active; do not sign off a release that changes passenger rescue, scenario setup, or AI movement without a focused Evacuation scorecard before considering re-enabling it.
-- **Known scenario risk:** Fleet Action can pass engine stability while still
-  producing a bad AI experience. The 2026-05-02 live post-deploy sweep found
-  442 `fuelStalls` in `npm run simulate -- all 60 --ci --quiet --json` and the
-  same count in a focused 20-game Fleet Action capture. For releases that touch
-  fleet building, AI movement, or fuel-stall classification, require a focused
-  Fleet Action scorecard and inspect captured `fuelStall` fixtures before
-  signing off.
+- **Known scenario risk:** Lunar Evacuation is hidden from the player-facing scenario picker for now while passenger-rescue balance and briefing clarity are watched. The 2026-05-02 live pass still measured it as very short and rescue-favored (`evacuation 60 --seed -403487708`: P0 decided 83.3 %, average 2.03 turns). Keep engine/simulation coverage active; do not sign off a release that changes passenger rescue, scenario setup, or AI movement without a focused Evacuation scorecard before considering re-enabling it.
+- **Known scenario risk:** Fleet Action historically passed engine stability while producing a bad AI experience. The Agent B fix brought `fleetAction 60 --seed -403487708 --ci --quiet --json` to 0 fuel stalls, 0 invalid actions, and 2/60 timeouts; keep requiring a focused Fleet Action scorecard when touching fleet building, AI movement, or fuel-stall classification.
+- **Known flow risk:** Fleet Action and Interplanetary War both enter fleet building. The 2026-05-02 live pass found no visible fleet-builder exit/back control on deployed assets hash `c713f124`; keep § 8 in the release gate until the escape hatch is fixed.
 
 Then `npm run simulate -- all 60 --ci` (the canonical form used by pre-push and CI) → expect **0 engine crashes** across all scenarios. The harness randomises starting seat during bulk runs.
 
@@ -231,11 +227,11 @@ No audio before user interaction. **M** toggles; thrust / gun / explosion / phas
 
 ### 19a. Tutorial completion reachability
 
-Run when `src/client/tutorial.ts`, scenario phase rules, or the `STEPS` list change. The tutorial only marks itself completed when *every* `STEPS[]` entry has been shown. Steps `ordnance-intro` and `combat-intro` only fire on `phase === 'ordnance'` / `phase === 'combat'`.
+Run when `src/client/tutorial.ts`, scenario phase rules, or the `STEPS` list change. The tutorial currently has six steps and only marks itself completed when *every* step has been shown and acknowledged. Steps `ordnance-intro` and `combat-intro` only fire on `phase === 'ordnance'` / `phase === 'combat'`.
 
 - Start a fresh profile, pick **Bi-Planetary** Easy, walk through the welcome / select-ship / gravity / fuel tips, then play to the natural game-over.
 - Confirm `tutorial_completed` appears in `events` for the session (D1: `SELECT props FROM events WHERE event='tutorial_completed' ORDER BY ts DESC LIMIT 1;`).
-- **Fail** if completion is structurally unreachable in the chosen scenario (e.g. a scenario without an ordnance phase or without a combat phase). The 2026-05-02 D1 audit confirmed `tutorial_started: 126` and `tutorial_completed: 0` in real traffic; the structural cause is the per-phase gating.
+- **Fail** if completion is structurally unreachable in the chosen scenario (e.g. a scenario without an ordnance phase or without a combat phase). The 2026-05-02 D1 audit confirmed `tutorial_started: 127`, `tutorial_step_shown: 25`, `tutorial_skipped: 24`, and `tutorial_completed: 0` in real traffic; the structural cause is the per-phase gating plus the "all steps acknowledged" completion rule.
 - Either gate `ordnance-intro` / `combat-intro` to skip when the scenario rules disable them, or change the completion rule to "all *eligible* steps shown for the current scenario".
 
 ## 20. PWA / offline single-player
