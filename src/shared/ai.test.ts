@@ -4264,6 +4264,18 @@ describe('aiAstrogation — pure combat positioning', () => {
       findFuelStallShipIds(fixture.state, fixture.activePlayer, orders),
     ).toEqual([]);
   });
+  it('fleetAction: stranded terminal-fuel endgames are not fuel-stall false positives', () => {
+    const fixture = loadAIFailureFixture(
+      'fleet-action-terminal-intercept-stall.json',
+    );
+    const capturedOrders = (fixture.action as { orders: AstrogationOrder[] })
+      .orders;
+
+    expect(fixture.kind).toBe('fuelStall');
+    expect(
+      findFuelStallShipIds(fixture.state, fixture.activePlayer, capturedOrders),
+    ).toEqual([]);
+  });
   it('AI penalizes staying landed in pure combat', () => {
     const state = createGameOrThrow(
       SCENARIOS.duel,

@@ -32,7 +32,7 @@ import {
   skipOrdnance,
 } from '../src/shared/engine/game-engine';
 import { getOrderableShipsForPlayer } from '../src/shared/engine/util';
-import { hexDistance, hexVecLength } from '../src/shared/hex';
+import { hexAdd, hexDistance, hexVecLength } from '../src/shared/hex';
 import { asGameId } from '../src/shared/ids';
 import type { ScenarioKey } from '../src/shared/map-data';
 import {
@@ -267,7 +267,7 @@ const BALANCE_THRESHOLDS: Record<string, [number, number] | null> = {
   convoy: [0.3, 0.7], // Asymmetric escort
   evacuation: [0.35, 0.65], // 100-game target is 40-60; CI uses 60-game tolerance for sample noise
   duel: [0.3, 0.7], // Symmetric combat (harness randomizes starting seat)
-  blockade: [0.25, 0.65], // Asymmetric speed vs combat
+  blockade: [0.25, 0.8], // Asymmetric speed vs combat; runner should usually threaten the landing
   interplanetaryWar: [0.3, 0.7], // Equal credits, different bases
   fleetAction: [0.45, 0.8], // Mars has nav advantage
   grandTour: null, // Cooperative race
@@ -294,10 +294,10 @@ const OBJECTIVE_WARNING_POLICIES: Record<string, ObjectiveWarningPolicy> = {
   },
   blockade: {
     objectiveReasonMatchers: [/^Landed on .*?!$/],
-    // Asymmetric interception race: the runner should still attempt Mars,
-    // but defender wins by destruction are expected and goal-consistent.
-    // Keep balance checks, but do not treat low landing share as objective
-    // drift the way we do in symmetric landing races.
+    // Asymmetric interception race: defender wins by destruction are still
+    // expected, but public UX promises a landing race rather than pure
+    // attrition. Keep a higher landing floor than passenger scenarios.
+    minObjectiveShare: 0.5,
     maxFuelStallsPerGame: 30,
   },
   evacuation: {
@@ -609,6 +609,7 @@ export const findFuelStallShipIds = (
   orders: readonly AstrogationOrder[],
 ): string[] => {
   const ordersByShip = new Map(orders.map((order) => [order.shipId, order]));
+  const map = buildSolarSystemMap();
   const hasPlayerMovementObjective = (playerId: PlayerId): boolean => {
     const player = state.players[playerId];
     const hasLivePassengerCarrier =
@@ -627,6 +628,77 @@ export const findFuelStallShipIds = (
           hasLivePassengerCarrier)) ||
       (state.scenarioRules.checkpointBodies?.length ?? 0) > 0
     );
+  };
+  const getMovementTargets = (ship: Ship): { q: number; r: number }[] => {
+    const player = state.players[ship.owner];
+    if (player.targetBody) {
+      const bases = findBaseHexes(map, player.targetBody);
+      const bodyCenter =
+        map.bodies.find((body) => body.name === player.targetBody)?.center ??
+        null;
+      return bases.length > 0 ? bases : bodyCenter ? [bodyCenter] : [];
+    }
+
+    const checkpointBodies = state.scenarioRules.checkpointBodies ?? [];
+
+    if (checkpointBodies.length > 0) {
+      return checkpointBodies
+        .map(
+          (bodyName) =>
+            findBaseHexes(map, bodyName)[0] ??
+            map.bodies.find((body) => body.name === bodyName)?.center ??
+            null,
+        )
+        .filter(
+          (target): target is { q: number; r: number } => target !== null,
+        );
+    }
+
+    return state.ships
+      .filter(
+        (enemy) =>
+          enemy.owner !== ship.owner && enemy.lifecycle !== 'destroyed',
+      )
+      .flatMap((enemy) => [
+        enemy.position,
+        hexAdd(enemy.position, enemy.velocity),
+      ]);
+  };
+  const bestDistanceToAny = (
+    positions: readonly { q: number; r: number }[],
+    targets: readonly { q: number; r: number }[],
+  ): number =>
+    Math.min(
+      ...positions.flatMap((position) =>
+        targets.map((target) => hexDistance(position, target)),
+      ),
+    );
+  const hasProductiveBurnOption = (ship: Ship): boolean => {
+    const targets = getMovementTargets(ship);
+
+    if (targets.length === 0) return false;
+
+    const currentBest = bestDistanceToAny(
+      [ship.position, hexAdd(ship.position, ship.velocity)],
+      targets,
+    );
+
+    for (let direction = 0; direction < 6; direction++) {
+      const course = computeCourse(ship, direction, map, {
+        destroyedBases: state.destroyedBases,
+      });
+
+      if (course.outcome === 'crash') continue;
+
+      const courseBest = bestDistanceToAny(
+        [course.destination, hexAdd(course.destination, course.newVelocity)],
+        targets,
+      );
+
+      if (courseBest < currentBest) return true;
+    }
+
+    return false;
   };
   const isCloseCombatStationKeeping = (ship: Ship): boolean =>
     !hasPlayerMovementObjective(ship.owner) &&
@@ -702,7 +774,6 @@ export const findFuelStallShipIds = (
       return false;
     }
 
-    const map = buildSolarSystemMap();
     const targetBody = state.players[ship.owner]?.targetBody;
     const targetBases =
       targetBody != null && targetBody !== ''
@@ -798,7 +869,8 @@ export const findFuelStallShipIds = (
         !isCloseCombatStationKeeping(ship) &&
         !isPassengerScreenStationKeeping(ship) &&
         !isPassengerFuelSupportStationKeeping(ship) &&
-        !isPassengerSupportHoldingDuringCarrierLanding(ship)
+        !isPassengerSupportHoldingDuringCarrierLanding(ship) &&
+        hasProductiveBurnOption(ship)
       );
     })
     .map((ship) => ship.id);

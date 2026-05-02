@@ -139,6 +139,24 @@ describe('evaluateSimulationPolicies', () => {
     });
   });
 
+  it('warns when Blockade Runner collapses back into pure attrition', () => {
+    const evaluation = evaluateSimulationPolicies([
+      metrics({
+        scenario: 'blockade',
+        player0Wins: 8,
+        player1Wins: 12,
+        reasons: { 'Fleet eliminated!': 20 },
+      }),
+    ]);
+
+    expect(evaluation.failed).toBe(false);
+    expect(evaluation.warnings).toContainEqual({
+      scenario: 'blockade',
+      kind: 'objective',
+      message: 'objective resolutions 0.0% below 50%',
+    });
+  });
+
   it('warns when Grand Tour objective-seat balance skews too far', () => {
     const evaluation = evaluateSimulationPolicies([
       metrics({

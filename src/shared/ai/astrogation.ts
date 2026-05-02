@@ -2191,6 +2191,14 @@ export const aiAstrogation = (
           bestWeakGrav = undefined;
         } else {
           const currentDistance = hexDistance(ship.position, interceptHex);
+          const currentProjectedDistance = hexDistance(
+            hexAdd(ship.position, ship.velocity),
+            interceptHex,
+          );
+          const currentBestDistance = Math.min(
+            currentDistance,
+            currentProjectedDistance,
+          );
           const fallbackCourse = minBy(
             directions
               .map((direction) => ({
@@ -2202,10 +2210,22 @@ export const aiAstrogation = (
               .filter(
                 ({ course }) =>
                   course.outcome !== 'crash' &&
-                  hexDistance(course.destination, interceptHex) <
-                    currentDistance,
+                  Math.min(
+                    hexDistance(course.destination, interceptHex),
+                    hexDistance(
+                      hexAdd(course.destination, course.newVelocity),
+                      interceptHex,
+                    ),
+                  ) < currentBestDistance,
               ),
-            ({ course }) => hexDistance(course.destination, interceptHex),
+            ({ course }) =>
+              Math.min(
+                hexDistance(course.destination, interceptHex),
+                hexDistance(
+                  hexAdd(course.destination, course.newVelocity),
+                  interceptHex,
+                ),
+              ),
           );
 
           if (fallbackCourse) {

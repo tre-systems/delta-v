@@ -65,7 +65,9 @@ scorecard as the first stop for AI tuning reviews:
   value fails `--ci`.
 - `fuelStallsPerGame` — active, fueled, stationary ships that coast instead of
   burning or landing, excluding pure-combat station keeping within two hexes of
-  an enabled enemy. Gated per scenario at 30 stalls/game in
+  an enabled enemy and terminal-fuel endgames where no safe burn can improve
+  the ship's movement objective or combat intercept line. Gated per scenario at
+  30 stalls/game in
   `OBJECTIVE_WARNING_POLICIES`; the gate fires for an order-of-magnitude
   regression like the 2026-04-24 fleetAction (72.1) and interplanetaryWar
   (110.3) sweeps without flapping on convoy's healthy 19.3 baseline.
@@ -102,6 +104,13 @@ was 40% P0 decided, 90% Grand Tour completion, 10% fleet elimination, and no
 invalid actions or fuel stalls. Across seeds 0-7 at 20 games each, the aggregate
 was 52.5% P0 decided, 96.875% Grand Tour completion, 3.125% fleet elimination,
 0 timeouts, 0 invalid actions, and 0 fuel stalls.
+
+The 2026-05-02 Agent B pass split a Fleet Action false-positive stall class
+from genuine fueled coasting and rebalanced Blockade Runner toward its landing
+race. `fleetAction 60 --seed -403487708 --ci --quiet --json` now reports 0
+fuel stalls, 0 invalid actions, 0 crashes, and 2/60 timeouts. `blockade 60
+--seed -403487708 --ci --quiet --json` now reports 47 Mars landings, 13 fleet
+eliminations, 0 invalid actions, 0 crashes, 0 stalls, and 0 timeouts.
 
 **Failure captures.** Use `--capture-failures <dir>` to write bounded JSON
 snapshots for invalid built-in AI actions, fuel stalls, passenger-objective
