@@ -132,6 +132,26 @@ export const archiveCompletedMatch = async (
   const { gameId } = state;
 
   try {
+    // Skip the entire archive write when the canonical R2 object
+    // already exists. Without this guard the alarm path overwrote the
+    // R2 payload with a fresh `completedAt: Date.now()` even though
+    // D1 was protected by `INSERT OR IGNORE`, leaving the metadata
+    // surfaces disagreeing (the 2026-05-02 audit found drift of up to
+    // ~5 minutes between D1 and R2). Reading the existing object's
+    // head is cheaper than rewriting the multi-KB JSON, and the first
+    // archive is by definition the canonical one — re-archives carry
+    // no information that wasn't captured at write time.
+    try {
+      const existing = await r2.head(r2Key(gameId));
+      if (existing) {
+        return;
+      }
+    } catch (err) {
+      console.error('[match-archive] r2.head failed', { gameId, err });
+      // Fall through to the full write — it will overwrite the existing
+      // object as before, which is no worse than the pre-fix behaviour.
+    }
+
     const [
       eventStream,
       checkpoint,
