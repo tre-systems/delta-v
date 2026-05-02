@@ -721,6 +721,44 @@ npx wrangler d1 execute delta-v-telemetry --remote --json --command \
      COUNT(*) AS total
    FROM match_archive;"
 
+# Match-archive visibility (post-Stream-A.2). The writer flips
+# `public_visible` to 0 at archive time when any quality flag fires
+# (`short_disconnect_forfeit`, `no_outcome`, `unidentified_participants`,
+# `reserved_test_callsign`). Visible/total ratio + flag breakdown is
+# the operational answer to "what is the public listing showing?".
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT public_visible, COUNT(*) AS n FROM match_archive
+   GROUP BY public_visible ORDER BY public_visible DESC;"
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT quality_flags, COUNT(*) AS n FROM match_archive
+   WHERE quality_flags IS NOT NULL
+   GROUP BY quality_flags ORDER BY n DESC;"
+
+# Player-table identity classification (post-Stream-A.3). A leaderboard
+# that's drifting toward generated defaults shows up here as a growing
+# `default_human` count; an agent leaderboard takeover shows up as a
+# `agent` / `seed_agent` skew. The old prefix-glob queries for `QA_*` /
+# `Probe_*` / `Bot_*` are replaced by a single `identity_kind = 'test'`
+# filter.
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT COALESCE(identity_kind, '<null>') AS kind, COUNT(*) AS n
+   FROM player GROUP BY identity_kind ORDER BY n DESC;"
+
+# Telemetry-redaction proof (post-Stream-A.4). After the redaction
+# deploy, no future `events.props` should carry a raw `playerKey` /
+# `aKey` / `bKey` / `winnerKey` / `seat[01]Key`. Older rows still hold
+# the unredacted strings until 30-day retention purges them; the
+# operational signal is "no rows since the deploy date contain raw
+# keys" rather than "no rows at all".
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT COUNT(*) AS post_deploy_with_raw_keys
+   FROM events
+   WHERE ts > <DEPLOY_TIMESTAMP_MS>
+     AND (props LIKE '%\"playerKey\":\"%'
+          OR props LIKE '%\"aKey\":\"%'
+          OR props LIKE '%\"bKey\":\"%'
+          OR props LIKE '%\"winnerKey\":\"%');"
+
 # Tutorial funnel — drop-off across the steps
 npx wrangler d1 execute delta-v-telemetry --remote --json --command \
   "SELECT event, COUNT(*) AS n FROM events
@@ -838,6 +876,7 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 
 | Date | Operator | Scope | Backlog entries filed |
 |------|----------|-------|----------------------|
+| 2026-05-02 | agent (Opus 4.7) | Post-Stream-A verification pass against deployed `version.json` hash `7c12a96a`. Confirmed migrations 0007 / 0008 / 0009 present in remote D1 (`pragma_table_info` lists `player_a_username`, `player_b_username`, `winner_username`, `public_visible`, `quality_flags`, `identity_kind`). R1 surface scan (16 paths — `/robots.txt` HEAD/GET drift remains, all other paths conform). R2 validation re-confirmed: `/api/matches?status=unknown` now returns structured `invalid_query` (was the silent-accept finding from the morning's pass — fixed in commit landing this week). R20 storage audit using the new columns: 49 archive rows post-cleanup (operators removed 45 rows), 100 % `public_visible=1` (all pre-Stream-A defaults), `quality_flags` null on every row (no post-deploy archives yet). Player table at 16 rows: 9 `agent`, 1 `official_bot`, 6 null (pre-migration humans — backfill is conservative by design). R7 8-scenario picker walk via `__DELTAV_FORCE_PLAYER_SIDE` confirmed Lunar Evacuation now hidden from the lobby (commit `5caf8716`); the briefing description / per-seat objective mismatch persists for Convoy P1 ("Destroy all enemies" alongside an escort-mission description). R16 simulation re-checks: **biplanetary 12 games = 100 % `Landed on Venus!` at avg 8.3 turns** (engine fine), **blockade 60 games = 81.7 % `Fleet eliminated!` / 18.3 % `Landed on Mars!`** (P0 36.7 % decided) — the race scenario remains a combat scenario in AI-vs-AI play, mirroring the live-archive pattern (7/7 archived blockade games are `Fleet eliminated!`). **convoy 30 games = 90 % `Landed on Venus with colonists!`** — the 2026-04-28 27.5 % delivery rate is gone; commit `9d7dd68c` (improve convoy carrier threat handling) lifted Stream B's most-watched scenario into the healthy band. **evacuation 60 games = 100 % deliveries but 80 % P0 decided / 2.1 turns avg** — decisively confirms why the scenario was hidden from the lobby; the rescue fleet starts close enough to Terra that the corsair has no realistic intercept window. Probed `/create` + abandon path: VANLQ aborted cleanly without ever entering `match_archive`, so the 1-turn-disconnect noise that polluted `/matches` from the morning pass doesn't even reach the table now. Stream A.5 idempotency proven by unit test; live verification deferred to the first paired match after deploy. R13 tail clean (0 exceptions); D1 last-24h error events = 1 (a single `join_game_failed` from a stale URL). Findings reaffirmed for Stream B: (1) **Blockade Runner balance** — even with `--randomize-start`, only 15 % of decided games end on a Mars landing; either rebalance the packet ship or change the win condition so the racer's clock advantage is visible. (2) **Lunar Evacuation 80 % P0 dominance** — keep hidden until the rescue side's start position is moved further from Terra or the corsair fleet is doubled. (3) Convoy / asymmetric-briefing UX gap from the morning pass still holds — no per-seat description copy yet. | 0 — Stream B findings already on the backlog; doc-only updates here |
 | 2026-05-02 | agent (Opus 4.7) | Live exploratory pass against deployed `version.json` hash `124bfbd0`. R1/R2/R18/R19 public-surface + validation + HEAD/error-shape probes; R7 all-9-scenario Play-vs-AI launch via `data-scenario` clicks with seat-aware briefing/objective capture; R10 mobile overlap/offscreen sweep at 320×568 portrait + 812×375 landscape (in-game astrogation, tutorial dismiss, no overlaps after dismiss); R14 client-state audit (3 localStorage keys, ~1.7 KB); R17 live recovery happy path (issue→restore→revoke→restore-fails); R20 D1/R2 storage audit including new lenses for *intended-objective conformance*, *match-archive noise*, and *quick-match scenario routing*. **Surfaced (5 P2/P3, 1 P1 candidate):** (1) **Bi-Planetary objective desync** — AI-vs-AI Hard `simulate biplanetary 12 --ci` lands 100% (avg 8.3 turns), but **0/29 archived live games** ended on a landing — every one resolved by elimination/disconnect. The "Beginner" race scenario is, in practice, a combat scenario for live players. (2) **Blockade Runner same pattern** — 0/15 archived games end "Landed on Mars!"; the packet ship always loses to the corvette before reaching the target. (3) **Asymmetric-scenario seat briefing mismatch** — `startLocalGameSession` randomises the human seat, but `scenario-briefing-view.ts` only shows the scenario `description` (not seat-specific). Convoy/Evacuation P1 (corsair) sees objective "⬡ Destroy all enemies" alongside a description that describes the *escort* mission — the antagonist role is never explained. (4) **Tutorial cannot complete in many scenarios** — `tutorial_completed` requires all 7 STEPS shown, including `ordnance-intro` and `combat-intro` whose phases never trigger in Bi-Planetary/Grand Tour/etc.; D1 confirms 126 starts, 0 completes. The 2026-04-27 `tutorial_step_shown` instrumentation revealed 10/17 events are still `welcome` only. (5) **Recent-matches noise** — 14/94 archive rows (15%) are 1-turn `Opponent disconnected` rows — abandoned `/create` rooms left for the disconnect-forfeit timer. They float to the top of `/matches` indistinguishably from real games (3 of the 12 most-recent are noise from this pass alone). (6) **HEAD/GET drift on `/robots.txt`** — GET 200 / HEAD 404, RFC 9110 violation; only path among 11 probed where HEAD ≠ GET. (7) **`/api/matches?status=X` silently accepts unknown values** — `live`, `waiting`, `active` all return `[]` with no validation error, while `?scenario=fake` returns structured `invalid_query`; inconsistent. (8) **`/join/{CODE}` error shape diverges** — `{code, message}` instead of the common `{ok:false, error, message}`. R13 tail had 0 exceptions; D1 row counts fresh; events freshness < 24 h. New recipes proposed: R7-extension (per-seat objective capture) and R20 lens (match-archive noise / objective conformance). | 0 — findings handed to user, doc updated, no backlog edits in this pass |
 | 2026-04-26 | Codex | Post-`d13b219` live deep pass after CI/deploy: GitHub run 24954316368 passed; deployed `version.json` hash `bbced061` matched the pushed build. Covered R1/R2 public surface and validation, R9 `scripts/mp-connectivity.mjs` production duplicate-session replacement, R17 callsign recovery restore + confirmed forget, hosted MCP initialize/tools/list/Accept rejection, all nine Play-vs-AI scenario launches, public page/link smoke for home/agents/matches/leaderboard, archived replay bar/log-pill spacing at `320 x 568`, `390 x 844`, `812 x 375`, and responsive overlap sweeps across menu/scenario/HUD/fleet/replay. Filed: sound control still unclickable behind scenario/fleet overlays. | 1 |
 | 2026-04-26 | Codex | Follow-up fix pass: extended overlay chrome positioning to scenario select, waiting, and fleet builder so `#soundBtn` remains top-right and clickable on menu-like overlays. Rechecked home menu, scenario select, fleet builder, waiting, and HUD at compact live-style viewports; removed the completed backlog entry. | 0 |
