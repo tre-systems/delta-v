@@ -308,6 +308,87 @@ describe('handleMcpHttpRequest', () => {
     expect(templates).toContain(MATCH_REPLAY_URI_TEMPLATE);
   });
 
+  it('lists active hosted match resources for the authenticated agent', async () => {
+    const doFetch = vi.fn(async (req: Request) => {
+      if (req.url.includes('/mcp/session-summary')) {
+        return Response.json({
+          ok: true,
+          session: {
+            code: 'ABCDE',
+            scenario: 'duel',
+            playerId: 0,
+            playerToken: 'A'.repeat(32),
+            currentPhase: 'astrogation',
+            turnNumber: 1,
+            eventsBuffered: 3,
+          },
+        });
+      }
+      return Response.json({});
+    });
+    const namespace = {
+      get: vi.fn(() => ({ fetch: doFetch }) as unknown as DurableObjectStub),
+      idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
+    } as unknown as DurableObjectNamespace;
+    const liveRegistry = {
+      get: vi.fn(
+        () =>
+          ({
+            fetch: vi.fn(async () =>
+              Response.json({
+                matches: [{ code: 'ABCDE', scenario: 'duel', startedAt: 1 }],
+              }),
+            ),
+          }) as unknown as DurableObjectStub,
+      ),
+      idFromName: vi.fn((name: string) => name as unknown as DurableObjectId),
+    } as unknown as DurableObjectNamespace;
+    const agent = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_resource_list_1',
+    });
+    const env = {
+      GAME: namespace,
+      MATCHMAKER: namespace,
+      LIVE_REGISTRY: liveRegistry,
+      AGENT_TOKEN_SECRET: TEST_SECRET,
+    } as unknown as Env;
+
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        { jsonrpc: '2.0', id: 212, method: 'resources/list' },
+        agent.token,
+      ),
+      env,
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      result: {
+        resources: Array<{
+          mimeType?: string;
+          name?: string;
+          title?: string;
+          uri: string;
+        }>;
+      };
+    };
+    const hosted = body.result.resources.filter((resource) => {
+      return resource.uri.startsWith('game://matches/');
+    });
+    expect(hosted.map((resource) => resource.title).sort()).toEqual([
+      'Match Log ABCDE P0',
+      'Match Observation ABCDE P0',
+      'Match Replay ABCDE P0',
+    ]);
+    expect(hosted.map((resource) => resource.uri).sort()).toEqual([
+      expect.stringMatching(/^game:\/\/matches\/.+\/log$/),
+      expect.stringMatching(/^game:\/\/matches\/.+\/observation$/),
+      expect.stringMatching(/^game:\/\/matches\/.+\/replay$/),
+    ]);
+    expect(doFetch).toHaveBeenCalledTimes(1);
+  });
+
   it('reads the current rules resource as JSON text', async () => {
     const { env } = buildEnv(() => new Response('{}'));
     const res = await handleMcpHttpRequest(

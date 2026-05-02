@@ -116,6 +116,7 @@ const callDurableObject = (
 
 const buildHostedMatchObservationResource = async (
   env: Env,
+  resourceId: string,
   target: MatchTarget,
 ): Promise<string> => {
   const params = buildObservationParams({
@@ -135,7 +136,7 @@ const buildHostedMatchObservationResource = async (
   }
   return JSON.stringify(
     buildMatchObservationResourceDocument(
-      target.code,
+      resourceId,
       body as unknown as AgentTurnInput,
     ),
     null,
@@ -145,6 +146,7 @@ const buildHostedMatchObservationResource = async (
 
 const buildHostedMatchLogResource = async (
   env: Env,
+  resourceId: string,
   target: MatchTarget,
 ): Promise<string> => {
   const response = await callDurableObject(env, target.code, {
@@ -159,7 +161,7 @@ const buildHostedMatchLogResource = async (
   }
   return JSON.stringify(
     buildMatchLogResourceDocument(
-      target.code,
+      resourceId,
       (body.events ?? []) as never,
       typeof body.latestEventId === 'number' ? body.latestEventId : 0,
       typeof body.bufferedRemaining === 'number' ? body.bufferedRemaining : 0,
@@ -171,6 +173,7 @@ const buildHostedMatchLogResource = async (
 
 const buildHostedMatchReplayResource = async (
   env: Env,
+  resourceId: string,
   target: MatchTarget,
 ): Promise<string> => {
   const response = await callDurableObject(env, target.code, {
@@ -183,7 +186,7 @@ const buildHostedMatchReplayResource = async (
   }
   return JSON.stringify(
     buildMatchReplayResourceDocument(
-      target.code,
+      resourceId,
       (await response.json()) as import('../../../src/shared/replay').ReplayTimeline,
     ),
     null,
@@ -228,6 +231,19 @@ const matchTargetSchema = {
 interface MatchTarget {
   code: string;
   playerToken: string;
+}
+
+interface HostedMcpSession {
+  code: string;
+  connectionStatus: 'open';
+  currentPhase: string | null;
+  eventsBuffered: number;
+  matchToken: string;
+  matchTokenExpiresAt: number;
+  playerId: 0 | 1;
+  scenario: string;
+  sessionId: string;
+  turnNumber: number | null;
 }
 
 // Resolve the hosted match handle into the concrete {code, playerToken} pair
@@ -279,6 +295,69 @@ const resolveMatchTarget = async (
   };
 };
 
+const listHostedSessionsForAgent = async (
+  env: Env,
+  agentIdentity: AgentIdentity | null,
+): Promise<HostedMcpSession[]> => {
+  if (agentIdentity === null) return [];
+
+  const live = await handleLiveMatchesList(env, { includeHidden: true });
+  const body = (await live.json()) as {
+    matches?: Array<{ code: string; scenario: string; startedAt: number }>;
+  };
+  const secret = resolveAgentTokenSecret(env);
+  const sessions = await Promise.all(
+    (body.matches ?? []).map(async (match) => {
+      const response = await callDurableObject(env, match.code, {
+        url: `${SERVER_INTERNAL}/mcp/session-summary?playerKey=${encodeURIComponent(agentIdentity.payload.playerKey)}`,
+        method: 'GET',
+      });
+      if (!response.ok) return null;
+      const sessionBody = (await response.json()) as {
+        session?: {
+          code: string;
+          currentPhase: string | null;
+          eventsBuffered: number;
+          playerId: number;
+          playerToken: string;
+          scenario: string;
+          turnNumber: number | null;
+        };
+      };
+      const session = sessionBody.session;
+      if (!session || (session.playerId !== 0 && session.playerId !== 1)) {
+        return null;
+      }
+      const { token: matchToken, expiresAt } = await issueMatchToken({
+        secret,
+        code: session.code,
+        playerToken: session.playerToken,
+        agentToken: agentIdentity.rawAgentToken,
+      });
+      return {
+        matchToken,
+        sessionId: matchToken,
+        matchTokenExpiresAt: expiresAt,
+        code: session.code,
+        scenario: session.scenario,
+        playerId: session.playerId,
+        connectionStatus: 'open' as const,
+        currentPhase: session.currentPhase,
+        turnNumber: session.turnNumber,
+        eventsBuffered: session.eventsBuffered,
+      };
+    }),
+  );
+  return sessions.filter((session): session is HostedMcpSession => {
+    return session !== null;
+  });
+};
+
+const matchResourceName = (
+  kind: 'log' | 'observation' | 'replay',
+  session: HostedMcpSession,
+): string => `delta-v-match-${kind}-${session.code}-p${session.playerId}`;
+
 export interface AgentIdentity {
   payload: AgentTokenPayload;
   rawAgentToken: string;
@@ -295,6 +374,11 @@ export const buildMcpServer = (
         'Use this server to play Delta-V via the hosted MCP endpoint. Recommended flow: (1) call POST /api/agent-token once with your stable agent_-prefixed playerKey to obtain an agentToken; (2) send it as Authorization: Bearer <token> on every /mcp request; (3) call delta_v_quick_match (no args needed) to receive an opaque matchToken; (4) drive the game via delta_v_wait_for_turn / delta_v_send_action passing matchToken in args (sessionId is accepted as a hosted compatibility alias).',
     },
   );
+  let hostedSessionsPromise: Promise<HostedMcpSession[]> | null = null;
+  const getHostedSessions = (): Promise<HostedMcpSession[]> => {
+    hostedSessionsPromise ??= listHostedSessionsForAgent(env, agentIdentity);
+    return hostedSessionsPromise;
+  };
 
   for (const resource of listRulesResources()) {
     server.registerResource(
@@ -375,7 +459,16 @@ export const buildMcpServer = (
 
   {
     const template = new ResourceTemplate(MATCH_OBSERVATION_URI_TEMPLATE, {
-      list: undefined,
+      list: async () => ({
+        resources: (await getHostedSessions()).map((session) => ({
+          name: matchResourceName('observation', session),
+          title: `Match Observation ${session.code} P${session.playerId}`,
+          description:
+            'Current hosted MCP agent observation for this active match seat.',
+          uri: matchObservationUri(session.matchToken),
+          mimeType: RULES_RESOURCE_MIME_TYPE,
+        })),
+      }),
     });
     server.registerResource(
       'delta-v-match-observation',
@@ -398,7 +491,7 @@ export const buildMcpServer = (
             {
               uri: matchObservationUri(id),
               mimeType: RULES_RESOURCE_MIME_TYPE,
-              text: await buildHostedMatchObservationResource(env, target),
+              text: await buildHostedMatchObservationResource(env, id, target),
             },
           ],
         };
@@ -408,7 +501,16 @@ export const buildMcpServer = (
 
   {
     const template = new ResourceTemplate(MATCH_LOG_URI_TEMPLATE, {
-      list: undefined,
+      list: async () => ({
+        resources: (await getHostedSessions()).map((session) => ({
+          name: matchResourceName('log', session),
+          title: `Match Log ${session.code} P${session.playerId}`,
+          description:
+            'Buffered append-only hosted MCP event log for this active match seat.',
+          uri: matchLogUri(session.matchToken),
+          mimeType: RULES_RESOURCE_MIME_TYPE,
+        })),
+      }),
     });
     server.registerResource(
       'delta-v-match-log',
@@ -431,7 +533,7 @@ export const buildMcpServer = (
             {
               uri: matchLogUri(id),
               mimeType: RULES_RESOURCE_MIME_TYPE,
-              text: await buildHostedMatchLogResource(env, target),
+              text: await buildHostedMatchLogResource(env, id, target),
             },
           ],
         };
@@ -441,7 +543,16 @@ export const buildMcpServer = (
 
   {
     const template = new ResourceTemplate(MATCH_REPLAY_URI_TEMPLATE, {
-      list: undefined,
+      list: async () => ({
+        resources: (await getHostedSessions()).map((session) => ({
+          name: matchResourceName('replay', session),
+          title: `Match Replay ${session.code} P${session.playerId}`,
+          description:
+            'Latest replay timeline for this active hosted MCP match seat.',
+          uri: matchReplayUri(session.matchToken),
+          mimeType: RULES_RESOURCE_MIME_TYPE,
+        })),
+      }),
     });
     server.registerResource(
       'delta-v-match-replay',
@@ -464,7 +575,7 @@ export const buildMcpServer = (
             {
               uri: matchReplayUri(id),
               mimeType: RULES_RESOURCE_MIME_TYPE,
-              text: await buildHostedMatchReplayResource(env, target),
+              text: await buildHostedMatchReplayResource(env, id, target),
             },
           ],
         };
@@ -590,57 +701,8 @@ export const buildMcpServer = (
           'delta_v_list_sessions requires Authorization: Bearer <agentToken>.',
         );
       }
-      const authenticatedAgent: AgentIdentity = agentIdentity;
-      const live = await handleLiveMatchesList(env, { includeHidden: true });
-      const body = (await live.json()) as {
-        matches?: Array<{ code: string; scenario: string; startedAt: number }>;
-      };
-      const secret = resolveAgentTokenSecret(env);
-      const sessions = await Promise.all(
-        (body.matches ?? []).map(async (match) => {
-          const response = await callDurableObject(env, match.code, {
-            url: `${SERVER_INTERNAL}/mcp/session-summary?playerKey=${encodeURIComponent(authenticatedAgent.payload.playerKey)}`,
-            method: 'GET',
-          });
-          if (!response.ok) {
-            return null;
-          }
-          const sessionBody = (await response.json()) as {
-            session?: {
-              code: string;
-              scenario: string;
-              playerId: number;
-              playerToken: string;
-              currentPhase: string | null;
-              turnNumber: number | null;
-              eventsBuffered: number;
-            };
-          };
-          if (!sessionBody.session) {
-            return null;
-          }
-          const { token: matchToken, expiresAt } = await issueMatchToken({
-            secret,
-            code: sessionBody.session.code,
-            playerToken: sessionBody.session.playerToken,
-            agentToken: authenticatedAgent.rawAgentToken,
-          });
-          return {
-            matchToken,
-            sessionId: matchToken,
-            matchTokenExpiresAt: expiresAt,
-            code: sessionBody.session.code,
-            scenario: sessionBody.session.scenario,
-            playerId: sessionBody.session.playerId,
-            connectionStatus: 'open',
-            currentPhase: sessionBody.session.currentPhase,
-            turnNumber: sessionBody.session.turnNumber,
-            eventsBuffered: sessionBody.session.eventsBuffered,
-          };
-        }),
-      );
       return ok('Listed hosted MCP sessions.', {
-        sessions: sessions.filter((session) => session !== null),
+        sessions: await getHostedSessions(),
       });
     },
   );

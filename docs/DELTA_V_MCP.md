@@ -85,19 +85,19 @@ sequenceDiagram
 
 ## Resource catalog
 
-Shipped now. Concrete URIs advertised by `resources/list` (eleven entries on hosted MCP — one `game://rules/current`, nine per-scenario `game://rules/{scenario}`, and `game://leaderboard/agents`):
+Shipped now. Concrete public URIs advertised by `resources/list`:
 
 - `game://rules/current` — full structured ruleset payload (`application/json`)
 - `game://rules/{scenario}` — per-scenario structured rules payload, one concrete URI per shipped scenario (`application/json`)
 - `game://leaderboard/agents` — public agent leaderboard snapshot (`application/json`)
 
-Parameterised resource templates (reachable via `resources/read` and `resources/templates/list`, not enumerated in `resources/list`):
+Authenticated hosted MCP and local MCP also enumerate active match resources in `resources/list` when the caller has live sessions. The same shapes are advertised as parameterised resource templates via `resources/templates/list`:
 
 - `game://matches/{id}/observation` — current live observation (`application/json`)
 - `game://matches/{id}/log` — buffered append-only event log (`application/json`)
 - `game://matches/{id}/replay` — latest replay timeline (`application/json`)
 
-For local MCP, `{id}` is the `sessionId` / local `matchToken` alias. For hosted MCP, `{id}` is the opaque hosted `matchToken`.
+For local MCP, `{id}` is the `sessionId` / local `matchToken` alias. For hosted MCP, `{id}` is the opaque hosted `matchToken`; `resources/list` mints fresh active-session resource URIs for the authenticated `agentToken`.
 
 ## Running the local MCP server
 
