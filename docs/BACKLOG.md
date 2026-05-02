@@ -64,13 +64,15 @@ briefing UI.
 Goal: make scenario briefing copy accurate for each player seat in asymmetric
 scenarios.
 
-1. **Add Role-Specific Asymmetric Briefing Copy (P2)** — Convoy P1 should not
-   see the escort-side story while their objective is to destroy all enemies.
-   Cover Lunar Evacuation before it returns to the lobby.
+The queue item has shipped — see "Verified Not Active" below for the
+acceptance evidence. Reopen this stream when a new asymmetric scenario
+lands without per-seat narration in
+[src/client/ui/scenario-briefing-copy.ts](../src/client/ui/scenario-briefing-copy.ts),
+or when an existing asymmetric scenario's role framing changes.
 
-Primary write ownership: `src/client/ui/scenario-briefing-view.ts`, a new
-briefing-copy helper if needed, briefing/UI tests, `docs/MANUAL_TEST_PLAN.md`,
-and narrow static/help copy if needed.
+Primary write ownership: `src/client/ui/scenario-briefing-view.ts`,
+`src/client/ui/scenario-briefing-copy.ts`, briefing/UI tests,
+`docs/MANUAL_TEST_PLAN.md`, and narrow static/help copy if needed.
 
 Avoid touching AI heuristics, `src/shared/map-data.ts`, Cloudflare data schemas,
 archive retention, or leaderboard telemetry.
@@ -100,6 +102,12 @@ should not be assigned as active backlog work:
   path no longer rewrites a canonical R2 object, and the unit test
   ("skips the R2/D1 write when the archive already exists") guards the
   invariant.
+- **Add Role-Specific Asymmetric Briefing Copy** — implemented via
+  `src/client/ui/scenario-briefing-copy.ts` plus the briefing-view
+  override. Convoy P0/P1, Lunar Evacuation P0/P1, Escape P0/P1, and
+  Blockade Runner P0/P1 each render seat-specific narration; symmetric
+  scenarios fall through to the shared description. Coverage asserted
+  by `scenario-briefing-copy.test.ts`.
 - **Improve Passenger Objective AI** — current paired scorecards landed; keep
   only the fixture workflow guardrail for future AI changes.
 - **Small Accessibility Polish** — current a11y pass is complete; reopen only
@@ -155,26 +163,6 @@ updated to describe it as a combat-heavy interception scenario.
 **Files:** `src/shared/map-data.ts`, `src/shared/ai/`,
 `src/shared/ai/__fixtures__/`, `docs/MANUAL_TEST_PLAN.md`,
 `docs/SIMULATION_TESTING.md`
-
-### Add Role-Specific Asymmetric Briefing Copy (P2)
-
-The live browser sweep still shows Convoy P1 receiving a fixed escort-mission
-description beside objective `⬡ Destroy all enemies`. The player is actually
-the pirate/interceptor side, so the briefing tells them the story for the other
-role. Escape P1 reads clearly; Convoy remains the visible player-facing gap.
-Lunar Evacuation has the same structural risk before it can safely return to
-the lobby.
-
-Render a per-seat role banner or per-seat scenario description for asymmetric
-scenarios. Keep the current shared description as a fallback only when both
-sides have the same role framing.
-
-Acceptance: forcing `__DELTAV_FORCE_PLAYER_SIDE = 0` and `1` before launching
-Convoy shows role-accurate briefing copy for both seats; the same test should
-cover Lunar Evacuation before re-enabling its card.
-
-**Files:** `src/client/ui/scenario-briefing-view.ts`, new briefing-copy helper
-if needed, `src/client/ui/*briefing*.test.ts`, `docs/MANUAL_TEST_PLAN.md`
 
 ### Maintain Fixture-Backed AI Workflow (P1, ongoing)
 

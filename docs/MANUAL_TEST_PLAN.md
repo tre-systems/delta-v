@@ -12,7 +12,7 @@ Any of these is a blocker:
 - Mobile / touch has blocked actions, overlapping HUD, or unreadable text.
 - PWA offline single-player is broken.
 - A 20-30 minute session shows serious stutter, dropped input, stale UI, or unclear win/loss messaging.
-- An asymmetric scenario (Convoy, Lunar Evacuation, Escape) hides which side the player is on. The briefing **description** plus the per-seat objective must together communicate the role; if `getObjective()` returns "Destroy all enemies" while the description describes a passenger-rescue mission, fix before release.
+- An asymmetric scenario (Convoy, Lunar Evacuation, Escape, Blockade Runner) hides which side the player is on. The briefing **description** plus the per-seat objective must together communicate the role. Per-seat copy lives in [src/client/ui/scenario-briefing-copy.ts](../src/client/ui/scenario-briefing-copy.ts); if a new asymmetric scenario lands without a per-seat entry, players will see the shared description beside a misaligned objective. See § 6a.
 - A Beginner-tagged race scenario (Bi-Planetary, Blockade Runner) is functionally a combat scenario in a 5+ game live sample — i.e. zero of those games end on the intended landing. Confirm with the Lens 11 query in [EXPLORATORY_TESTING.md § R20](./EXPLORATORY_TESTING.md#r20-d1-r2-storage-audit).
 
 When a test fails, record browser, device, scenario, seat, steps, and whether the failure is correctness, clarity, performance, or recovery.
@@ -105,14 +105,18 @@ Scenarios and their rules are fully specified in [SPEC.md § Scenarios](./SPEC.m
 
 ### 6a. Per-seat briefing & objective (asymmetric scenarios)
 
-For Convoy, Lunar Evacuation, and Escape, the human is randomly assigned P0 or P1 by `Math.random()`. The briefing description is fixed per scenario, but the objective is per-seat. Force each seat (`globalThis.__DELTAV_FORCE_PLAYER_SIDE = 0` then `= 1` before clicking the scenario card) and verify. Lunar Evacuation is hidden from the picker for now; run this check only if exercising a dev-only launch path or before re-enabling the card:
+For Convoy, Lunar Evacuation, Escape, and Blockade Runner the human is randomly assigned P0 or P1 by `Math.random()`. The briefing now overrides the shared scenario description with seat-specific narration in [src/client/ui/scenario-briefing-copy.ts](../src/client/ui/scenario-briefing-copy.ts); the objective remains per-seat. Force each seat (`globalThis.__DELTAV_FORCE_PLAYER_SIDE = 0` then `= 1` before clicking the scenario card) and verify the description and objective tell the same story:
 
-- **Convoy P0** (escort): description names the colonist mission; objective shows `Land on Venus`. Pass.
-- **Convoy P1** (corsair): description still names the colonist mission; objective shows `Destroy all enemies`. **Fail** if the player has no in-briefing cue that they're the *intercepting* side — they will believe they should be escorting the liner. Either change the description per seat or add a "You are: corsair / escort" banner.
-- **Lunar Evacuation P0** (rescue): objective `Land on Terra` (with passengers). Pass.
-- **Lunar Evacuation P1** (corsair interceptor): objective `Destroy all enemies` against the rescue description. Same fail condition as Convoy P1.
-- **Escape P0** (fugitive transports): objective `Fly ★ ship off the north map edge`. Pass.
-- **Escape P1** (enforcer): objective `Inspect, capture, or destroy fugitives`. Pass — both seats here read clearly.
+- **Convoy P0** (escort, Mars→Venus): description mentions the colonist liner / escort role; objective shows `Land on Venus`.
+- **Convoy P1** (pirates, intercept): description mentions hunting the convoy / destroying the liner; objective shows `Destroy all enemies`.
+- **Lunar Evacuation P0** (rescue): description mentions evacuating Luna survivors / the carrier; objective shows `Land on Terra` (with passengers). Lunar Evacuation is hidden from the lobby for now; run this check before re-enabling the card.
+- **Lunar Evacuation P1** (corsair interceptor): description mentions cutting off the transport; objective shows `Destroy all enemies`.
+- **Escape P0** (pilgrim transports): description mentions hiding fugitives in a 3-transport formation and breaking north; objective shows `Fly ★ ship off the north map edge`.
+- **Escape P1** (enforcer): description mentions inspecting / capturing / destroying transports; objective shows `Inspect, capture, or destroy fugitives`.
+- **Blockade Runner P0** (packet): description mentions the head-start velocity and avoiding a fight; objective shows `Land on Mars`.
+- **Blockade Runner P1** (corvette): description mentions intercepting the packet's path; objective shows `Destroy all enemies`.
+
+**Fail** if the description and objective describe opposite roles (the regression that prompted this section, where Convoy P1 read "escort the liner" beside `Destroy all enemies`).
 
 ### 6b. Intended-objective conformance (live data)
 
