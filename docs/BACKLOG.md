@@ -8,6 +8,75 @@ Outstanding tasks that deserve a named home between PRs. Shipped work belongs in
 
 Sections are grouped by priority and trigger. Last reviewed: 2026-05-02.
 
+## Concurrent Work Streams
+
+Use these streams when two agents need to work concurrently from `main`. Each
+stream is internally ordered; do not split one stream across multiple agents
+unless the lead agent has already landed its current PR, because tasks within a
+stream intentionally share files and migrations.
+
+### Stream A — Data Integrity and Public History
+
+Goal: make Cloudflare-stored data durable, privacy-conscious, and cleanly
+presentable without manual destructive cleanup.
+
+1. **Snapshot Callsigns in Match Archives (P1)** — first, because archive
+   visibility and match-list rendering should depend on immutable participant
+   snapshots rather than live `player` joins.
+2. **Add Archive Visibility and Quality Flags (P2)** — second, because it can
+   use callsign snapshots to hide low-quality rows without deleting R2/D1 audit
+   records.
+3. **Classify Player Identity Rows (P2)** — third, so future filtering and
+   retention decisions use explicit identity lifecycle instead of username
+   globbing.
+4. **Minimize Raw Player Keys in Telemetry Props (P2)** — fourth, because it is
+   mostly telemetry plumbing and can follow the identity taxonomy.
+5. **Keep D1 and R2 Archive Completion Times Consistent (P3)** — fold in after
+   the archive schema work, or land separately if timestamp drift blocks replay
+   trust.
+6. **Leaderboard Row Click Telemetry (P2)** — small follow-up once leaderboard
+   data semantics are stable.
+
+Primary write ownership: `migrations/`, `src/server/game-do/match-archive.ts`,
+`src/server/matches-list.ts`, `src/server/leaderboard/`, `src/server/auth/`,
+`src/server/reporting.ts`, `src/server/game-do/telemetry.ts`,
+`src/server/matchmaker-do.ts`, `static/matches.html`, `static/leaderboard.html`,
+and observability/security docs.
+
+Avoid touching Stream B AI/engine files except for narrow type fallout.
+
+### Stream B — Gameplay Reliability and Player Experience
+
+Goal: make the game itself resolve correctly, play credibly, and remain usable
+across supported UI surfaces.
+
+1. **Improve Passenger Objective AI (P1)** — highest product impact; keep the
+   fixture-backed workflow tight and measure Convoy/Evacuation drift with
+   paired scorecards.
+2. **Maintain Fixture-Backed AI Workflow (P1, ongoing)** — do this as part of
+   the AI work, not as a separate refactor.
+3. **Fix Protocol Surrender Resolution (P2)** — can run alongside Stream A
+   because it lives in protocol/engine/DO action handling rather than archive
+   schema.
+4. **Small Accessibility Polish (P3)** — only pull this after the gameplay
+   correctness items, and keep it scoped to touched UI surfaces.
+
+Primary write ownership: `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
+`src/shared/simulate-ai-policy.test.ts`, `scripts/simulate-ai.ts`,
+`docs/SIMULATION_TESTING.md`, `src/shared/engine/`, `src/shared/protocol.ts`,
+`src/server/game-do/actions.ts`, `src/server/game-do/mcp-handlers.ts`,
+`src/client/ui/`, `static/index.html`, `static/styles/`, and e2e/a11y tests.
+
+Avoid touching Stream A migrations, archive listing, leaderboard, or telemetry
+storage files unless the fix is explicitly coordinated.
+
+### Trigger-Gated Items
+
+Keep these out of concurrent main-branch work until their trigger fires:
+WAF / Cloudflare read-path rate limits and Cloudflare Turnstile belong to
+Stream A when needed; OpenClaw `SKILL.md` publishing belongs to Stream B only
+when the external platform is ready.
+
 ## Active Priority
 
 ### Improve Passenger Objective AI (P1)
@@ -82,6 +151,99 @@ the rejection but document the difference.
 **Files:** `src/shared/engine/logistics.ts`,
 `src/server/game-do/actions.ts`, `src/shared/protocol.ts`,
 `src/server/game-do/mcp-handlers.ts`, `src/server/game-do/*.test.ts`
+
+### Snapshot Callsigns in Match Archives (P1)
+
+The 2026-05-02 Cloudflare cleanup exposed that public match history depends on
+`match_archive -> match_rating -> player` joins to display participant
+callsigns. Once generated/default `Pilot XXXX` player rows were pruned, archive
+rows such as `G3ZAN-m1` could no longer display players and had to be deleted
+from public history. `match_rating` should remain rating audit, not the durable
+participant-display source.
+
+Add immutable participant snapshots to `match_archive` at archive time, at
+minimum `player_a_username`, `player_b_username`, and `winner_username` (or a
+small JSON participant snapshot if that fits D1 query needs better). Populate
+from room config / claimed player records when the match ends, and make
+`/api/matches` render from these archive columns instead of live `player` joins.
+Keep joins only as a compatibility/backfill path for older rows.
+
+Acceptance: deleting or renaming a `player` row never makes an already archived
+public match lose its displayed callsigns. A test should cover an archived match
+whose participant `player` rows are missing but whose archive snapshots still
+render.
+
+**Files:** `migrations/`, `src/server/game-do/match-archive.ts`,
+`src/server/matches-list.ts`, `src/server/leaderboard/rating-writer.ts`,
+`src/server/*matches*.test.ts`, `static/matches.html`
+
+### Add Archive Visibility and Quality Flags (P2)
+
+Short/noisy rows were removed destructively during the 2026-05-02 cleanup:
+`turns <= 2`, missing callsigns, no rating row, or stale test identities. That
+kept `/matches` clean, but it erased replay/index records that might still be
+useful for audit or debugging. The product needs a first-class way to hide
+low-quality rows from public surfaces without deleting storage.
+
+Add `public_visible` plus a compact `quality_flags` / `archive_status` field to
+`match_archive`. Default `/api/matches` should return only public-visible rows.
+Archive code should mark obvious noise at write time: one/two-turn disconnect
+rows, missing participant snapshots, null-outcome abandoned games, known test
+identity rows, and stale pre-snapshot rows. Keep an internal query path or D1
+recipe for operators to inspect hidden rows without using the public endpoint.
+
+Acceptance: a one-turn disconnect or missing-callsign archive remains available
+for internal audit but does not appear on `/matches` or `/api/matches` by
+default.
+
+**Files:** `migrations/`, `src/server/game-do/match-archive.ts`,
+`src/server/matches-list.ts`, `docs/EXPLORATORY_TESTING.md`,
+`docs/MANUAL_TEST_PLAN.md`, `src/server/*matches*.test.ts`
+
+### Classify Player Identity Rows (P2)
+
+The `player` table currently mixes claimed humans, generated default callsigns,
+scratch/test identities, platform agents, and seed agents. During cleanup, that
+forced pattern-based deletes such as `username LIKE 'Pilot ____'`, `QA_*`,
+`Probe*`, and `agent_live*`. The schema should make identity lifecycle explicit
+instead of relying on username conventions.
+
+Add an identity classification column such as `identity_kind` (`claimed_human`,
+`default_human`, `test`, `agent`, `seed_agent`, `official_bot`) and set it in
+claim-name, agent-token, seed/bootstrap, and quick-match bot paths. Use it in
+leaderboard filtering, recovery eligibility, archive quality decisions, and
+future retention policy. Existing rows can be backfilled conservatively from
+current keys/usernames.
+
+Acceptance: default/generated `Pilot XXXX` rows and known test identities can be
+selected by `identity_kind` without username globbing, while named users such as
+Rob, Fau, Reyes, and Kepler remain unambiguously preserved.
+
+**Files:** `migrations/`, `src/server/leaderboard/player-store.ts`,
+`src/server/leaderboard/claim-route.ts`, `src/server/auth/agent-token.ts`,
+`src/shared/player.ts`, `src/server/leaderboard/query-route.ts`
+
+### Minimize Raw Player Keys in Telemetry Props (P2)
+
+D1 `events.props` can contain raw `playerKey` values from lifecycle telemetry
+such as rating and matchmaker events. Those keys are opaque but still act as
+stable account identifiers, and they make later cleanup/privacy reviews harder
+than necessary.
+
+Introduce a server-side telemetry redaction helper that replaces player keys in
+event props with non-reversible hashed identifiers or role labels before
+writing to D1. Preserve enough information for aggregate debugging (same player
+within an event family, agent vs human, official bot flag) without storing the
+raw credential-like value. Apply this only to future writes; old rows already
+age out under the 30-day events retention.
+
+Acceptance: new D1 `events` rows do not contain raw `human_*`, `agent_*`, or
+browser-generated player keys in `props`, while existing R13/R20 queries still
+answer operational questions.
+
+**Files:** `src/server/reporting.ts`, `src/server/game-do/telemetry.ts`,
+`src/server/leaderboard/rating-writer.ts`, `src/server/matchmaker-do.ts`,
+`docs/OBSERVABILITY.md`, `docs/SECURITY.md`
 
 ### Maintain Fixture-Backed AI Workflow (P1, ongoing)
 
