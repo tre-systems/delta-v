@@ -3,6 +3,7 @@ import type { GameState, PlayerId } from '../../shared/types/domain';
 import { byId, hide, listen, show, text } from '../dom';
 import { getObjective } from '../game/hud-view-model';
 import { createDisposalScope, effect, signal, withScope } from '../reactive';
+import { getScenarioBriefingCopy } from './scenario-briefing-copy';
 
 export interface ScenarioBriefingView {
   show: (state: GameState, playerId: PlayerId) => void;
@@ -58,13 +59,25 @@ export const createScenarioBriefingView = (): ScenarioBriefingView => {
 
   return {
     show: (state, playerId) => {
-      const scenario = isValidScenario(state.scenario)
-        ? SCENARIOS[state.scenario]
+      const scenarioKey = isValidScenario(state.scenario)
+        ? state.scenario
         : null;
+      const scenario = scenarioKey ? SCENARIOS[scenarioKey] : null;
       text(titleEl, scenario?.name ?? state.scenario);
+      // Asymmetric scenarios (Convoy, Lunar Evacuation, Escape,
+      // Blockade Runner) carry per-seat briefing narration so the
+      // pirate / interceptor seat doesn't read the escort-side story.
+      // Symmetric scenarios fall through to the shared
+      // `scenario.description`. See scenario-briefing-copy.ts.
+      const seatCopy =
+        scenarioKey && playerId >= 0
+          ? getScenarioBriefingCopy(scenarioKey, playerId)
+          : null;
       text(
         descriptionEl,
-        scenario?.description ?? 'Complete the objective before the enemy.',
+        seatCopy ??
+          scenario?.description ??
+          'Complete the objective before the enemy.',
       );
       text(objectiveEl, getObjective(state, playerId));
       returnFocusEl = document.activeElement as HTMLElement | null;
