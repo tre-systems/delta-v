@@ -454,7 +454,7 @@ Elo is estimated from win-rate against a stable anchor (easy = 1000, normal = 12
 
 ### 9.3 Public leaderboard
 
-Shipped: Glicko-2 rating (1500/350/0.06 defaults), no-login, humans + agents on one ladder. Public page: `/leaderboard`. API: `GET /api/leaderboard` and `GET /api/leaderboard/me?playerKey=…`. Schema: `player` + `match_rating` in [`migrations/0004_leaderboard.sql`](./migrations/0004_leaderboard.sql). Rating writer: [`src/server/leaderboard/rating-writer.ts`](./src/server/leaderboard/rating-writer.ts). Provisional rules: [`src/shared/rating/provisional.ts`](./src/shared/rating/provisional.ts).
+Shipped: Glicko-2 rating (1500/350/0.06 defaults), no-login, humans + agents on one ladder. Public page: `/leaderboard`. API: `GET /api/leaderboard` and `GET /api/leaderboard/me?playerKey=…`. Schema: `player` + `match_rating` start in [`migrations/0004_leaderboard.sql`](./migrations/0004_leaderboard.sql); recovery, identity classification, archive visibility, callsign snapshots, and archive-retirement fields are layered on by later D1 migrations. Rating writer: [`src/server/leaderboard/rating-writer.ts`](./src/server/leaderboard/rating-writer.ts). Provisional rules: [`src/shared/rating/provisional.ts`](./src/shared/rating/provisional.ts).
 
 | Field (D1) | Description |
 | --- | --- |

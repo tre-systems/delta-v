@@ -6,7 +6,7 @@ fi
 
 is_doc_path() {
   case "$1" in
-    README.md|AGENT_SPEC.md|docs/*|patterns/*)
+    README.md|AGENTS.md|AGENT_SPEC.md|docs/*|patterns/*)
       return 0
       ;;
     *)

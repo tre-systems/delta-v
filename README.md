@@ -18,7 +18,7 @@ Command your fleet, master astrogation trajectories, slingshot around celestial 
 - **Vector physics spaceflight** — velocity persists between turns; burn fuel to alter course; gravity deflects you one turn later.
 - **Orbital mechanics** — planetary gravity wells enable slingshot maneuvers; "weak" gravity at moons is a player choice.
 - **Tactical combat** — odds-based dice resolution with range and relative-velocity modifiers; mines, torpedoes, and nukes with per-scenario availability.
-- **Nine scenarios** — _Bi-Planetary_, _Duel_, _Blockade Runner_, _Grand Tour_, _Escape_, _Lunar Evacuation_, _Convoy_, _Fleet Action_, _Interplanetary War_.
+- **Eight player-facing scenarios** — _Bi-Planetary_, _Duel_, _Blockade Runner_, _Grand Tour_, _Escape_, _Convoy_, _Fleet Action_, _Interplanetary War_. _Lunar Evacuation_ remains available to replay, simulation, and agent tooling but is hidden from the public picker while balance work continues.
 - **Play modes** — local AI at three difficulties, online multiplayer via 5-character room codes, quick-match queue, spectator mode, and a machine-native agent API ([`/agents`](https://delta-v.tre.systems/agents)).
 - **Public leaderboard** — unified Glicko-2 ladder for humans and agents ([`/leaderboard`](https://delta-v.tre.systems/leaderboard)); no login required.
 - **Continuous rendering, discrete logic** — HTML5 Canvas paints a smooth space view while the engine operates on a strict axial hex grid.
@@ -63,6 +63,7 @@ Doc index by purpose, grouped by theme:
 | Doc | Purpose |
 | --- | --- |
 | [CODING_STANDARDS.md](./docs/CODING_STANDARDS.md) | Conventions and refactoring guidance |
+| [AGENTS.md](./AGENTS.md) | Root working guide for AI coding agents in this repository |
 | [patterns/](./patterns/README.md) | Design-pattern walk-through: *why* the code looks the way it does |
 | [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Contributor workflow, pre-commit, verification |
 
@@ -196,7 +197,7 @@ The canonical ruleset — movement edge cases, damage tables, scenario-specific 
 
 ## 🔗 External References
 
-- [Cloudflare Workers](https://developers.cloudflare.com/workers/) · [Durable Objects](https://developers.cloudflare.com/durable-objects/) · [WebSocket Hibernation API](https://developers.cloudflare.com/durable-objects/api/websockets/)
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/) · [Durable Objects](https://developers.cloudflare.com/durable-objects/) · [Durable Objects WebSocket hibernation](https://developers.cloudflare.com/durable-objects/best-practices/websockets/)
 - [MDN Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) · [MDN Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
 - [TypeScript Handbook: Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
 

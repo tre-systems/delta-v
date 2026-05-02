@@ -9,7 +9,12 @@ export const parts = [
     title: "Part I. Orientation",
     intro:
       "Start here for the product overview, contributor workflow, and the main architectural frame of the codebase.",
-    files: ["README.md", "docs/CONTRIBUTING.md", "docs/ARCHITECTURE.md"],
+    files: [
+      "README.md",
+      "AGENTS.md",
+      "docs/CONTRIBUTING.md",
+      "docs/ARCHITECTURE.md",
+    ],
   },
   {
     title: "Part II. Design Patterns and Contracts",
@@ -71,6 +76,12 @@ export const chapterMetadata = {
       "A compact product-and-repository overview: what Delta-V is, how the codebase is laid out, and which documents matter first.",
     mode: "Orientation",
     audience: "New contributors and reviewers",
+  },
+  "AGENTS.md": {
+    abstract:
+      "The root working guide for AI coding agents, pointing to the canonical owner docs and validation commands.",
+    mode: "Agent operating guide",
+    audience: "AI coding agents and maintainers reviewing agent output",
   },
   "docs/CONTRIBUTING.md": {
     abstract:

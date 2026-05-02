@@ -34,7 +34,10 @@ npm run simulate -- grandTour 20 --seed 1 --capture-failures tmp/ai-failures
 ```
 
 - `--ci` fails on engine crashes or rejected built-in AI actions; balance and objective warnings print but are non-fatal.
-- `--randomize-start` forces per-game starting-player randomization.
+- `--randomize-start` forces per-game starting-player randomization. Use it for
+  seat-order stress tests, not as the release gate for scenarios whose shipped
+  definition pins `startingPlayer` (Blockade Runner currently starts with the
+  interceptor active).
   Biplanetary, Duel, Grand Tour, interplanetaryWar, and fleetAction auto-randomize the
   starting player so turn-order bias doesn't dominate short batches.
   Biplanetary also auto-swaps scenario sides in the simulator so scorecards

@@ -263,8 +263,11 @@ Detection matters most in hidden-information scenarios. In fully open scenarios,
 
 ## Scenarios
 
-Nine scenarios ship; the menu lists the simplest and fastest scenarios first,
-then longer or more sophisticated scenarios.
+Nine scenario definitions ship in the engine. The player-facing menu currently
+shows eight of them in order from the simplest and fastest scenarios to longer
+or more sophisticated scenarios. Lunar Evacuation remains defined for replay,
+simulation, and agent compatibility but is hidden from the public picker while
+its balance is being tuned.
 
 ### Bi-Planetary (learning scenario)
 

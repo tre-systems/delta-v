@@ -41,8 +41,8 @@ Each row is a separate vantage point on the running system. Use multiple per pas
 
 | Tool | Purpose | Setup |
 |------|---------|-------|
-| **Browser MCP** (Claude in Chrome) | Drive the *deployed* SPA as a real user; inspect DOM, console, network | Connect the extension; open https://delta-v.tre.systems. See R10 for mobile-viewport limitations. |
-| **Playwright preview MCP** (`preview_*`) | Drive the *local dev server* in a headless Chromium that honours `preview_resize` down to 320 px and respects `prefers-*` media emulation via `preview_eval` — the only reliable way to exercise the `<=760 / <=640 / <=420` responsive breakpoints from an agent | `preview_start` spawns `npm run dev:watch`; use `preview_resize`, `preview_snapshot`, `preview_screenshot`, `preview_inspect`, `preview_eval`, `preview_click`. Essential for R10. |
+| **Browser automation / in-app browser** | Drive the *deployed* SPA as a real user; inspect DOM, console, and network | Open https://delta-v.tre.systems in the available browser automation tool. See R10 for desktop-window mobile-viewport limitations. |
+| **Playwright preview tooling** (`preview_*`, when available) | Drive the *local dev server* in a headless Chromium that honours `preview_resize` down to 320 px and respects `prefers-*` media emulation via `preview_eval` — the most reliable agent path for the `<=760 / <=640 / <=420` responsive breakpoints | `preview_start` spawns `npm run dev:watch`; use `preview_resize`, `preview_snapshot`, `preview_screenshot`, `preview_inspect`, `preview_eval`, `preview_click`. If these tools are unavailable, use a Playwright spec or human DevTools device emulation. Essential for R10. |
 | **Local agent MCP** (stdio) | Drive a seat programmatically; inspect raw observation, candidates, tactical hints | `npm run mcp:delta-v` (see [DELTA_V_MCP.md](./DELTA_V_MCP.md)) |
 | **Hosted agent MCP** (`POST /mcp`) | Same surface as local but via streamable-HTTP; useful for probing the deployed adapter and the agent-token flow | `POST /api/agent-token` then `Authorization: Bearer <t>` on `/mcp` calls (see [AGENTS.md](./AGENTS.md)). Requires `Accept: application/json, text/event-stream`; new clients should send `MCP-Protocol-Version: 2025-11-25` after initialization. |
 | **Play skill** | Higher-level autonomous play loop sitting on top of agent MCP | `.claude/skills/play/SKILL.md` — useful for smoke runs, **not** for probing (see anti-patterns) |
@@ -232,10 +232,10 @@ When you must use the public queue, time-box it (one match), surrender immediate
 For each player-facing scenario in the lobby picker:
 
 1. Lobby → Play vs AI → Easy → click scenario card.
-2. Confirm the game launches without console errors (`mcp__Claude_in_Chrome__read_console_messages` with pattern `error|exception`).
+2. Confirm the game launches without console errors (use the active browser automation console reader, Playwright `page.on('console')`, or DevTools with a pattern such as `error|exception`).
 3. Step through one full turn (astrogation digit-1 + Enter, then phase confirms). Watch for missing buttons, locked HUD, soft-locks, layout overflow.
 4. Compare the objective copy (`Land on Mars`, `Destroy all enemies`, …) against the scenario description in `agent.json`.
-5. **Per-seat briefing capture** (asymmetric scenarios). `startLocalGameSession` randomises `humanSide`. Set `globalThis.__DELTAV_FORCE_PLAYER_SIDE = 0` (then `= 1`) before the launch and capture `#scenarioBriefingTitle`, `#scenarioBriefingDescription`, `#scenarioBriefingObjective` for *each* seat. The description is fixed per scenario; if the description describes one role and the objective describes the opposite role, the player on that seat will be confused — file under Lens 12. Lunar Evacuation is intentionally hidden from the player-facing picker for now; keep its simulation/engine checks active and repeat the briefing capture only through a dev-only launch path or before re-enabling the card.
+5. **Per-seat briefing capture** (asymmetric scenarios). `startLocalGameSession` randomises `humanSide`. Set `globalThis.__DELTAV_FORCE_PLAYER_SIDE = 0` (then `= 1`) before the launch and capture `#scenarioBriefingTitle`, `#scenarioBriefingDescription`, `#scenarioBriefingObjective` for *each* seat. Asymmetric scenarios should use seat-specific narration from [scenario-briefing-copy.ts](../src/client/ui/scenario-briefing-copy.ts); if the description describes one role and the objective describes the opposite role, the player on that seat will be confused — file under Lens 12. Lunar Evacuation is intentionally hidden from the player-facing picker for now; keep its simulation/engine checks active and repeat the briefing capture only through a dev-only launch path or before re-enabling the card.
 
 Programmatic loop (drives visible lobby scenarios from the menu and dumps per-seat briefing copy):
 
@@ -266,11 +266,11 @@ Programmatic loop (drives visible lobby scenarios from the menu and dumps per-se
 })();
 ```
 
-Differences in objective phrasing or missing controls per scenario type are findings. **Description / per-seat-objective mismatches** in asymmetric scenarios (Convoy, Lunar Evacuation, Escape) are also findings — a player who sees "Destroy all enemies" alongside an escort-mission description doesn't know which side they're on.
+Differences in objective phrasing or missing controls per scenario type are findings. **Description / per-seat-objective mismatches** in asymmetric scenarios (Convoy, Lunar Evacuation, Escape, Blockade Runner) are also findings — a player who sees "Destroy all enemies" alongside an escort-mission description doesn't know which side they're on.
 
-**Tooling caveat — Chrome MCP console:** `read_console_messages` only captures messages emitted **after** the tool is first called in the session. Messages from page load are missed. Workaround: call `read_console_messages` once with a throwaway pattern (e.g. `^x$`) to start the listener, then reload the page, then call again with the real pattern.
+**Tooling caveat — browser-console readers:** many automation console readers only capture messages emitted **after** the listener is attached. Messages from page load can be missed. Workaround: attach the listener with a throwaway pattern, reload the page, then query again with the real pattern.
 
-**Tooling caveat — long synchronous JS loops:** driving 5+ scenario launches in one `javascript_tool` call frequently times out CDP (`Runtime.evaluate timed out after 45000ms`). Drive each scenario in a separate tool call instead.
+**Tooling caveat — long synchronous JS loops:** driving 5+ scenario launches in one browser-evaluation call frequently times out CDP (`Runtime.evaluate timed out after 45000ms`). Drive each scenario in a separate tool call instead.
 
 ### R8. Live observation during a paired match
 
@@ -293,7 +293,7 @@ Mid-match in a browser tab:
 
 Mobile bugs dominate the commit history in this repo and repeat — every UI change is a chance to re-introduce HUD overlap, bottom-bar obscuration, or a button pushed behind a notch. Ship mobile as deliberately as you ship engine rules.
 
-**Setup — Playwright preview only.** Chrome MCP cannot shrink its window below the host display's minimum (~1260 px on a 14" laptop), so `window.matchMedia('(max-width: 760px)')` stays `false` and the responsive breakpoints never fire. Synthetic `MediaQueryListEvent('change')` does not route to `addEventListener('change', ...)` handlers. **Use the Playwright preview MCP or human DevTools device emulation; never file a mobile finding from Chrome MCP alone.**
+**Setup — Playwright preview or real device emulation only.** Desktop browser automation often cannot shrink its window below the host display's minimum (~1260 px on a 14" laptop), so `window.matchMedia('(max-width: 760px)')` stays `false` and the responsive breakpoints never fire. Synthetic `MediaQueryListEvent('change')` does not route to `addEventListener('change', ...)` handlers. **Use Playwright preview tooling, a Playwright spec, or human DevTools device emulation; never file a mobile finding from a desktop-only browser viewport alone.**
 
 ```
 preview_start                          # boots npm run dev:watch
@@ -880,7 +880,7 @@ Things that have wasted exploratory time in past passes — don't repeat them.
 - **Trusting a single tool's observation.** Browser shows X, agent MCP shows Y → confirm via `wrangler tail` or D1 before deciding which is wrong.
 - **Letting the play skill drive a session you're observing.** The skill is the system under test. If it makes a decision that masks a bug, you'll miss it. For probing, use raw `delta_v_send_action` calls.
 - **Long blocking `wait_for_turn` calls when the other seat may be slow.** Local MCP sessions can be sensitive to timeouts; prefer short timeouts (≤ 30 s) and explicit retries, and check current behaviour against `BACKLOG.md` before committing to a long block.
-- **Filing mobile-layout findings from Chrome MCP.** Covered under R10, but bears repeating: the OS window cannot shrink below the display's minimum, so `@media (max-width: 760px)` never fires and the responsive breakpoints in [static/styles/responsive.css](../static/styles/responsive.css) stay inert. Switch to the Playwright preview MCP (`preview_resize`) or hand off to DevTools device emulation before filing.
+- **Filing mobile-layout findings from desktop-only browser automation.** Covered under R10, but bears repeating: the OS window cannot shrink below the display's minimum, so `@media (max-width: 760px)` never fires and the responsive breakpoints in [static/styles/responsive.css](../static/styles/responsive.css) stay inert. Switch to Playwright preview tooling (`preview_resize`), a Playwright spec, or DevTools device emulation before filing.
 - **Filing bugs from programmatic clicks on hidden elements.** `element.click()` fires handlers regardless of `display: none` / `hidden` / `offsetWidth === 0`. Buttons a real user can never reach can still execute their handler from a test harness. Confirm the element is actually visible (`offsetWidth > 0` and a valid `getBoundingClientRect`) in the state you're probing before filing. A hidden button with the "wrong" behaviour may still be a latent bug — but classify it as such rather than as a user-visible regression.
 - **Only testing at one "mobile" viewport (typically 375 × 812).** Delta-V has breakpoints at 760 / 640 / 420 px widths and a 560 px short-height rule, with an extra narrow-and-short combo. 375 × 812 only exercises a subset. R10's matrix includes 1-px boundary viewports (419, 421, 639, 641, 759, 761) specifically because overlap bugs hide in the single-pixel band between `@media` rules.
 - **Treating `100vh` as screen height.** iOS Safari and Android Chrome include the collapsible URL bar in `100vh`, so elements sized with it overflow on initial load and re-lay-out when the bar hides. If you see a one-time HUD jump on first scroll, expect `100vh` somewhere — prefer `100dvh` or computed offsets anchored to `env(safe-area-inset-*)`. Cheap to catch during R10 by scrolling once after load and re-running the overlap script.
