@@ -19,8 +19,21 @@ const SCENARIOS_INTERNAL = {
       {
         ships: [
           {
+            // P0 starts on Mars's NW base — the "behind Mars" side
+            // relative to Venus. Mars's NE base (-8, -6) is the
+            // closest-to-Venus base hex (14 hexes); the NW base
+            // (-9, -6) is the farthest (15 hexes), matching the
+            // 15-hex distance P1 already has from Mars on Venus's E
+            // base (-6, 7). Without this offset the Mars ship was
+            // effectively pre-positioned on the Venus-facing side of
+            // Mars and could intercept incoming attackers without the
+            // extra turn of flight the Venus player needs to circle
+            // around. (Bases default selection is the first entry in
+            // `bases:`; setting `position` to a specific base hex
+            // overrides that pick — see placePlayerShip in
+            // game-creation.ts.)
             type: 'corvette',
-            position: { q: -9, r: -5 },
+            position: getBodyOffset('Mars', 0, -1),
             velocity: { dq: 0, dr: 0 },
           },
         ],
