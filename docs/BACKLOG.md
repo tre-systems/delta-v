@@ -26,15 +26,18 @@ presentable without manual destructive cleanup.
 2. **Add Archive Visibility and Quality Flags (P2)** — second, because it can
    use callsign snapshots to hide low-quality rows without deleting R2/D1 audit
    records.
-3. **Classify Player Identity Rows (P2)** — third, so future filtering and
+3. **Reconcile Rating Rows With Archive/R2 Retention (P2)** — third, because
+   rated games should not outlive the archive/replay record they reference
+   unless they have an explicit hidden/retired status.
+4. **Classify Player Identity Rows (P2)** — fourth, so future filtering and
    retention decisions use explicit identity lifecycle instead of username
    globbing.
-4. **Minimize Raw Player Keys in Telemetry Props (P2)** — fourth, because it is
+5. **Minimize Raw Player Keys in Telemetry Props (P2)** — fifth, because it is
    mostly telemetry plumbing and can follow the identity taxonomy.
-5. **Keep D1 and R2 Archive Completion Times Consistent (P3)** — fold in after
+6. **Keep D1 and R2 Archive Completion Times Consistent (P3)** — fold in after
    the archive schema work, or land separately if timestamp drift blocks replay
    trust.
-6. **Leaderboard Row Click Telemetry (P2)** — small follow-up once leaderboard
+7. **Leaderboard Row Click Telemetry (P2)** — small follow-up once leaderboard
    data semantics are stable.
 
 Primary write ownership: `migrations/`, `src/server/game-do/match-archive.ts`,
@@ -53,9 +56,16 @@ across supported UI surfaces.
 1. **Improve Passenger Objective AI (P1, completed current pass
    2026-05-02)** — keep the fixture-backed workflow tight for future AI
    changes and measure Convoy/Evacuation drift with paired scorecards.
-2. **Maintain Fixture-Backed AI Workflow (P1, ongoing)** — do this as part of
+2. **Reduce Fleet Action Fuel-Stall Drift (P2)** — the 2026-05-02 live
+   post-deploy sweep found Hard-vs-Hard Fleet Action producing hundreds of
+   fueled coasting turns and occasional timeouts.
+3. **Rebalance Blockade Runner Objective Pressure (P2)** — the live archive
+   and simulation both show the landing race usually resolving as attrition.
+4. **Add Role-Specific Asymmetric Briefing Copy (P2)** — Convoy P1 still sees
+   an escort-mission description beside a destroy-all-enemies objective.
+5. **Maintain Fixture-Backed AI Workflow (P1, ongoing)** — do this as part of
    the AI work, not as a separate refactor.
-3. **Small Accessibility Polish (P3, completed current pass 2026-05-02)** —
+6. **Small Accessibility Polish (P3, completed current pass 2026-05-02)** —
    only reopen when a touched UI surface exposes a concrete accessibility gap.
 
 Primary write ownership: `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
@@ -129,10 +139,10 @@ Current 2026-04-28 checks:
   0 fleet eliminations. Treat this as simulation coverage for now unless Lunar
   Evacuation is being prepared for UX re-entry.
 
-Action: no active Stream B task remains outside normal regression maintenance.
-Future passenger AI work should be trigger-driven by fresh Convoy captures or
-by a decision to return Lunar Evacuation to the UX. Do not add broad scalar
-weights without a fixture proving the change generalizes. Use
+Action: no active passenger-objective task remains outside normal regression
+maintenance. Future passenger AI work should be trigger-driven by fresh Convoy
+captures or by a decision to return Lunar Evacuation to the UX. Do not add broad
+scalar weights without a fixture proving the change generalizes. Use
 `--capture-failure-kind passengerObjectiveFailure,objectiveDrift,fuelStall` for
 convoy so carrier-loss states, fleet-elimination drift, and false-positive
 support-hold classifications are visible.
@@ -143,6 +153,72 @@ stalls, passenger-transfer mistakes, or timeout-heavy stalemates.
 
 **Files:** `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
 `src/shared/simulate-ai-policy.test.ts`, `scripts/simulate-ai.ts`
+
+### Reduce Fleet Action Fuel-Stall Drift (P2)
+
+The 2026-05-02 post-deploy simulation sweep surfaced a strong Fleet Action AI
+quality issue even though engine stability passed. `npm run simulate -- all 60
+--ci --quiet --json` produced 442 `fuelStalls` in Fleet Action, or 7.37 per
+game, with 2 timeouts. A narrower capture run,
+`fleetAction 20 --seed -403487708 --capture-failure-kind fuelStall`, reproduced
+442 stalls in 20 games, or 22.1 per game, with 10% timeouts and P0 decided rate
+38.9%.
+
+Triage whether the metric is over-classifying legitimate station-keeping in
+large fleet fights or whether the hard AI is genuinely leaving fueled ships
+idle without a movement/combat objective. Promote representative captures from
+`tmp/live-pass-fleetaction-fuel` into fixtures before changing weights or fleet
+plans.
+
+Acceptance: Fleet Action keeps zero invalid actions and no crash regressions,
+while `fuelStallsPerGame` drops below 0.1 on a paired 60+ game seed sweep and
+timeouts remain below 5%.
+
+**Files:** `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
+`scripts/simulate-ai.ts`, `src/shared/simulate-ai-policy.test.ts`
+
+### Rebalance Blockade Runner Objective Pressure (P2)
+
+Blockade Runner is marketed as a speed/landing race, but the live archive and
+AI simulation both show it resolving mainly by attrition. The post-cleanup
+archive has 7/7 Blockade rows ending `Fleet eliminated!`. The 2026-05-02
+post-deploy simulation sweep produced only 8 Mars landings in 60 games
+(13.3% objective share), and a focused `blockade 40 --seed -403487708` run
+landed only 6/40 (15% objective share).
+
+Investigate whether the packet ship needs more initial separation, fuel,
+defensive survivability, or a clearer route heuristic. If the intended product
+experience is actually interception combat, change the lobby/manual copy
+instead of calling it a landing race.
+
+Acceptance: on a 60+ game hard-vs-hard seed sweep, Blockade Runner should either
+exceed 50% landing/objective resolutions or have scenario copy and manual tests
+updated to describe it as a combat-heavy interception scenario.
+
+**Files:** `src/shared/map-data.ts`, `src/shared/ai/`,
+`src/shared/ai/__fixtures__/`, `docs/MANUAL_TEST_PLAN.md`,
+`docs/SIMULATION_TESTING.md`
+
+### Add Role-Specific Asymmetric Briefing Copy (P2)
+
+The live browser sweep still shows Convoy P1 receiving a fixed escort-mission
+description beside objective `⬡ Destroy all enemies`. The player is actually
+the pirate/interceptor side, so the briefing tells them the story for the other
+role. Escape P1 reads clearly; Convoy remains the visible player-facing gap.
+Lunar Evacuation has the same structural risk before it can safely return to
+the lobby.
+
+Render a per-seat role banner or per-seat scenario description for asymmetric
+scenarios. Keep the current shared description as a fallback only when both
+sides have the same role framing.
+
+Acceptance: forcing `__DELTAV_FORCE_PLAYER_SIDE = 0` and `1` before launching
+Convoy shows role-accurate briefing copy for both seats; the same test should
+cover Lunar Evacuation before re-enabling its card.
+
+**Files:** `src/client/ui/scenario-briefing-view.ts`,
+`src/shared/map-data.ts`, `src/client/ui/*briefing*.test.ts`,
+`docs/MANUAL_TEST_PLAN.md`
 
 ### Snapshot Callsigns in Match Archives (P1)
 
@@ -191,6 +267,32 @@ default.
 **Files:** `migrations/`, `src/server/game-do/match-archive.ts`,
 `src/server/matches-list.ts`, `docs/EXPLORATORY_TESTING.md`,
 `docs/MANUAL_TEST_PLAN.md`, `src/server/*matches*.test.ts`
+
+### Reconcile Rating Rows With Archive/R2 Retention (P2)
+
+The 2026-05-02 post-deploy Cloudflare audit found `match_rating` rows whose
+`game_id` no longer has a corresponding `match_archive` row or R2 object. The
+live examples included `BCFV9-m1` and `3PJYX-m1`: both have `rating_applied`
+events and earlier `archived_replay_fetch_succeeded` telemetry, but
+`match_rating LEFT JOIN match_archive` reports no archive and `wrangler r2
+object get delta-v-match-archive/matches/<gameId>.json` now returns missing.
+That leaves leaderboard/rating history referring to games that cannot be
+inspected through the archive/replay path.
+
+Define the retention invariant explicitly. Either every rated game keeps a
+hidden/internal archive row and R2 object, or a rating row can be marked as
+`archive_retired` with a reason so operators and public surfaces do not imply a
+replay exists. Avoid destructive cleanup paths that delete only one side of the
+rating/archive/R2 relationship.
+
+Acceptance: `SELECT COUNT(*) FROM match_rating mr LEFT JOIN match_archive ma ON
+ma.game_id = mr.game_id WHERE ma.game_id IS NULL` is zero, or every non-zero row
+has an explicit retired/hidden status and no public route links to a missing
+replay. Recent D1 archive rows should still have non-empty R2 objects.
+
+**Files:** `migrations/`, `src/server/game-do/match-archive.ts`,
+`src/server/leaderboard/rating-writer.ts`, `src/server/matches-list.ts`,
+`docs/EXPLORATORY_TESTING.md`, `src/server/*match*.test.ts`
 
 ### Classify Player Identity Rows (P2)
 
