@@ -575,13 +575,17 @@ export class MatchmakerDO extends DurableObject<Env> {
       ),
     };
 
+    // Emit role labels rather than the credential-shaped player keys.
+    // The pairing event still tells operators "agent vs human" / "bot
+    // filled" plus the room code, which is enough for live diagnostics
+    // without immortalising the keys in the 30-day events table.
     reportMatchmakerEvent(this.ctx, this.env, 'matchmaker_paired', {
       code: room.code,
       scenario: right.scenario,
-      leftKey: left.player.playerKey,
-      rightKey: right.player.playerKey,
-      seat0Key: seatZeroPlayer.playerKey,
-      seat1Key: seatOnePlayer.playerKey,
+      leftRole: playerKeyRole(left.player.playerKey),
+      rightRole: playerKeyRole(right.player.playerKey),
+      seat0Role: playerKeyRole(seatZeroPlayer.playerKey),
+      seat1Role: playerKeyRole(seatOnePlayer.playerKey),
       waitMsLeft: now - left.queuedAt,
       waitMsRight: now - right.queuedAt,
       officialBotMatch: hasOfficialQuickMatchBot([left.player, right.player]),
