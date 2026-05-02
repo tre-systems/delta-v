@@ -32,6 +32,7 @@ duplicate long explanations here when a canonical doc already owns the topic.
 | Browser/manual/exploratory QA | [docs/MANUAL_TEST_PLAN.md](./docs/MANUAL_TEST_PLAN.md), [docs/EXPLORATORY_TESTING.md](./docs/EXPLORATORY_TESTING.md) |
 | Cloudflare data, logs, telemetry | [docs/OBSERVABILITY.md](./docs/OBSERVABILITY.md), [docs/SECURITY.md](./docs/SECURITY.md), [docs/PRIVACY_TECHNICAL.md](./docs/PRIVACY_TECHNICAL.md) |
 | External game agents and MCP | [docs/AGENTS.md](./docs/AGENTS.md), [docs/DELTA_V_MCP.md](./docs/DELTA_V_MCP.md), [AGENT_SPEC.md](./AGENT_SPEC.md) |
+| Playing via MCP as a test agent | [.claude/skills/play/SKILL.md](./.claude/skills/play/SKILL.md), [docs/DELTA_V_MCP.md](./docs/DELTA_V_MCP.md) |
 | Current work queue | [docs/BACKLOG.md](./docs/BACKLOG.md) |
 
 ## Project Shape
@@ -108,6 +109,14 @@ E2E_PORT=8788 npm run test:e2e:smoke
   and [docs/EXPLORATORY_TESTING.md](./docs/EXPLORATORY_TESTING.md). Preserve
   Reyes, Kepler, and other named player history unless the user gives a clear
   cleanup rule.
+
+## MCP Play Skill
+
+The repo includes [.claude/skills/play/SKILL.md](./.claude/skills/play/SKILL.md)
+for MCP-capable hosts that can call the Delta-V tools. Prefer the deterministic
+paired-local flow in that skill when testing agent behavior; it avoids the
+public quick-match queue and proves both seats can connect, observe, act, and
+finish turns.
 
 ## Documentation Maintenance
 

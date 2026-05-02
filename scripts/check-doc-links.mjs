@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Verify internal markdown links (file + anchor) across docs/, patterns/, README.md, AGENTS.md, AGENT_SPEC.md.
+// Verify internal markdown links (file + anchor) across docs/, patterns/, .claude/skills/, README.md, AGENTS.md, AGENT_SPEC.md.
 // Usage: node scripts/check-doc-links.mjs  (exit 0 on success, 1 if any broken links)
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -8,7 +8,14 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-const ROOTS = ['README.md', 'AGENTS.md', 'AGENT_SPEC.md', 'docs', 'patterns'];
+const ROOTS = [
+  'README.md',
+  'AGENTS.md',
+  'AGENT_SPEC.md',
+  'docs',
+  'patterns',
+  '.claude/skills',
+];
 
 const walk = (p) => {
   const full = resolve(ROOT, p);

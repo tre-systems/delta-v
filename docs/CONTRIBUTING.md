@@ -6,7 +6,7 @@ Contributor workflow only. See [README.md](../README.md) for onboarding, [ARCHIT
 
 [`.husky/pre-commit`](../.husky/pre-commit) is now the cheap local gate.
 
-If the staged diff is **documentation-only** (`README.md`, `AGENTS.md`, `AGENT_SPEC.md`, `docs/`, `patterns/`), it runs only:
+If the staged diff is **documentation-only** (`README.md`, `AGENTS.md`, `AGENT_SPEC.md`, `docs/`, `patterns/`, `.claude/skills/`), it runs only:
 
 1. `npm run check:doc-links`
 
@@ -23,7 +23,7 @@ For non-doc changes it runs, in order:
 
 [`.husky/pre-push`](../.husky/pre-push) is the fast local push gate by default.
 
-If the pushed diff is **documentation-only** (`README.md`, `AGENTS.md`, `AGENT_SPEC.md`, `docs/`, `patterns/`), it runs only:
+If the pushed diff is **documentation-only** (`README.md`, `AGENTS.md`, `AGENT_SPEC.md`, `docs/`, `patterns/`, `.claude/skills/`), it runs only:
 
 1. `npm run check:doc-links`
 
@@ -87,4 +87,4 @@ Runs the full local release gate: lint, typecheck (app + tools), coverage, build
 
 One owner doc per topic (see [README.md](../README.md#-documentation)). Update docs when behavior or architecture decisions materially change — prefer anchored sections over new files. Recurring review cadence lives in [REVIEW_PLAN.md](./REVIEW_PLAN.md); open work lives in [BACKLOG.md](./BACKLOG.md).
 
-Run `npm run check:doc-links` after doc edits — it walks every `[text](path#anchor)` link under `README.md`, `AGENTS.md`, `AGENT_SPEC.md`, `docs/`, and `patterns/`, verifying files exist and anchors match heading slugs.
+Run `npm run check:doc-links` after doc edits — it walks every `[text](path#anchor)` link under `README.md`, `AGENTS.md`, `AGENT_SPEC.md`, `docs/`, `patterns/`, and `.claude/skills/`, verifying files exist and anchors match heading slugs.
