@@ -28,6 +28,15 @@ export interface MatchArchive {
   checkpoint: Checkpoint | null;
   matchSeed: number | null;
   officialBotMatch: boolean;
+  // Immutable participant snapshots taken at archive time. The public
+  // `/api/matches` listing reads these so deleting or renaming the live
+  // `player` row never breaks an archived match's display name. Older
+  // archives written before migration 0007 leave these null; the listing
+  // query falls back to the legacy `match_rating -> player` join in that
+  // case.
+  playerAUsername: string | null;
+  playerBUsername: string | null;
+  winnerUsername: string | null;
 }
 
 const r2Key = (gameId: GameId): string => `matches/${gameId}.json`;
@@ -67,11 +76,52 @@ export const archiveCompletedMatch = async (
       roomConfig?.players ?? [],
     );
 
+    // Snapshot participant callsigns at archive time. Default-only
+    // identities are normalised to null so the public listing renders a
+    // clean fallback. We drop:
+    //   - empty / whitespace-only usernames,
+    //   - the lobby placeholders "Player 1" / "Player 2"
+    //     (DEFAULT_ROOM_PLAYERS in protocol.ts), and
+    //   - the auto-generated `Pilot …` defaults from
+    //     `buildDefaultUsername` in src/shared/player.ts.
+    // A user who claimed the default name explicitly via /api/claim-name
+    // is still subject to the live `player` row, so falling through to
+    // the legacy join via COALESCE in matches-list.ts continues to work
+    // for them; the snapshot just refuses to immortalise an unclaimed
+    // default that may legitimately be reaped later.
+    const isDefaultPilotName = (username: string): boolean => {
+      // Matches `Pilot` (no suffix) and `Pilot XXXX` where XXXX is 1-4
+      // ASCII letters/digits — the exact shape returned by
+      // buildDefaultUsername.
+      return /^Pilot(?: [A-Za-z0-9]{1,4})?$/.test(username);
+    };
+    const snapshotUsername = (
+      profile: { username?: string; playerKey?: string } | undefined,
+    ): string | null => {
+      const username =
+        typeof profile?.username === 'string' ? profile.username.trim() : '';
+      if (
+        username === '' ||
+        username === 'Player 1' ||
+        username === 'Player 2' ||
+        isDefaultPilotName(username)
+      ) {
+        return null;
+      }
+      return username;
+    };
+
+    const playerAUsername = snapshotUsername(roomConfig?.players?.[0]);
+    const playerBUsername = snapshotUsername(roomConfig?.players?.[1]);
+    const winner = state.outcome?.winner ?? null;
+    const winnerUsername =
+      winner === 0 ? playerAUsername : winner === 1 ? playerBUsername : null;
+
     const archive: MatchArchive = {
       gameId,
       roomCode,
       scenario: state.scenario,
-      winner: state.outcome?.winner ?? null,
+      winner,
       winReason: state.outcome?.reason ?? null,
       turnCount: state.turnNumber,
       createdAt: matchCreatedAt ?? checkpoint?.savedAt ?? Date.now(),
@@ -80,6 +130,9 @@ export const archiveCompletedMatch = async (
       checkpoint,
       matchSeed,
       officialBotMatch,
+      playerAUsername,
+      playerBUsername,
+      winnerUsername,
     };
 
     await r2.put(r2Key(gameId), JSON.stringify(archive), {
@@ -95,20 +148,24 @@ export const archiveCompletedMatch = async (
         .prepare(
           'INSERT OR IGNORE INTO match_archive ' +
             '(game_id, room_code, scenario, winner, ' +
-            'win_reason, turns, created_at, completed_at, match_coached, official_bot_match) ' +
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'win_reason, turns, created_at, completed_at, match_coached, official_bot_match, ' +
+            'player_a_username, player_b_username, winner_username) ' +
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .bind(
           gameId,
           roomCode,
           state.scenario,
-          state.outcome?.winner ?? null,
+          winner,
           state.outcome?.reason ?? null,
           state.turnNumber,
           archive.createdAt,
           archive.completedAt,
           matchCoached ? 1 : 0,
           officialBotMatch ? 1 : 0,
+          playerAUsername,
+          playerBUsername,
+          winnerUsername,
         )
         .run();
     }

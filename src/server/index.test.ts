@@ -880,6 +880,9 @@ describe('server index worker', () => {
       checkpoint: null,
       matchSeed: null,
       officialBotMatch: true,
+      playerAUsername: null,
+      playerBUsername: null,
+      winnerUsername: null,
       eventStream: [
         {
           seq: 1,
