@@ -11,7 +11,10 @@ import {
   isValidScenario,
   SCENARIOS,
 } from '../../shared/map-data';
-import { hasOfficialQuickMatchBot } from '../../shared/player';
+import {
+  hasOfficialQuickMatchBot,
+  isOfficialQuickMatchBotPlayerKey,
+} from '../../shared/player';
 import { deriveActionRng, mulberry32 } from '../../shared/prng';
 import {
   ErrorCode,
@@ -47,6 +50,7 @@ import {
 } from './archive';
 import { purgeMatchScopedStorage } from './archive-storage';
 import {
+  AGENT_AUTOPLAY_TIMEOUT_MS,
   BOT_THINK_TIME_MS,
   buildBotAction,
   SERVER_AGENT_AI_DIFFICULTY,
@@ -235,6 +239,19 @@ export class GameDO extends DurableObject<Env> {
   private async isAgentSeat(playerId: 0 | 1): Promise<boolean> {
     const roomConfig = await this.getRoomConfig();
     return roomConfig?.players?.[playerId]?.kind === 'agent';
+  }
+
+  private async getAgentAutoplayDelayMs(
+    playerId: 0 | 1,
+  ): Promise<number | null> {
+    const roomConfig = await this.getRoomConfig();
+    const player = roomConfig?.players?.[playerId];
+    if (player?.kind !== 'agent') {
+      return null;
+    }
+    return isOfficialQuickMatchBotPlayerKey(player.playerKey)
+      ? BOT_THINK_TIME_MS
+      : AGENT_AUTOPLAY_TIMEOUT_MS;
   }
 
   private async shouldTrackDisconnectForPlayer(
@@ -445,10 +462,16 @@ export class GameDO extends DurableObject<Env> {
   }
 
   private async scheduleBotTurnIfNeeded(state: GameState): Promise<void> {
-    if (
-      state.phase === 'gameOver' ||
-      !(await this.isAgentSeat(state.activePlayer as 0 | 1))
-    ) {
+    if (state.phase === 'gameOver') {
+      await this.clearBotTurnMarker();
+      await this.rescheduleAlarm();
+      return;
+    }
+
+    const delayMs = await this.getAgentAutoplayDelayMs(
+      state.activePlayer as 0 | 1,
+    );
+    if (delayMs === null) {
       await this.clearBotTurnMarker();
       await this.rescheduleAlarm();
       return;
@@ -456,7 +479,7 @@ export class GameDO extends DurableObject<Env> {
 
     await this.storage.put(
       GAME_DO_STORAGE_KEYS.botTurnAt,
-      Date.now() + BOT_THINK_TIME_MS,
+      Date.now() + delayMs,
     );
     await this.rescheduleAlarm();
   }

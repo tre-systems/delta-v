@@ -21,6 +21,13 @@ You are an autonomous agent playing Delta-V, a turn-based space combat game with
 - **Hosted / evaluation:** use remote MCP with `agentToken` + `delta_v_quick_match` / `matchToken` as in [`AGENTS.md`](../../../docs/AGENTS.md).
 - **Deterministic local two-seat test:** queue two seats with the same `rendezvousCode` and `waitForOpponent: false`, then connect them with `delta_v_pair_quick_match_tickets`. This avoids the public queue and is the best way to test whether the skill can actually complete turns.
 
+## Live Production Cautions
+
+- Completed production matches are rated and can create provisional leaderboard rows. Use obvious throwaway `agent_skill...` keys / `Pilot XXXX` callsigns only when the operator is comfortable cleaning them up afterward.
+- Quick-match traffic should use a unique `rendezvousCode`; never let automated skill tests enter the public queue.
+- External user-agent seats get a fallback autoplay window before the server applies a built-in policy action. If an observation includes `lastTurnAutoPlayed`, you missed that window; inspect the applied candidate, tighten your loop, and continue.
+- The platform Official Bot is different: it is intentionally server-controlled and acts quickly.
+
 ## Recommended Observation Shape
 
 For ordinary play, request:
