@@ -36,6 +36,7 @@ import {
   getProjectedCurrentStateRaw,
   saveCheckpoint,
 } from './archive';
+import { AGENT_AUTOPLAY_TIMEOUT_MS, BOT_THINK_TIME_MS } from './bot';
 import { GameDO } from './game-do';
 import { toStateUpdateMessage } from './message-builders';
 
@@ -1235,6 +1236,70 @@ describe('GameDO', () => {
     await touch();
     expect(await ctx.storage.get<number>('inactivityAt')).toBe(
       300_000 + 300_000,
+    );
+  });
+
+  it('schedules the Official Bot quickly but gives external agents decision time', async () => {
+    const ctx = createCtx();
+    const game = createGameDO(ctx);
+    const scheduleBotTurnIfNeeded = (
+      game as unknown as {
+        scheduleBotTurnIfNeeded: (state: GameState) => Promise<void>;
+      }
+    ).scheduleBotTurnIfNeeded.bind(game);
+    const state: GameState = {
+      ...createGameOrThrow(
+        SCENARIOS.duel,
+        buildSolarSystemMap(),
+        asGameId('BOTDL-m1'),
+        findBaseHex,
+      ),
+      activePlayer: 0,
+    };
+
+    vi.spyOn(Date, 'now').mockReturnValue(500_000);
+    await ctx.storage.put('roomConfig', {
+      code: 'BOTDL',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      players: [
+        {
+          kind: 'agent',
+          playerKey: OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY,
+          username: OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+        },
+        {
+          kind: 'human',
+          playerKey: 'human_test_seat',
+          username: 'Human',
+        },
+      ],
+    });
+    await scheduleBotTurnIfNeeded(state);
+    expect(await ctx.storage.get<number>('botTurnAt')).toBe(
+      500_000 + BOT_THINK_TIME_MS,
+    );
+
+    await ctx.storage.put('roomConfig', {
+      code: 'BOTDL',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      players: [
+        {
+          kind: 'agent',
+          playerKey: 'agent_external_test',
+          username: 'External Agent',
+        },
+        {
+          kind: 'human',
+          playerKey: 'human_test_seat',
+          username: 'Human',
+        },
+      ],
+    });
+    await scheduleBotTurnIfNeeded(state);
+    expect(await ctx.storage.get<number>('botTurnAt')).toBe(
+      500_000 + AGENT_AUTOPLAY_TIMEOUT_MS,
     );
   });
 
