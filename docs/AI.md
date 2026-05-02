@@ -294,4 +294,6 @@ The intent-first shift is successful but incomplete:
   inside those practical ranges for objective/survival/landing dimensions.
 
 The active AI work now lives in
-[BACKLOG.md#improve-passenger-objective-ai-p1](./BACKLOG.md#improve-passenger-objective-ai-p1).
+[BACKLOG.md#agent-b-gameplay-ai-scenario-reliability](./BACKLOG.md#agent-b-gameplay-ai-scenario-reliability),
+with the regression workflow captured in
+[BACKLOG.md#maintain-fixture-backed-ai-workflow-p1-ongoing](./BACKLOG.md#maintain-fixture-backed-ai-workflow-p1-ongoing).
