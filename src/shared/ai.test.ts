@@ -586,6 +586,66 @@ describe('aiAstrogation', () => {
     ).toBe(0);
   });
 
+  it('penalizes high-speed passenger carrier intercept fly-bys', () => {
+    const interceptor = createTestShip({
+      position: { q: 0, r: 0 },
+      velocity: { dq: 3, dr: 0 },
+    });
+    const carrier = createTestShip({
+      id: asShipId('passenger-carrier'),
+      owner: 1,
+      originalOwner: 1,
+      passengersAboard: 12,
+      position: { q: 3, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+    });
+    const baseCourse = {
+      destination: { q: 1, r: 0 },
+      path: [
+        { q: 0, r: 0 },
+        { q: 1, r: 0 },
+      ],
+      fuelSpent: 1,
+      gravityEffects: [],
+      enteredGravityEffects: [],
+      outcome: 'normal' as const,
+    };
+    const controlledIntercept = {
+      ...baseCourse,
+      newVelocity: { dq: 1, dr: 0 },
+    };
+    const flyByIntercept = {
+      ...baseCourse,
+      newVelocity: { dq: 5, dr: 0 },
+    };
+
+    expect(
+      scoreCombatPositioning(
+        interceptor,
+        controlledIntercept,
+        [carrier],
+        false,
+        null,
+        false,
+        0,
+        AI_CONFIG.hard,
+        true,
+      ),
+    ).toBeGreaterThan(
+      scoreCombatPositioning(
+        interceptor,
+        flyByIntercept,
+        [carrier],
+        false,
+        null,
+        false,
+        0,
+        AI_CONFIG.hard,
+        true,
+      ),
+    );
+  });
+
   it('prefers a short forced landing line when approaching the target world', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
