@@ -55,10 +55,7 @@ across supported UI surfaces.
    paired scorecards.
 2. **Maintain Fixture-Backed AI Workflow (P1, ongoing)** — do this as part of
    the AI work, not as a separate refactor.
-3. **Fix Protocol Surrender Resolution (P2)** — can run alongside Stream A
-   because it lives in protocol/engine/DO action handling rather than archive
-   schema.
-4. **Small Accessibility Polish (P3)** — only pull this after the gameplay
+3. **Small Accessibility Polish (P3)** — only pull this after the gameplay
    correctness items, and keep it scoped to touched UI surfaces.
 
 Primary write ownership: `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
@@ -81,11 +78,14 @@ when the external platform is ready.
 
 ### Improve Passenger Objective AI (P1)
 
-Convoy and Lunar Evacuation are the remaining high-value AI tuning targets.
-Recent engine work made passenger objective failure explicit, so these scenarios
-now end for the right reason instead of drifting into cleanup fleet-elimination
-endings. The remaining problem is behavior: protect or intercept the carrier
-well enough that the intended passenger objective produces credible play.
+Convoy is the remaining high-value passenger AI tuning target on public UX
+surfaces. Lunar Evacuation remains defined for replay, simulation, and agent
+coverage, but it is hidden from the lobby while its balance and UX are
+revisited. Recent engine work made passenger objective failure explicit, so
+these scenarios now end for the right reason instead of drifting into cleanup
+fleet-elimination endings. The remaining problem is behavior: protect or
+intercept the carrier well enough that the intended passenger objective produces
+credible play.
 
 Current 2026-04-28 checks:
 
@@ -114,14 +114,26 @@ Current 2026-04-28 checks:
   failing this pass; the live browser launch path and one-turn Play-vs-AI smoke
   passed for Convoy.
 
+2026-05-02 Stream B checkpoint:
+
+- `convoy 80 --seed 21 --ci --quiet --json`: improved from 31.25% to 33.75%
+  passenger deliveries, from 70% to 71.25% objective resolutions, and from 30%
+  to 28.75% fleet eliminations after penalizing high-speed passenger-carrier
+  intercept fly-bys. No crashes, invalid actions, fuel stalls, passenger
+  transfer mistakes, or timeouts.
+- `evacuation 60 --seed 1777706300 --ci --quiet --json`: unchanged at 47-13 P0,
+  78.3% P0 decided, 100% objective resolutions, 78.3% passenger deliveries, and
+  0 fleet eliminations. Treat this as simulation coverage for now unless Lunar
+  Evacuation is being prepared for UX re-entry.
+
 Action: continue promoting representative convoy and evacuation captures into
 fixtures, then improve carrier survival, raider interception, and landing-safe
 abort/refuel choices through named plans or bounded movement planning. Recent
 work taught the emergency escort lookahead to avoid carrier courses that become
 crash-doomed if the carrier is disabled on the following combat pass. The next
 useful slice is reducing the remaining convoy fleet-elimination drift without
-undoing the higher 200-game passenger delivery rate. Do not add broad scalar
-weights without a fixture proving the change generalizes. Use
+undoing the improved passenger delivery rate. Do not add broad scalar weights
+without a fixture proving the change generalizes. Use
 `--capture-failure-kind passengerObjectiveFailure,objectiveDrift` for convoy so
 carrier-loss states and fleet-elimination drift are both visible.
 
@@ -131,26 +143,6 @@ passenger-transfer mistakes, or timeout-heavy stalemates.
 
 **Files:** `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
 `src/shared/simulate-ai-policy.test.ts`, `scripts/simulate-ai.ts`
-
-### Fix Protocol Surrender Resolution (P2)
-
-The 2026-05-02 live exploratory pass reproduced a protocol-level surrender
-soft-lock in private Duel rooms. A direct WebSocket game starts cleanly, but
-when the active player sends `{"type":"surrender","shipIds":["pXs0"]}` for all
-eligible ships, the server accepts the action and broadcasts `stateUpdate` with
-that ship marked `control: "surrendered"`, while `phase` and `activePlayer`
-remain unchanged and `outcome` stays `null`. The match only resolved later
-because both test sockets disconnected and the disconnect-forfeit path fired.
-
-Expected behavior: surrendering all eligible ships should either immediately
-produce `gameOver` or advance through the same game-end check used by other
-phase-resolution paths. Also decide whether empty `shipIds: []` is a supported
-shorthand on raw WebSocket as it is on the HTTP/MCP action path; if not, keep
-the rejection but document the difference.
-
-**Files:** `src/shared/engine/logistics.ts`,
-`src/server/game-do/actions.ts`, `src/shared/protocol.ts`,
-`src/server/game-do/mcp-handlers.ts`, `src/server/game-do/*.test.ts`
 
 ### Snapshot Callsigns in Match Archives (P1)
 
