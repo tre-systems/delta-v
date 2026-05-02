@@ -103,7 +103,7 @@ Useful flags:
 
 - `--decision-timeout-ms 30000`
 - `--think-ms 200`
-- `--no-auto-chat-replies` (recommended for autonomous test runs)
+- `--no-auto-chat-replies` (use for autonomous test runs; live player-facing agents should normally chat)
 - `--verbose`
 
 ## Agent contract (what your model/process receives)

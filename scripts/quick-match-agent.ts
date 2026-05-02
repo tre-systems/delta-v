@@ -32,6 +32,7 @@ interface Config {
   pollMs: number;
   postGamePauseMs: number;
   maxGames: number;
+  autoChatReplies: boolean;
 }
 
 interface TurnSummary {
@@ -148,6 +149,7 @@ Flags:
   --poll-ms                Quick-match/replay poll interval (default: 1000)
   --post-game-pause-ms     Pause before re-queueing (default: 1000)
   --max-games              Stop after N games; 0 = run forever (default: 0)
+  --quiet-chat             Disable automatic replies to opponent chat
 `);
     process.exit(0);
   }
@@ -202,6 +204,7 @@ Flags:
       parseIntegerFlag(getFlag('--post-game-pause-ms'), 1_000),
     ),
     maxGames: Math.max(0, parseIntegerFlag(getFlag('--max-games'), 0)),
+    autoChatReplies: !args.includes('--quiet-chat'),
   };
 };
 
@@ -255,7 +258,7 @@ const runPlayer = async (
         String(config.thinkMs),
         '--decision-timeout-ms',
         String(config.decisionTimeoutMs),
-        '--no-auto-chat-replies',
+        ...(config.autoChatReplies ? [] : ['--no-auto-chat-replies']),
         '--verbose',
       ],
       {
