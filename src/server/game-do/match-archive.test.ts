@@ -111,8 +111,9 @@ describe('match archival', () => {
     expect(body.eventStream).toHaveLength(1);
     expect(body.checkpoint).not.toBeNull();
 
-    // D1 should have metadata — 10 columns including match_coached and
-    // official_bot_match.
+    // D1 should have metadata — 13 columns including match_coached,
+    // official_bot_match, and the participant snapshot triplet
+    // (player_a_username, player_b_username, winner_username).
     expect(db.prepare).toHaveBeenCalledTimes(1);
     expect(db.bind).toHaveBeenCalledWith(
       'ARC-m1',
@@ -125,6 +126,9 @@ describe('match archival', () => {
       expect.any(Number),
       0, // match_coached: falsy for uncoached match
       0, // official_bot_match: falsy for human-vs-human match
+      null, // player_a_username: no roomConfig stored in this fixture
+      null, // player_b_username
+      null, // winner_username
     );
 
     // The DO-side checkpoint is pruned after the archive lands. R2 now
@@ -176,6 +180,9 @@ describe('match archival', () => {
       expect.any(Number),
       1, // match_coached: truthy when isMatchCoached returned true
       0, // official_bot_match: still false here
+      null,
+      null,
+      null,
     );
   });
 
@@ -237,7 +244,104 @@ describe('match archival', () => {
       expect.any(Number),
       0,
       1,
+      null,
+      OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+      null,
     );
+  });
+
+  it('snapshots claimed callsigns for both participants and the winner', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const r2 = createMockR2();
+    const db = createMockDb();
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('SNAP-m1'),
+      findBaseHex,
+    );
+    state.phase = 'gameOver';
+    state.outcome = { winner: 1, reason: 'Fleet eliminated!' };
+
+    await appendEnvelopedEvents(storage, asGameId('SNAP-m1'), null, {
+      type: 'gameCreated',
+      scenario: 'Duel',
+      turn: 1,
+      phase: 'astrogation',
+      matchSeed: 0,
+    });
+    await storage.put('roomConfig', {
+      code: 'SNAPRM',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      players: [
+        { playerKey: 'human-rob', username: 'RobG', kind: 'human' },
+        { playerKey: 'human-fau', username: 'Fau', kind: 'human' },
+      ],
+    });
+
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      db as unknown as D1Database,
+      state,
+      'SNAPRM',
+    );
+
+    const body = JSON.parse(
+      r2.objects.get('matches/SNAP-m1.json') ?? '{}',
+    ) as MatchArchive;
+    expect(body.playerAUsername).toBe('RobG');
+    expect(body.playerBUsername).toBe('Fau');
+    expect(body.winnerUsername).toBe('Fau');
+  });
+
+  it('drops the placeholder "Player 1" / "Player 2" defaults from the snapshot', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const r2 = createMockR2();
+    const db = createMockDb();
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('PLACEHOLD-m1'),
+      findBaseHex,
+    );
+    state.phase = 'gameOver';
+    state.outcome = { winner: 0, reason: 'Fleet eliminated!' };
+
+    await appendEnvelopedEvents(storage, asGameId('PLACEHOLD-m1'), null, {
+      type: 'gameCreated',
+      scenario: 'Duel',
+      turn: 1,
+      phase: 'astrogation',
+      matchSeed: 0,
+    });
+    await storage.put('roomConfig', {
+      code: 'PHRM',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), null],
+      players: [
+        { playerKey: 'seat0', username: 'Player 1', kind: 'human' },
+        { playerKey: 'seat1', username: 'Player 2', kind: 'human' },
+      ],
+    });
+
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      db as unknown as D1Database,
+      state,
+      'PHRM',
+    );
+
+    const body = JSON.parse(
+      r2.objects.get('matches/PLACEHOLD-m1.json') ?? '{}',
+    ) as MatchArchive;
+    expect(body.playerAUsername).toBeNull();
+    expect(body.playerBUsername).toBeNull();
+    expect(body.winnerUsername).toBeNull();
   });
 
   it('fetches archived match from R2', async () => {
@@ -255,6 +359,9 @@ describe('match archival', () => {
       checkpoint: null,
       matchSeed: null,
       officialBotMatch: false,
+      playerAUsername: null,
+      playerBUsername: null,
+      winnerUsername: null,
     };
 
     r2.objects.set('matches/FETCH-m1.json', JSON.stringify(archive));

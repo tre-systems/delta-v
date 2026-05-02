@@ -302,13 +302,22 @@ export const handleMatchesList = async (
   // without a separate COUNT query.
   const fetchSize = limit + 1;
 
+  // Prefer the immutable snapshot columns added in migration 0007. They
+  // are populated at archive time and survive `player` table cleanup. For
+  // older archive rows where the snapshot is null, fall back to the
+  // legacy `match_rating -> player` joins so historic matches still
+  // render. Once the snapshot back-fill / cutover is complete the join
+  // path can be retired.
   const SELECT_COLUMNS =
     'ma.game_id, ma.room_code, ma.scenario, ma.winner, ma.win_reason, ' +
     'ma.turns, ma.created_at, ma.completed_at, ma.match_coached, ma.official_bot_match, ' +
-    'winner_player.username AS winner_username, ' +
-    'loser_player.username AS loser_username, ' +
-    'player_a.username AS player_a_username, ' +
-    'player_b.username AS player_b_username';
+    'COALESCE(ma.winner_username, winner_player.username) AS winner_username, ' +
+    'COALESCE(' +
+    'CASE ma.winner WHEN 0 THEN ma.player_b_username ' +
+    'WHEN 1 THEN ma.player_a_username END, ' +
+    'loser_player.username) AS loser_username, ' +
+    'COALESCE(ma.player_a_username, player_a.username) AS player_a_username, ' +
+    'COALESCE(ma.player_b_username, player_b.username) AS player_b_username';
   const JOINS =
     'FROM match_archive ma ' +
     'LEFT JOIN match_rating mr ON mr.game_id = ma.game_id ' +
