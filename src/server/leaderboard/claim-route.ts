@@ -18,7 +18,7 @@ import { isValidPlayerKey } from '../../shared/player';
 import type { Env } from '../env';
 import { jsonError } from '../json-errors';
 import { claimPlayerName, type PlayerRecord } from './player-store';
-import { validateUsername } from './username';
+import { isReservedTestUsername, validateUsername } from './username';
 
 interface ClaimBody {
   playerKey?: unknown;
@@ -95,12 +95,20 @@ export const handleClaimName = async (
     );
   }
 
+  // Reserved-test prefixes (QA_, Probe_, Bot_) come from exploratory
+  // passes and never reach the public leaderboard. Mark them so future
+  // retention queries can excise them by classification rather than by
+  // username globbing.
+  const identityKind = isReservedTestUsername(check.normalised)
+    ? 'test'
+    : 'claimed_human';
   const outcome = await claimPlayerName({
     db: env.DB,
     playerKey: body.playerKey,
     username: check.normalised,
     isAgent: false,
     now: Date.now(),
+    identityKind,
   });
   if (!outcome.ok) {
     return jsonError(409, 'name_taken', 'Callsign is already taken.');

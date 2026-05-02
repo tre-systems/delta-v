@@ -23,12 +23,8 @@ const buildMockDb = () => {
           };
         }
         if (lowered.startsWith('insert into player')) {
-          const [playerKey, username, isAgent, createdAt] = args as [
-            string,
-            string,
-            number,
-            number,
-          ];
+          const [playerKey, username, isAgent, createdAt, identityKind] =
+            args as [string, string, number, number, string | null];
           return {
             run: async () => {
               if (byKey.has(playerKey)) {
@@ -48,6 +44,7 @@ const buildMockDb = () => {
                 distinct_opponents: 0,
                 last_match_at: null,
                 created_at: createdAt,
+                identity_kind: identityKind ?? null,
               });
               byName.set(username, playerKey);
               return { success: true };
@@ -114,6 +111,7 @@ describe('selectPlayerByKey', () => {
       distinctOpponents: 2,
       lastMatchAt: 1_700_000_100_000,
       createdAt: 1_700_000_000_000,
+      identityKind: null,
     });
   });
 });
@@ -125,6 +123,7 @@ describe('claimPlayerName', () => {
     playerKey: 'agent_alpha',
     username: 'Alpha',
     isAgent: true,
+    identityKind: 'agent' as const,
     now: 1_700_000_000_000,
     ...overrides,
   });
@@ -204,8 +203,27 @@ describe('claimPlayerName', () => {
         playerKey: 'human_x',
         username: 'Human',
         isAgent: false,
+        identityKind: 'claimed_human',
       }),
     });
     expect(byKey.get('human_x')?.is_agent).toBe(0);
+  });
+
+  it('persists the identity_kind classification on first insert', async () => {
+    const { db, byKey } = buildMockDb();
+    await claimPlayerName({
+      db,
+      ...defaults({
+        playerKey: 'human_seed_pilot_42',
+        username: 'Pilot 4070',
+        isAgent: false,
+        identityKind: 'default_human',
+      }),
+    });
+    expect(byKey.get('human_seed_pilot_42')?.identity_kind).toBe(
+      'default_human',
+    );
+    const fetched = await selectPlayerByKey(db, 'human_seed_pilot_42');
+    expect(fetched?.identityKind).toBe('default_human');
   });
 });

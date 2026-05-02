@@ -418,24 +418,37 @@ export class MatchmakerDO extends DurableObject<Env> {
     const db = this.env.DB;
     if (!db) return;
 
+    const defaultUsername = buildDefaultUsername(player.playerKey);
     const usernameCandidates = Array.from(
       new Set([
-        normalizeUsername(player.username) ??
-          buildDefaultUsername(player.playerKey),
-        buildDefaultUsername(player.playerKey),
+        normalizeUsername(player.username) ?? defaultUsername,
+        defaultUsername,
       ]),
     );
     for (const username of usernameCandidates) {
+      const isAgentSeat =
+        participantKindForKey(player.playerKey) === 'agent' &&
+        (leaderboardAgentVerified ||
+          isOfficialQuickMatchBotPlayerKey(player.playerKey));
+      // Identity classification (migration 0009). Distinguish the
+      // matchmaker's auto-claim default from a real /api/claim-name so
+      // future retention queries can prune unclaimed Pilot XXXX rows
+      // without touching genuine returning players.
+      const identityKind = isAgentSeat
+        ? isOfficialQuickMatchBotPlayerKey(player.playerKey)
+          ? 'official_bot'
+          : 'agent'
+        : username === defaultUsername
+          ? 'default_human'
+          : 'claimed_human';
       try {
         const outcome = await claimPlayerName({
           db,
           playerKey: player.playerKey,
           username,
-          isAgent:
-            participantKindForKey(player.playerKey) === 'agent' &&
-            (leaderboardAgentVerified ||
-              isOfficialQuickMatchBotPlayerKey(player.playerKey)),
+          isAgent: isAgentSeat,
           now: Date.now(),
+          identityKind,
         });
         if (outcome.ok) {
           return;
