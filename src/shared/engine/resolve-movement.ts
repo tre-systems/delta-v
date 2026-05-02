@@ -121,12 +121,10 @@ export const resolveMovementPhase = (
       !order?.land &&
       ((targetBody && orbitingBody === targetBody) || onReturnLeg);
 
-    // computeCourse commits a planetary-base landing only when 1 fuel
-    // is spent (Triplanetary rule: touch-down burn). For the Grand
-    // Tour return leg we synthesize that burn so a player who arrives
-    // in Luna orbit with nothing queued still lands — the burn
-    // direction is overridden by findLandingBase once orbit is
-    // detected, so the choice here only costs the fuel.
+    // The Grand Tour return leg predates the explicit no-direction
+    // touchdown path below; keep synthesizing a burn here so historic
+    // movement events still record a last burn direction on that auto
+    // landing path.
     if (
       onReturnLeg &&
       !order?.land &&

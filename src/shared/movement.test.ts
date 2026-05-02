@@ -512,6 +512,57 @@ describe('computeCourse - landing', () => {
     expect(course.outcome).not.toBe('landing');
   });
 
+  it('explicit landing action from orbit does not require a directional burn', () => {
+    const marsBase = must(findBaseHex(map, 'Mars'));
+    const ship = makeShip({
+      position: { q: marsBase.q, r: marsBase.r + 1 },
+      velocity: { dq: 0, dr: -1 },
+      pendingGravityEffects: [
+        {
+          hex: { q: marsBase.q, r: marsBase.r + 1 },
+          direction: 3,
+          bodyName: 'Mars',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
+    });
+
+    const course = computeCourse(ship, null, map, { land: true });
+
+    expect(course.fuelSpent).toBe(1);
+    expect(course.outcome).toBe('landing');
+    if (course.outcome === 'landing') {
+      expect(course.landedAt).toBe('Mars');
+    }
+  });
+
+  it('explicit landing action does not burn fuel when no base is available', () => {
+    const bases = findBaseHexes(map, 'Mars');
+    const marsBase = must(bases[0]);
+    const ship = makeShip({
+      position: { q: marsBase.q, r: marsBase.r + 1 },
+      velocity: { dq: 0, dr: -1 },
+      pendingGravityEffects: [
+        {
+          hex: { q: marsBase.q, r: marsBase.r + 1 },
+          direction: 3,
+          bodyName: 'Mars',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
+    });
+
+    const course = computeCourse(ship, null, map, {
+      land: true,
+      destroyedBases: bases.map((base) => hexKey(base)),
+    });
+
+    expect(course.fuelSpent).toBe(0);
+    expect(course.outcome).not.toBe('landing');
+  });
+
   it('stationary active ship already on a planetary base completes landing', () => {
     const marsBase = must(findBaseHex(map, 'Mars'));
     const ship = makeShip({

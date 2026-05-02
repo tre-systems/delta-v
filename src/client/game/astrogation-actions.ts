@@ -53,6 +53,9 @@ export const setBurnDirection = (
     plan.nextBurn,
     plan.clearOverload,
   );
+  if (deps.planningState.landingShips.has(plan.shipId)) {
+    deps.planningState.setShipLanding(plan.shipId, false);
+  }
   deps.planningState.acknowledgeShip(plan.shipId);
   playSelect();
 
@@ -88,6 +91,7 @@ export const skipShipBurn = (deps: AstrogationActionDeps) => {
   const shipId = deps.planningState.selectedShipId;
   if (!shipId) return;
 
+  deps.planningState.setShipLanding(shipId, false);
   deps.planningState.acknowledgeShip(shipId);
 
   const gameState = deps.getGameState();

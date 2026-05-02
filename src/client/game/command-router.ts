@@ -178,11 +178,13 @@ const astrogationHandlers = {
     const current = deps.ctx.planningState.landingShips.has(shipId);
     deps.ctx.planningState.setShipLanding(shipId, !current);
     if (!current) {
+      deps.ctx.planningState.setShipOverload(shipId, null);
       // Auto-set a burn so confirm works immediately
       const burn = deps.ctx.planningState.burns.get(shipId);
       if (burn === undefined || burn === null) {
-        deps.ctx.planningState.setShipBurn(shipId, 0);
+        deps.ctx.planningState.setShipBurn(shipId, 0, true);
       }
+      deps.ctx.planningState.acknowledgeShip(shipId);
     }
   },
   setBurnDirection: (deps, cmd) =>
