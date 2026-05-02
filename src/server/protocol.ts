@@ -135,6 +135,7 @@ export interface InitPayload {
   playerToken: PlayerToken;
   guestPlayerToken: PlayerToken | null;
   players: [RoomPlayerProfile, RoomPlayerProfile];
+  agentSandbox?: boolean;
 }
 
 export type RoomParticipantKind = 'human' | 'agent';
@@ -225,6 +226,7 @@ export const parseInitPayload = (
       playerToken: raw.playerToken,
       guestPlayerToken,
       players,
+      agentSandbox: raw.agentSandbox === true,
     },
   };
 };
@@ -234,6 +236,8 @@ export interface RoomConfig {
   scenario: ScenarioKey;
   playerTokens: [PlayerToken, PlayerToken | null];
   players: [RoomPlayerProfile, RoomPlayerProfile];
+  /** Unrated evaluation match created by agent tooling. */
+  agentSandbox?: boolean;
 }
 
 export const createRoomConfig = ({
@@ -242,11 +246,13 @@ export const createRoomConfig = ({
   playerToken,
   guestPlayerToken,
   players,
+  agentSandbox,
 }: InitPayload): RoomConfig => ({
   code,
   scenario,
   playerTokens: [playerToken, guestPlayerToken],
   players,
+  ...(agentSandbox ? { agentSandbox: true } : {}),
 });
 
 export interface SeatAssignmentInput {

@@ -8,7 +8,10 @@ export interface LiveMatchListingResponse {
   matches: LiveMatchEntry[];
 }
 
-export const handleLiveMatchesList = async (env: Env): Promise<Response> => {
+export const handleLiveMatchesList = async (
+  env: Env,
+  opts?: { includeHidden?: boolean },
+): Promise<Response> => {
   if (!env.LIVE_REGISTRY) {
     return Response.json({ matches: [] } satisfies LiveMatchListingResponse, {
       headers: { 'Cache-Control': 'no-store' },
@@ -18,7 +21,10 @@ export const handleLiveMatchesList = async (env: Env): Promise<Response> => {
   const stub = env.LIVE_REGISTRY.get(env.LIVE_REGISTRY.idFromName('global'));
 
   const res = await stub.fetch(
-    new Request('https://live-registry.internal/list', { method: 'GET' }),
+    new Request(
+      `https://live-registry.internal/list${opts?.includeHidden ? '?includeHidden=1' : ''}`,
+      { method: 'GET' },
+    ),
   );
 
   const body = (await res.json()) as LiveMatchListingResponse;

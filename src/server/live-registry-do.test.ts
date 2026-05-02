@@ -82,9 +82,12 @@ const deregister = (doObj: LiveRegistryDO, code: string) =>
     }),
   );
 
-const list = async (doObj: LiveRegistryDO) => {
+const list = async (doObj: LiveRegistryDO, includeHidden = false) => {
   const res = await doObj.fetch(
-    new Request('https://live-registry.internal/list', { method: 'GET' }),
+    new Request(
+      `https://live-registry.internal/list${includeHidden ? '?includeHidden=1' : ''}`,
+      { method: 'GET' },
+    ),
   );
   return (await res.json()) as { matches: LiveMatchEntry[] };
 };
@@ -139,6 +142,26 @@ describe('LiveRegistryDO', () => {
       scenario: 'duel',
     });
     await expect(inactive.json()).resolves.toEqual({ active: false });
+  });
+
+  it('hides non-public live matches unless includeHidden is set', async () => {
+    const { doObj } = createDO();
+    await register(doObj, {
+      code: 'HIDDN',
+      scenario: 'duel',
+      startedAt: Date.now(),
+      publicVisible: false,
+    });
+
+    await expect(list(doObj)).resolves.toEqual({ matches: [] });
+    await expect(list(doObj, true)).resolves.toEqual({
+      matches: [
+        expect.objectContaining({
+          code: 'HIDDN',
+          publicVisible: false,
+        }),
+      ],
+    });
   });
 
   it('deregisters a match and removes it from the listing', async () => {

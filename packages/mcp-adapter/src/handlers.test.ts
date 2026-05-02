@@ -268,6 +268,7 @@ describe('handleMcpHttpRequest', () => {
       'delta_v_quick_match_connect',
       'delta_v_send_action',
       'delta_v_send_chat',
+      'delta_v_validate_action',
       'delta_v_wait_for_turn',
     ]);
     void server; // keep import used

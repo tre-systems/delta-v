@@ -184,6 +184,31 @@ describe('writeMatchRatingIfEligible', () => {
     expect(matchRatings.size).toBe(0);
   });
 
+  it('skips agent sandbox matches even when both players have rows', async () => {
+    const { db, matchRatings, byKey } = buildMockDb({
+      agent_sandbox_a: seedPlayer('agent_sandbox_a', 'Sandbox A', true),
+      agent_sandbox_b: seedPlayer('agent_sandbox_b', 'Sandbox B', true),
+    });
+    const result = await writeMatchRatingIfEligible({
+      db,
+      roomConfig: {
+        ...makeRoom(['agent_sandbox_a', 'agent_sandbox_b'], true),
+        agentSandbox: true,
+      },
+      gameId,
+      outcomeWinner: 0,
+      now,
+    });
+    expect(result).toEqual({
+      ok: true,
+      wrote: false,
+      reason: 'agent_sandbox',
+    });
+    expect(matchRatings.size).toBe(0);
+    expect(byKey.get('agent_sandbox_a')?.games_played).toBe(0);
+    expect(byKey.get('agent_sandbox_b')?.games_played).toBe(0);
+  });
+
   it('skips when either player lacks a player row', async () => {
     // Only one player has a row
     const { db, matchRatings } = buildMockDb({

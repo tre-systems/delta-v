@@ -8,12 +8,17 @@
 // roomConfig.playerTokens, the same array WebSocket joins use.
 
 import {
+  allowedActionTypesForPhase,
   type BuildObservationOptions,
   buildObservation,
   computeActionEffects,
   withCompactObservationState,
 } from '../../shared/agent';
-import type { LastTurnAutoPlayed } from '../../shared/agent/types';
+import type {
+  AgentReadyInfo,
+  AgentReadyReason,
+  LastTurnAutoPlayed,
+} from '../../shared/agent/types';
 import { filterStateForPlayer } from '../../shared/engine/game-engine';
 import { isPlayerToken, type PlayerToken } from '../../shared/ids';
 import { validateClientMessage } from '../../shared/protocol';
@@ -25,6 +30,7 @@ import {
 import type { C2S, S2C } from '../../shared/types/protocol';
 import type { RoomConfig } from '../protocol';
 import type { IdempotencyKeyCache } from './action-guards';
+import { buildActionRejected, checkActionGuards } from './action-guards';
 import {
   type createGameStateActionHandlers,
   type DispatchOutcome,
@@ -42,6 +48,7 @@ import {
   readHostedMcpSeatEvents,
 } from './mcp-session-state';
 import { type StateWaiters, TooManyWaitersError } from './state-waiters';
+import { GAME_DO_STORAGE_KEYS } from './storage-keys';
 
 export interface McpRequestDeps {
   getRoomConfig: () => Promise<RoomConfig | null>;
@@ -57,6 +64,15 @@ export interface McpRequestDeps {
   // wall-clock budget. Injected by GameDO so this module stays unaware of
   // the reporter implementation.
   reportObservationTimeout?: (props: Record<string, unknown>) => void;
+  reportMcpEvent?: (
+    event:
+      | 'mcp_action_accepted'
+      | 'mcp_action_failed'
+      | 'mcp_action_pending'
+      | 'mcp_action_rejected'
+      | 'mcp_action_validated',
+    props: Record<string, unknown>,
+  ) => void;
   handlers: ReturnType<typeof createGameStateActionHandlers>;
   idempotencyCache: IdempotencyKeyCache;
   stateWaiters: StateWaiters;
@@ -233,6 +249,64 @@ interface PlayerStateView {
   filtered: GameState;
 }
 
+const agentReadyReason = (
+  state: GameState,
+  playerId: PlayerId,
+): AgentReadyReason => {
+  if (state.phase === 'gameOver') return 'game_over';
+  if (state.phase === 'fleetBuilding') return 'fleet_building';
+  return state.activePlayer === playerId ? 'your_turn' : 'waiting_for_opponent';
+};
+
+const buildAgentReadyInfo = async (
+  deps: Pick<McpRequestDeps, 'storage'>,
+  state: GameState,
+  playerId: PlayerId,
+): Promise<AgentReadyInfo> => {
+  const actionDeadlineAt =
+    isActionable(state, playerId) && state.phase !== 'gameOver'
+      ? ((await deps.storage.get<number>(GAME_DO_STORAGE_KEYS.botTurnAt)) ??
+        null)
+      : null;
+  const msUntilAutoplay =
+    actionDeadlineAt === null
+      ? null
+      : Math.max(0, actionDeadlineAt - Date.now());
+  return {
+    actionable: isActionable(state, playerId),
+    reason: agentReadyReason(state, playerId),
+    actionDeadlineAt,
+    msUntilAutoplay,
+    fallbackAutoplayPending: actionDeadlineAt !== null,
+  };
+};
+
+const reportMcpActionEvent = (
+  deps: Pick<McpRequestDeps, 'reportMcpEvent'>,
+  event: NonNullable<McpRequestDeps['reportMcpEvent']> extends (
+    event: infer E,
+    props: Record<string, unknown>,
+  ) => void
+    ? E
+    : never,
+  roomConfig: RoomConfig,
+  state: GameState,
+  playerId: PlayerId,
+  props: Record<string, unknown>,
+): void => {
+  deps.reportMcpEvent?.(event, {
+    code: roomConfig.code,
+    gameId: state.gameId,
+    scenario: state.scenario,
+    turn: state.turnNumber,
+    phase: state.phase,
+    playerId,
+    playerKind: roomConfig.players[playerId]?.kind ?? 'unknown',
+    agentSandbox: roomConfig.agentSandbox === true,
+    ...props,
+  });
+};
+
 const resolvePlayerState = async (
   deps: McpRequestDeps,
   playerId: PlayerId,
@@ -322,6 +396,7 @@ const handleObservationRequest = async (
     opts.gameCode = roomConfig.code;
     opts.coachDirective =
       (await getCoachDirective(deps.storage, playerId)) ?? undefined;
+    opts.agentReady = await buildAgentReadyInfo(deps, view.state, playerId);
     const autoNotice = deps.consumeLastTurnAutoPlayNotice(playerId);
     if (autoNotice) opts.lastTurnAutoPlayed = autoNotice;
     const observation = finalizeObservation(
@@ -415,6 +490,7 @@ const handleWaitRequest = async (
       if (isActionable(view.state, playerId)) {
         opts.coachDirective =
           (await getCoachDirective(deps.storage, playerId)) ?? undefined;
+        opts.agentReady = await buildAgentReadyInfo(deps, view.state, playerId);
         const autoNotice = deps.consumeLastTurnAutoPlayNotice(playerId);
         if (autoNotice) opts.lastTurnAutoPlayed = autoNotice;
         const observation = finalizeObservation(
@@ -545,6 +621,118 @@ const buildActionPayload = (
   return { ok: true, value: validated.value };
 };
 
+const validateGameAction = async (
+  deps: McpRequestDeps,
+  rawAction: unknown,
+  state: GameState,
+  playerId: PlayerId,
+  shouldAutoGuard: boolean,
+): Promise<Record<string, unknown>> => {
+  const built = buildActionPayload(rawAction, state, playerId, shouldAutoGuard);
+  if (!built.ok) {
+    return {
+      valid: false,
+      stage: 'shape',
+      message: built.error,
+    };
+  }
+  const action = built.value;
+  if (!isGameStateActionMessage(action)) {
+    return {
+      valid: false,
+      stage: 'actionType',
+      actionType: action.type,
+      message: `Action type "${action.type}" is not a game-state action`,
+    };
+  }
+
+  const allowed = allowedActionTypesForPhase(state.phase);
+  if (!allowed.has(action.type)) {
+    return {
+      valid: false,
+      stage: 'phase',
+      actionType: action.type,
+      phase: state.phase,
+      allowedTypes: [...allowed],
+      message: `Action type "${action.type}" is not allowed during ${state.phase}`,
+      action,
+    };
+  }
+
+  const guardCheck = checkActionGuards(action.guards, state, playerId, action);
+  if (guardCheck.rejection) {
+    return {
+      valid: false,
+      stage: 'guards',
+      actionType: action.type,
+      rejection: buildActionRejected(
+        guardCheck.rejection,
+        state,
+        action.guards,
+        playerId,
+      ),
+      action,
+    };
+  }
+
+  const idempotencyKey = action.guards?.idempotencyKey;
+  if (idempotencyKey && deps.idempotencyCache.has(playerId, idempotencyKey)) {
+    return {
+      valid: false,
+      stage: 'idempotency',
+      actionType: action.type,
+      message: `idempotency key already processed this phase`,
+      idempotencyKey,
+      action,
+    };
+  }
+
+  const handler = deps.handlers[action.type];
+  if (!handler) {
+    return {
+      valid: false,
+      stage: 'actionType',
+      actionType: action.type,
+      message: `No handler registered for action type "${action.type}"`,
+      action,
+    };
+  }
+
+  const dryRunState = structuredClone(state);
+  const result = await handler.run(dryRunState, playerId, action as never);
+  if ('error' in result) {
+    return {
+      valid: false,
+      stage: 'engine',
+      actionType: action.type,
+      code: result.error.code,
+      message: result.error.message,
+      action,
+    };
+  }
+
+  const { effects, turnAdvanced, phaseChanged } = computeActionEffects(
+    state,
+    result.state,
+    playerId,
+  );
+  return {
+    valid: true,
+    stage: 'engine',
+    actionType: action.type,
+    guardStatus: guardCheck.guardStatus,
+    action,
+    predicted: {
+      nextTurn: result.state.turnNumber,
+      nextPhase: result.state.phase,
+      nextActivePlayer: result.state.activePlayer,
+      turnAdvanced,
+      phaseChanged,
+      effects,
+    },
+  };
+};
+
 const buildOptionalObservation = async (
   deps: McpRequestDeps,
   body: ActionRequestBody,
@@ -559,6 +747,7 @@ const buildOptionalObservation = async (
   opts.gameCode = gameCode;
   opts.coachDirective =
     (await getCoachDirective(storage, playerId)) ?? undefined;
+  opts.agentReady = await buildAgentReadyInfo(deps, view.state, playerId);
   const autoNotice = deps.consumeLastTurnAutoPlayNotice(playerId);
   if (autoNotice) opts.lastTurnAutoPlayed = autoNotice;
   return {
@@ -625,6 +814,17 @@ const handleActionRequest = async (
     return error(409, 'Game has no state yet');
   }
   if (outcome.kind === 'rejected') {
+    reportMcpActionEvent(
+      deps,
+      'mcp_action_rejected',
+      roomConfig,
+      stateBefore,
+      playerId,
+      {
+        actionType: action.type,
+        reason: outcome.rejected.reason,
+      },
+    );
     return json(
       {
         ok: true,
@@ -636,6 +836,17 @@ const handleActionRequest = async (
     );
   }
   if (outcome.kind === 'error') {
+    reportMcpActionEvent(
+      deps,
+      'mcp_action_failed',
+      roomConfig,
+      stateBefore,
+      playerId,
+      {
+        actionType: action.type,
+        code: outcome.code ?? ErrorCode.STATE_CONFLICT,
+      },
+    );
     return json(
       {
         ok: false,
@@ -650,6 +861,17 @@ const handleActionRequest = async (
 
   const waitForResult = body.waitForResult === true;
   if (!waitForResult) {
+    reportMcpActionEvent(
+      deps,
+      'mcp_action_pending',
+      roomConfig,
+      stateBefore,
+      playerId,
+      {
+        actionType: action.type,
+        waitForResult: false,
+      },
+    );
     return json({
       ok: true,
       accepted: true,
@@ -683,6 +905,21 @@ const handleActionRequest = async (
         phaseChanged &&
         after.state.phase !== 'gameOver' &&
         after.state.activePlayer !== playerId;
+      reportMcpActionEvent(
+        deps,
+        'mcp_action_accepted',
+        roomConfig,
+        stateBefore,
+        playerId,
+        {
+          actionType: action.type,
+          nextTurn: after.state.turnNumber,
+          nextPhase: after.state.phase,
+          phaseChanged,
+          turnAdvanced,
+          effects: effects.length,
+        },
+      );
       return json({
         ok: true,
         accepted: true,
@@ -727,6 +964,17 @@ const handleActionRequest = async (
     }
   }
 
+  reportMcpActionEvent(
+    deps,
+    'mcp_action_pending',
+    roomConfig,
+    stateBefore,
+    playerId,
+    {
+      actionType: action.type,
+      waitForResult: true,
+    },
+  );
   return json({
     ok: true,
     accepted: true,
@@ -734,6 +982,62 @@ const handleActionRequest = async (
     pending: true,
     guarded: action.guards !== undefined,
     guardStatus: outcome.accepted?.guardStatus ?? 'inSync',
+  });
+};
+
+const handleValidateActionRequest = async (
+  deps: McpRequestDeps,
+  request: Request,
+): Promise<Response> => {
+  const url = new URL(request.url);
+  const auth = await authorizeRequest(deps, url);
+  if (!auth.ok) return auth.response;
+  const { playerId, roomConfig } = auth.value;
+
+  let body: Pick<ActionRequestBody, 'action' | 'autoGuards'>;
+  try {
+    body = (await request.json()) as Pick<
+      ActionRequestBody,
+      'action' | 'autoGuards'
+    >;
+  } catch {
+    return error(400, 'Invalid JSON body');
+  }
+
+  const state = await deps.getCurrentGameState();
+  if (!state) return error(409, 'Game has no state yet');
+
+  const validation = await validateGameAction(
+    deps,
+    body.action,
+    state,
+    playerId,
+    body.autoGuards !== false,
+  );
+  reportMcpActionEvent(
+    deps,
+    'mcp_action_validated',
+    roomConfig,
+    state,
+    playerId,
+    {
+      valid: validation.valid === true,
+      actionType:
+        typeof validation.actionType === 'string'
+          ? validation.actionType
+          : undefined,
+      stage: typeof validation.stage === 'string' ? validation.stage : null,
+    },
+  );
+  await deps.touchInactivity();
+  return json({
+    ok: true,
+    code: roomConfig.code,
+    playerId,
+    turn: state.turnNumber,
+    phase: state.phase,
+    activePlayer: state.activePlayer,
+    ...validation,
   });
 };
 
@@ -871,6 +1175,9 @@ export const handleMcpRequest = async (
   }
   if (path === '/mcp/action' && request.method === 'POST') {
     return handleActionRequest(deps, request);
+  }
+  if (path === '/mcp/validate-action' && request.method === 'POST') {
+    return handleValidateActionRequest(deps, request);
   }
   if (path === '/mcp/chat' && request.method === 'POST') {
     return handleChatRequest(deps, request);

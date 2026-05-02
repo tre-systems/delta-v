@@ -114,11 +114,17 @@ export const reportLifecycleEvent = (
   event:
     | 'game_started'
     | 'game_ended'
+    | 'agent_autoplay_fired'
     | 'disconnect_grace_started'
     | 'disconnect_grace_expired'
     | 'disconnect_grace_resolved'
     | 'turn_timeout_fired'
     | 'matchmaker_paired'
+    | 'mcp_action_accepted'
+    | 'mcp_action_failed'
+    | 'mcp_action_pending'
+    | 'mcp_action_rejected'
+    | 'mcp_action_validated'
     | 'rating_applied'
     | 'rating_skipped'
     | 'rating_failed',

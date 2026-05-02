@@ -3,6 +3,7 @@ import process from 'node:process';
 type ToolName =
   | 'delta_v_quick_match_connect'
   | 'delta_v_wait_for_turn'
+  | 'delta_v_validate_action'
   | 'delta_v_send_action'
   | 'delta_v_send_chat'
   | 'delta_v_get_state'
@@ -13,6 +14,8 @@ interface QuickMatchConnectArgs {
   scenario: string;
   username: string;
   playerKey?: string;
+  rendezvousCode?: string;
+  agentSandbox?: boolean;
 }
 
 interface WaitForTurnArgs {
@@ -45,6 +48,9 @@ const USERNAME_PREFIX = process.env.USERNAME_PREFIX ?? 'HarnessBot';
 const AGENTS = Number(process.env.AGENTS ?? 6);
 const MAX_ASTRO_TURNS = Number(process.env.MAX_ASTRO_TURNS ?? 4);
 const TURN_TIMEOUT_MS = Number(process.env.TURN_TIMEOUT_MS ?? 30_000);
+const AGENT_SANDBOX = process.env.AGENT_SANDBOX !== '0';
+const RENDEZVOUS_CODE =
+  process.env.RENDEZVOUS_CODE ?? `HARNESS${String(Date.now()).slice(-6)}`;
 
 type RiskTag = 'low' | 'medium' | 'high';
 type CandidateAction = { type: string; [k: string]: unknown };
@@ -100,6 +106,12 @@ interface SendActionResponse {
   accepted: boolean | null;
   pending?: boolean;
   reason?: string;
+  message?: string;
+}
+
+interface ValidateActionResponse {
+  valid: boolean;
+  stage?: string;
   message?: string;
 }
 
@@ -257,6 +269,11 @@ const runOneSession = async (
     serverUrl: SERVER_URL,
     scenario: SCENARIO,
     username,
+    playerKey: `agent_harness_${sessionIndex}_${Date.now()
+      .toString(36)
+      .slice(-8)}`,
+    rendezvousCode: RENDEZVOUS_CODE,
+    agentSandbox: AGENT_SANDBOX,
   };
 
   const connect = await fetchJson<QuickMatchConnectResponse>(
@@ -368,6 +385,20 @@ const runOneSession = async (
             ',',
           )}`,
         );
+      }
+
+      const validation = await fetchJson<ValidateActionResponse>(
+        'delta_v_validate_action',
+        {
+          sessionId,
+          action,
+        },
+      );
+      if (validation.valid === false) {
+        issues.push(
+          `Action failed validation: ${action.type} stage=${validation.stage ?? 'unknown'} message=${validation.message ?? 'n/a'}`,
+        );
+        break;
       }
 
       const send = await fetchJson<SendActionResponse>('delta_v_send_action', {

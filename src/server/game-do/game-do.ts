@@ -862,6 +862,7 @@ export class GameDO extends DurableObject<Env> {
           winner: state.outcome?.winner ?? null,
           reason: state.outcome?.reason ?? null,
           officialBotMatch: hasOfficialQuickMatchBot(roomConfig?.players ?? []),
+          agentSandbox: roomConfig?.agentSandbox === true,
         },
       );
     }
@@ -896,6 +897,25 @@ export class GameDO extends DurableObject<Env> {
       await this.rescheduleAlarm();
       return;
     }
+
+    const roomConfig = await this.getRoomConfig();
+    const activePlayer = roomConfig?.players[playerId];
+    reportLifecycleEvent(
+      { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
+      'agent_autoplay_fired',
+      {
+        gameId: gameState.gameId,
+        code: await this.getGameCode(),
+        turn: gameState.turnNumber,
+        phase: gameState.phase,
+        playerId,
+        officialBot: activePlayer
+          ? isOfficialQuickMatchBotPlayerKey(activePlayer.playerKey)
+          : false,
+        agentSandbox: roomConfig?.agentSandbox === true,
+        actionType: action.type,
+      },
+    );
 
     const handler = this.gameStateActionHandlers[action.type];
 
@@ -1022,6 +1042,12 @@ export class GameDO extends DurableObject<Env> {
             'mcp_observation_timeout',
             props,
           ),
+        reportMcpEvent: (event, props) =>
+          reportLifecycleEvent(
+            { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
+            event,
+            props,
+          ),
         handlers: this.gameStateActionHandlers,
         idempotencyCache: this.idempotencyCache,
         stateWaiters: this.stateWaiters,
@@ -1045,6 +1071,7 @@ export class GameDO extends DurableObject<Env> {
     code: string,
     scenario: string,
     playerKeys: string[],
+    opts?: { publicVisible?: boolean },
   ): void {
     const reg = this.env.LIVE_REGISTRY;
     if (!reg) return;
@@ -1063,6 +1090,9 @@ export class GameDO extends DurableObject<Env> {
               code,
               scenario,
               startedAt: Date.now(),
+              ...(opts?.publicVisible === false
+                ? { publicVisible: false }
+                : {}),
               playerKeys,
             }),
           }),
@@ -1141,12 +1171,15 @@ export class GameDO extends DurableObject<Env> {
     const officialBotMatch = hasOfficialQuickMatchBot(
       roomConfig?.players ?? [],
     );
-    this.registerLiveMatch(code, scenario, playerKeys);
+    const agentSandbox = roomConfig?.agentSandbox === true;
+    this.registerLiveMatch(code, scenario, playerKeys, {
+      publicVisible: !agentSandbox,
+    });
     const gameId = await this.getLatestGameId();
     reportLifecycleEvent(
       { db: this.env.DB, waitUntil: (p) => this.waitUntil(p) },
       'game_started',
-      { gameId, code, scenario, officialBotMatch },
+      { gameId, code, scenario, officialBotMatch, agentSandbox },
     );
   }
 

@@ -27,6 +27,7 @@ interface QueueEntry {
   ticket: string;
   scenario: string;
   rendezvousCode: string | null;
+  agentSandbox?: boolean;
   player: PublicPlayerProfile;
   /** Set on enqueue when the Worker verified an agent Bearer for this playerKey. */
   leaderboardAgentVerified?: boolean;
@@ -39,7 +40,7 @@ interface QueueEntry {
 
 type NormalizedQuickMatchRequest = Pick<
   QueueEntry,
-  'scenario' | 'rendezvousCode' | 'player'
+  'scenario' | 'rendezvousCode' | 'agentSandbox' | 'player'
 > & {
   acceptOfficialBotMatch: boolean;
   declineOfficialBotMatch: boolean;
@@ -104,7 +105,7 @@ const isOfficialQuickMatchBotEnabled = (env: Env): boolean =>
   env.OFFICIAL_QUICK_MATCH_BOT_ENABLED !== '0';
 
 const buildQueuedResponse = (
-  entry: Pick<QueueEntry, 'ticket' | 'scenario' | 'queuedAt'>,
+  entry: Pick<QueueEntry, 'ticket' | 'scenario' | 'agentSandbox' | 'queuedAt'>,
   now: number,
   env: Env,
 ): QuickMatchQueuedResponse => {
@@ -114,10 +115,15 @@ const buildQueuedResponse = (
     status: 'queued',
     ticket: entry.ticket,
     scenario: entry.scenario,
+    ...(entry.agentSandbox === true ? { agentSandbox: true } : {}),
     officialBotOfferAvailable:
-      offerEnabled && waitedMs >= OFFICIAL_QUICK_MATCH_BOT_WAIT_MS,
+      entry.agentSandbox !== true &&
+      offerEnabled &&
+      waitedMs >= OFFICIAL_QUICK_MATCH_BOT_WAIT_MS,
     officialBotWaitMsRemaining: offerEnabled
-      ? Math.max(OFFICIAL_QUICK_MATCH_BOT_WAIT_MS - waitedMs, 0)
+      ? entry.agentSandbox === true
+        ? null
+        : Math.max(OFFICIAL_QUICK_MATCH_BOT_WAIT_MS - waitedMs, 0)
       : null,
   };
 };
@@ -240,6 +246,10 @@ const normalizeQuickMatchRequest = (raw: unknown): QuickMatchPayloadResult => {
     value: {
       scenario,
       rendezvousCode: rendezvousCode ?? null,
+      agentSandbox:
+        (raw as { agentSandbox?: unknown; unrated?: unknown }).agentSandbox ===
+          true ||
+        (raw as { agentSandbox?: unknown; unrated?: unknown }).unrated === true,
       acceptOfficialBotMatch:
         (raw as { acceptOfficialBotMatch?: unknown }).acceptOfficialBotMatch ===
         true,
@@ -318,6 +328,7 @@ export class MatchmakerDO extends DurableObject<Env> {
   private async allocateQuickMatchRoom(
     scenario: string,
     players: [PublicPlayerProfile, PublicPlayerProfile],
+    agentSandbox: boolean,
   ): Promise<{
     code: RoomCode;
     playerTokens: [PlayerToken, PlayerToken];
@@ -351,6 +362,7 @@ export class MatchmakerDO extends DurableObject<Env> {
                 kind: participantKindForKey(players[1].playerKey),
               },
             ],
+            ...(agentSandbox ? { agentSandbox: true } : {}),
           }),
         }),
       );
@@ -400,6 +412,7 @@ export class MatchmakerDO extends DurableObject<Env> {
   private buildMatchedResponse(
     ticket: string,
     scenario: string,
+    agentSandbox: boolean,
     code: RoomCode,
     playerToken: PlayerToken,
   ): Extract<QuickMatchResponse, { status: 'matched' }> {
@@ -407,6 +420,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       status: 'matched',
       ticket,
       scenario,
+      ...(agentSandbox ? { agentSandbox: true } : {}),
       code,
       playerToken,
     };
@@ -541,10 +555,11 @@ export class MatchmakerDO extends DurableObject<Env> {
 
     // Both entries are matched on scenario before reaching matchEntries,
     // so left.scenario and right.scenario agree — pick either.
-    const room = await this.allocateQuickMatchRoom(left.scenario, [
-      seatZeroPlayer,
-      seatOnePlayer,
-    ]);
+    const room = await this.allocateQuickMatchRoom(
+      left.scenario,
+      [seatZeroPlayer, seatOnePlayer],
+      left.agentSandbox === true,
+    );
 
     if (!room) {
       return null;
@@ -558,6 +573,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       matched: this.buildMatchedResponse(
         left.ticket,
         left.scenario,
+        left.agentSandbox === true,
         room.code,
         seatZeroUsesLeft ? room.playerTokens[0] : room.playerTokens[1],
       ),
@@ -570,6 +586,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       matched: this.buildMatchedResponse(
         right.ticket,
         right.scenario,
+        right.agentSandbox === true,
         room.code,
         seatZeroUsesLeft ? room.playerTokens[1] : room.playerTokens[0],
       ),
@@ -589,20 +606,23 @@ export class MatchmakerDO extends DurableObject<Env> {
       waitMsLeft: now - left.queuedAt,
       waitMsRight: now - right.queuedAt,
       officialBotMatch: hasOfficialQuickMatchBot([left.player, right.player]),
+      agentSandbox: left.agentSandbox === true,
     });
 
-    this.ctx.waitUntil(
-      Promise.all([
-        this.ensureLeaderboardProfile(
-          left.player,
-          left.leaderboardAgentVerified ?? false,
-        ),
-        this.ensureLeaderboardProfile(
-          right.player,
-          right.leaderboardAgentVerified ?? false,
-        ),
-      ]),
-    );
+    if (left.agentSandbox !== true) {
+      this.ctx.waitUntil(
+        Promise.all([
+          this.ensureLeaderboardProfile(
+            left.player,
+            left.leaderboardAgentVerified ?? false,
+          ),
+          this.ensureLeaderboardProfile(
+            right.player,
+            right.leaderboardAgentVerified ?? false,
+          ),
+        ]),
+      );
+    }
 
     return entries;
   }
@@ -628,6 +648,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       ticket: `bot_${human.ticket}`,
       scenario: human.scenario,
       rendezvousCode: human.rendezvousCode,
+      agentSandbox: human.agentSandbox,
       player: botProfile,
       queuedAt: now,
       lastSeenAt: now,
@@ -672,7 +693,8 @@ export class MatchmakerDO extends DurableObject<Env> {
       (entry) =>
         entry.player.playerKey === requestPayload.player.playerKey &&
         entry.scenario === requestPayload.scenario &&
-        entry.rendezvousCode === requestPayload.rendezvousCode,
+        entry.rendezvousCode === requestPayload.rendezvousCode &&
+        (entry.agentSandbox === true) === requestPayload.agentSandbox,
     );
 
     if (existingIndex >= 0) {
@@ -688,6 +710,7 @@ export class MatchmakerDO extends DurableObject<Env> {
         existing.status === 'queued' &&
         requestPayload.declineOfficialBotMatch &&
         !requestPayload.acceptOfficialBotMatch &&
+        existing.agentSandbox !== true &&
         isOfficialQuickMatchBotEnabled(this.env) &&
         now - existing.queuedAt >= OFFICIAL_QUICK_MATCH_BOT_WAIT_MS &&
         existing.officialBotDeclinedAt == null
@@ -713,6 +736,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       if (
         existing.status === 'queued' &&
         requestPayload.acceptOfficialBotMatch &&
+        existing.agentSandbox !== true &&
         isOfficialQuickMatchBotEnabled(this.env) &&
         now - existing.queuedAt >= OFFICIAL_QUICK_MATCH_BOT_WAIT_MS
       ) {
@@ -750,6 +774,9 @@ export class MatchmakerDO extends DurableObject<Env> {
             {
               ticket: entries[existingIndex]?.ticket ?? existing.ticket,
               scenario: entries[existingIndex]?.scenario ?? existing.scenario,
+              agentSandbox:
+                (entries[existingIndex]?.agentSandbox ??
+                  existing.agentSandbox) === true,
               queuedAt: entries[existingIndex]?.queuedAt ?? existing.queuedAt,
             },
             now,
@@ -763,7 +790,8 @@ export class MatchmakerDO extends DurableObject<Env> {
         isActiveQueueEntry(entry, now) &&
         entry.player.playerKey !== requestPayload.player.playerKey &&
         entry.scenario === requestPayload.scenario &&
-        entry.rendezvousCode === requestPayload.rendezvousCode,
+        entry.rendezvousCode === requestPayload.rendezvousCode &&
+        (entry.agentSandbox === true) === requestPayload.agentSandbox,
     );
 
     // Reject new enqueues once storage is saturated. The cap counts
@@ -785,6 +813,7 @@ export class MatchmakerDO extends DurableObject<Env> {
       ticket,
       scenario: requestPayload.scenario,
       rendezvousCode: requestPayload.rendezvousCode,
+      agentSandbox: requestPayload.agentSandbox,
       player: requestPayload.player,
       leaderboardAgentVerified,
       queuedAt: now,
@@ -866,6 +895,7 @@ export class MatchmakerDO extends DurableObject<Env> {
           ticket: botTicket,
           scenario: current.scenario,
           rendezvousCode: current.rendezvousCode,
+          agentSandbox: current.agentSandbox,
           player: buildBotProfile(ticket),
           queuedAt: now,
           lastSeenAt: now,
@@ -903,6 +933,8 @@ export class MatchmakerDO extends DurableObject<Env> {
           {
             ticket,
             scenario: entries[index]?.scenario ?? QUICK_MATCH_SCENARIO,
+            agentSandbox:
+              (entries[index]?.agentSandbox ?? current.agentSandbox) === true,
             queuedAt: entries[index]?.queuedAt ?? current.queuedAt,
           },
           now,

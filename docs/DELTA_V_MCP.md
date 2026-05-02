@@ -187,12 +187,17 @@ curl -s https://delta-v.tre.systems/mcp \
     "method":"tools/call",
     "params":{
       "name":"delta_v_quick_match",
-      "arguments":{"scenario":"duel","username":"ExampleBot"}
+      "arguments":{
+        "scenario":"duel",
+        "username":"ExampleBot",
+        "agentSandbox":true,
+        "rendezvousCode":"EVAL123"
+      }
     }
   }'
 ```
 
-The `result.structuredContent` payload contains `matchToken`. Use that on every later tool call.
+The `result.structuredContent` payload contains `matchToken`. Use that on every later tool call. `agentSandbox: true` (alias: `unrated: true`) makes the match unrated, hides it from public live/history listings, and isolates it from the rated queue. Omit it only for deliberate leaderboard play.
 
 Wait for an actionable turn:
 
@@ -284,7 +289,7 @@ Local MCP tools accept `sessionId` unless otherwise noted. Hosted in-match tools
 
 | Tool | Purpose | Key args | Returns |
 | --- | --- | --- | --- |
-| `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `rendezvousCode?`, `username?`, `playerKey?`, `waitForOpponent?` | local matched: `{ sessionId, matchToken, code, playerId, playerToken, status }`; hosted matched: `{ matchToken, sessionId, matchTokenExpiresAt, scenario, ticket, playerKey }`; queued mode (either): `{ status: "queued", ticket }` |
+| `delta_v_quick_match_connect` | Queue + connect seat | `scenario`, `rendezvousCode?`, `agentSandbox?` / `unrated?`, `username?`, `playerKey?`, `waitForOpponent?` | local matched: `{ sessionId, matchToken, code, playerId, playerToken, status }`; hosted matched: `{ matchToken, sessionId, matchTokenExpiresAt, scenario, ticket, playerKey }`; queued mode (either): `{ status: "queued", ticket }` |
 | `delta_v_quick_match` | On local MCP this is an alias for `delta_v_quick_match_connect`; on hosted MCP it is the canonical name. | same args as above | same payloads as above |
 | `delta_v_pair_quick_match_tickets` | Local dev helper: resolve two queued tickets into one match and connect both seats | `leftTicket`, `rightTicket`, `serverUrl?` | `{ code, scenario, left: { sessionId }, right: { sessionId } }` |
 | `delta_v_list_sessions` | List active sessions. Local: in-memory stdio sessions. Hosted: active live matches for the authenticated agent, with fresh `matchToken`s. | none | `{ sessions[] }` |
@@ -293,6 +298,7 @@ Local MCP tools accept `sessionId` unless otherwise noted. Hosted in-match tools
 | `delta_v_get_observation` | Agent observation payload | local: `sessionId`; hosted: `matchToken` or `sessionId`, plus include flags as above, `compactState?` (default **true** on local stdio/local HTTP — compact `state`; pass **false** for full `GameState`) | `AgentTurnInput`-compatible object |
 | `delta_v_wait_for_turn` | Block until actionable turn window | local: `sessionId`; hosted: `matchToken` or `sessionId`, `timeoutMs?`, same include flags + optional `compactState` (same local default as above) | same shape as `get_observation` |
 | `delta_v_get_events` | Read buffered event stream. Hosted returns the DO-backed seat buffer keyed by `matchToken` / `sessionId`. | local: `sessionId`; hosted: `matchToken` or `sessionId`, `afterEventId?`, `limit?`, `clear?` | `{ events[], bufferedRemaining }` |
+| `delta_v_validate_action` | Dry-run a game-state action without applying it | local: `sessionId`; hosted: `matchToken` or `sessionId`, `action`, `autoGuards?` | `{ valid, stage, message? }`; hosted valid responses also include predicted next turn/phase/effects |
 | `delta_v_send_action` | Submit C2S action | local: `sessionId`; hosted: `matchToken` or `sessionId`, `action`, optional `compactState` when `includeNextObservation` | `{ actionType }` (or richer action result when enabled, including `guardStatus`, `autoSkipLikely`) |
 | `delta_v_send_chat` | Send chat message | local: `sessionId`; hosted: `matchToken` or `sessionId`, `text` (alias: `message`) | `{ text }` |
 | `delta_v_close_session` | Close session helper state. Local closes the owned WebSocket session; hosted clears the DO-backed helper/event buffer for that seat without invalidating the match itself. | local: `sessionId`; hosted: `matchToken` or `sessionId` | `{ closed }` |
@@ -313,6 +319,7 @@ Notes:
 - **Local MCP** now defaults `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action(...includeNextObservation)` to compact `state` output. Pass `compactState: false` to force the full `GameState`.
 - **Hosted MCP** still forwards optional `compactState` on `delta_v_get_observation` (query string), `delta_v_wait_for_turn`, and `delta_v_send_action` (JSON body) to the GAME DO — unchanged from the previous explicit opt-in behavior.
 - When `delta_v_send_action(...waitForResult=true)` returns `autoSkipLikely: true`, treat the returned `nextPhase` as transient and call `delta_v_wait_for_turn` instead of immediately chaining a skip for that phase.
+- Observations include `agentReady` when the transport can compute it. Use `agentReady.actionDeadlineAt` / `agentReady.msUntilAutoplay` to avoid fallback autoplay; `fallbackAutoplayPending: true` means the server will eventually protect the match by choosing a policy action.
 - **Hosted MCP** requires `Accept: application/json, text/event-stream` on every `POST /mcp` request, even though Delta-V currently returns the JSON response path rather than an SSE stream. Spec-compliant HTTP clients should also carry `MCP-Protocol-Version` after initialization.
 - When `delta_v_send_action` waits for a result, accepted responses include `guardStatus` (`inSync` or `stalePhaseForgiven`) so agents can tell whether an expected-phase guard was forgiven even though the action went through.
 - `delta_v_wait_for_turn` throws on timeout and may return/reject when game reaches `gameOver`.
@@ -321,6 +328,7 @@ Notes:
 - During `fleetBuilding`, always send `fleetReady` explicitly if `state.phase === 'fleetBuilding'`. That phase is simultaneous, but it does not auto-submit on connect; `wait_for_turn` may legitimately return a fleet-building observation until both seats have sent `fleetReady`.
 - `delta_v_quick_match` / `delta_v_quick_match_connect` accept `waitForOpponent: false` to enqueue and return the ticket immediately instead of blocking for a full match.
 - `delta_v_quick_match` / `delta_v_quick_match_connect` accept `rendezvousCode` to isolate automation traffic into a deterministic pairing bucket. Only clients presenting the same `(scenario, rendezvousCode)` pair can match each other.
+- `delta_v_quick_match` / `delta_v_quick_match_connect` accept `agentSandbox: true` (alias: `unrated: true`) to isolate evaluation games from rated matchmaking, public live listings, public match history, and leaderboard writes.
 - `delta_v_pair_quick_match_tickets` is local-only; use it after two queued ticket responses when you need reproducible two-seat stdio automation without lobby URLs.
 
 ## `delta_v_send_action` payload examples

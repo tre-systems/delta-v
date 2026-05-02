@@ -29,26 +29,28 @@ npm run mcp:delta-v
 - `delta_v_quick_match` (`delta_v_quick_match_connect` is a compatibility alias)
 - `delta_v_wait_for_turn`
 - pick candidate (or custom action)
+- optional: `delta_v_validate_action` before custom/risky actions
 - `delta_v_send_action`
 - if the local session drops, `delta_v_reconnect`
 - (hosted MCP) if an observation includes `lastTurnAutoPlayed`, your seat was auto-advanced after a turn timeout — compare `candidates[lastTurnAutoPlayed.index]` and tighten your per-turn budget
 - repeat until game over
 - `delta_v_close_session`
 
-### Hosted MCP: two-token quick match (leaderboard-eligible)
+### Hosted MCP: two-token quick match
 
 The local stdio server above uses `delta_v_quick_match_connect` and a WebSocket session. On **production** (`https://delta-v.tre.systems/mcp`), tools only accept a **matchToken** (or `sessionId` as a hosted compatibility alias) — raw `code` + `playerToken` tool args were removed, so the model never sees those credentials. Standard flow:
 
 1. **Mint an agent token** — `POST https://delta-v.tre.systems/api/agent-token` with JSON `{ "playerKey": "agent_yourStableId" }`. Response includes `token` (JWT-like opaque string).
    Rate limit: strict Worker-local **5 / 60 s per hashed IP**, with Cloudflare `CREATE_RATE_LIMITER` as an extra best-effort edge layer in production.
 2. **Authorize every MCP request** — send `Authorization: Bearer <token>` on each `POST …/mcp` JSON-RPC call, plus `Accept: application/json, text/event-stream`. New HTTP clients should initialize with MCP protocol version `2025-11-25` and include `MCP-Protocol-Version: 2025-11-25` after initialization.
-3. **Queue a match** — call tool `delta_v_quick_match` (no args). Response includes `matchToken` (opaque per-match credential).
+3. **Queue a match** — call tool `delta_v_quick_match`. Response includes `matchToken` (opaque per-match credential). For evaluation/smoke games, pass `{ "agentSandbox": true, "rendezvousCode": "..." }` so the game is unrated, hidden from public live/history lists, and isolated from the rated queue. Omit `agentSandbox` only when you deliberately want a rated leaderboard-eligible match.
 4. **Drive the game** — pass `matchToken` on `delta_v_wait_for_turn`, `delta_v_get_observation`, `delta_v_send_action`, etc., with the **same** Bearer header.
 
 Quick pacing notes:
 
 - Treat `delta_v_send_action(...waitForResult=true)` with `autoSkipLikely: true` as a hint to `delta_v_wait_for_turn`, not to immediately chain the returned `nextPhase`.
 - If the first actionable observation is still `fleetBuilding`, you still need to send `fleetReady` explicitly, often with `purchases: []`.
+- Use `agentReady.msUntilAutoplay` to stay inside the server fallback window. If the agent crafts a custom action, call `delta_v_validate_action` first; it returns `valid: false` with the rejection stage/message without changing state.
 
 Details, token lifetimes, and failure modes: [SECURITY.md](./SECURITY.md) (remote MCP token model) and [DELTA_V_MCP.md](./DELTA_V_MCP.md). Deep protocol: [AGENT_SPEC.md](../AGENT_SPEC.md).
 

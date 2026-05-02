@@ -25,6 +25,12 @@ PLAYER_KEY = os.environ.get("PLAYER_KEY", f"agent_starter_{uuid.uuid4().hex[:12]
 USERNAME = os.environ.get("USERNAME", "StarterBot")
 SCENARIO = os.environ.get("SCENARIO", "duel")
 WAIT_TIMEOUT_MS = int(os.environ.get("WAIT_TIMEOUT_MS", "25000"))
+AGENT_SANDBOX = os.environ.get("AGENT_SANDBOX", "0").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+RENDEZVOUS_CODE = os.environ.get("RENDEZVOUS_CODE")
 
 
 def post_json(url: str, payload: object, headers: dict[str, str] | None = None) -> dict:
@@ -125,7 +131,12 @@ def main() -> int:
     try:
         quick_match = client.call_tool(
             "delta_v_quick_match",
-            {"scenario": SCENARIO, "username": USERNAME},
+            {
+                "scenario": SCENARIO,
+                "username": USERNAME,
+                **({"agentSandbox": True} if AGENT_SANDBOX else {}),
+                **({"rendezvousCode": RENDEZVOUS_CODE} if RENDEZVOUS_CODE else {}),
+            },
         )
         match_token = quick_match.get("matchToken")
         if not isinstance(match_token, str) or not match_token:
@@ -164,6 +175,14 @@ def main() -> int:
             action = candidates[recommended_index]
 
             print(f"{summarize(observation)} -> {action.get('type', 'unknown')}", flush=True)
+
+            validation = client.call_tool(
+                "delta_v_validate_action",
+                {"matchToken": match_token, "action": action},
+            )
+            if validation.get("valid") is False:
+                print(f"Action failed validation: {validation}", flush=True)
+                continue
 
             result = client.call_tool(
                 "delta_v_send_action",

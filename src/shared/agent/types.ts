@@ -62,6 +62,22 @@ export interface LastTurnAutoPlayed {
   reason: LastTurnAutoPlayedReason;
 }
 
+export type AgentReadyReason =
+  | 'fleet_building'
+  | 'your_turn'
+  | 'waiting_for_opponent'
+  | 'game_over';
+
+export interface AgentReadyInfo {
+  actionable: boolean;
+  reason: AgentReadyReason;
+  /** Epoch ms when server fallback autoplay may fire; null when no deadline is known. */
+  actionDeadlineAt: number | null;
+  /** Non-negative ms until fallback autoplay; null when no deadline is known. */
+  msUntilAutoplay: number | null;
+  fallbackAutoplayPending: boolean;
+}
+
 export interface AgentTurnInput {
   version: 1;
   gameCode: string;
@@ -71,6 +87,8 @@ export interface AgentTurnInput {
   recommendedIndex: number;
   /** One-shot: server played this candidate index for you after a turn timer fired; then cleared. */
   lastTurnAutoPlayed?: LastTurnAutoPlayed;
+  /** Turn-readiness and fallback-autoplay deadline metadata for MCP/hosted agents. */
+  agentReady?: AgentReadyInfo;
   summary?: string;
   legalActionInfo?: LegalActionInfo;
   // v2 optional enrichments — see src/shared/agent/tactical.ts,
