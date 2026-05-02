@@ -213,6 +213,22 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
     }
   };
 
+  const selectDifficulty = (diff: AIDifficulty): void => {
+    aiDifficultySignal.value = diff;
+    ls?.setItem('aiDifficulty', diff);
+  };
+
+  const focusDifficultyButton = (index: number): void => {
+    const target = difficultyButtons[index];
+    if (!target) return;
+
+    const diff = target.dataset.difficulty as AIDifficulty | undefined;
+    if (!diff) return;
+
+    selectDifficulty(diff);
+    target.focus();
+  };
+
   const submitJoin = (rawValue: string): void => {
     const parsed = parseJoinInput(rawValue, CODE_LENGTH);
 
@@ -439,8 +455,39 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       listen(btn, 'click', (event) => {
         event.stopPropagation();
         const diff = btn.dataset.difficulty as AIDifficulty;
-        aiDifficultySignal.value = diff;
-        ls?.setItem('aiDifficulty', diff);
+        selectDifficulty(diff);
+      });
+      listen(btn, 'keydown', (event) => {
+        const keyEvent = event as KeyboardEvent;
+        const currentIndex = difficultyButtons.indexOf(btn);
+
+        if (currentIndex < 0) return;
+
+        if (keyEvent.key === 'ArrowRight' || keyEvent.key === 'ArrowDown') {
+          keyEvent.preventDefault();
+          focusDifficultyButton((currentIndex + 1) % difficultyButtons.length);
+          return;
+        }
+
+        if (keyEvent.key === 'ArrowLeft' || keyEvent.key === 'ArrowUp') {
+          keyEvent.preventDefault();
+          focusDifficultyButton(
+            (currentIndex - 1 + difficultyButtons.length) %
+              difficultyButtons.length,
+          );
+          return;
+        }
+
+        if (keyEvent.key === 'Home') {
+          keyEvent.preventDefault();
+          focusDifficultyButton(0);
+          return;
+        }
+
+        if (keyEvent.key === 'End') {
+          keyEvent.preventDefault();
+          focusDifficultyButton(difficultyButtons.length - 1);
+        }
       });
     }
 
@@ -918,6 +965,7 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         const on = btn.dataset.difficulty === diff;
         cls(btn, 'active', on);
         btn.setAttribute('aria-checked', on ? 'true' : 'false');
+        btn.tabIndex = on ? 0 : -1;
       }
     });
 

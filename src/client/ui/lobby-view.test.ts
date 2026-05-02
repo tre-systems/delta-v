@@ -285,6 +285,48 @@ describe('LobbyView', () => {
     });
   });
 
+  it('supports keyboard navigation in the difficulty radiogroup', () => {
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot',
+      setPlayerName: (name) => name,
+      getPlayerKey: () => 'human_test',
+      resetPlayerIdentity: () => ({ username: 'Pilot' }),
+    });
+
+    const easy = document.querySelector(
+      '[data-difficulty="easy"]',
+    ) as HTMLButtonElement;
+    const normal = document.querySelector(
+      '[data-difficulty="normal"]',
+    ) as HTMLButtonElement;
+    const hard = document.querySelector(
+      '[data-difficulty="hard"]',
+    ) as HTMLButtonElement;
+
+    expect(normal.getAttribute('aria-checked')).toBe('true');
+    expect(normal.tabIndex).toBe(0);
+    expect(easy.tabIndex).toBe(-1);
+
+    normal.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+    );
+    expect(hard.getAttribute('aria-checked')).toBe('true');
+    expect(hard.tabIndex).toBe(0);
+    expect(document.activeElement).toBe(hard);
+    expect(window.localStorage.getItem('aiDifficulty')).toBe('hard');
+
+    hard.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Home', bubbles: true }),
+    );
+    expect(easy.getAttribute('aria-checked')).toBe('true');
+    expect(document.activeElement).toBe(easy);
+  });
+
   it('parses join input and back navigation', () => {
     const playerToken = 'A2345678901234567890123456789012';
     const emit = vi.fn();
