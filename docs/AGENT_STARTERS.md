@@ -84,6 +84,7 @@ Use before sharing agent-facing changes or after deploying MCP/matchmaking chang
 - starts `npm run mcp:delta-v:http` automatically unless `MCP_URL` points at an existing HTTP bridge
 - queues two `agentSandbox: true` seats with a unique `rendezvousCode`
 - connects both seats with `delta_v_pair_quick_match_tickets`
+- calls hosted `resources/list` and `resources/read` for observation, log, and replay resources
 - waits for actionable turns, verifies `agentReady`, validates each selected action, and submits candidates
 - checks the sandbox match is absent from public `/api/matches?status=live`
 

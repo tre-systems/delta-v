@@ -25,6 +25,12 @@ interface QuickMatchQueuedResponse {
   agentSandbox?: boolean;
 }
 
+interface QueuedSeat {
+  label: string;
+  playerKey: string;
+  ticket: string;
+}
+
 interface PairTicketsResponse {
   code: string;
   scenario: string;
@@ -85,6 +91,49 @@ interface LiveMatchesResponse {
   matches?: Array<{ code?: string; scenario?: string }>;
 }
 
+interface AgentTokenResponse {
+  ok?: boolean;
+  token?: string;
+  error?: string;
+  message?: string;
+}
+
+interface JsonRpcError {
+  code?: number;
+  message?: string;
+}
+
+interface JsonRpcResponse<T> {
+  error?: JsonRpcError;
+  result?: T;
+}
+
+interface HostedResource {
+  mimeType?: string;
+  name?: string;
+  title?: string;
+  uri: string;
+}
+
+interface HostedResourceListResult {
+  resources?: HostedResource[];
+}
+
+interface HostedResourceContent {
+  mimeType?: string;
+  text?: string;
+  uri: string;
+}
+
+interface HostedResourceReadResult {
+  contents?: HostedResourceContent[];
+}
+
+interface HostedResourceSmokeResult {
+  checked: boolean;
+  resources: string[];
+}
+
 interface SeatResult {
   label: string;
   sessionId: string;
@@ -101,7 +150,8 @@ const RUN_ID = Date.now().toString(36).toUpperCase();
 
 const usage = `Delta-V MCP sandbox smoke
 
-Runs a two-seat, unrated agent match through the local HTTP MCP bridge.
+Runs a two-seat, unrated agent match through the local HTTP MCP bridge, then
+checks hosted MCP match resources on the same target.
 
 Usage:
   npm run mcp:sandbox-smoke
@@ -117,6 +167,7 @@ Environment:
   TURN_TIMEOUT_MS     per-seat wait_for_turn timeout (default: 12000)
   START_MCP_SERVER=0  require MCP_URL/port to already be running
   CHECK_PUBLIC_LIVE=0 skip the /api/matches?status=live visibility assertion
+  CHECK_HOSTED_RESOURCES=0 skip hosted /mcp resources/list + resources/read assertions
 `;
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
@@ -143,6 +194,7 @@ const TURN_TIMEOUT_MS = envNumber('TURN_TIMEOUT_MS', 12_000);
 const HTTP_TIMEOUT_PAD_MS = 2_000;
 const START_MCP_SERVER = process.env.START_MCP_SERVER !== '0';
 const CHECK_PUBLIC_LIVE = process.env.CHECK_PUBLIC_LIVE !== '0';
+const CHECK_HOSTED_RESOURCES = process.env.CHECK_HOSTED_RESOURCES !== '0';
 
 const ensureCodeFitsQueue = (code: string): string => {
   if (code.length >= 3 && code.length <= 16) return code;
@@ -179,6 +231,112 @@ const callTool = async <T>(
     clearTimeout(timer);
   }
 };
+
+const postJson = async <T>(
+  url: string,
+  payload: unknown,
+  headers: Record<string, string> = {},
+  timeoutMs = 30_000,
+): Promise<T> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const body = (await response.text()).trim();
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${body}`);
+    }
+    return (body ? JSON.parse(body) : {}) as T;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`POST ${url} timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+class HostedMcpClient {
+  private requestId = 0;
+
+  private constructor(private readonly agentToken: string) {}
+
+  static async create(playerKey: string): Promise<HostedMcpClient> {
+    const issued = await postJson<AgentTokenResponse>(
+      new URL('/api/agent-token', SERVER_URL).toString(),
+      { playerKey },
+      {},
+      10_000,
+    );
+    if (issued.ok !== true || !issued.token) {
+      throw new Error(
+        `agent-token issuance failed: ${issued.error ?? issued.message ?? 'unknown'}`,
+      );
+    }
+    const client = new HostedMcpClient(issued.token);
+    await client.rpc('initialize', {
+      protocolVersion: '2025-11-25',
+      capabilities: {},
+      clientInfo: { name: 'delta-v-mcp-sandbox-smoke', version: '1.0' },
+    });
+    return client;
+  }
+
+  async rpc<T>(
+    method: string,
+    params?: Record<string, unknown>,
+    timeoutMs = 30_000,
+  ): Promise<T> {
+    this.requestId += 1;
+    const response = await postJson<JsonRpcResponse<T>>(
+      new URL('/mcp', SERVER_URL).toString(),
+      {
+        jsonrpc: '2.0',
+        id: this.requestId,
+        method,
+        ...(params ? { params } : {}),
+      },
+      {
+        Accept: 'application/json, text/event-stream',
+        Authorization: `Bearer ${this.agentToken}`,
+        'MCP-Protocol-Version': '2025-11-25',
+      },
+      timeoutMs,
+    );
+    if (response.error) {
+      throw new Error(
+        `MCP ${method} failed: ${response.error.message ?? JSON.stringify(response.error)}`,
+      );
+    }
+    if (!response.result) {
+      throw new Error(`MCP ${method} returned no result`);
+    }
+    return response.result;
+  }
+
+  async callTool<T>(name: string, args: Record<string, unknown>): Promise<T> {
+    const result = await this.rpc<{
+      isError?: boolean;
+      structuredContent?: T;
+    }>('tools/call', {
+      name,
+      arguments: args,
+    });
+    if (result.isError === true) {
+      throw new Error(`MCP tool ${name} returned isError=true`);
+    }
+    if (result.structuredContent === undefined) {
+      throw new Error(`MCP tool ${name} returned no structuredContent`);
+    }
+    return result.structuredContent;
+  }
+}
 
 const probeMcp = async (): Promise<boolean> => {
   try {
@@ -243,14 +401,15 @@ const startMcpServerIfNeeded = async (): Promise<ReturnType<
 const queueSeat = async (
   label: string,
   rendezvousCode: string,
-): Promise<string> => {
+): Promise<QueuedSeat> => {
+  const playerKey = `agent_smoke_${label.toLowerCase()}_${RUN_ID.toLowerCase()}`;
   const queued = await callTool<QuickMatchQueuedResponse>(
     'delta_v_quick_match_connect',
     {
       serverUrl: SERVER_URL,
       scenario: SCENARIO,
       username: `Smoke-${label}`,
-      playerKey: `agent_smoke_${label.toLowerCase()}_${RUN_ID.toLowerCase()}`,
+      playerKey,
       rendezvousCode,
       agentSandbox: true,
       waitForOpponent: false,
@@ -267,7 +426,11 @@ const queueSeat = async (
   if (queued.connected === true) {
     throw new Error(`Seat ${label} connected before paired-ticket smoke step`);
   }
-  return queued.ticket;
+  return {
+    label,
+    playerKey,
+    ticket: queued.ticket,
+  };
 };
 
 const asArray = <T>(value: unknown): T[] => {
@@ -458,6 +621,112 @@ const assertHiddenFromPublicLive = async (
   }
 };
 
+const resourceKindFromUri = (
+  uri: string,
+): 'matchLog' | 'matchObservation' | 'matchReplay' | null => {
+  if (uri.endsWith('/observation')) return 'matchObservation';
+  if (uri.endsWith('/log')) return 'matchLog';
+  if (uri.endsWith('/replay')) return 'matchReplay';
+  return null;
+};
+
+const extractMatchTokenFromResourceUri = (uri: string): string | null => {
+  const match = uri.match(
+    /^game:\/\/matches\/(.+)\/(?:observation|log|replay)$/,
+  );
+  return match?.[1] ?? null;
+};
+
+const assertHostedResourceReads = async (
+  seat: QueuedSeat,
+  issues: string[],
+): Promise<HostedResourceSmokeResult> => {
+  if (!CHECK_HOSTED_RESOURCES) {
+    return { checked: false, resources: [] };
+  }
+
+  const client = await HostedMcpClient.create(seat.playerKey);
+  let matchToken: string | null = null;
+  try {
+    const listed = await client.rpc<HostedResourceListResult>(
+      'resources/list',
+      undefined,
+      15_000,
+    );
+    const resources = asArray<HostedResource>(listed.resources).filter(
+      (resource) => resource.uri.startsWith('game://matches/'),
+    );
+    const byKind = new Map<string, HostedResource>();
+    for (const resource of resources) {
+      const kind = resourceKindFromUri(resource.uri);
+      if (kind) byKind.set(kind, resource);
+    }
+
+    const expectedKinds = [
+      'matchObservation',
+      'matchLog',
+      'matchReplay',
+    ] as const;
+    for (const kind of expectedKinds) {
+      const resource = byKind.get(kind);
+      if (!resource) {
+        issues.push(
+          `Hosted resources/list missing ${kind} for seat ${seat.label}`,
+        );
+        continue;
+      }
+
+      matchToken ??= extractMatchTokenFromResourceUri(resource.uri);
+      const read = await client.rpc<HostedResourceReadResult>(
+        'resources/read',
+        { uri: resource.uri },
+        15_000,
+      );
+      const first = asArray<HostedResourceContent>(read.contents)[0];
+      if (!first) {
+        issues.push(`Hosted resources/read returned no content for ${kind}`);
+        continue;
+      }
+      if (first.uri !== resource.uri) {
+        issues.push(
+          `Hosted ${kind} content URI mismatch: expected ${resource.uri}, got ${first.uri}`,
+        );
+      }
+      if (first.mimeType !== 'application/json') {
+        issues.push(
+          `Hosted ${kind} content mimeType mismatch: ${first.mimeType ?? 'missing'}`,
+        );
+      }
+      let parsed: { kind?: unknown };
+      try {
+        parsed = JSON.parse(first.text ?? '{}') as { kind?: unknown };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        issues.push(`Hosted ${kind} resource JSON parse failed: ${message}`);
+        continue;
+      }
+      if (parsed.kind !== kind) {
+        issues.push(
+          `Hosted ${kind} document kind mismatch: ${String(parsed.kind)}`,
+        );
+      }
+    }
+
+    return {
+      checked: true,
+      resources: resources.map((resource) => resource.uri).sort(),
+    };
+  } finally {
+    if (matchToken) {
+      try {
+        await client.callTool('delta_v_close_session', { matchToken });
+      } catch {
+        // Best-effort cleanup only; the underlying sandbox match still expires normally.
+      }
+    }
+  }
+};
+
 const closeSessions = async (sessionIds: string[]): Promise<void> => {
   const closes = sessionIds.map(async (sessionId) => {
     try {
@@ -493,7 +762,7 @@ const main = async (): Promise<void> => {
     process.stderr.write(
       `Queueing sandbox quick match on ${SERVER_URL} (${SCENARIO}, ${rendezvousCode})\n`,
     );
-    const [leftTicket, rightTicket] = await Promise.all([
+    const [leftSeat, rightSeat] = await Promise.all([
       queueSeat('A', rendezvousCode),
       queueSeat('B', rendezvousCode),
     ]);
@@ -502,8 +771,8 @@ const main = async (): Promise<void> => {
       'delta_v_pair_quick_match_tickets',
       {
         serverUrl: SERVER_URL,
-        leftTicket,
-        rightTicket,
+        leftTicket: leftSeat.ticket,
+        rightTicket: rightSeat.ticket,
         pollMs: 500,
         timeoutMs: 60_000,
       },
@@ -515,6 +784,7 @@ const main = async (): Promise<void> => {
     }
     sessionIds = [paired.left.sessionId, paired.right.sessionId];
     await assertHiddenFromPublicLive(paired.code, issues);
+    const hostedResources = await assertHostedResourceReads(leftSeat, issues);
 
     const stop = { actions: 0, done: false };
     const [leftResult, rightResult] = await Promise.all([
@@ -544,6 +814,7 @@ const main = async (): Promise<void> => {
       actions: stop.actions,
       minActions: MIN_ACTIONS,
       maxActions: MAX_ACTIONS,
+      hostedResources,
       issues,
       seats: [leftResult, rightResult],
     };
