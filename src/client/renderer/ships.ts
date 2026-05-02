@@ -124,6 +124,7 @@ const drawOneShip = ({
     heading,
     disabledTurns: ship.damage.disabledTurns,
     shipType: ship.type,
+    zoom,
   });
   drawDisabledShipBadge(ctx, ship, pos, animState, zoom);
   drawIdentityMarkers({ ctx, ship, playerId, state, pos, animState, zoom });
@@ -137,6 +138,7 @@ const drawOneShip = ({
     now,
     inGravity,
     animState,
+    zoom,
   });
   drawShipLabels({
     ctx,

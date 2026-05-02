@@ -121,7 +121,7 @@ describe('renderer entity helpers', () => {
     ).toMatchObject({
       typeName: 'Packet',
       statusTag: 'Orbit',
-      typeColor: 'rgba(255, 255, 255, 0.7)',
+      typeColor: 'rgba(248, 252, 255, 0.88)',
     });
 
     expect(
@@ -133,7 +133,7 @@ describe('renderer entity helpers', () => {
       ),
     ).toMatchObject({
       typeName: 'Enemy Packet',
-      typeColor: 'rgba(255, 140, 100, 0.7)',
+      typeColor: 'rgba(255, 178, 128, 0.88)',
       statusTag: null,
     });
   });

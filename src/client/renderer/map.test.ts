@@ -84,7 +84,7 @@ describe('renderer map helpers', () => {
     expect(view).toMatchObject({
       radius: 19.599999999999998,
       edgeColor: '#cc4422',
-      coreColor: 'rgb(234, 98, 64)',
+      coreColor: 'rgb(246, 110, 76)',
       label: 'MARS',
     });
     expect(view.ripples).toHaveLength(3);
@@ -103,13 +103,13 @@ describe('renderer map helpers', () => {
 
     expect(buildBaseMarkerView(asHexKey('mars-base'), state, 0)).toMatchObject({
       kind: 'friendly',
-      fillStyle: '#4fc3f7',
+      fillStyle: '#64dcff',
     });
 
     expect(buildBaseMarkerView(asHexKey('venus-base'), state, 0)).toMatchObject(
       {
         kind: 'enemy',
-        fillStyle: '#ff8a65',
+        fillStyle: '#ff9f7a',
       },
     );
 
@@ -117,7 +117,7 @@ describe('renderer map helpers', () => {
       buildBaseMarkerView(asHexKey('neutral-base'), state, 0),
     ).toMatchObject({
       kind: 'neutral',
-      fillStyle: '#66bb6a',
+      fillStyle: '#82d989',
     });
   });
 
@@ -125,9 +125,9 @@ describe('renderer map helpers', () => {
     const bounds = createMap().bounds;
 
     expect(buildMapBorderView(bounds, false, 1000, 28)).toMatchObject({
-      strokeStyle: 'rgba(255, 255, 255, 0.04)',
+      strokeStyle: 'rgba(255, 255, 255, 0.08)',
       lineDash: [],
-      lineWidth: 1,
+      lineWidth: 1.2,
     });
 
     expect(buildMapBorderView(bounds, true, 1000, 28)).toMatchObject({
@@ -187,7 +187,7 @@ describe('renderer map helpers', () => {
     // own color, or red-hued bodies (Mars, Sol) read as threat rings.
     const mars = createMap().bodies[0];
     const view = buildBodyView(mars, 28, 0);
-    expect(view.rippleColor).toBe('rgba(180, 196, 220, 1)');
+    expect(view.rippleColor).toBe('rgba(205, 222, 255, 1)');
     expect(view.rippleColor).not.toContain(mars.color);
   });
 
@@ -229,7 +229,7 @@ describe('renderer map helpers', () => {
 
     const views = buildCheckpointMarkerViews(state, 0, map, 28);
     const venus = views.find((v) => v.bodyName === 'Venus');
-    expect(venus?.pipFill).toMatch(/rgba\(100, 255, 140/);
+    expect(venus?.pipFill).toMatch(/rgba\(120, 255, 160/);
   });
 
   it('skips checkpoint bodies that are not on the map', () => {

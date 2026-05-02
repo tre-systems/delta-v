@@ -13,18 +13,22 @@ import {
 import type { DrawShipIconInput } from './draw';
 import { drawCourseMarkerView, drawWeakGravityMarkerView } from './markers';
 import { scaledFont } from './text';
+import { screenDash, screenLineWidth } from './visibility';
 
 export type DrawShipIconFn = (input: DrawShipIconInput) => void;
 
 const drawDriftSegment = (
   ctx: CanvasRenderingContext2D,
   seg: CoursePreviewView['driftSegments'][number],
+  zoom: number,
 ): void => {
   ctx.save();
   ctx.globalAlpha = seg.alpha;
   ctx.strokeStyle = seg.color;
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([4, 6]);
+  ctx.lineWidth = screenLineWidth(1.65, zoom);
+  ctx.shadowColor = seg.color;
+  ctx.shadowBlur = 3;
+  ctx.setLineDash(screenDash([4, 6], zoom));
   ctx.beginPath();
   ctx.moveTo(seg.points[0].x, seg.points[0].y);
   for (let i = 1; i < seg.points.length; i++) {
@@ -38,10 +42,13 @@ const drawDriftSegment = (
 const drawCourseArrow = (
   ctx: CanvasRenderingContext2D,
   arrow: CourseArrowView,
+  zoom: number,
 ): void => {
   ctx.save();
   ctx.strokeStyle = arrow.color;
-  ctx.lineWidth = arrow.lineWidth;
+  ctx.lineWidth = screenLineWidth(arrow.lineWidth, zoom);
+  ctx.shadowColor = arrow.color;
+  ctx.shadowBlur = 6;
   // Draw the head as one path so the tip uses canvas line joining
   // instead of two butt-end strokes colliding.
   ctx.lineCap = 'round';
@@ -61,13 +68,16 @@ const drawCourseArrow = (
 const drawPendingGravityArrow = (
   ctx: CanvasRenderingContext2D,
   arrow: CourseArrowView,
+  zoom: number,
 ): void => {
   ctx.save();
   ctx.strokeStyle = arrow.color;
-  ctx.lineWidth = arrow.lineWidth;
+  ctx.lineWidth = screenLineWidth(arrow.lineWidth, zoom);
+  ctx.shadowColor = arrow.color;
+  ctx.shadowBlur = 4;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.setLineDash([3, 3]);
+  ctx.setLineDash(screenDash([3, 3], zoom));
   ctx.beginPath();
   ctx.moveTo(arrow.from.x, arrow.from.y);
   ctx.lineTo(arrow.to.x, arrow.to.y);
@@ -84,13 +94,16 @@ const drawPendingGravityArrow = (
 const drawCourseCrashMarker = (
   ctx: CanvasRenderingContext2D,
   marker: CourseCrashMarkerView,
+  zoom: number,
 ): void => {
   const { x, y } = marker.position;
   const radius = 11;
   ctx.save();
   ctx.fillStyle = 'rgba(255, 68, 68, 0.35)';
-  ctx.strokeStyle = '#ff3333';
-  ctx.lineWidth = 2.25;
+  ctx.strokeStyle = '#ff5555';
+  ctx.lineWidth = screenLineWidth(2.5, zoom);
+  ctx.shadowColor = 'rgba(255, 80, 80, 0.65)';
+  ctx.shadowBlur = 8;
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.fill();
@@ -108,10 +121,14 @@ const drawCourseCrashMarker = (
 const drawPreviewPolyline = (
   ctx: CanvasRenderingContext2D,
   preview: CoursePreviewView,
+  zoom: number,
 ): void => {
+  ctx.save();
   ctx.strokeStyle = preview.lineColor;
-  ctx.lineWidth = preview.lineWidth;
-  ctx.setLineDash(preview.lineDash);
+  ctx.lineWidth = screenLineWidth(preview.lineWidth, zoom);
+  ctx.shadowColor = preview.lineColor;
+  ctx.shadowBlur = preview.lineDash.length > 0 ? 4 : 7;
+  ctx.setLineDash(screenDash(preview.lineDash, zoom));
   ctx.beginPath();
   ctx.moveTo(preview.linePoints[0].x, preview.linePoints[0].y);
   for (let i = 1; i < preview.linePoints.length; i++) {
@@ -119,17 +136,21 @@ const drawPreviewPolyline = (
   }
   ctx.stroke();
   ctx.setLineDash([]);
+  ctx.restore();
 };
 
 const drawTakeoffSegment = (
   ctx: CanvasRenderingContext2D,
   segment: { points: { x: number; y: number }[] },
+  zoom: number,
 ): void => {
   if (segment.points.length < 2) return;
   ctx.save();
-  ctx.strokeStyle = 'rgba(79, 195, 247, 0.5)';
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = 'rgba(100, 220, 255, 0.68)';
+  ctx.lineWidth = screenLineWidth(1.6, zoom);
+  ctx.shadowColor = 'rgba(100, 220, 255, 0.45)';
+  ctx.shadowBlur = 4;
+  ctx.setLineDash(screenDash([4, 4], zoom));
   ctx.beginPath();
   ctx.moveTo(segment.points[0].x, segment.points[0].y);
   for (let i = 1; i < segment.points.length; i++) {
@@ -148,20 +169,20 @@ const drawSingleCoursePreview = (
   zoom: number,
 ): void => {
   if (preview.takeoffSegment) {
-    drawTakeoffSegment(ctx, preview.takeoffSegment);
+    drawTakeoffSegment(ctx, preview.takeoffSegment, zoom);
   }
-  drawPreviewPolyline(ctx, preview);
+  drawPreviewPolyline(ctx, preview, zoom);
   for (const arrow of preview.gravityArrows) {
-    drawCourseArrow(ctx, arrow);
+    drawCourseArrow(ctx, arrow, zoom);
   }
   for (const arrow of preview.pendingGravityArrows) {
-    drawPendingGravityArrow(ctx, arrow);
+    drawPendingGravityArrow(ctx, arrow, zoom);
   }
   for (const seg of preview.driftSegments) {
-    drawDriftSegment(ctx, seg);
+    drawDriftSegment(ctx, seg, zoom);
   }
   if (preview.crashMarker) {
-    drawCourseCrashMarker(ctx, preview.crashMarker);
+    drawCourseCrashMarker(ctx, preview.crashMarker, zoom);
   }
   if (preview.ghostShip) {
     const g = preview.ghostShip;
@@ -175,16 +196,17 @@ const drawSingleCoursePreview = (
       heading: g.heading,
       disabledTurns: 0,
       shipType: g.shipType,
+      zoom,
     });
   }
   for (const marker of [...preview.burnMarkers, ...preview.overloadMarkers]) {
     drawCourseMarkerView(ctx, marker, zoom);
   }
   if (preview.burnArrow) {
-    drawCourseArrow(ctx, preview.burnArrow);
+    drawCourseArrow(ctx, preview.burnArrow, zoom);
   }
   if (preview.overloadArrow) {
-    drawCourseArrow(ctx, preview.overloadArrow);
+    drawCourseArrow(ctx, preview.overloadArrow, zoom);
   }
   for (const marker of preview.weakGravityMarkers) {
     drawWeakGravityMarkerView(ctx, marker, zoom);

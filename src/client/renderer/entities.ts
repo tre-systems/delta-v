@@ -194,13 +194,13 @@ export const buildShipLabelView = (
 
     return {
       typeName,
-      typeColor: 'rgba(255, 255, 255, 0.7)',
+      typeColor: 'rgba(248, 252, 255, 0.88)',
       typeFont: '600 11px Inter, sans-serif',
       statusTag,
       statusColor: isLanded
-        ? 'rgba(149, 214, 135, 0.5)'
+        ? 'rgba(165, 232, 150, 0.72)'
         : statusTag
-          ? 'rgba(255, 255, 255, 0.35)'
+          ? 'rgba(232, 242, 255, 0.58)'
           : null,
       statusFont: statusTag ? '9px monospace' : null,
     };
@@ -210,7 +210,7 @@ export const buildShipLabelView = (
 
   return {
     typeName: `Enemy ${typeName}`,
-    typeColor: 'rgba(255, 140, 100, 0.7)',
+    typeColor: 'rgba(255, 178, 128, 0.88)',
     typeFont: '600 11px Inter, sans-serif',
     statusTag: null,
     statusColor: null,

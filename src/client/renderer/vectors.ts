@@ -98,8 +98,8 @@ export const buildDetectionRangeViews = (
     views.push({
       center: hexToPixel(selectedShip.position, hexSize),
       radius: SHIP_DETECTION_RANGE * hexSize * 1.73,
-      color: 'rgba(79, 195, 247, 0.08)',
-      lineWidth: 1,
+      color: 'rgba(100, 220, 255, 0.16)',
+      lineWidth: 1.35,
       lineDash: [4, 6],
     });
   }
@@ -117,8 +117,8 @@ export const buildDetectionRangeViews = (
     views.push({
       center: hexToPixel(parseHexKey(key), hexSize),
       radius: BASE_DETECTION_RANGE * hexSize * 1.73,
-      color: 'rgba(79, 195, 247, 0.05)',
-      lineWidth: 1,
+      color: 'rgba(100, 220, 255, 0.1)',
+      lineWidth: 1.2,
       lineDash: [3, 8],
     });
   }
@@ -181,21 +181,21 @@ export const buildVelocityVectorViews = (
     const isOwn = isOwnShipForViewer(ship.owner, playerId);
     const speed = hexVecLength(ship.velocity);
     const color = isOwn
-      ? 'rgba(79, 195, 247, 0.22)'
-      : 'rgba(255, 152, 0, 0.22)';
+      ? 'rgba(100, 220, 255, 0.36)'
+      : 'rgba(255, 177, 59, 0.36)';
 
     views.push({
       from,
       to,
       color,
-      lineWidth: 1.5,
+      lineWidth: 1.7,
       lineDash: [4, 4],
       arrowHead: buildArrowHead(from, to, 6),
       ghostDot: isOwn
         ? {
             position: to,
-            color: 'rgba(79, 195, 247, 0.15)',
-            radius: 4,
+            color: 'rgba(100, 220, 255, 0.24)',
+            radius: 4.5,
           }
         : null,
       speedLabel:
@@ -206,7 +206,7 @@ export const buildVelocityVectorViews = (
                 x: (from.x + to.x) / 2,
                 y: (from.y + to.y) / 2 - 5,
               },
-              color: 'rgba(255, 152, 0, 0.25)',
+              color: 'rgba(255, 177, 59, 0.42)',
             }
           : null,
     });
@@ -230,13 +230,15 @@ export const buildVelocityVectorViews = (
     }
 
     const isOwn = isOwnShipForViewer(ordnance.owner, playerId);
-    const color = isOwn ? 'rgba(79, 195, 247, 0.1)' : 'rgba(255, 152, 0, 0.1)';
+    const color = isOwn
+      ? 'rgba(100, 220, 255, 0.18)'
+      : 'rgba(255, 177, 59, 0.18)';
 
     views.push({
       from,
       to,
       color,
-      lineWidth: 1,
+      lineWidth: 1.25,
       lineDash: [2, 4],
       arrowHead: buildArrowHead(from, to, 4),
       ghostDot: null,
@@ -270,13 +272,15 @@ export const buildShipTrailViews = (
 
     views.push({
       points: trail.map((hex) => hexToPixel(hex, hexSize)),
-      lineColor: isOwn ? 'rgba(79, 195, 247, 0.06)' : 'rgba(255, 152, 0, 0.06)',
-      lineWidth: 1.25,
+      lineColor: isOwn
+        ? 'rgba(100, 220, 255, 0.13)'
+        : 'rgba(255, 177, 59, 0.13)',
+      lineWidth: 1.45,
       lineDash: [],
       waypointColor: isOwn
-        ? 'rgba(79, 195, 247, 0.08)'
-        : 'rgba(255, 152, 0, 0.08)',
-      waypointRadius: 1.25,
+        ? 'rgba(100, 220, 255, 0.22)'
+        : 'rgba(255, 177, 59, 0.22)',
+      waypointRadius: 1.5,
     });
   }
 
@@ -303,8 +307,8 @@ export const buildOrdnanceTrailViews = (
 
     views.push({
       points: trail.map((hex) => hexToPixel(hex, hexSize)),
-      lineColor: isOwn ? 'rgba(79, 195, 247, 0.04)' : 'rgba(255, 152, 0, 0.04)',
-      lineWidth: 1,
+      lineColor: isOwn ? 'rgba(100, 220, 255, 0.1)' : 'rgba(255, 177, 59, 0.1)',
+      lineWidth: 1.15,
       lineDash: [2, 4],
       waypointColor: null,
       waypointRadius: 0,
@@ -392,18 +396,18 @@ export const buildMovementPathViews = (
     const passedSegments = Math.floor(progress * totalSegments);
 
     const color = isOwnShipForViewer(ship.owner, playerId)
-      ? 'rgba(79, 195, 247, 0.22)'
-      : 'rgba(255, 152, 0, 0.22)';
+      ? 'rgba(100, 220, 255, 0.36)'
+      : 'rgba(255, 177, 59, 0.36)';
 
     views.push({
       points: movement.path.map((hex) => hexToPixel(hex, hexSize)),
       color,
-      lineWidth: 1.25,
+      lineWidth: 1.45,
       lineDash: [3, 5],
       passedWaypoints: movement.path
         .slice(1, Math.min(passedSegments + 1, movement.path.length))
         .map((hex) => hexToPixel(hex, hexSize)),
-      waypointRadius: 1.75,
+      waypointRadius: 2,
     });
   }
 

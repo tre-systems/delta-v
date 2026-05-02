@@ -107,7 +107,7 @@ export const buildBodyView = (
   for (let i = 1; i <= 3; i++) {
     ripples.push({
       radius: radius * (1.2 + i * 0.8 + pulse * 0.2),
-      alpha: (0.15 / i) * (1 - pulse * 0.3),
+      alpha: (0.2 / i) * (1 - pulse * 0.25),
     });
   }
 
@@ -115,9 +115,9 @@ export const buildBodyView = (
     center,
     radius,
     ripples,
-    rippleColor: 'rgba(180, 196, 220, 1)',
-    glowStops: [`${body.color}30`, `${body.color}10`, 'transparent'],
-    coreColor: lightenColor(body.color, 30),
+    rippleColor: 'rgba(205, 222, 255, 1)',
+    glowStops: [`${body.color}44`, `${body.color}18`, 'transparent'],
+    coreColor: lightenColor(body.color, 42),
     edgeColor: body.color,
     label: body.name.toUpperCase(),
     labelY: center.y + radius + 18,
@@ -135,8 +135,8 @@ export const buildBaseMarkerView = (
     return {
       kind: 'destroyed',
       fillStyle: null,
-      strokeStyle: 'rgba(255, 90, 90, 0.8)',
-      lineWidth: 1.5,
+      strokeStyle: 'rgba(255, 112, 112, 0.95)',
+      lineWidth: 1.8,
     };
   }
 
@@ -152,25 +152,25 @@ export const buildBaseMarkerView = (
   if (myBases.has(baseKey)) {
     return {
       kind: 'friendly',
-      fillStyle: '#4fc3f7',
-      strokeStyle: '#2196f3',
-      lineWidth: 1,
+      fillStyle: '#64dcff',
+      strokeStyle: '#a6edff',
+      lineWidth: 1.5,
     };
   }
 
   if (enemyBases.has(baseKey)) {
     return {
       kind: 'enemy',
-      fillStyle: '#ff8a65',
-      strokeStyle: '#e64a19',
-      lineWidth: 1,
+      fillStyle: '#ff9f7a',
+      strokeStyle: '#ffd0a8',
+      lineWidth: 1.5,
     };
   }
   return {
     kind: 'neutral',
-    fillStyle: '#66bb6a',
-    strokeStyle: '#388e3c',
-    lineWidth: 1,
+    fillStyle: '#82d989',
+    strokeStyle: '#c8f6c2',
+    lineWidth: 1.4,
   };
 };
 
@@ -205,8 +205,8 @@ export const buildMapBorderView = (
     topLeft,
     width: bottomRight.x - topLeft.x,
     height: bottomRight.y - topLeft.y,
-    strokeStyle: 'rgba(255, 255, 255, 0.04)',
-    lineWidth: 1,
+    strokeStyle: 'rgba(255, 255, 255, 0.08)',
+    lineWidth: 1.2,
     lineDash: [],
   };
 };
@@ -299,9 +299,9 @@ export const buildCheckpointMarkerViews = (
       radius: ringRadius,
       visited: wasVisited,
       strokeStyle: wasVisited
-        ? 'rgba(122, 215, 255, 0.55)'
-        : 'rgba(226, 232, 244, 0.28)',
-      lineWidth: wasVisited ? 1.5 : 1,
+        ? 'rgba(142, 224, 255, 0.76)'
+        : 'rgba(232, 238, 250, 0.42)',
+      lineWidth: wasVisited ? 1.75 : 1.25,
       lineDash: wasVisited ? [] : [3, 5],
       pipCenter: {
         x: center.x + bodyRadius + 14,
@@ -309,10 +309,10 @@ export const buildCheckpointMarkerViews = (
       },
       pipRadius: 3.5,
       pipFill: isHomeReturn
-        ? 'rgba(100, 255, 140, 0.95)'
+        ? 'rgba(120, 255, 160, 0.98)'
         : wasVisited
-          ? 'rgba(122, 215, 255, 0.9)'
-          : 'rgba(180, 196, 220, 0.35)',
+          ? 'rgba(142, 224, 255, 0.95)'
+          : 'rgba(205, 216, 235, 0.5)',
     });
   }
   return views;
