@@ -2709,6 +2709,56 @@ describe('aiCombat', () => {
       },
     });
   });
+
+  it('targets live threats over disabled ships when screening a passenger carrier', () => {
+    const carrier = createTestShip({
+      id: asShipId('screened-carrier'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'liner',
+      passengersAboard: 12,
+      position: { q: 0, r: 0 },
+      damage: { disabledTurns: 2 },
+    });
+    const escort = createTestShip({
+      id: asShipId('carrier-screen'),
+      owner: 0,
+      originalOwner: 0,
+      type: 'frigate',
+      position: { q: 0, r: 1 },
+    });
+    const liveThreat = createTestShip({
+      id: asShipId('live-carrier-threat'),
+      owner: 1,
+      originalOwner: 1,
+      type: 'corsair',
+      position: { q: 1, r: 0 },
+      detected: true,
+    });
+    const disabledEnemy = createTestShip({
+      id: asShipId('disabled-raider'),
+      owner: 1,
+      originalOwner: 1,
+      type: 'corvette',
+      position: { q: 1, r: 1 },
+      damage: { disabledTurns: 5 },
+      detected: true,
+    });
+    const state = createTestState({
+      phase: 'combat',
+      activePlayer: 0,
+      scenarioRules: { targetWinRequiresPassengers: true },
+      ships: [carrier, escort, liveThreat, disabledEnemy],
+      players: [{ targetBody: 'Venus' }, { targetBody: '' }],
+    });
+
+    expect(aiCombat(state, 0, openMap, 'hard')[0]).toMatchObject({
+      attackerIds: [escort.id],
+      targetId: liveThreat.id,
+      targetType: 'ship',
+    });
+  });
+
   it('names low-odds combat hold-fire decisions', () => {
     const attacker = createTestShip({
       id: asShipId('hold-attacker'),
@@ -4062,6 +4112,90 @@ describe('aiAstrogation — pure combat positioning', () => {
       },
       {
         shipId: tanker.id,
+        burn: null,
+        overload: null,
+      },
+    ];
+
+    expect(findFuelStallShipIds(state, 0, orders)).toEqual([]);
+  });
+  it('convoy: nearby support holding during passenger final approach is not a fuel stall', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('CONVOY-SUPPORT-HOLD-FINAL-APPROACH'),
+      findBaseHex,
+    );
+    const carrier = must(state.ships.find((ship) => ship.id === 'p0s0'));
+    const escort = must(state.ships.find((ship) => ship.id === 'p0s2'));
+
+    carrier.lifecycle = 'active';
+    carrier.position = { q: -7, r: 4 };
+    carrier.velocity = { dq: 0, dr: 0 };
+    carrier.fuel = 5;
+    carrier.passengersAboard = 120;
+    carrier.damage = { disabledTurns: 0 };
+    escort.lifecycle = 'active';
+    escort.position = { q: -7, r: 4 };
+    escort.velocity = { dq: 0, dr: 0 };
+    escort.fuel = 8;
+    escort.damage = { disabledTurns: 0 };
+    for (const ship of state.ships) {
+      if (ship.owner === 1 || ship.id === 'p0s1') {
+        ship.lifecycle = 'destroyed';
+      }
+    }
+
+    const orders: AstrogationOrder[] = [
+      {
+        shipId: carrier.id,
+        burn: 5,
+        overload: null,
+      },
+      {
+        shipId: escort.id,
+        burn: null,
+        overload: null,
+      },
+    ];
+
+    expect(findFuelStallShipIds(state, 0, orders)).toEqual([]);
+  });
+  it('convoy: nearby support holding while the passenger carrier brakes near the base is not a fuel stall', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.convoy,
+      map,
+      asGameId('CONVOY-SUPPORT-HOLD-BRAKING-APPROACH'),
+      findBaseHex,
+    );
+    const carrier = must(state.ships.find((ship) => ship.id === 'p0s0'));
+    const escort = must(state.ships.find((ship) => ship.id === 'p0s2'));
+
+    carrier.lifecycle = 'active';
+    carrier.position = { q: -7, r: 4 };
+    carrier.velocity = { dq: 1, dr: 0 };
+    carrier.fuel = 6;
+    carrier.passengersAboard = 120;
+    carrier.damage = { disabledTurns: 0 };
+    escort.lifecycle = 'active';
+    escort.position = { q: -7, r: 4 };
+    escort.velocity = { dq: 0, dr: 0 };
+    escort.fuel = 6;
+    escort.damage = { disabledTurns: 0 };
+    for (const ship of state.ships) {
+      if (ship.owner === 1 || ship.id === 'p0s1') {
+        ship.lifecycle = 'destroyed';
+      }
+    }
+
+    const orders: AstrogationOrder[] = [
+      {
+        shipId: carrier.id,
+        burn: 3,
+        overload: null,
+      },
+      {
+        shipId: escort.id,
         burn: null,
         overload: null,
       },

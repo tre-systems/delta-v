@@ -50,13 +50,13 @@ Avoid touching Stream B AI/engine files except for narrow type fallout.
 Goal: make the game itself resolve correctly, play credibly, and remain usable
 across supported UI surfaces.
 
-1. **Improve Passenger Objective AI (P1)** — highest product impact; keep the
-   fixture-backed workflow tight and measure Convoy/Evacuation drift with
-   paired scorecards.
+1. **Improve Passenger Objective AI (P1, completed current pass
+   2026-05-02)** — keep the fixture-backed workflow tight for future AI
+   changes and measure Convoy/Evacuation drift with paired scorecards.
 2. **Maintain Fixture-Backed AI Workflow (P1, ongoing)** — do this as part of
    the AI work, not as a separate refactor.
-3. **Small Accessibility Polish (P3)** — only pull this after the gameplay
-   correctness items, and keep it scoped to touched UI surfaces.
+3. **Small Accessibility Polish (P3, completed current pass 2026-05-02)** —
+   only reopen when a touched UI surface exposes a concrete accessibility gap.
 
 Primary write ownership: `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
 `src/shared/simulate-ai-policy.test.ts`, `scripts/simulate-ai.ts`,
@@ -114,32 +114,32 @@ Current 2026-04-28 checks:
   failing this pass; the live browser launch path and one-turn Play-vs-AI smoke
   passed for Convoy.
 
-2026-05-02 Stream B checkpoint:
+2026-05-02 Stream B completion checkpoint:
 
-- `convoy 80 --seed 21 --ci --quiet --json`: improved from 31.25% to 33.75%
-  passenger deliveries, from 70% to 71.25% objective resolutions, and from 30%
-  to 28.75% fleet eliminations after penalizing high-speed passenger-carrier
-  intercept fly-bys. No crashes, invalid actions, fuel stalls, passenger
+- `convoy 80 --seed 21 --ci --quiet --json`: improved from 31.25% to 46.25%
+  passenger deliveries, from 70% to 81.25% objective resolutions, and from 30%
+  to 18.75% fleet eliminations. No crashes, invalid actions, fuel stalls,
+  passenger transfer mistakes, or timeouts.
+- `convoy 200 --seed 21 --ci --quiet --json`: improved from 24.5% to 43.5%
+  passenger deliveries, from 71% to 82% objective resolutions, and from 29% to
+  18% fleet eliminations. No crashes, invalid actions, fuel stalls, passenger
   transfer mistakes, or timeouts.
 - `evacuation 60 --seed 1777706300 --ci --quiet --json`: unchanged at 47-13 P0,
   78.3% P0 decided, 100% objective resolutions, 78.3% passenger deliveries, and
   0 fleet eliminations. Treat this as simulation coverage for now unless Lunar
   Evacuation is being prepared for UX re-entry.
 
-Action: continue promoting representative convoy and evacuation captures into
-fixtures, then improve carrier survival, raider interception, and landing-safe
-abort/refuel choices through named plans or bounded movement planning. Recent
-work taught the emergency escort lookahead to avoid carrier courses that become
-crash-doomed if the carrier is disabled on the following combat pass. The next
-useful slice is reducing the remaining convoy fleet-elimination drift without
-undoing the improved passenger delivery rate. Do not add broad scalar weights
-without a fixture proving the change generalizes. Use
-`--capture-failure-kind passengerObjectiveFailure,objectiveDrift` for convoy so
-carrier-loss states and fleet-elimination drift are both visible.
+Action: no active Stream B task remains outside normal regression maintenance.
+Future passenger AI work should be trigger-driven by fresh Convoy captures or
+by a decision to return Lunar Evacuation to the UX. Do not add broad scalar
+weights without a fixture proving the change generalizes. Use
+`--capture-failure-kind passengerObjectiveFailure,objectiveDrift,fuelStall` for
+convoy so carrier-loss states, fleet-elimination drift, and false-positive
+support-hold classifications are visible.
 
-Acceptance: paired scorecards should improve passenger delivery quality or
-reduce fleet-elimination drift without increasing invalid actions, fuel stalls,
-passenger-transfer mistakes, or timeout-heavy stalemates.
+Acceptance: current paired scorecards improved passenger delivery quality and
+reduced fleet-elimination drift without increasing invalid actions, fuel
+stalls, passenger-transfer mistakes, or timeout-heavy stalemates.
 
 **Files:** `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
 `src/shared/simulate-ai-policy.test.ts`, `scripts/simulate-ai.ts`

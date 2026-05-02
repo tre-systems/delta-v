@@ -38,6 +38,7 @@ import type { ScenarioKey } from '../src/shared/map-data';
 import {
   buildSolarSystemMap,
   findBaseHex,
+  findBaseHexes,
   isValidScenario,
   SCENARIOS,
 } from '../src/shared/map-data';
@@ -701,6 +702,13 @@ export const findFuelStallShipIds = (
       return false;
     }
 
+    const map = buildSolarSystemMap();
+    const targetBody = state.players[ship.owner]?.targetBody;
+    const targetBases =
+      targetBody != null && targetBody !== ''
+        ? findBaseHexes(map, targetBody)
+        : [];
+
     return state.ships.some((candidate) => {
       if (
         candidate.owner !== ship.owner ||
@@ -714,7 +722,60 @@ export const findFuelStallShipIds = (
 
       const carrierOrder = ordersByShip.get(candidate.id);
 
-      return carrierOrder?.land === true;
+      if (carrierOrder?.land === true) {
+        return true;
+      }
+
+      if (carrierOrder == null || carrierOrder.burn === null) {
+        return false;
+      }
+
+      const nearestTargetBase = targetBases.reduce<{
+        q: number;
+        r: number;
+      } | null>(
+        (best, base) =>
+          best == null ||
+          hexDistance(candidate.position, base) <
+            hexDistance(candidate.position, best)
+            ? base
+            : best,
+        null,
+      );
+      const targetHex =
+        targetBody != null && targetBody !== ''
+          ? (nearestTargetBase ??
+            map.bodies.find((body) => body.name === targetBody)?.center ??
+            null)
+          : null;
+
+      if (targetHex == null || hexDistance(candidate.position, targetHex) > 1) {
+        return false;
+      }
+
+      const course = computeCourse(candidate, carrierOrder.burn, map, {
+        ...(carrierOrder.overload != null
+          ? { overload: carrierOrder.overload }
+          : {}),
+        destroyedBases: state.destroyedBases,
+      });
+
+      const currentTargetDistance = hexDistance(candidate.position, targetHex);
+      const destinationTargetDistance = hexDistance(
+        course.destination,
+        targetHex,
+      );
+      const brakingForTerminalApproach =
+        currentTargetDistance <= 1 &&
+        destinationTargetDistance <= 1 &&
+        hexVecLength(course.newVelocity) < hexVecLength(candidate.velocity);
+
+      return (
+        course.outcome !== 'crash' &&
+        (course.outcome === 'landing' ||
+          destinationTargetDistance < currentTargetDistance ||
+          brakingForTerminalApproach)
+      );
     });
   };
   const isSupportShipWithoutMovementObjective = (ship: Ship): boolean =>
