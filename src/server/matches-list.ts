@@ -329,7 +329,12 @@ export const handleMatchesList = async (
     'LEFT JOIN player player_a ON player_a.player_key = mr.player_a_key ' +
     'LEFT JOIN player player_b ON player_b.player_key = mr.player_b_key';
 
-  const whereClauses: string[] = [];
+  // Filter out archive rows the writer marked as low-quality / noise.
+  // The flag is set by `computeArchiveQuality` in match-archive.ts at
+  // archive time; rows from before migration 0008 default to 1, so the
+  // filter is safe to apply unconditionally. Operators inspect hidden
+  // rows directly via D1 (see Lens 13 in EXPLORATORY_TESTING.md).
+  const whereClauses: string[] = ['ma.public_visible = 1'];
   const bindings: unknown[] = [];
   if (before) {
     whereClauses.push('ma.completed_at < ?');

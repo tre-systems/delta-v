@@ -111,9 +111,10 @@ describe('match archival', () => {
     expect(body.eventStream).toHaveLength(1);
     expect(body.checkpoint).not.toBeNull();
 
-    // D1 should have metadata — 13 columns including match_coached,
-    // official_bot_match, and the participant snapshot triplet
-    // (player_a_username, player_b_username, winner_username).
+    // D1 should have metadata — 15 columns: match_coached,
+    // official_bot_match, the participant snapshot triplet
+    // (player_a_username, player_b_username, winner_username), plus
+    // public_visible and quality_flags from migration 0008.
     expect(db.prepare).toHaveBeenCalledTimes(1);
     expect(db.bind).toHaveBeenCalledWith(
       'ARC-m1',
@@ -129,6 +130,8 @@ describe('match archival', () => {
       null, // player_a_username: no roomConfig stored in this fixture
       null, // player_b_username
       null, // winner_username
+      0, // public_visible: hidden because both snapshots are null
+      JSON.stringify(['unidentified_participants']),
     );
 
     // The DO-side checkpoint is pruned after the archive lands. R2 now
@@ -183,6 +186,8 @@ describe('match archival', () => {
       null,
       null,
       null,
+      0, // public_visible: hidden — no snapshots saved
+      JSON.stringify(['unidentified_participants']),
     );
   });
 
@@ -246,6 +251,12 @@ describe('match archival', () => {
       1,
       null,
       OFFICIAL_QUICK_MATCH_BOT_USERNAME,
+      null,
+      // The official bot's snapshot is preserved, so the row keeps a
+      // labelled participant even though the human's `Pilot 1` default
+      // was dropped. With at least one identifiable seat, the listing
+      // stays publicly visible.
+      1,
       null,
     );
   });
@@ -344,6 +355,147 @@ describe('match archival', () => {
     expect(body.winnerUsername).toBeNull();
   });
 
+  it('hides 1-turn disconnect-forfeit rows from the public listing', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const r2 = createMockR2();
+    const db = createMockDb();
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('NOISE-m1'),
+      findBaseHex,
+    );
+    state.phase = 'gameOver';
+    state.outcome = { winner: 0, reason: 'Opponent disconnected' };
+    state.turnNumber = 1;
+
+    await appendEnvelopedEvents(storage, asGameId('NOISE-m1'), null, {
+      type: 'gameCreated',
+      scenario: 'Duel',
+      turn: 1,
+      phase: 'astrogation',
+      matchSeed: 0,
+    });
+    await storage.put('roomConfig', {
+      code: 'NOISERM',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), null],
+      players: [
+        { playerKey: 'human-rob', username: 'RobG', kind: 'human' },
+        { playerKey: 'human-fau', username: 'Fau', kind: 'human' },
+      ],
+    });
+
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      db as unknown as D1Database,
+      state,
+      'NOISERM',
+    );
+
+    const body = JSON.parse(
+      r2.objects.get('matches/NOISE-m1.json') ?? '{}',
+    ) as MatchArchive;
+    expect(body.publicVisible).toBe(false);
+    expect(body.qualityFlags).toEqual(['short_disconnect_forfeit']);
+  });
+
+  it('keeps a real 2-player completed match publicly visible', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const r2 = createMockR2();
+    const db = createMockDb();
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('VIS-m1'),
+      findBaseHex,
+    );
+    state.phase = 'gameOver';
+    state.outcome = { winner: 0, reason: 'Fleet eliminated!' };
+    state.turnNumber = 8;
+
+    await appendEnvelopedEvents(storage, asGameId('VIS-m1'), null, {
+      type: 'gameCreated',
+      scenario: 'Duel',
+      turn: 1,
+      phase: 'astrogation',
+      matchSeed: 0,
+    });
+    await storage.put('roomConfig', {
+      code: 'VISRM',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      players: [
+        { playerKey: 'human-rob', username: 'RobG', kind: 'human' },
+        { playerKey: 'human-fau', username: 'Fau', kind: 'human' },
+      ],
+    });
+
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      db as unknown as D1Database,
+      state,
+      'VISRM',
+    );
+
+    const body = JSON.parse(
+      r2.objects.get('matches/VIS-m1.json') ?? '{}',
+    ) as MatchArchive;
+    expect(body.publicVisible).toBe(true);
+    expect(body.qualityFlags).toEqual([]);
+  });
+
+  it('flags reserved-test callsign matches as low-quality', async () => {
+    const storage = new MockStorage() as unknown as DurableObjectStorage;
+    const r2 = createMockR2();
+    const db = createMockDb();
+    const map = buildSolarSystemMap();
+    const state = createGameOrThrow(
+      SCENARIOS.duel,
+      map,
+      asGameId('QA-m1'),
+      findBaseHex,
+    );
+    state.phase = 'gameOver';
+    state.outcome = { winner: 1, reason: 'Fleet eliminated!' };
+    state.turnNumber = 4;
+
+    await appendEnvelopedEvents(storage, asGameId('QA-m1'), null, {
+      type: 'gameCreated',
+      scenario: 'Duel',
+      turn: 1,
+      phase: 'astrogation',
+      matchSeed: 0,
+    });
+    await storage.put('roomConfig', {
+      code: 'QARM',
+      scenario: 'duel',
+      playerTokens: ['A'.repeat(32), 'B'.repeat(32)],
+      players: [
+        { playerKey: 'qa-key-1', username: 'QA_Probe_42', kind: 'human' },
+        { playerKey: 'human-fau', username: 'Fau', kind: 'human' },
+      ],
+    });
+
+    await archiveCompletedMatch(
+      storage,
+      r2 as unknown as R2Bucket,
+      db as unknown as D1Database,
+      state,
+      'QARM',
+    );
+
+    const body = JSON.parse(
+      r2.objects.get('matches/QA-m1.json') ?? '{}',
+    ) as MatchArchive;
+    expect(body.publicVisible).toBe(false);
+    expect(body.qualityFlags).toContain('reserved_test_callsign');
+  });
+
   it('fetches archived match from R2', async () => {
     const r2 = createMockR2();
     const archive: MatchArchive = {
@@ -362,6 +514,8 @@ describe('match archival', () => {
       playerAUsername: null,
       playerBUsername: null,
       winnerUsername: null,
+      publicVisible: true,
+      qualityFlags: [],
     };
 
     r2.objects.set('matches/FETCH-m1.json', JSON.stringify(archive));

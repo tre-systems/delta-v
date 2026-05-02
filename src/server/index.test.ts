@@ -883,6 +883,8 @@ describe('server index worker', () => {
       playerAUsername: null,
       playerBUsername: null,
       winnerUsername: null,
+      publicVisible: true,
+      qualityFlags: [],
       eventStream: [
         {
           seq: 1,

@@ -73,6 +73,11 @@ describe('handleMatchesList', () => {
     // Default path uses LIMIT only (no `WHERE completed_at < ?`).
     expect(prepare).toHaveBeenCalledTimes(1);
     expect(prepare.mock.calls[0][0] as string).not.toContain('completed_at <');
+    // The visibility filter is always applied so writer-marked noise
+    // never reaches the public listing.
+    expect(prepare.mock.calls[0][0] as string).toContain(
+      'ma.public_visible = 1',
+    );
     // fetchSize = limit + 1 = 51 for the default limit.
     expect(bind).toHaveBeenCalledWith(51);
   });
