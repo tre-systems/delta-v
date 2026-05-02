@@ -207,6 +207,13 @@ Land a damaged or low-fuel ship at a friendly base → next turn: fuel restored,
 - **Normal:** uses gravity assists; tactical choices; fair challenge.
 - **Hard:** aggressive; optimal movement; uses ordnance.
 - **Known scenario risk:** Lunar Evacuation is hidden from the player-facing scenario picker for now while passenger-rescue balance and briefing clarity are watched. Keep engine/simulation coverage active; do not sign off a release that changes passenger rescue, scenario setup, or AI movement without a focused Evacuation scorecard before considering re-enabling it.
+- **Known scenario risk:** Fleet Action can pass engine stability while still
+  producing a bad AI experience. The 2026-05-02 live post-deploy sweep found
+  442 `fuelStalls` in `npm run simulate -- all 60 --ci --quiet --json` and the
+  same count in a focused 20-game Fleet Action capture. For releases that touch
+  fleet building, AI movement, or fuel-stall classification, require a focused
+  Fleet Action scorecard and inspect captured `fuelStall` fixtures before
+  signing off.
 
 Then `npm run simulate -- all 60 --ci` (the canonical form used by pre-push and CI) → expect **0 engine crashes** across all scenarios. The harness randomises starting seat during bulk runs.
 
