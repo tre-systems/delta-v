@@ -16,6 +16,7 @@ import {
   normalizeUsername,
   type PublicPlayerProfile,
 } from '../shared/player';
+import { playerKeyRole } from './identity-redaction';
 import { claimPlayerName } from './leaderboard/player-store';
 import { generatePlayerToken, generateRoomCode } from './protocol';
 import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
@@ -699,7 +700,7 @@ export class MatchmakerDO extends DurableObject<Env> {
           {
             ticket: existing.ticket,
             scenario: existing.scenario,
-            playerKey: existing.player.playerKey,
+            playerRole: playerKeyRole(existing.player.playerKey),
             waitedMs: now - existing.queuedAt,
           },
         );
@@ -732,7 +733,7 @@ export class MatchmakerDO extends DurableObject<Env> {
           {
             ticket: existing.ticket,
             scenario: existing.scenario,
-            playerKey: existing.player.playerKey,
+            playerRole: playerKeyRole(existing.player.playerKey),
             waitedMs: now - existing.queuedAt,
           },
         );

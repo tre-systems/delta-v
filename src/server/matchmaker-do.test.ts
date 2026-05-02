@@ -756,7 +756,10 @@ describe('MatchmakerDO', () => {
       expect.objectContaining({
         ticket: queuedPayload.ticket,
         scenario: 'duel',
-        playerKey: 'playerkey1',
+        // Raw playerKey is no longer written; the role label is enough
+        // for "agent vs human" filtering and avoids storing a stable
+        // account-shaped identifier in the public events table.
+        playerRole: 'human',
         waitedMs: OFFICIAL_QUICK_MATCH_BOT_WAIT_MS + 1_000,
       }),
     );

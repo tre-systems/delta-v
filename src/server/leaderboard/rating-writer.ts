@@ -24,6 +24,7 @@ import { hasOfficialQuickMatchBot } from '../../shared/player';
 import { type Rating, updateRating } from '../../shared/rating/glicko2';
 import type { GameState } from '../../shared/types/domain';
 import { reportLifecycleEvent } from '../game-do/telemetry';
+import { playerKeyRole } from '../identity-redaction';
 import type { RoomConfig } from '../protocol';
 import { type PlayerRecord, selectPlayerByKey } from './player-store';
 
@@ -153,12 +154,17 @@ const reportMatchRatingResult = (
   }
   const a = result.applied;
   if (!a) return;
+  // Raw aKey / bKey / winnerKey have been replaced with role labels
+  // and the seat the winner occupied. Operators who need a stable
+  // per-account correlator across rating-applied events can look up
+  // the underlying `match_rating` row by `gameId`; the public events
+  // table no longer carries the credential-shaped keys.
   reportLifecycleEvent(deps, 'rating_applied', {
     gameId: state.gameId,
     scenario: state.scenario,
-    aKey: a.aKey,
-    bKey: a.bKey,
-    winnerKey: a.winnerKey,
+    aRole: playerKeyRole(a.aKey),
+    bRole: playerKeyRole(a.bKey),
+    winnerSeat: a.winnerKey === null ? null : a.winnerKey === a.aKey ? 0 : 1,
     ratingDeltaA: Math.round((a.ratingAfterA - a.ratingBeforeA) * 100) / 100,
     ratingDeltaB: Math.round((a.ratingAfterB - a.ratingBeforeB) * 100) / 100,
     rdAfterA: Math.round(a.rdAfterA),
