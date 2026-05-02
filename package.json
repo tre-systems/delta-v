@@ -42,6 +42,7 @@
     "llm:agent:groq": "tsx scripts/llm-agent-groq.ts",
     "mcp:delta-v": "tsx scripts/delta-v-mcp-server.ts",
     "mcp:delta-v:http": "tsx scripts/delta-v-mcp-server.ts --http",
+    "mcp:sandbox-smoke": "tsx scripts/mcp-sandbox-smoke.ts",
     "quickmatch:scrimmage": "tsx scripts/quick-match-scrimmage.ts",
     "quickmatch:agent": "tsx scripts/quick-match-agent.ts",
     "load:test": "tsx scripts/load-test.ts",

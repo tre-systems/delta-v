@@ -39,9 +39,10 @@ Cover single-player online, single-player offline, two-tab multiplayer, and refr
 
 Run when agent protocol, MCP adapter, matchmaking, or `scripts/benchmark.ts` changes.
 
-1. **In-process benchmark** — `npm run benchmark -- --agent-command "<your agent>" --opponent easy,normal,hard --scenario duel --games 10` (tune flags per `scripts/benchmark.ts --help`). From the JSON summary, check each `matchups[]` row: **`actionValidityRate` ≥ 0.95**, **`parseErrorRate` === 0**, **`timeoutRate` < 0.05** (stricter is fine).
-2. **Concurrent hosted MCP** — run `scripts/mcp-six-agent-harness.ts` (see script `--help`) and confirm it finishes **three** concurrent matches without Durable Object errors or stuck tickets.
-3. **Live quick-match agent** — run `scripts/quick-match-agent.ts` against each AI difficulty for a small **N**; confirm stable action acceptance and no systematic JSON parse failures.
+1. **Sandbox MCP smoke** — run `npm run mcp:sandbox-smoke` and confirm the JSON summary reports `"ok": true`, at least four submitted actions, no validation/send issues, and no public live-list exposure for the sandbox match.
+2. **In-process benchmark** — `npm run benchmark -- --agent-command "<your agent>" --opponent easy,normal,hard --scenario duel --games 10` (tune flags per `scripts/benchmark.ts --help`). From the JSON summary, check each `matchups[]` row: **`actionValidityRate` ≥ 0.95**, **`parseErrorRate` === 0**, **`timeoutRate` < 0.05** (stricter is fine).
+3. **Concurrent hosted MCP** — run `scripts/mcp-six-agent-harness.ts` and confirm it finishes **three** concurrent matches without Durable Object errors or stuck tickets.
+4. **Live quick-match agent** — run `scripts/quick-match-agent.ts` against each AI difficulty for a small **N**; confirm stable action acceptance and no systematic JSON parse failures.
 
 Skip this section when the release did not touch agent or MCP surfaces.
 

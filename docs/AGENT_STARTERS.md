@@ -14,6 +14,7 @@ Related docs:
 | --- | --- | --- |
 | A minimal hosted MCP bot with no extra dependencies | [`scripts/hosted-mcp-starter.py`](../scripts/hosted-mcp-starter.py) | Python stdlib only; mints an `agentToken`, queues a match, waits for turns, and sends recommended actions |
 | A one-command bridge bot against the live server | [`scripts/quick-start-agent.sh`](../scripts/quick-start-agent.sh) | Good for human-vs-agent demos and quick smoke checks |
+| A two-seat sandbox MCP smoke test | [`scripts/mcp-sandbox-smoke.ts`](../scripts/mcp-sandbox-smoke.ts) via `npm run mcp:sandbox-smoke` | Starts the local HTTP MCP bridge when needed, plays both seats, validates actions, and asserts sandbox live matches stay hidden |
 | A longer-running queue bot with post-game review hooks | [`scripts/quick-match-agent.ts`](../scripts/quick-match-agent.ts) | Better for repeated live games and coach/report workflows |
 | Concurrent hosted MCP load / regression coverage | [`scripts/mcp-six-agent-harness.ts`](../scripts/mcp-six-agent-harness.ts) | Exercises multiple MCP seats at once |
 | Local reproducible bot-vs-bot scrimmage | [`scripts/quick-match-scrimmage.ts`](../scripts/quick-match-scrimmage.ts) | Good for local Worker and scenario smoke runs |
@@ -75,6 +76,18 @@ Use when you want a bridge-based demo without reading the bridge code. It:
 - installs dependencies if needed
 - launches `scripts/llm-player.ts`
 - runs either the recommended built-in agent or Claude
+
+### `scripts/mcp-sandbox-smoke.ts`
+
+Use before sharing agent-facing changes or after deploying MCP/matchmaking changes:
+
+- starts `npm run mcp:delta-v:http` automatically unless `MCP_URL` points at an existing HTTP bridge
+- queues two `agentSandbox: true` seats with a unique `rendezvousCode`
+- connects both seats with `delta_v_pair_quick_match_tickets`
+- waits for actionable turns, verifies `agentReady`, validates each selected action, and submits candidates
+- checks the sandbox match is absent from public `/api/matches?status=live`
+
+Run `npm run mcp:sandbox-smoke -- --help` for the supported environment variables.
 
 ### `scripts/quick-match-agent.ts`
 
