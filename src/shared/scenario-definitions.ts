@@ -494,6 +494,19 @@ export const SCENARIO_DISPLAY_ORDER = [
   'interplanetaryWar',
 ] as const satisfies readonly ScenarioKey[];
 
+// Lunar Evacuation stays defined for replay, simulation, and agent coverage,
+// but is hidden from player-facing scenario pickers while balance work continues.
+export const LOBBY_SCENARIO_DISPLAY_ORDER = [
+  'biplanetary',
+  'duel',
+  'blockade',
+  'grandTour',
+  'escape',
+  'convoy',
+  'fleetAction',
+  'interplanetaryWar',
+] as const satisfies readonly ScenarioKey[];
+
 // Runtime type guard for validating untrusted scenario strings.
 export const isValidScenario = (key: string): key is ScenarioKey =>
   Object.hasOwn(SCENARIOS_INTERNAL, key);

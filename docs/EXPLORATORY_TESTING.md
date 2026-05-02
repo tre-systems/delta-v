@@ -70,7 +70,7 @@ Run after any change to public API, projection, persistence, or scenario rules. 
 
 ### Pre-release sweep (≈90 min) — "would I ship this if my reputation were on the line?"
 
-Run before a launch/announcement. Combine the post-deploy chain above with: **R7** all 9 scenarios → **R10** full mobile matrix → **R17** callsign recovery happy path + at least three security edges → **R15** end-to-end pipeline on one paired match → **R16** simulation balance with `--ci`. Expect 5–15 backlog entries the first time, fewer once recurring issues are fixed.
+Run before a launch/announcement. Combine the post-deploy chain above with: **R7** all visible lobby scenarios plus any hidden scenario being re-enabled → **R10** full mobile matrix → **R17** callsign recovery happy path + at least three security edges → **R15** end-to-end pipeline on one paired match → **R16** simulation balance with `--ci`. Expect 5–15 backlog entries the first time, fewer once recurring issues are fixed.
 
 ### Persistence-trend pass (≈60 min, run quarterly) — "what's been quietly broken for a week?"
 
@@ -96,6 +96,9 @@ A lens is a question to keep mentally active while exploring. Strong lenses forc
 8. **Mobile / a11y.** At each declared breakpoint (760 / 640 / 420 px widths and the 560 px short-height rule) does every floating element — HUD bar, bottom-buttons row, ship list, game log, minimap, help/sound buttons, phase alert, tutorial tip, toasts, game-over panel — stay fully visible **and** out of each other's bounding boxes? Can every interactive element be `elementFromPoint`-reached without a decoration stealing the click? Do `env(safe-area-inset-*)` offsets work on notched devices and in landscape? Does `prefers-reduced-motion` / `prefers-contrast` actually take effect? Can keyboard-only users complete a turn?
 9. **Recovery surface.** Reload mid-game — does state restore correctly? Two-tab same player — what wins? Stale `?code=` URL — graceful? Callsign recovery codes — are they shown only once, never persisted client-side, revocable through "Forget my callsign", and unusable after rotation or revoke?
 10. **Public-discovery surprises.** Is anything indexable, cacheable, or Wayback-able that shouldn't be?
+11. **Intended-objective conformance.** Does the way real games actually resolve match the way the *scenario* is supposed to resolve? Bi-Planetary is "race to land", but if `match_archive.win_reason` for live games is dominated by `Fleet eliminated!`, the scenario is functionally a combat scenario in production no matter what the briefing says. Cross-check live `win_reason` distribution per scenario against AI-vs-AI simulation (`npm run simulate -- <scenario> 30 --ci`); a wide gap is a finding even when no individual game crashed. Especially relevant for Beginner-tagged scenarios where the experience-versus-marketing gap is the bug.
+12. **Asymmetric-scenario seat clarity.** Asymmetric scenarios randomise the human seat (`Math.random() < 0.5`); the briefing only renders the scenario `description` (one fixed copy) plus the per-seat `getObjective()` line. P0 in Convoy ("Land on Venus") and P1 ("Destroy all enemies") see the same briefing description that *only* describes the convoy mission, never the corsair's. Each asymmetric scenario should have role-specific briefing copy or a banner that says which side the player is on; without it, "what am I doing here?" is the bug, not a detail.
+13. **Match-archive noise.** Does the public match list include rows that aren't real games? `/api/matches` returns every archived row, including the 1-turn `Opponent disconnected` "matches" left when someone calls `POST /create` and walks away. A live count of `WHERE win_reason='Opponent disconnected' AND turns <= 1` versus total tells you what fraction of the public history is testing/probe noise. If it's > 5 %, the recent-matches feed is misleading new visitors.
 
 ---
 
@@ -226,14 +229,44 @@ When you must use the public queue, time-box it (one match), surrender immediate
 
 ### R7. Browser scenario sweep via Play vs AI
 
-For each scenario in `/.well-known/agent.json`:
+For each player-facing scenario in the lobby picker:
 
 1. Lobby → Play vs AI → Easy → click scenario card.
 2. Confirm the game launches without console errors (`mcp__Claude_in_Chrome__read_console_messages` with pattern `error|exception`).
 3. Step through one full turn (astrogation digit-1 + Enter, then phase confirms). Watch for missing buttons, locked HUD, soft-locks, layout overflow.
 4. Compare the objective copy (`Land on Mars`, `Destroy all enemies`, …) against the scenario description in `agent.json`.
+5. **Per-seat briefing capture** (asymmetric scenarios). `startLocalGameSession` randomises `humanSide`. Set `globalThis.__DELTAV_FORCE_PLAYER_SIDE = 0` (then `= 1`) before the launch and capture `#scenarioBriefingTitle`, `#scenarioBriefingDescription`, `#scenarioBriefingObjective` for *each* seat. The description is fixed per scenario; if the description describes one role and the objective describes the opposite role, the player on that seat will be confused — file under Lens 12. Lunar Evacuation is intentionally hidden from the player-facing picker for now; keep its simulation/engine checks active and repeat the briefing capture only through a dev-only launch path or before re-enabling the card.
 
-Differences in objective phrasing or missing controls per scenario type are findings.
+Programmatic loop (drives visible lobby scenarios from the menu and dumps per-seat briefing copy):
+
+```javascript
+(async () => {
+  const out = {};
+  for (const s of ['biplanetary','duel','blockade','grandTour','escape','convoy','fleetAction','interplanetaryWar']) {
+    for (const side of [0, 1]) {
+      globalThis.__DELTAV_FORCE_PLAYER_SIDE = side;
+      document.getElementById('exitGameBtn')?.click();
+      await new Promise(r => setTimeout(r, 200));
+      document.getElementById('singlePlayerBtn').click();
+      await new Promise(r => setTimeout(r, 200));
+      const button = document.querySelector(`button[data-scenario="${s}"]`);
+      if (!button) throw new Error(`Missing scenario card: ${s}`);
+      button.click();
+      await new Promise(r => setTimeout(r, 200));
+      out[`${s}/${side}`] = {
+        title: document.getElementById('scenarioBriefingTitle').textContent.trim(),
+        desc: document.getElementById('scenarioBriefingDescription').textContent.trim(),
+        obj: document.getElementById('scenarioBriefingObjective').textContent.trim(),
+      };
+    }
+  }
+  delete globalThis.__DELTAV_FORCE_PLAYER_SIDE;
+  document.getElementById('exitGameBtn')?.click();
+  return out;
+})();
+```
+
+Differences in objective phrasing or missing controls per scenario type are findings. **Description / per-seat-objective mismatches** in asymmetric scenarios (Convoy, Lunar Evacuation, Escape) are also findings — a player who sees "Destroy all enemies" alongside an escort-mission description doesn't know which side they're on.
 
 **Tooling caveat — Chrome MCP console:** `read_console_messages` only captures messages emitted **after** the tool is first called in the session. Messages from page load are missed. Workaround: call `read_console_messages` once with a throwaway pattern (e.g. `^x$`) to start the listener, then reload the page, then call again with the real pattern.
 
@@ -480,7 +513,7 @@ curl -s "https://delta-v.tre.systems/api/matches?limit=5" | python3 -m json.tool
 curl -s "https://delta-v.tre.systems/api/leaderboard?includeProvisional=true&limit=5" | python3 -m json.tool
 ```
 
-Any of these returning empty for a game that completed in the UI is a finding — most likely a thrown exception (see R13) interrupted the archive cascade. The 2026-04-19 pass found the `match_archive` row appeared eventually (after ~90 s, once the alarm path reconciled) — *eventual* archival is acceptable but worth measuring; *missing* archival is a bug.
+Any of these returning empty for a game that completed in the UI is a finding — most likely a thrown exception (see R13) interrupted the archive cascade. Also compare the D1 `match_archive.completed_at`, the R2 top-level `completedAt`, and the final `gameOver` event `ts` inside the R2 `eventStream`; they should describe the same completion instant. A later alarm rewrite that changes only the R2 top-level timestamp creates confusing replay/history metadata even when the replay itself still works. The 2026-04-19 pass found the `match_archive` row appeared eventually (after ~90 s, once the alarm path reconciled) — *eventual* archival is acceptable but worth measuring; *missing* archival is a bug.
 
 ### R16. Simulation-harness balance and scorecard sweep
 
@@ -639,7 +672,10 @@ done
 
 A row count that hasn't moved in days (when the live site is being
 used) is a write-path break. An R2 size of 1 byte means the GET was
-empty — the JSON is missing. Both are P1 findings.
+empty — the JSON is missing. Both are P1 findings. For each sampled
+archive, also parse the JSON and compare `completedAt` with the D1 row
+and with the final `eventStream[-1].ts`; timestamp drift of minutes is a
+data-consistency finding even when the object exists.
 
 **Insight queries** — quarterly trend questions worth running:
 
@@ -658,6 +694,32 @@ npx wrangler d1 execute delta-v-telemetry --remote --json --command \
   "SELECT scenario, win_reason, COUNT(*) AS n FROM match_archive
    WHERE win_reason IS NOT NULL GROUP BY scenario, win_reason
    ORDER BY scenario, n DESC;"
+
+# Intended-objective conformance (Lens 11) — the live answer to
+# "do Bi-Planetary games end with a landing? do Convoy games end
+# with a delivery? do Blockade Runners ever reach Mars?". Compare
+# the live percentage to AI-vs-AI Hard simulation. The 2026-05-02
+# pass found Bi-Planetary at 100 % land in simulation but 0 %
+# in 29 archived live games — a scenario-design drift.
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT scenario,
+          SUM(CASE WHEN win_reason LIKE 'Landed on %' THEN 1 ELSE 0 END) AS landings,
+          SUM(CASE WHEN win_reason LIKE 'Fleet eliminated%' THEN 1 ELSE 0 END) AS eliminations,
+          SUM(CASE WHEN win_reason = 'Opponent disconnected' THEN 1 ELSE 0 END) AS disconnects,
+          SUM(CASE WHEN win_reason IS NULL THEN 1 ELSE 0 END) AS unresolved,
+          COUNT(*) AS total
+   FROM match_archive GROUP BY scenario ORDER BY total DESC;"
+
+# Match-archive noise (Lens 13) — what fraction of public history
+# is actually testing/probe noise (1-turn `Opponent disconnected`)?
+# A high ratio means the recent-matches feed misleads new visitors;
+# threshold ~5 %.
+npx wrangler d1 execute delta-v-telemetry --remote --json --command \
+  "SELECT
+     SUM(CASE WHEN win_reason='Opponent disconnected' AND turns <= 1 THEN 1 ELSE 0 END) AS noise_1turn_disconnect,
+     SUM(CASE WHEN win_reason IS NULL THEN 1 ELSE 0 END) AS noise_null_winner,
+     COUNT(*) AS total
+   FROM match_archive;"
 
 # Tutorial funnel — drop-off across the steps
 npx wrangler d1 execute delta-v-telemetry --remote --json --command \
@@ -776,6 +838,7 @@ Append a one-line entry per pass: date, agent or human, scope, count of new back
 
 | Date | Operator | Scope | Backlog entries filed |
 |------|----------|-------|----------------------|
+| 2026-05-02 | agent (Opus 4.7) | Live exploratory pass against deployed `version.json` hash `124bfbd0`. R1/R2/R18/R19 public-surface + validation + HEAD/error-shape probes; R7 all-9-scenario Play-vs-AI launch via `data-scenario` clicks with seat-aware briefing/objective capture; R10 mobile overlap/offscreen sweep at 320×568 portrait + 812×375 landscape (in-game astrogation, tutorial dismiss, no overlaps after dismiss); R14 client-state audit (3 localStorage keys, ~1.7 KB); R17 live recovery happy path (issue→restore→revoke→restore-fails); R20 D1/R2 storage audit including new lenses for *intended-objective conformance*, *match-archive noise*, and *quick-match scenario routing*. **Surfaced (5 P2/P3, 1 P1 candidate):** (1) **Bi-Planetary objective desync** — AI-vs-AI Hard `simulate biplanetary 12 --ci` lands 100% (avg 8.3 turns), but **0/29 archived live games** ended on a landing — every one resolved by elimination/disconnect. The "Beginner" race scenario is, in practice, a combat scenario for live players. (2) **Blockade Runner same pattern** — 0/15 archived games end "Landed on Mars!"; the packet ship always loses to the corvette before reaching the target. (3) **Asymmetric-scenario seat briefing mismatch** — `startLocalGameSession` randomises the human seat, but `scenario-briefing-view.ts` only shows the scenario `description` (not seat-specific). Convoy/Evacuation P1 (corsair) sees objective "⬡ Destroy all enemies" alongside a description that describes the *escort* mission — the antagonist role is never explained. (4) **Tutorial cannot complete in many scenarios** — `tutorial_completed` requires all 7 STEPS shown, including `ordnance-intro` and `combat-intro` whose phases never trigger in Bi-Planetary/Grand Tour/etc.; D1 confirms 126 starts, 0 completes. The 2026-04-27 `tutorial_step_shown` instrumentation revealed 10/17 events are still `welcome` only. (5) **Recent-matches noise** — 14/94 archive rows (15%) are 1-turn `Opponent disconnected` rows — abandoned `/create` rooms left for the disconnect-forfeit timer. They float to the top of `/matches` indistinguishably from real games (3 of the 12 most-recent are noise from this pass alone). (6) **HEAD/GET drift on `/robots.txt`** — GET 200 / HEAD 404, RFC 9110 violation; only path among 11 probed where HEAD ≠ GET. (7) **`/api/matches?status=X` silently accepts unknown values** — `live`, `waiting`, `active` all return `[]` with no validation error, while `?scenario=fake` returns structured `invalid_query`; inconsistent. (8) **`/join/{CODE}` error shape diverges** — `{code, message}` instead of the common `{ok:false, error, message}`. R13 tail had 0 exceptions; D1 row counts fresh; events freshness < 24 h. New recipes proposed: R7-extension (per-seat objective capture) and R20 lens (match-archive noise / objective conformance). | 0 — findings handed to user, doc updated, no backlog edits in this pass |
 | 2026-04-26 | Codex | Post-`d13b219` live deep pass after CI/deploy: GitHub run 24954316368 passed; deployed `version.json` hash `bbced061` matched the pushed build. Covered R1/R2 public surface and validation, R9 `scripts/mp-connectivity.mjs` production duplicate-session replacement, R17 callsign recovery restore + confirmed forget, hosted MCP initialize/tools/list/Accept rejection, all nine Play-vs-AI scenario launches, public page/link smoke for home/agents/matches/leaderboard, archived replay bar/log-pill spacing at `320 x 568`, `390 x 844`, `812 x 375`, and responsive overlap sweeps across menu/scenario/HUD/fleet/replay. Filed: sound control still unclickable behind scenario/fleet overlays. | 1 |
 | 2026-04-26 | Codex | Follow-up fix pass: extended overlay chrome positioning to scenario select, waiting, and fleet builder so `#soundBtn` remains top-right and clickable on menu-like overlays. Rechecked home menu, scenario select, fleet builder, waiting, and HUD at compact live-style viewports; removed the completed backlog entry. | 0 |
 | 2026-04-27 | agent (Opus 4.7) | New R20 D1/R2 storage-audit recipe + first run against prod. Storage health: all 6 application tables fresh (events writes minutes-old, retention purge clean, R2 archives 1:1 with `match_archive` rows at 10–17 KB each). Surfaced four real bugs: (1) 43 silent `projection_parity_mismatch` events all on `pendingAsteroidHazards[0]` — engine pushes the queue but emits no event, so projection can't reproduce → fixed by stripping the field from `normalizeStateForParity`; (2) `tutorial_started: 116` vs `tutorial_completed: 0` because completion only fires on click-through → added per-step `tutorial_step_shown` event so the funnel becomes measurable; (3) 6 of 9 scenarios have ≤1 real-world play (Evacuation, Grand Tour: 0); (4) Duel P0 win rate 27/35 (77 %) outside the seat-balance band. (1) and (2) shipped; (3) and (4) filed under Discovery & Onboarding / Gameplay UX. | 2 |
