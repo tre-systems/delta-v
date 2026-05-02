@@ -96,6 +96,7 @@ Use when you want a more realistic long-running queue bot:
 
 - stable `agent_` identity
 - live matchmaking
+- ordinary-player chat replies enabled by default (`--quiet-chat` disables them for automated test runs)
 - configurable per-turn think time / timeout
 - optional post-game coach/report step
 
