@@ -189,13 +189,23 @@ export const createGameStateActionHandlers = (deps: ActionDeps) => {
         message: GameStateActionMessageOf<'surrender'>,
       ) => {
         if (message.shipIds.length > 0) {
-          return processSurrender(gameState, playerId, message.shipIds);
+          return processSurrender(
+            gameState,
+            playerId,
+            message.shipIds,
+            deps.map,
+          );
         }
         const inferred = inferSurrenderShipIds(gameState, playerId);
         if ('error' in inferred) {
           return inferred;
         }
-        return processSurrender(gameState, playerId, inferred.shipIds);
+        return processSurrender(
+          gameState,
+          playerId,
+          inferred.shipIds,
+          deps.map,
+        );
       },
       publish: async (playerId, result) => {
         await publishForActor(

@@ -371,6 +371,7 @@ export const processSurrender = (
   inputState: GameState,
   playerId: PlayerId,
   shipIds: ShipId[],
+  map?: SolarSystemMap,
 ):
   | {
       state: GameState;
@@ -437,6 +438,8 @@ export const processSurrender = (
       shipId,
     });
   }
+
+  checkGameEnd(state, map, engineEvents);
 
   return { state, engineEvents };
 };

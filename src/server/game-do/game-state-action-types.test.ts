@@ -58,6 +58,10 @@ describe('GAME_STATE_ACTION_TYPES registry', () => {
         (ship) => ship.owner === 0 && ship.control === 'surrendered',
       ),
     ).toBe(true);
+    expect(result.state.outcome).toEqual({
+      winner: 1,
+      reason: 'Fleet eliminated!',
+    });
   });
 
   it('rejects shorthand surrender when no ships are eligible', async () => {
