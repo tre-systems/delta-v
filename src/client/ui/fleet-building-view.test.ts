@@ -74,13 +74,16 @@ const createState = (
 
 const installFixture = () => {
   document.body.innerHTML = `
-    <div id="fleetShopList"></div>
-    <div id="fleetCart"></div>
-    <div id="fleetCredits"></div>
-    <p id="fleetBuildingScenario" hidden></p>
-    <button id="fleetReadyBtn">Ready</button>
-    <button id="fleetClearBtn">Clear</button>
-    <div id="fleetWaiting" hidden>Waiting...</div>
+    <div id="fleetBuilding">
+      <div id="fleetShopList"></div>
+      <div id="fleetCart"></div>
+      <div id="fleetCredits"></div>
+      <p id="fleetBuildingScenario" hidden></p>
+      <button id="fleetReadyBtn">Ready</button>
+      <button id="fleetClearBtn">Clear</button>
+      <button id="fleetExitBtn">Back</button>
+      <div id="fleetWaiting" hidden>Waiting...</div>
+    </div>
   `;
 };
 
@@ -93,6 +96,7 @@ describe('FleetBuildingView', () => {
     const onFleetReady = vi.fn<(purchases: FleetPurchase[]) => void>();
     const view = createFleetBuildingView({
       onFleetReady,
+      onExit: vi.fn(),
     });
 
     view.show(createState(25), 0);
@@ -121,6 +125,7 @@ describe('FleetBuildingView', () => {
   it('clears the cart back to the empty prompt', () => {
     const view = createFleetBuildingView({
       onFleetReady: vi.fn(),
+      onExit: vi.fn(),
     });
 
     view.show(createState(25), 0);
@@ -141,6 +146,7 @@ describe('FleetBuildingView', () => {
   it('shows waiting state and restores controls when shown again', () => {
     const view = createFleetBuildingView({
       onFleetReady: vi.fn(),
+      onExit: vi.fn(),
     });
     const state = createState(25);
     const readyBtn = document.getElementById(
@@ -169,6 +175,7 @@ describe('FleetBuildingView', () => {
     const onFleetReady = vi.fn<(purchases: FleetPurchase[]) => void>();
     const view = createFleetBuildingView({
       onFleetReady,
+      onExit: vi.fn(),
     });
     const readyBtn = document.getElementById(
       'fleetReadyBtn',
@@ -191,6 +198,7 @@ describe('FleetBuildingView', () => {
   it('enables ready immediately when the player already has a ship', () => {
     const view = createFleetBuildingView({
       onFleetReady: vi.fn(),
+      onExit: vi.fn(),
     });
     const readyBtn = document.getElementById(
       'fleetReadyBtn',
@@ -204,6 +212,7 @@ describe('FleetBuildingView', () => {
   it('removes stale cart listeners when the cart rerenders', () => {
     const view = createFleetBuildingView({
       onFleetReady: vi.fn(),
+      onExit: vi.fn(),
     });
 
     view.show(createState(25), 0);
@@ -229,6 +238,7 @@ describe('FleetBuildingView', () => {
     const onFleetReady = vi.fn<(purchases: FleetPurchase[]) => void>();
     const view = createFleetBuildingView({
       onFleetReady,
+      onExit: vi.fn(),
     });
 
     view.show(createState(25), 0);
@@ -244,9 +254,25 @@ describe('FleetBuildingView', () => {
     expect(document.querySelectorAll('.fleet-cart-chip')).toHaveLength(0);
   });
 
+  it('exits fleet building from the back button and Escape key', () => {
+    const onExit = vi.fn();
+    const view = createFleetBuildingView({
+      onFleetReady: vi.fn(),
+      onExit,
+    });
+
+    view.show(createState(25), 0);
+
+    document.getElementById('fleetExitBtn')?.click();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(onExit).toHaveBeenCalledTimes(2);
+  });
+
   it('enables orbital base cargo when the player already has an eligible carrier', () => {
     const view = createFleetBuildingView({
       onFleetReady: vi.fn(),
+      onExit: vi.fn(),
     });
 
     view.show(

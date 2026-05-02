@@ -34,6 +34,7 @@ import {
 
 export interface FleetBuildingViewDeps {
   onFleetReady: (purchases: FleetPurchase[]) => void;
+  onExit: () => void;
 }
 
 export interface FleetBuildingView {
@@ -54,11 +55,13 @@ export const createFleetBuildingView = (
   const totalCreditsSignal = signal(0);
   const waitingSignal = signal(false);
 
+  const rootEl = byId('fleetBuilding');
   const shopEl = byId('fleetShopList');
   const cartEl = byId('fleetCart');
   const creditsEl = byId('fleetCredits');
   const readyBtn = byId<HTMLButtonElement>('fleetReadyBtn');
   const clearBtn = byId('fleetClearBtn');
+  const exitBtn = byId('fleetExitBtn');
   const waitingEl = byId('fleetWaiting');
   const scenarioEl = byId('fleetBuildingScenario');
 
@@ -112,6 +115,28 @@ export const createFleetBuildingView = (
 
     listen(clearBtn, 'click', () => {
       cartSignal.value = [];
+    });
+
+    listen(exitBtn, 'click', () => {
+      deps.onExit();
+    });
+
+    listen(window, 'keydown', (e: Event) => {
+      const event = e as KeyboardEvent;
+
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      if (
+        rootEl.hasAttribute('hidden') ||
+        getComputedStyle(rootEl).display === 'none'
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      deps.onExit();
     });
 
     const cartViewSignal = computed(() =>
@@ -253,6 +278,7 @@ export const createFleetBuildingView = (
 
       visible(readyBtn, !waiting);
       visible(clearBtn, !waiting);
+      visible(exitBtn, true);
       visible(waitingEl, waiting, 'block');
     });
 

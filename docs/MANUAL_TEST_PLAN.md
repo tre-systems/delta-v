@@ -186,6 +186,7 @@ Menu: **Tab** / **Shift+Tab** works; visible focus always present. Typing in cha
 
 - **Menu:** all buttons tappable; scenario list scrolls if needed; touch targets ≥ 48 px.
 - **Gameplay:** log starts collapsed as a single-line bar; tap expands as overlay; all action buttons have adequate targets; top bar never overflows; ship list scrolls without overlapping.
+- **Phase banner:** on 320 × 568, 360 × 640, and 375 × 812 portrait, start a scenario and wait through the first five seconds after the phase banner appears. It must not visibly cover the selected ship card, fuel/status text, or action buttons.
 - **Touch language:** status says "Tap" not "Click"; no Enter / keyboard hints; burn circles have no number labels; help overlay shows touch instructions only.
 - **Landscape:** HUD compacts; canvas usable; no overlap.
 - **Comfort:** pan-drag doesn't issue commands or select text; pinch-to-zoom doesn't zoom the page; opening log / help / chat doesn't hide controls behind keyboard or safe area; backgrounding + restoring preserves layout and selection.
@@ -211,11 +212,12 @@ Land a damaged or low-fuel ship at a friendly base → next turn: fuel restored,
 - **Easy:** basic moves; beatable by a beginner.
 - **Normal:** uses gravity assists; tactical choices; fair challenge.
 - **Hard:** aggressive; optimal movement; uses ordnance.
-- **Known scenario risk:** Lunar Evacuation is hidden from the player-facing scenario picker for now while passenger-rescue balance and briefing clarity are watched. The 2026-05-02 live pass still measured it as very short and rescue-favored (`evacuation 60 --seed -403487708`: P0 decided 83.3 %, average 2.03 turns). Keep engine/simulation coverage active; do not sign off a release that changes passenger rescue, scenario setup, or AI movement without a focused Evacuation scorecard before considering re-enabling it.
-- **Known scenario risk:** Fleet Action historically passed engine stability while producing a bad AI experience. The Agent B fix brought `fleetAction 60 --seed -403487708 --ci --quiet --json` to 0 fuel stalls, 0 invalid actions, and 2/60 timeouts; keep requiring a focused Fleet Action scorecard when touching fleet building, AI movement, or fuel-stall classification.
-- **Known flow risk:** Fleet Action and Interplanetary War both enter fleet building. The 2026-05-02 live pass found no visible fleet-builder exit/back control on deployed assets hash `c713f124`; keep § 8 in the release gate until the escape hatch is fixed.
+- **Known scenario risk:** Lunar Evacuation is hidden from the player-facing scenario picker for now while passenger-rescue balance and briefing clarity are watched. The 2026-05-02 live pass against deployed hash `f49fcdfb` still measured the non-randomized side assignment as very short and rescue-favored (`evacuation 60 --ci --quiet --json`: P0 decided 81.7 %, average 2.02 turns). A randomized-start 80-game scorecard balanced the winner split better but still averaged only 3.26 turns. Keep engine/simulation coverage active; do not sign off a release that changes passenger rescue, scenario setup, or AI movement without a focused Evacuation scorecard before considering re-enabling it.
+- **Blockade Runner release gate:** use the production-start scorecard (`npm run simulate -- blockade 60 --ci --quiet --json`) unless the scenario is deliberately changed to randomize starts. `--randomize-start` is a useful stress check, but it forces packet-first openings that do not match the shipped `startingPlayer: 1` geometry.
+- **Known scenario risk:** Fleet Action historically passed engine stability while producing a bad AI experience. The 2026-05-02 `fleetAction 40 --ci --quiet --json` scorecard on hash `f49fcdfb` reported 0 fuel stalls, 0 invalid actions, 0 crashes, and 0 timeouts; keep requiring a focused Fleet Action scorecard when touching fleet building, AI movement, or fuel-stall classification.
+- **Fleet-builder flow gate:** Fleet Action and Interplanetary War both enter fleet building. Verify the visible **BACK** control and Escape key return to the menu before launch, with no ship purchase required.
 
-Then `npm run simulate -- all 60 --ci` (the canonical form used by pre-push and CI) → expect **0 engine crashes** across all scenarios. The harness randomises starting seat during bulk runs.
+Then `npm run simulate -- all 60 --ci` (the canonical form used by pre-push and CI) → expect **0 engine crashes** across all scenarios. The harness randomises starting seat only for scenarios whose simulation policy enables start-order randomization.
 
 ## 18. Sound
 
@@ -227,12 +229,12 @@ No audio before user interaction. **M** toggles; thrust / gun / explosion / phas
 
 ### 19a. Tutorial completion reachability
 
-Run when `src/client/tutorial.ts`, scenario phase rules, or the `STEPS` list change. The tutorial currently has six steps and only marks itself completed when *every* step has been shown and acknowledged. Steps `ordnance-intro` and `combat-intro` only fire on `phase === 'ordnance'` / `phase === 'combat'`.
+Run when `src/client/tutorial.ts`, scenario phase rules, or the `STEPS` list change. The tutorial has six steps: four core movement tips (`welcome`, `select-ship`, `gravity`, `fuel`) and two optional phase tips (`ordnance-intro`, `combat-intro`). Completion is based on acknowledging the core movement tips; ordnance/combat tips should still appear when those phases are reached before completion.
 
 - Start a fresh profile, pick **Bi-Planetary** Easy, walk through the welcome / select-ship / gravity / fuel tips, then play to the natural game-over.
 - Confirm `tutorial_completed` appears in `events` for the session (D1: `SELECT props FROM events WHERE event='tutorial_completed' ORDER BY ts DESC LIMIT 1;`).
-- **Fail** if completion is structurally unreachable in the chosen scenario (e.g. a scenario without an ordnance phase or without a combat phase). The 2026-05-02 D1 audit confirmed `tutorial_started: 127`, `tutorial_step_shown: 25`, `tutorial_skipped: 24`, and `tutorial_completed: 0` in real traffic; the structural cause is the per-phase gating plus the "all steps acknowledged" completion rule.
-- Either gate `ordnance-intro` / `combat-intro` to skip when the scenario rules disable them, or change the completion rule to "all *eligible* steps shown for the current scenario".
+- In a scenario with ordnance/combat, confirm those phase-specific tips still display if reached before the core movement tips complete.
+- **Fail** if completion requires a scenario without ordnance/combat to reach those phases, or if `tutorial_completed` fires before the four core movement tips have been acknowledged.
 
 ## 20. PWA / offline single-player
 

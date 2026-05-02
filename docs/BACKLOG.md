@@ -41,10 +41,13 @@ pages except for narrow type fallout.
 Goal: make hard-vs-hard scenario play resolve credibly without invalid actions,
 fuel-stall loops, or timeout-heavy stalemates.
 
-Both queue items have shipped — see "Verified Not Active" below for acceptance
-evidence. Reopen this stream when a fresh paired scorecard shows
-`fuelStallsPerGame > 0.1` in Fleet Action, Blockade Runner objective share below
-50%, or a new repeated AI decision class that lacks a fixture.
+No active queue items. The Blockade Runner randomized-start finding was
+triaged as a non-production stress case: the shipped scenario fixes the first
+active player to the interceptor (`startingPlayer: 1`), while `--randomize-start`
+forces packet-first openings that are not exposed in the player-facing game.
+Reopen this stream only if the production-start scorecard regresses, the
+scenario is deliberately changed to randomize starts, or a new AI stability
+counter trips.
 
 Primary write ownership: `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
 `src/shared/map-data.ts`, `src/shared/simulate-ai-policy.test.ts`,
@@ -79,15 +82,15 @@ archive retention, or leaderboard telemetry.
 Goal: keep first-run and scenario-entry flows escapable, measurable, and clear
 without changing engine rules.
 
-1. **Restore Fleet Builder Escape Hatch (P2)** — Fleet Action and
-   Interplanetary War must let a player leave fleet building before launch.
-2. **Make Tutorial Completion Reachable (P2)** — tutorial completion should be
-   possible in the first-run Beginner path and observable in telemetry.
+All current queue items have shipped — see "Verified Not Active" below for the
+acceptance evidence. Reopen this stream only for a new first-run, scenario
+entry, or narrow-phone overlap defect.
 
 Primary write ownership: `src/client/ui/screens.ts`,
 `src/client/ui/visibility.ts`, `src/client/ui/fleet-building-view.ts`,
-`src/client/tutorial.ts`, first-run/tutorial tests, and targeted manual-test
-docs.
+`src/client/tutorial.ts`, `src/client/ui/overlay-view.ts`,
+`static/styles/systems.css`, `static/styles/responsive.css`,
+first-run/tutorial tests, and targeted manual-test docs.
 
 Avoid touching scenario geometry, AI tuning, Cloudflare migrations, or
 leaderboard/rating paths.
@@ -129,11 +132,27 @@ should not be assigned as active backlog work:
   terminal-fuel endgame is preserved as
   `fleet-action-terminal-intercept-stall.json` so the stall metric no longer
   treats a stranded no-progress hold as a fueled coasting regression.
-- **Rebalance Blockade Runner Objective Pressure** — the packet/corvette
-  opening geometry now produces 47 Mars landings in 60 hard-vs-hard games
-  (78.3% objective share) with 0 invalid actions, 0 crashes, 0 stalls, and 0
-  timeouts on seed `-403487708`. The simulation policy now warns if Blockade
-  objective share drops below 50%, matching the public landing-race framing.
+- **Blockade Runner Randomized-Start Pressure** — not a release gate for the
+  current product. Blockade Runner intentionally starts with the interceptor
+  active (`startingPlayer: 1`); `--randomize-start` forces packet-first games
+  that are useful for stress testing but do not match the shipped opening.
+  Keep the production-start scorecard in simulation coverage instead. The
+  2026-05-02 pre-push checks reported 39/60 Mars landings in the focused
+  production-start scorecard and 45/60 in the all-scenario sweep, with 0
+  crashes, invalid actions, or fuel stalls.
+- **Fleet Builder Escape Hatch** — implemented through a visible `BACK`
+  control plus Escape-key handling in `fleetBuilding` mode. Unit coverage
+  asserts the view-level exit callback and the UI manager `{ type: 'exit' }`
+  route; Playwright covers Fleet Action exiting by button and Interplanetary
+  War exiting by Escape before any ship purchase.
+- **Tutorial Completion Reachability** — implemented by making the core
+  movement tips the completion set while keeping ordnance/combat tips available
+  when those phases are reached. `tutorial_completed` no longer requires a
+  Beginner player to enter ordnance or combat.
+- **Phone Phase Banner Overlap** — fixed by moving `#phaseAlert` below the
+  ship-card column on narrow portrait viewports and tightening the banner width
+  at 360 px and below. Playwright overlap checks pass at 320 x 568, 360 x 640,
+  and 375 x 812.
 - **Improve Passenger Objective AI** — current paired scorecards landed; keep
   only the fixture workflow guardrail for future AI changes.
 - **Small Accessibility Polish** — current a11y pass is complete; reopen only
@@ -144,45 +163,6 @@ leaderboard rows are still inert. Add it only in the same change that makes rows
 interactive.
 
 ## Remaining Backlog Detail
-
-### Restore Fleet Builder Escape Hatch (P2)
-
-The 2026-05-02 live exploratory pass against deployed assets hash `c713f124`
-found that both Fleet Action and Interplanetary War enter `fleetBuilding` with
-`LAUNCH FLEET` and `CLEAR`, but no visible `Exit to menu` / `Back` control; the
-Escape key also leaves the player on the same fleet builder. A player who opens
-one of the two long fleet scenarios by mistake is trapped until they buy at
-least one ship and launch.
-
-Fix by exposing a clear exit/back affordance in `fleetBuilding` mode and cover
-it with a visibility/unit test plus a live-style manual check for both fleet
-scenarios. Acceptance: Fleet Action and Interplanetary War can be opened from
-Play vs AI, then returned to the menu without selecting or launching a fleet,
-with keyboard focus and mobile tap targets still reachable.
-
-**Files:** `src/client/ui/screens.ts`, `src/client/ui/visibility.ts`,
-`src/client/ui/fleet-building-view.ts`, `static/index.html`,
-`docs/MANUAL_TEST_PLAN.md`
-
-### Make Tutorial Completion Reachable (P2)
-
-The tutorial still has no observed completions in production:
-`tutorial_started = 127`, `tutorial_step_shown = 25`, `tutorial_skipped = 24`,
-and `tutorial_completed = 0` in the 2026-05-02 D1 audit. The current
-implementation has six steps and only emits completion after the player clicks
-through every step; phase-gated ordnance/combat steps are unreachable in common
-first-run routes such as Bi-Planetary.
-
-Fix either by making completion mean "all eligible steps for this scenario were
-shown/acknowledged" or by splitting the full combat/ordnance tutorial from the
-Beginner onboarding path. Acceptance: a fresh-profile Bi-Planetary Easy run can
-emit `tutorial_completed` without forcing the player into a combat-heavy
-scenario, while scenarios that do include ordnance/combat still show their
-specialized tips.
-
-**Files:** `src/client/tutorial.ts`, `src/client/tutorial.test.ts`,
-`src/client/game/phase-entry.ts`, `docs/MANUAL_TEST_PLAN.md`,
-`docs/OBSERVABILITY.md`
 
 ### Maintain Fixture-Backed AI Workflow (P1, ongoing)
 
