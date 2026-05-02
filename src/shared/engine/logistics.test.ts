@@ -162,6 +162,49 @@ describe('processSurrender', () => {
       );
     }
   });
+  it('ends the game when a player surrenders their last effective ship', () => {
+    const own = makeShip({ id: asShipId('own'), owner: 0 });
+    const enemy = makeShip({
+      id: asShipId('enemy'),
+      owner: 1,
+      originalOwner: 1,
+    });
+    const state = makeState([own, enemy], {
+      phase: 'astrogation',
+      activePlayer: 0,
+    });
+    const result = processSurrender(state, 0, [asShipId('own')], map);
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      expect(result.state.outcome).toEqual({
+        winner: 1,
+        reason: 'Fleet eliminated!',
+      });
+      expect(result.engineEvents).toContainEqual({
+        type: 'gameOver',
+        winner: 1,
+        reason: 'Fleet eliminated!',
+      });
+    }
+  });
+  it('does not end the game while the surrendering player still has an effective ship', () => {
+    const surrendered = makeShip({ id: asShipId('surrendered'), owner: 0 });
+    const reserve = makeShip({ id: asShipId('reserve'), owner: 0 });
+    const enemy = makeShip({
+      id: asShipId('enemy'),
+      owner: 1,
+      originalOwner: 1,
+    });
+    const state = makeState([surrendered, reserve, enemy], {
+      phase: 'astrogation',
+      activePlayer: 0,
+    });
+    const result = processSurrender(state, 0, [asShipId('surrendered')], map);
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      expect(result.state.outcome).toBeNull();
+    }
+  });
 });
 describe('getTransferEligiblePairs', () => {
   it('finds friendly ship pairs at same hex+velocity', () => {

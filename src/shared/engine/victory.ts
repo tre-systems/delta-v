@@ -300,11 +300,17 @@ export const checkGameEnd = (
 
   const alive0 = count(
     state.ships,
-    (s) => s.owner === 0 && s.lifecycle !== 'destroyed',
+    (s) =>
+      s.owner === 0 &&
+      s.lifecycle !== 'destroyed' &&
+      s.control !== 'surrendered',
   );
   const alive1 = count(
     state.ships,
-    (s) => s.owner === 1 && s.lifecycle !== 'destroyed',
+    (s) =>
+      s.owner === 1 &&
+      s.lifecycle !== 'destroyed' &&
+      s.control !== 'surrendered',
   );
 
   if (alive0 === 0 && alive1 === 0) {
