@@ -1,6 +1,6 @@
 import { getOrderableShipsForPlayer } from '../../shared/engine/util';
 import type { GameState, PlayerId } from '../../shared/types/domain';
-import { playConfirm, playSelect } from '../audio';
+import { playCancel, playConfirm, playInvalid, playSelect } from '../audio';
 import { buildAstrogationOrders } from './astrogation-orders';
 import { deriveBurnChangePlan } from './burn';
 import type {
@@ -29,6 +29,7 @@ export const setBurnDirection = (
 
   if (dir === null) {
     deps.planningState.clearShipPlanning(targetId);
+    playCancel();
     return;
   }
   const currentBurn = deps.planningState.burns.get(targetId) ?? null;
@@ -41,6 +42,7 @@ export const setBurnDirection = (
 
   if (plan.kind === 'error') {
     deps.logText(plan.message);
+    playInvalid();
     return;
   }
 
@@ -93,6 +95,7 @@ export const skipShipBurn = (deps: AstrogationActionDeps) => {
 
   deps.planningState.setShipLanding(shipId, false);
   deps.planningState.acknowledgeShip(shipId);
+  playSelect();
 
   const gameState = deps.getGameState();
   if (gameState) {
@@ -122,6 +125,7 @@ export const clearSelectedBurn = (deps: AstrogationActionDeps) => {
 
   if (!shipId) return;
   deps.planningState.clearShipPlanning(shipId);
+  playCancel();
 };
 
 export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
@@ -131,6 +135,7 @@ export const undoSelectedShipBurn = (deps: AstrogationActionDeps) => {
 
   if (shipId) {
     deps.planningState.clearShipPlanning(shipId);
+    playCancel();
   }
 };
 

@@ -4,7 +4,13 @@ import type {
   GameState,
   PlayerId,
 } from '../../shared/types/domain';
-import { isMuted, playSelect, setMuted } from '../audio';
+import {
+  isMuted,
+  playCancel,
+  playConfirm,
+  playSelect,
+  setMuted,
+} from '../audio';
 import {
   type AstrogationActionDeps,
   clearSelectedBurn,
@@ -91,7 +97,11 @@ const setCombatPlan = (
 };
 
 const undoQueuedAttack = (deps: CommandRouterDeps): void => {
+  const queuedCount = deps.ctx.planningState.queuedAttacks.length;
   deps.ctx.planningState.popQueuedAttack();
+  if (queuedCount > 0) {
+    playCancel();
+  }
 };
 
 const getActiveLogisticsContext = (
@@ -120,6 +130,7 @@ const skipLogistics = (deps: CommandRouterDeps): void => {
   const logisticsContext = getActiveLogisticsContext(deps);
 
   if (logisticsContext) {
+    playCancel();
     logisticsContext.transport.skipLogistics();
   }
 };
@@ -134,8 +145,10 @@ const confirmTransfers = (deps: CommandRouterDeps): void => {
   const orders = logisticsContext.logisticsState.buildTransferOrders();
 
   if (orders.length > 0) {
+    playConfirm();
     logisticsContext.transport.submitLogistics(orders);
   } else {
+    playCancel();
     logisticsContext.transport.skipLogistics();
   }
 };
@@ -150,6 +163,7 @@ const selectShip = (
   if (ship) {
     deps.ctx.planningState.selectShip(shipId, hexKey(ship.position));
     deps.renderer.centerOnHex(ship.position);
+    playSelect();
   } else {
     deps.ctx.planningState.setSelectedShipId(shipId);
   }
@@ -185,6 +199,9 @@ const astrogationHandlers = {
         deps.ctx.planningState.setShipBurn(shipId, 0, true);
       }
       deps.ctx.planningState.acknowledgeShip(shipId);
+      playConfirm();
+    } else {
+      playCancel();
     }
   },
   setBurnDirection: (deps, cmd) =>
@@ -218,7 +235,10 @@ const combatHandlers = {
     adjustCombatStrength(deps.combatDeps, cmd.delta),
   resetCombatStrength: (deps) => resetCombatStrengthToMax(deps.combatDeps),
   setCombatPlan: (deps, cmd) => setCombatPlan(deps.ctx.planningState, cmd),
-  clearCombatSelection: (deps) => clearCombatSelection(deps.combatDeps),
+  clearCombatSelection: (deps) => {
+    clearCombatSelection(deps.combatDeps);
+    playCancel();
+  },
   undoQueuedAttack,
   cycleCombatAttacker: (deps, cmd) =>
     cycleCombatAttacker(deps.combatDeps, cmd.direction, (hex) =>
@@ -258,10 +278,14 @@ const ordnanceHandlers = {
       : skipOrdnanceShip(deps.ordnanceDeps),
   confirmOrdnance: (deps) => confirmOrdnance(deps.ordnanceDeps),
   skipOrdnanceShip: (deps) => skipOrdnanceShip(deps.ordnanceDeps),
-  setTorpedoAccel: (deps, cmd) =>
-    deps.ctx.planningState.setTorpedoAcceleration(cmd.direction, cmd.steps),
-  clearTorpedoAcceleration: (deps) =>
-    deps.ctx.planningState.clearTorpedoAcceleration(),
+  setTorpedoAccel: (deps, cmd) => {
+    deps.ctx.planningState.setTorpedoAcceleration(cmd.direction, cmd.steps);
+    playSelect();
+  },
+  clearTorpedoAcceleration: (deps) => {
+    deps.ctx.planningState.clearTorpedoAcceleration();
+    playCancel();
+  },
 } satisfies PartialCommandHandlerMap<
   | 'launchOrdnance'
   | 'emplaceBase'
@@ -273,13 +297,28 @@ const ordnanceHandlers = {
 >;
 
 const fleetAndNavigationHandlers = {
-  fleetReady: (deps, cmd) => deps.sendFleetReady(cmd.purchases),
+  fleetReady: (deps, cmd) => {
+    playConfirm();
+    deps.sendFleetReady(cmd.purchases);
+  },
   surrender: (deps, cmd) => deps.sendSurrender(cmd.shipIds),
   selectShip: (deps, cmd) => selectShip(deps, cmd.shipId),
-  deselectShip: (deps) => deps.ctx.planningState.setSelectedShipId(null),
-  cycleShip: (deps, cmd) => deps.cycleShip(cmd.direction),
-  focusNearestEnemy: (deps) => deps.focusNearestEnemy(),
-  focusOwnFleet: (deps) => deps.focusOwnFleet(),
+  deselectShip: (deps) => {
+    deps.ctx.planningState.setSelectedShipId(null);
+    playCancel();
+  },
+  cycleShip: (deps, cmd) => {
+    deps.cycleShip(cmd.direction);
+    playSelect();
+  },
+  focusNearestEnemy: (deps) => {
+    deps.focusNearestEnemy();
+    playSelect();
+  },
+  focusOwnFleet: (deps) => {
+    deps.focusOwnFleet();
+    playSelect();
+  },
   panCamera: (deps, cmd) => deps.renderer.camera.pan(cmd.dx, cmd.dy),
   zoomCamera: (deps, cmd) => {
     const { x, y } = deps.getCanvasCenter();
@@ -300,14 +339,30 @@ const fleetAndNavigationHandlers = {
 >;
 
 const uiAndLifecycleHandlers = {
-  toggleLog: (deps) => deps.ui.log.toggle(),
-  toggleHelp: (deps) => deps.toggleHelp(),
+  toggleLog: (deps) => {
+    deps.ui.log.toggle();
+    playSelect();
+  },
+  toggleHelp: (deps) => {
+    deps.toggleHelp();
+    playSelect();
+  },
   toggleMute: (deps) => {
-    setMuted(!isMuted());
+    const nextMuted = !isMuted();
+    setMuted(nextMuted);
+    if (!nextMuted) {
+      playConfirm();
+    }
     deps.updateSoundButton();
   },
-  requestRematch: (deps) => deps.sendRematch(),
-  exitToMenu: (deps) => deps.exitToMenu(),
+  requestRematch: (deps) => {
+    playConfirm();
+    deps.sendRematch();
+  },
+  exitToMenu: (deps) => {
+    playCancel();
+    deps.exitToMenu();
+  },
 } satisfies PartialCommandHandlerMap<
   'toggleLog' | 'toggleHelp' | 'toggleMute' | 'requestRematch' | 'exitToMenu'
 >;

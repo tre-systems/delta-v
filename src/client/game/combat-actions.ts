@@ -6,7 +6,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { clamp } from '../../shared/util';
-import { playSelect } from '../audio';
+import { playCancel, playConfirm, playInvalid, playSelect } from '../audio';
 import { TOAST } from '../messages/toasts';
 import { batch } from '../reactive';
 import {
@@ -152,10 +152,12 @@ export const confirmSingleAttack = (deps: CombatActionDeps) => {
     }
 
     deps.logText(TOAST.gameplay.combatTargetBlocked);
+    playInvalid();
     return;
   }
 
   clearCombatSelection(deps);
+  playConfirm();
   transport.submitSingleCombat(attack);
 };
 
@@ -174,9 +176,11 @@ export const fireAllAttacks = (deps: CombatActionDeps) => {
   const attacks = deps.planningState.takeQueuedAttacks();
 
   if (attacks.length === 0) {
+    playCancel();
     sendSkipCombat(deps);
     return;
   }
+  playConfirm();
   transport.submitCombat(attacks);
 };
 
@@ -211,6 +215,7 @@ export const queueAttack = (deps: CombatActionDeps) => {
     deps.planningState.queueCombatAttack(attack);
     clearCombatSelection(deps);
   });
+  playConfirm();
 };
 
 export const beginCombatPhase = (deps: CombatActionDeps) => {
@@ -254,6 +259,7 @@ export const adjustCombatStrength = (deps: CombatActionDeps, delta: number) => {
   deps.planningState.setCombatAttackStrength(
     clamp(current + delta, 1, maxStrength),
   );
+  playSelect();
 };
 
 export const resetCombatStrengthToMax = (deps: CombatActionDeps) => {
@@ -269,6 +275,7 @@ export const resetCombatStrengthToMax = (deps: CombatActionDeps) => {
 
   if (maxStrength > 0) {
     deps.planningState.setCombatAttackStrength(maxStrength);
+    playSelect();
   }
 };
 
@@ -296,6 +303,7 @@ export const cycleCombatAttacker = (
   }
 
   deps.planningState.applyCombatPlanUpdate(next.plan, next.selectedShipId);
+  playSelect();
   centerOnHex?.(next.selectedHex);
 };
 

@@ -6,6 +6,14 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import {
+  playBaseEmplaced,
+  playCancel,
+  playConfirm,
+  playInvalid,
+  playOrdnanceLaunch,
+  playSelect,
+} from '../audio';
+import {
   getFirstUnacknowledgedOrdnanceActionableShipId,
   getOrdnanceActionableShipIds,
   resolveBaseEmplacementPlan,
@@ -70,6 +78,7 @@ export const queueOrdnanceLaunch = (
     if (plan.message) {
       deps.logText(plan.message);
     }
+    playInvalid();
     return;
   }
 
@@ -81,6 +90,7 @@ export const queueOrdnanceLaunch = (
   // Launches are already logged to the game log; avoid duplicating the same
   // event as a toast in the same tick.
   deps.logText(`${plan.shipName} launched ${ordType}`);
+  playOrdnanceLaunch(ordType);
   advanceToNextOrdnanceShip(deps);
 
   if (allOrdnanceShipsAcknowledged(deps)) {
@@ -102,6 +112,8 @@ export const skipOrdnanceShip = (deps: OrdnanceActionDeps) => {
 
   if (allOrdnanceShipsAcknowledged(deps)) {
     confirmOrdnance(deps);
+  } else if (shipId) {
+    playSelect();
   }
 };
 
@@ -115,8 +127,10 @@ export const confirmOrdnance = (deps: OrdnanceActionDeps) => {
 
   const launches = deps.planningState.takeQueuedOrdnanceLaunches();
   if (launches.length > 0) {
+    playConfirm();
     transport.submitOrdnance(launches);
   } else {
+    playCancel();
     transport.skipOrdnance();
   }
 };
@@ -137,8 +151,10 @@ export const sendEmplaceBase = (deps: OrdnanceActionDeps) => {
     if (plan.message) {
       deps.logText(plan.message);
     }
+    playInvalid();
     return;
   }
+  playBaseEmplaced();
   transport.submitEmplacement(must(plan.emplacements));
 };
 
