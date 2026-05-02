@@ -10,6 +10,8 @@
 // as the single source of identity: same input for local display and
 // public leaderboard.
 
+import { type IdentityKind, isIdentityKind } from '../../shared/player';
+
 export interface PlayerRecord {
   playerKey: string;
   username: string;
@@ -21,6 +23,7 @@ export interface PlayerRecord {
   distinctOpponents: number;
   lastMatchAt: number | null;
   createdAt: number;
+  identityKind: IdentityKind | null;
 }
 
 export type ClaimOutcome =
@@ -38,11 +41,13 @@ interface PlayerRow {
   distinct_opponents: number;
   last_match_at: number | null;
   created_at: number;
+  identity_kind: string | null;
 }
 
 const SELECT_COLUMNS =
   'player_key, username, is_agent, rating, rd, volatility, ' +
-  'games_played, distinct_opponents, last_match_at, created_at';
+  'games_played, distinct_opponents, last_match_at, created_at, ' +
+  'identity_kind';
 
 const rowToRecord = (row: PlayerRow): PlayerRecord => ({
   playerKey: row.player_key,
@@ -55,6 +60,7 @@ const rowToRecord = (row: PlayerRow): PlayerRecord => ({
   distinctOpponents: row.distinct_opponents,
   lastMatchAt: row.last_match_at,
   createdAt: row.created_at,
+  identityKind: isIdentityKind(row.identity_kind) ? row.identity_kind : null,
 });
 
 export const selectPlayerByKey = async (
@@ -76,8 +82,12 @@ export const claimPlayerName = async (opts: {
   username: string;
   isAgent: boolean;
   now: number;
+  // Explicit identity classification (migration 0009). Required for
+  // freshly inserted rows; ignored for existing rows so a rename does
+  // not overwrite the original lifecycle classification.
+  identityKind: IdentityKind;
 }): Promise<ClaimOutcome> => {
-  const { db, playerKey, username, isAgent, now } = opts;
+  const { db, playerKey, username, isAgent, now, identityKind } = opts;
 
   const existing = await selectPlayerByKey(db, playerKey);
 
@@ -105,10 +115,11 @@ export const claimPlayerName = async (opts: {
   try {
     await db
       .prepare(
-        'INSERT INTO player (player_key, username, is_agent, created_at) ' +
-          'VALUES (?, ?, ?, ?)',
+        'INSERT INTO player ' +
+          '(player_key, username, is_agent, created_at, identity_kind) ' +
+          'VALUES (?, ?, ?, ?, ?)',
       )
-      .bind(playerKey, username, isAgent ? 1 : 0, now)
+      .bind(playerKey, username, isAgent ? 1 : 0, now, identityKind)
       .run();
   } catch (err) {
     // Race: either another request for this key just inserted, or the

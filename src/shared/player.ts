@@ -3,6 +3,30 @@ export interface PublicPlayerProfile {
   username: string;
 }
 
+// Explicit identity-lifecycle classification for `player` rows
+// (migration 0009). Replaces username-prefix globbing for retention,
+// archive-quality, and recovery-eligibility decisions.
+//
+//   claimed_human  - explicit POST /api/claim-name with a real callsign
+//   default_human  - matchmaker auto-claim with `Pilot XXXX` default
+//   agent          - POST /api/agent-token (not the official bot)
+//   official_bot   - OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY
+//   seed_agent     - bootstrap / seeded thematic agents
+//   test           - reserved-test prefixes (QA_, Probe_, Bot_)
+export const IDENTITY_KINDS = [
+  'claimed_human',
+  'default_human',
+  'agent',
+  'official_bot',
+  'seed_agent',
+  'test',
+] as const;
+export type IdentityKind = (typeof IDENTITY_KINDS)[number];
+
+export const isIdentityKind = (value: unknown): value is IdentityKind =>
+  typeof value === 'string' &&
+  (IDENTITY_KINDS as readonly string[]).includes(value);
+
 export const OFFICIAL_QUICK_MATCH_BOT_PLAYER_KEY =
   'agent_official_quickmatch_normal';
 export const OFFICIAL_QUICK_MATCH_BOT_USERNAME = 'Official Bot';

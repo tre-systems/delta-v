@@ -16,6 +16,7 @@
 // minting tokens is cheap but unbounded issuance would let a noisy IP
 // pollute analytics with throwaway agent identities.
 
+import { isOfficialQuickMatchBotPlayerKey } from '../../shared/player';
 import type { Env } from '../env';
 import { jsonError } from '../json-errors';
 import {
@@ -120,6 +121,9 @@ export const handleAgentTokenIssue = async (
       username: check.normalised,
       isAgent: true,
       now: Date.now(),
+      identityKind: isOfficialQuickMatchBotPlayerKey(body.playerKey)
+        ? 'official_bot'
+        : 'agent',
     });
     if (!outcome.ok) {
       return jsonError(409, 'name_taken', 'Callsign is already taken.');
