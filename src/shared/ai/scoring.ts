@@ -358,6 +358,16 @@ export const scoreCombatPositioning = (
           },
         );
         score -= velMatchDist * cfg.interceptVelocityPenalty * mult;
+
+        if (enemyHasPassengerObjective) {
+          const speed = hexVecLength(course.newVelocity);
+          const enemySpeed = hexVecLength(enemy.velocity);
+          const excessSpeed = speed - enemySpeed - 1;
+
+          if (excessSpeed > 0) {
+            score -= excessSpeed * cfg.combatSpeedDiffPenalty * mult * 3;
+          }
+        }
       } else {
         // Far range: intercept predicted position
         const interceptDist = hexDistance(course.destination, predicted);
