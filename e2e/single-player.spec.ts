@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { launchSinglePlayerScenario, openHelpOverlay } from './support/app';
+import {
+  launchSinglePlayerScenario,
+  openHelpOverlay,
+  openHomePage,
+} from './support/app';
 import { waitForDisplay } from './support/ui';
 
 test.describe('single-player smoke tests', () => {
@@ -66,5 +70,103 @@ test.describe('single-player smoke tests', () => {
     await expect(page.locator('[data-testid="helpOverlay"]')).toContainText(
       'Tap arrow',
     );
+  });
+
+  test('fleet building can return to the menu before launch', async ({
+    page,
+  }) => {
+    await openHomePage(page, { tutorialDone: true });
+    await page.click('[data-testid="singlePlayerBtn"]');
+    await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
+    await page.click('[data-scenario="fleetAction"]');
+    await waitForDisplay(page, '[data-testid="fleetBuilding"]', 'flex');
+
+    await expect(page.locator('[data-testid="fleetExitBtn"]')).toBeVisible();
+    await page.click('[data-testid="fleetExitBtn"]');
+    await waitForDisplay(page, '[data-testid="menu"]', 'flex');
+
+    await page.click('[data-testid="singlePlayerBtn"]');
+    await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
+    await page.click('[data-scenario="interplanetaryWar"]');
+    await waitForDisplay(page, '[data-testid="fleetBuilding"]', 'flex');
+
+    await page.keyboard.press('Escape');
+    await waitForDisplay(page, '[data-testid="menu"]', 'flex');
+  });
+
+  test('keeps the phone phase banner clear of ship cards', async ({
+    browser,
+  }) => {
+    for (const viewport of [
+      { width: 320, height: 568 },
+      { width: 360, height: 640 },
+      { width: 375, height: 812 },
+    ]) {
+      const page = await browser.newPage({ viewport });
+
+      try {
+        await launchSinglePlayerScenario(page, 'biplanetary', {
+          tutorialDone: true,
+        });
+
+        await expect
+          .poll(async () =>
+            page
+              .locator('#phaseAlert')
+              .evaluate((element) => element.classList.contains('active')),
+          )
+          .toBe(true);
+
+        const measurement = await page.evaluate(() => {
+          const alert = document.querySelector('#phaseAlert');
+          const ship = document.querySelector('[data-testid="ship-entry"]');
+
+          if (
+            !(alert instanceof HTMLElement) ||
+            !(ship instanceof HTMLElement)
+          ) {
+            throw new Error(
+              'Expected phase alert and ship entry to be present',
+            );
+          }
+
+          const alertBox = alert.getBoundingClientRect();
+          const shipBox = ship.getBoundingClientRect();
+          const overlapWidth = Math.max(
+            0,
+            Math.min(alertBox.right, shipBox.right) -
+              Math.max(alertBox.left, shipBox.left),
+          );
+          const overlapHeight = Math.max(
+            0,
+            Math.min(alertBox.bottom, shipBox.bottom) -
+              Math.max(alertBox.top, shipBox.top),
+          );
+
+          return {
+            overlapArea: overlapWidth * overlapHeight,
+            alertBox: {
+              top: alertBox.top,
+              right: alertBox.right,
+              bottom: alertBox.bottom,
+              left: alertBox.left,
+            },
+            shipBox: {
+              top: shipBox.top,
+              right: shipBox.right,
+              bottom: shipBox.bottom,
+              left: shipBox.left,
+            },
+          };
+        });
+
+        expect(
+          measurement.overlapArea,
+          `${viewport.width}x${viewport.height}: ${JSON.stringify(measurement)}`,
+        ).toBe(0);
+      } finally {
+        await page.close();
+      }
+    }
   });
 });

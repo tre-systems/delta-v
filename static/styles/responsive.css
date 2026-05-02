@@ -284,6 +284,26 @@
   }
 }
 
+@media (max-width: 420px) and (orientation: portrait) {
+  #phaseAlert {
+    top: calc(var(--hud-top-offset) + min(31vh, 250px) + 1.05rem);
+    width: min(
+      260px,
+      calc(100vw - var(--hud-edge-left) - var(--hud-edge-right) - 1rem)
+    );
+  }
+}
+
+@media (max-width: 360px) and (orientation: portrait) {
+  #phaseAlert {
+    width: min(
+      230px,
+      calc(100vw - var(--hud-edge-left) - var(--hud-edge-right) - 1rem)
+    );
+    padding: 0.38rem 0.75rem;
+  }
+}
+
 @media (max-width: 420px) {
   .menu-content {
     padding: 1rem;

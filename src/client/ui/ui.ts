@@ -95,6 +95,9 @@ export const createUIManager = (deps: UIManagerDeps) => {
     onFleetReady: (purchases) => {
       emit({ type: 'fleetReady', purchases });
     },
+    onExit: () => {
+      emit({ type: 'exit' });
+    },
   });
   const log = createGameLogView({
     onChat: (text) => {

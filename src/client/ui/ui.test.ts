@@ -40,6 +40,7 @@ const installFixture = () => {
       <div id="fleetShopList"></div>
       <button id="fleetReadyBtn"></button>
       <button id="fleetClearBtn"></button>
+      <button id="fleetExitBtn"></button>
       <div id="fleetWaiting"></div>
     </div>
     <div id="gameLog">
@@ -236,6 +237,16 @@ describe('UIManager', () => {
       { type: 'rematch' },
       { type: 'toggleReplay' },
     ]);
+  });
+
+  it('routes the fleet builder back control through onEvent', () => {
+    const ui = createTestUIManager();
+    const events: unknown[] = [];
+    ui.onEvent = (e) => events.push(e);
+
+    document.getElementById('fleetExitBtn')?.click();
+
+    expect(events).toEqual([{ type: 'exit' }]);
   });
 
   it('shows menu when interaction mode is menu', () => {

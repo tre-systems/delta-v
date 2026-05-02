@@ -42,6 +42,9 @@ interface TutorialStep {
   minTurn?: number;
   // Only show once per game
   once?: boolean;
+  // Full-phase tips are useful when reached, but should not block first-run
+  // onboarding completion in Beginner routes that never enter those phases.
+  completionOptional?: boolean;
 }
 
 export interface Tutorial {
@@ -87,6 +90,7 @@ const STEPS: TutorialStep[] = [
     mobileText:
       'Ordnance phase: ships can launch mines or nukes if they have cargo space, and warships can also launch torpedoes. Torpedoes can boost 1 or 2 hexes on launch; tap the same arrow again to switch from x1 to x2. Use the buttons below to launch.',
     once: true,
+    completionOptional: true,
   },
   {
     id: 'combat-intro',
@@ -95,8 +99,11 @@ const STEPS: TutorialStep[] = [
     mobileText:
       'Combat phase: tap an enemy ship or nuke to target it. Gun attacks use combined firepower, while nukes are intercepted at 2:1 with range and relative velocity modifiers. Use the Attack or Skip button.',
     once: true,
+    completionOptional: true,
   },
 ];
+
+const COMPLETION_STEPS = STEPS.filter((step) => !step.completionOptional);
 
 export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
   const scope = createDisposalScope();
@@ -170,7 +177,7 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
 
     setTrustedHTML(
       progressEl,
-      STEPS.map((candidate) => {
+      COMPLETION_STEPS.map((candidate) => {
         const cls = shownSteps.has(candidate.id)
           ? 'done'
           : candidate.id === step.id
@@ -183,11 +190,20 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
   };
 
   const advance = (): void => {
+    if (completed) {
+      hideTip();
+      return;
+    }
+
     if (activeStepId) {
       shownSteps.add(activeStepId);
     }
 
-    if (shownSteps.size >= STEPS.length) {
+    const completedRequiredSteps = COMPLETION_STEPS.every((step) =>
+      shownSteps.has(step.id),
+    );
+
+    if (completedRequiredSteps) {
       emitTelemetry('tutorial_completed', {
         totalTimeMs:
           tutorialStartTime !== null
