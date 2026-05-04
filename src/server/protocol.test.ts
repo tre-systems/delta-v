@@ -202,6 +202,7 @@ describe('parseInitPayload', () => {
             kind: 'human',
           },
         ],
+        agentSandbox: false,
       },
     });
   });
