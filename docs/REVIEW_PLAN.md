@@ -10,7 +10,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 **Human-only items** are marked with a `[Human]` tag. Everything else is agent-executable.
 
-**Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), [BACKLOG.md](./BACKLOG.md), [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md).
+**Related docs:** [REVIEW_METHODS.md](./REVIEW_METHODS.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), [BACKLOG.md](./BACKLOG.md), [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md).
 
 ---
 

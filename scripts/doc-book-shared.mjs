@@ -63,6 +63,7 @@ export const parts = [
     intro:
       "These chapters are deliberately more volatile than the core handbook: exploratory methods, recurring review checklists, and the live backlog snapshot.",
     files: [
+      "docs/REVIEW_METHODS.md",
       "docs/REVIEW_PLAN.md",
       "docs/EXPLORATORY_TESTING.md",
       "docs/BACKLOG.md",
@@ -226,6 +227,13 @@ export const chapterMetadata = {
       "A recurring review worksheet for cross-cutting audits such as security, observability, release hygiene, and CI friction.",
     mode: "Annex worksheet",
     audience: "Maintainers running periodic audits",
+    volatile: true,
+  },
+  "docs/REVIEW_METHODS.md": {
+    abstract:
+      "A portable guide to review types, review workflow, finding formats, and when to use each kind of review.",
+    mode: "Annex guide",
+    audience: "Maintainers creating or running review systems",
     volatile: true,
   },
   "docs/EXPLORATORY_TESTING.md": {
