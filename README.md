@@ -88,6 +88,7 @@ Doc index by purpose, grouped by theme:
 
 | Doc | Purpose |
 | --- | --- |
+| [REVIEW_METHODS.md](./docs/REVIEW_METHODS.md) | Reusable review types and how to run them |
 | [REVIEW_PLAN.md](./docs/REVIEW_PLAN.md) | Recurring cross-cutting review checklist |
 | [COORDINATED_RELEASE_CHECKLIST.md](./docs/COORDINATED_RELEASE_CHECKLIST.md) | Protocol/schema version bump steps |
 | [BACKLOG.md](./docs/BACKLOG.md) | Remaining actionable work, in priority order |
