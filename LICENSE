@@ -1,0 +1,27 @@
+Delta-V Source-Available License
+
+Copyright (c) 2026 Robert Gilks. All rights reserved.
+
+This repository is published as source-available software so that people can
+inspect the implementation, learn from it, and evaluate it for personal,
+non-commercial purposes.
+
+No license is granted to copy, modify, distribute, sublicense, sell, host,
+operate as a service, or otherwise use this software or its assets for
+commercial purposes without prior written permission from the copyright owner.
+
+You may not remove or obscure copyright, trademark, attribution, or license
+notices from this repository.
+
+Issues, pull requests, comments, or other submissions to this repository do
+not grant you any ownership interest in Delta-V. Unless a separate written
+agreement says otherwise, any contribution intentionally submitted for
+inclusion in Delta-V may be used, modified, and distributed by the copyright
+owner as part of Delta-V.
+
+THE SOFTWARE AND MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT OWNER BE LIABLE FOR ANY
+CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THE
+SOFTWARE, MATERIALS, OR THEIR USE.
