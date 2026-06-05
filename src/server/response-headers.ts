@@ -19,7 +19,7 @@ export const buildContentSecurityPolicy = (request: Request): string =>
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     `connect-src ${buildConnectSrc(request)} https://cloudflareinsights.com`,
-    "img-src 'self' data: https://storage.ko-fi.com",
+    "img-src 'self' data:",
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "form-action 'self'",
