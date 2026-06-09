@@ -71,6 +71,7 @@
     "ws": "^8.20.0"
   },
   "dependencies": {
-    "@delta-v/mcp-adapter": "workspace:*"
+    "@delta-v/mcp-adapter": "workspace:*",
+    "@sentry/cloudflare": "^10.57.0"
   }
 }

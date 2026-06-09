@@ -1,6 +1,7 @@
 name = "delta-v"
 main = "src/server/index.ts"
 compatibility_date = "2025-03-01"
+compatibility_flags = ["nodejs_als"]
 routes = [
   { pattern = "delta-v.tre.systems", custom_domain = true }
 ]
@@ -62,6 +63,8 @@ crons = ["0 4 * * *"]
 # `AGENT_TOKEN_SECRET` / `IP_HASH_SALT` values) — Wrangler merges `.dev.vars`
 # over these defaults.
 DEV_MODE = "0"
+SENTRY_ENVIRONMENT = "production"
+SENTRY_PROJECT = "delta-v"
 
 [observability]
 enabled = true

@@ -68,4 +68,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+          SENTRY_ENVIRONMENT: production
+          SENTRY_ORG: ${{ vars.SENTRY_ORG || 'total-reality-engineering' }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT || 'delta-v' }}
+          SENTRY_RELEASE: ${{ github.sha }}
         run: npm run deploy
