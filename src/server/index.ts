@@ -1,4 +1,5 @@
 import { handleMcpHttpRequest } from '@delta-v/mcp-adapter';
+import * as Sentry from '@sentry/cloudflare';
 import { asRoomCode } from '../shared/ids';
 import { normalizePlayerKey } from '../shared/player';
 import {
@@ -33,6 +34,7 @@ import {
   applyResponseHeaders,
   buildPublicCorsPreflightResponse,
 } from './response-headers';
+import { sentryOptions } from './sentry';
 
 let workerBootedAt: string | null = null;
 
@@ -817,7 +819,7 @@ const fetchHandler = async (
 // storage. Wrangler cron fires the configured schedule (see
 // wrangler.toml [triggers.crons]).
 const scheduledHandler = async (
-  _event: ScheduledEvent,
+  _event: ScheduledController,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<void> => {
@@ -842,7 +844,39 @@ const scheduledHandler = async (
   );
 };
 
-export default {
+const handler = {
   fetch: fetchHandler,
   scheduled: scheduledHandler,
 };
+
+let sentryHandler: typeof handler | undefined;
+
+const getSentryHandler = (): typeof handler => {
+  sentryHandler ??= Sentry.withSentry(sentryOptions, {
+    fetch: fetchHandler,
+    scheduled: scheduledHandler,
+  }) as typeof handler;
+
+  return sentryHandler;
+};
+
+const exportedHandler = {
+  fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    if (env.SENTRY_DSN) {
+      return getSentryHandler().fetch(request, env, ctx);
+    }
+    return handler.fetch(request, env, ctx);
+  },
+  scheduled(
+    event: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<void> {
+    if (env.SENTRY_DSN) {
+      return getSentryHandler().scheduled(event, env, ctx);
+    }
+    return handler.scheduled(event, env, ctx);
+  },
+};
+
+export default exportedHandler;

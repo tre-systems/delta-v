@@ -47,4 +47,7 @@ export interface Env {
   // fallback when version metadata is unavailable.
   CF_PAGES_COMMIT_SHA?: string;
   GIT_COMMIT_SHA?: string;
+  SENTRY_DSN?: string;
+  SENTRY_ENVIRONMENT?: string;
+  SENTRY_RELEASE?: string;
 }
