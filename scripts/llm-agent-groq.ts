@@ -1,4 +1,4 @@
-// Groq Llama 3.3 70B agent for Delta-V
+// Groq gpt-oss-120b agent for Delta-V
 // Uses Groq's OpenAI-compatible API with function calling
 
 import type { AgentTurnInput } from '../src/shared/agent';
@@ -6,7 +6,7 @@ import type { AgentTurnInput } from '../src/shared/agent';
 import { buildDeltaVAgentPrompt } from './delta-v-agent-prompt';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'llama-3.3-70b-versatile';
+const MODEL = 'openai/gpt-oss-120b';
 
 const SUBMIT_ACTION_TOOL = {
   type: 'function' as const,
