@@ -6,6 +6,10 @@ import type {
 import type { Env } from './env';
 
 type RuntimeCloudflareOptions = CloudflareOptions & Record<string, unknown>;
+type BeforeSendTransaction = NonNullable<
+  CloudflareOptions['beforeSendTransaction']
+>;
+type TransactionEvent = Parameters<BeforeSendTransaction>[0];
 
 const SENSITIVE_EXTRA_KEYS = [
   'agentToken',
@@ -64,6 +68,29 @@ function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent {
   return event;
 }
 
+const SCANNER_TRANSACTION_PATTERNS = [
+  /^GET \/\./,
+  /^GET \/\+CSCOT\+\//,
+  /^GET \/(?:actuator|application\/logs|explorer|rest\/api|swagger)\//,
+  /^GET \/api\/v1\/namespaces\//,
+  /^GET \/v\d+\/graphql\//,
+  /^GET \/auth\.html$/,
+  /^GET \/.*\.(?:bak|sql)$/,
+];
+
+export function isScannerTransaction(transaction: string | undefined): boolean {
+  return Boolean(
+    transaction &&
+      SCANNER_TRANSACTION_PATTERNS.some((pattern) => pattern.test(transaction)),
+  );
+}
+
+function beforeSendTransaction(
+  event: TransactionEvent,
+): TransactionEvent | null {
+  return isScannerTransaction(event.transaction) ? null : event;
+}
+
 export function sentryOptions(env: Env): RuntimeCloudflareOptions | undefined {
   if (!env.SENTRY_DSN) {
     return undefined;
@@ -78,5 +105,6 @@ export function sentryOptions(env: Env): RuntimeCloudflareOptions | undefined {
     tracesSampleRate: env.SENTRY_ENVIRONMENT === 'production' ? 0.01 : 0,
     enableRpcTracePropagation: true,
     beforeSend,
+    beforeSendTransaction,
   };
 }
