@@ -1731,7 +1731,9 @@ const main = async (): Promise<void> => {
     }
   });
 
-  httpServer.listen(port, () => {
+  // Loopback only: this endpoint has no auth and can drive live seats, so
+  // it must not be reachable from the LAN.
+  httpServer.listen(port, '127.0.0.1', () => {
     process.stderr.write(
       `delta-v MCP server (HTTP) listening on http://127.0.0.1:${port}/\n`,
     );

@@ -139,3 +139,57 @@ describe('normalizeQuickMatchServerUrl', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('pollQuickMatchTicket resilience', () => {
+  it('keeps polling through transient failures until matched', async () => {
+    const responses = [
+      () => {
+        throw new Error('network blip');
+      },
+      () => new Response('rate limited', { status: 429 }),
+      () => new Response('cf error', { status: 503 }),
+      () =>
+        Response.json({
+          status: 'matched',
+          ticket: 'TICKET',
+          scenario: 'duel',
+          code: 'ABCDE',
+          playerToken: 'X'.repeat(32),
+        }),
+    ];
+    let call = 0;
+    const fetchSpy = vi.fn(async () => {
+      const next = responses[Math.min(call, responses.length - 1)];
+      call += 1;
+      return next();
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(
+      pollQuickMatchTicket({
+        serverUrl: 'https://delta-v.example',
+        ticket: 'TICKET',
+        pollMs: 0,
+        timeoutMs: 5_000,
+      }),
+    ).resolves.toMatchObject({ status: 'matched', code: 'ABCDE' });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+  });
+
+  it('treats a dropped ticket (410) as terminal', async () => {
+    const fetchSpy = vi.fn(async () => new Response('gone', { status: 410 }));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await expect(
+      pollQuickMatchTicket({
+        serverUrl: 'https://delta-v.example',
+        ticket: 'TICKET',
+        pollMs: 0,
+        timeoutMs: 5_000,
+      }),
+    ).rejects.toThrow('is gone (HTTP 410)');
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+});

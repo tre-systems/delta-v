@@ -198,7 +198,10 @@ Flags:
       1_000,
       parseIntegerFlag(getFlag('--report-timeout-ms'), 15_000),
     ),
-    pollMs: Math.max(200, parseIntegerFlag(getFlag('--poll-ms'), 1_000)),
+    // 3s default keeps several pilots on one host under the server's
+    // 100/60s per-IP join-probe budget (1s polling × 2 bots already trips
+    // it and the whole roster shares an IP in scrimmages).
+    pollMs: Math.max(200, parseIntegerFlag(getFlag('--poll-ms'), 3_000)),
     postGamePauseMs: Math.max(
       0,
       parseIntegerFlag(getFlag('--post-game-pause-ms'), 1_000),
@@ -427,13 +430,7 @@ const main = async (): Promise<void> => {
     `Report agent command: ${config.reportAgentCommand ?? '(disabled)'}`,
   );
 
-  let gamesPlayed = 0;
-  while (config.maxGames === 0 || gamesPlayed < config.maxGames) {
-    const nextIndex = gamesPlayed + 1;
-    console.log('');
-    console.log(`=== Queue cycle ${nextIndex} ===`);
-    console.log(`Queueing with playerKey=${config.playerKey}`);
-
+  const runQueueCycle = async (): Promise<void> => {
     const match = await queueForMatch(config);
     console.log(
       `Matched! code=${match.code} (watch: ${config.serverUrl}/game/${match.code})`,
@@ -477,7 +474,38 @@ const main = async (): Promise<void> => {
       );
       printReport(report);
     }
+  };
 
+  let gamesPlayed = 0;
+  let consecutiveFailures = 0;
+  while (config.maxGames === 0 || gamesPlayed < config.maxGames) {
+    const nextIndex = gamesPlayed + 1;
+    console.log('');
+    console.log(`=== Queue cycle ${nextIndex} ===`);
+    console.log(`Queueing with playerKey=${config.playerKey}`);
+
+    // Unattended pilots must survive transient failures (rate-limit
+    // bursts, dropped sockets, replay lag) — log, back off, re-queue
+    // instead of exiting and leaving the seat to server autoplay.
+    try {
+      await runQueueCycle();
+    } catch (error) {
+      consecutiveFailures += 1;
+      const backoffMs = Math.min(
+        5_000 * 2 ** (consecutiveFailures - 1),
+        300_000,
+      );
+      console.error(
+        `Queue cycle failed (${consecutiveFailures} in a row): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      console.error(`Retrying in ${Math.round(backoffMs / 1000)}s.`);
+      await delay(backoffMs);
+      continue;
+    }
+
+    consecutiveFailures = 0;
     gamesPlayed += 1;
     if (config.maxGames === 0 || gamesPlayed < config.maxGames) {
       await delay(config.postGamePauseMs);

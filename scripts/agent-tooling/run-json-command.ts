@@ -87,6 +87,12 @@ export const runJsonCommand = async <T>(
       });
     });
 
+    // Large payloads outlive the pipe buffer; if the child dies before
+    // draining stdin (startup failure, timeout SIGKILL), the buffered
+    // write emits EPIPE. Without a handler that is an uncaught exception
+    // that kills the calling bot — the close handler already reports the
+    // real failure, so just swallow the stream error.
+    child.stdin.on('error', () => {});
     child.stdin.write(JSON.stringify(payload));
     child.stdin.end();
   });

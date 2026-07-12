@@ -95,21 +95,38 @@ export const pollQuickMatchTicket = async (
         `Quick-match ticket ${args.ticket} timed out after ${timeoutMs}ms (no opponent joined in time).`,
       );
     }
-    const poll = await fetchJson<QuickMatchResponse>(
+    // Tolerate transient poll failures (rate-limit bursts, 5xx, network
+    // blips) — an unattended queue wait must not die on one bad poll; the
+    // overall timeout still bounds the loop. A missing ticket (404/410) is
+    // terminal: the server no longer knows it, so re-queue instead.
+    const response = await fetch(
       `${serverUrl}/quick-match/${args.ticket}`,
-    );
-    if (poll.status === 'matched') {
-      return {
-        status: 'matched',
-        code: poll.code,
-        playerToken: poll.playerToken,
-        ticket: poll.ticket,
-        scenario: poll.scenario,
-        ...(poll.agentSandbox ? { agentSandbox: true } : {}),
-      };
+    ).catch(() => null);
+    if (response && (response.status === 404 || response.status === 410)) {
+      throw new Error(
+        `Quick-match ticket ${args.ticket} is gone (HTTP ${response.status}).`,
+      );
     }
-    if (poll.status === 'expired') {
-      throw new Error(`Quick-match expired: ${poll.reason}`);
+    if (response?.ok) {
+      let poll: QuickMatchResponse | null;
+      try {
+        poll = (await response.json()) as QuickMatchResponse;
+      } catch {
+        poll = null;
+      }
+      if (poll?.status === 'matched') {
+        return {
+          status: 'matched',
+          code: poll.code,
+          playerToken: poll.playerToken,
+          ticket: poll.ticket,
+          scenario: poll.scenario,
+          ...(poll.agentSandbox ? { agentSandbox: true } : {}),
+        };
+      }
+      if (poll?.status === 'expired') {
+        throw new Error(`Quick-match expired: ${poll.reason}`);
+      }
     }
     await new Promise<void>((resolve) => setTimeout(resolve, pollMs));
   }

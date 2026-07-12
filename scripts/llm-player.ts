@@ -763,8 +763,17 @@ const run = async (config: Config): Promise<void> => {
   };
 
   await new Promise<void>((resolve, reject) => {
+    // Keepalive: protocol-level pings stop proxy/load-balancer idle
+    // timeouts from killing the socket (code 1006) while the human
+    // opponent thinks. Matches the cadence delta-v-mcp-server.ts uses.
+    let pingInterval: NodeJS.Timeout | null = null;
+
     socket.once('open', () => {
       console.log(`connected to ${maskWsUrlToken(wsUrl)}`);
+      pingInterval = setInterval(() => {
+        send({ type: 'ping', t: Date.now() });
+      }, 25_000);
+      pingInterval.unref();
     });
 
     socket.once('error', (error) => {
@@ -772,6 +781,10 @@ const run = async (config: Config): Promise<void> => {
     });
 
     socket.on('close', (code, reason) => {
+      if (pingInterval) {
+        clearInterval(pingInterval);
+        pingInterval = null;
+      }
       if (shutdownForceTimer) {
         clearTimeout(shutdownForceTimer);
         shutdownForceTimer = null;
