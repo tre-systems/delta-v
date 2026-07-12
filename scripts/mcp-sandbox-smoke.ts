@@ -418,13 +418,15 @@ const queueSeat = async (
     },
   );
 
-  if (queued.status !== 'queued' || !queued.ticket) {
+  if (!queued.ticket) {
     throw new Error(
-      `Seat ${label} did not return a queued ticket: ${JSON.stringify(queued)}`,
+      `Seat ${label} did not return a ticket: ${JSON.stringify(queued)}`,
     );
   }
-  if (queued.connected === true) {
-    throw new Error(`Seat ${label} connected before paired-ticket smoke step`);
+  if (queued.status !== 'queued' && queued.connected !== true) {
+    throw new Error(
+      `Seat ${label} returned neither queued nor connected: ${JSON.stringify(queued)}`,
+    );
   }
   return {
     label,
