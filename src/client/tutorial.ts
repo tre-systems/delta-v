@@ -115,6 +115,10 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
   const storage = getWebLocalStorage();
   let completed = storage?.getItem(STORAGE_KEY) === '1';
   let shownSteps = new Set<string>();
+  // Steps that already emitted `tutorial_step_shown`. Tracked separately
+  // from shownSteps (which only grows on "Got it" clicks) so telemetry
+  // dedupes per tutorial session while tips keep re-appearing visually.
+  let stepShownTelemetry = new Set<string>();
   let activeStepId: string | null = null;
   // Cache mobile-ness at tutorial construction time. Re-evaluating on every
   // showStep() can flip copy mid-tutorial during device rotation, which is
@@ -149,7 +153,12 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
   };
 
   const showStep = (step: TutorialStep): void => {
-    if (shownSteps.size === 0) {
+    // Funnel telemetry dedupes per tutorial session. A passive player who
+    // never clicks "Got it" re-enters astrogation every turn with an empty
+    // shownSteps set (it only grows in advance()), and hideTip() clears
+    // activeStepId on every phase transition — so gating on either would
+    // re-fire these events once per turn and inflate the funnel.
+    if (tutorialStartTime === null) {
       tutorialStartTime = Date.now();
       emitTelemetry('tutorial_started', { step: step.id });
     }
@@ -159,7 +168,8 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
     // who reads a tip and just keeps playing produced no funnel data.
     // This event exposes per-step display drop-off so we can see which
     // steps players actually reach without depending on click-through.
-    if (activeStepId !== step.id) {
+    if (!stepShownTelemetry.has(step.id)) {
+      stepShownTelemetry.add(step.id);
       emitTelemetry('tutorial_step_shown', { step: step.id });
     }
 
@@ -258,7 +268,9 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
   const reset = (): void => {
     completed = false;
     shownSteps = new Set<string>();
+    stepShownTelemetry = new Set<string>();
     activeStepId = null;
+    tutorialStartTime = null;
     try {
       storage?.removeItem(STORAGE_KEY);
     } catch {

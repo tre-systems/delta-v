@@ -95,18 +95,17 @@ export const attachLocalGameSessionPersistence = (
   ctx: LocalSessionPersistenceContext,
   now: () => number = () => Date.now(),
 ): Dispose => {
-  let isFirstRun = true;
+  // Only a session that actually ran a local game may delete the stored
+  // save. Without this guard, booting into any non-local surface (a
+  // friend's ?code= invite, spectating, an archived replay link) would
+  // silently destroy an in-progress local campaign save.
+  let hadActiveLocalGame = false;
 
   return effect(() => {
     const isLocalGame = ctx.isLocalGameSignal.value;
     const clientState = ctx.stateSignal.value;
     const gameState = ctx.gameStateSignal.value;
     const playerId = ctx.playerIdSignal.value;
-    const isInitialBlankState =
-      !isLocalGame &&
-      gameState === null &&
-      clientState === 'menu' &&
-      playerId === -1;
 
     if (
       !isLocalGame ||
@@ -115,17 +114,18 @@ export const attachLocalGameSessionPersistence = (
       clientState === 'gameOver' ||
       (playerId !== 0 && playerId !== 1)
     ) {
-      if (isFirstRun && isInitialBlankState) {
-        isFirstRun = false;
-        return;
+      // Legitimate deletion: a local game ran this session and has now
+      // completed (gameOver) or been deliberately left (back to menu, or
+      // into a network game). A session that never went local leaves the
+      // save untouched.
+      if (hadActiveLocalGame) {
+        hadActiveLocalGame = false;
+        deleteStoredLocalGameSession(storage);
       }
-
-      isFirstRun = false;
-      deleteStoredLocalGameSession(storage);
       return;
     }
 
-    isFirstRun = false;
+    hadActiveLocalGame = true;
     saveStoredLocalGameSession(storage, {
       version: 1,
       scenario: ctx.scenario,

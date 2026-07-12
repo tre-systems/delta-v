@@ -256,6 +256,15 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         );
         const payload = (await response.json()) as QuickMatchResponse;
 
+        // Re-check ticket ownership after the awaits: acceptOfficialBotMatch
+        // (or a cancel) can resolve this ticket while the poll fetch is in
+        // flight. The losing path must not track or connect — a duplicate
+        // connect() replaces the live socket, and the replaced socket's
+        // close skips session-quality flushing.
+        if (quickMatchTicket !== ticket) {
+          return;
+        }
+
         if (payload.status === 'matched') {
           connectQuickMatch(payload);
           return;
@@ -281,6 +290,12 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         });
         trackOfficialBotOfferShown(payload);
       } catch (err) {
+        // The ticket may have been resolved (connected or cancelled) while
+        // this fetch was failing; the stale poller must not kick the user
+        // back to the menu or release someone else's ticket.
+        if (quickMatchTicket !== ticket) {
+          return;
+        }
         releaseQuickMatch();
         const failureKind = classifySessionRequestFailure(err);
         deps.track('quick_match_failed', {
@@ -651,6 +666,11 @@ export const createSessionApi = (deps: SessionApiDeps) => {
   // No-op when there's no active quick-match ticket.
   const acceptOfficialBotMatch = async (): Promise<void> => {
     if (quickMatchTicket === null || quickMatchPlayerKey === null) return;
+    // Single-flight guard: the background poller can find a match while
+    // this accept request is in flight (and vice versa). Whichever path
+    // connects first releases the ticket; the loser re-checks ownership
+    // after each await and bails without tracking or connecting again.
+    const ticket = quickMatchTicket;
     const player = deps.playerProfile.getProfile();
     deps.track('quick_match_official_bot_accepted', {
       scenario: QUICK_MATCH_SCENARIO,
@@ -665,11 +685,17 @@ export const createSessionApi = (deps: SessionApiDeps) => {
           acceptOfficialBotMatch: true,
         }),
       });
+      if (quickMatchTicket !== ticket) {
+        return;
+      }
       if (!response.ok) {
         deps.showToast(TOAST.session.quickMatchUnavailable, 'error');
         return;
       }
       const payload = (await response.json()) as QuickMatchResponse;
+      if (quickMatchTicket !== ticket) {
+        return;
+      }
       if (payload.status === 'matched') {
         connectQuickMatch(payload);
         return;
@@ -687,6 +713,11 @@ export const createSessionApi = (deps: SessionApiDeps) => {
         trackOfficialBotOfferShown(payload);
       }
     } catch (err) {
+      // If the poller already resolved this ticket, the failed accept
+      // request is moot — do not surface an error for a game we joined.
+      if (quickMatchTicket !== ticket) {
+        return;
+      }
       const failureKind = classifySessionRequestFailure(err);
       deps.track('quick_match_failed', {
         scenario: QUICK_MATCH_SCENARIO,

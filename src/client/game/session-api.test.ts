@@ -328,4 +328,107 @@ describe('session-api telemetry', () => {
       ),
     ).toHaveLength(1);
   });
+
+  const queuedResponse = () =>
+    Response.json({
+      status: 'queued',
+      ticket: 'ticket-1',
+      scenario: 'duel',
+      officialBotOfferAvailable: true,
+      officialBotWaitMsRemaining: 0,
+    });
+
+  const matchedResponse = () =>
+    Response.json({
+      status: 'matched',
+      ticket: 'ticket-1',
+      scenario: 'duel',
+      code: 'ABCDE',
+      playerToken: 'player-token-1',
+    });
+
+  const createRaceDeps = () => {
+    const { deps, fetchImpl, track } = createDeps();
+    deps.quickMatchLock = {
+      claim: vi.fn(() => ({ ok: true as const })),
+      heartbeat: vi.fn(),
+      release: vi.fn(),
+    };
+    // Mirror setState into ctx.state so the poller's waitingForOpponent
+    // check sees the real client state, as it does in production.
+    vi.mocked(deps.setState).mockImplementation((state) => {
+      deps.ctx.state = state;
+    });
+    return { deps, fetchImpl, track };
+  };
+
+  it('connects once when accepting the Official Bot while a poll is in flight', async () => {
+    vi.useFakeTimers();
+    const { deps, fetchImpl, track } = createRaceDeps();
+
+    let resolvePoll: (response: Response) => void = () => {};
+    fetchImpl
+      // startQuickMatch POST -> queued with a ticket.
+      .mockResolvedValueOnce(queuedResponse())
+      // First poll GET hangs mid-flight while the user clicks the button.
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolvePoll = resolve;
+          }),
+      )
+      // acceptOfficialBotMatch POST -> matched.
+      .mockResolvedValueOnce(matchedResponse());
+
+    const api = createSessionApi(deps);
+    await api.startQuickMatch();
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    await api.acceptOfficialBotMatch();
+    expect(deps.connect).toHaveBeenCalledTimes(1);
+
+    // The stale poll now resolves as matched; the losing path must not
+    // track or connect a second socket.
+    resolvePoll(matchedResponse());
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(deps.connect).toHaveBeenCalledTimes(1);
+    expect(
+      track.mock.calls.filter(([event]) => event === 'quick_match_found'),
+    ).toHaveLength(1);
+  });
+
+  it('does not connect twice when the poll matches while the Official Bot accept is in flight', async () => {
+    vi.useFakeTimers();
+    const { deps, fetchImpl, track } = createRaceDeps();
+
+    let resolveAccept: (response: Response) => void = () => {};
+    fetchImpl
+      // startQuickMatch POST -> queued with a ticket.
+      .mockResolvedValueOnce(queuedResponse())
+      // acceptOfficialBotMatch POST hangs mid-flight.
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveAccept = resolve;
+          }),
+      )
+      // Poll GET -> matched wins the race.
+      .mockResolvedValueOnce(matchedResponse());
+
+    const api = createSessionApi(deps);
+    await api.startQuickMatch();
+
+    const acceptPromise = api.acceptOfficialBotMatch();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(deps.connect).toHaveBeenCalledTimes(1);
+
+    resolveAccept(matchedResponse());
+    await acceptPromise;
+
+    expect(deps.connect).toHaveBeenCalledTimes(1);
+    expect(
+      track.mock.calls.filter(([event]) => event === 'quick_match_found'),
+    ).toHaveLength(1);
+  });
 });

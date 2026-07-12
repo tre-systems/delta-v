@@ -147,4 +147,40 @@ describe('local-session-store', () => {
 
     dispose();
   });
+
+  it('keeps a stored local save when the session only runs a non-local game', () => {
+    const storage = createStorage();
+    const snapshot = createSnapshot();
+    saveStoredLocalGameSession(storage, snapshot);
+
+    const ctx = {
+      isLocalGameSignal: signal(false),
+      stateSignal: signal<'menu' | 'playing_astrogation' | 'gameOver'>('menu'),
+      gameStateSignal: signal<typeof snapshot.gameState | null>(null),
+      playerIdSignal: signal<0 | 1 | -1>(-1),
+      scenario: 'duel',
+      aiDifficulty: 'hard' as const,
+    };
+
+    const dispose = attachLocalGameSessionPersistence(storage, ctx, () => 999);
+
+    // Boot straight into a network game (a friend's ?code= invite or a
+    // shared replay link) without ever starting a local game.
+    ctx.playerIdSignal.value = 0;
+    ctx.gameStateSignal.value = snapshot.gameState;
+    ctx.stateSignal.value = 'playing_astrogation';
+
+    expect(loadStoredLocalGameSession(storage)).toEqual(snapshot);
+
+    // Finishing that network game and returning to the menu must not
+    // delete the local save either.
+    ctx.stateSignal.value = 'gameOver';
+    ctx.gameStateSignal.value = null;
+    ctx.playerIdSignal.value = -1;
+    ctx.stateSignal.value = 'menu';
+
+    expect(loadStoredLocalGameSession(storage)).toEqual(snapshot);
+
+    dispose();
+  });
 });
