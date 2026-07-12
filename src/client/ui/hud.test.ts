@@ -481,6 +481,7 @@ describe('ui hud helpers', () => {
     ).toMatchObject({
       fuelGaugeText: 'Fuel: 10/10 · Stay landed · 0 fuel',
       confirmLabel: 'STAY LANDED',
+      skipShipLabel: 'STAY LANDED',
     });
   });
 

@@ -435,7 +435,11 @@ export const buildHUDView = (input: HUDInput): HUDView => {
           : isMobile
             ? 'DRIFT (NO BURN)'
             : 'DRIFT WITHOUT BURNING',
-    skipShipLabel: isMobile ? 'DRIFT SHIP' : 'DRIFT THIS SHIP',
+    skipShipLabel: astrogationCtx.selectedShipLanded
+      ? 'STAY LANDED'
+      : isMobile
+        ? 'DRIFT SHIP'
+        : 'DRIFT THIS SHIP',
     landFromOrbit:
       isMyTurn &&
       phase === 'astrogation' &&
