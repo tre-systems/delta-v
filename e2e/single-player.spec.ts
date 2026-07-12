@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+  dismissScenarioBriefingIfPresent,
   launchSinglePlayerScenario,
   openHelpOverlay,
   openHomePage,
@@ -31,6 +32,47 @@ test.describe('single-player smoke tests', () => {
     await expect(page.locator('[data-testid="tutorialTip"]')).toBeVisible();
     await page.click('[data-testid="tutorialSkipBtn"]');
     await waitForDisplay(page, '[data-testid="tutorialTip"]', 'none');
+  });
+
+  test('Training Flight resets guidance and explains the plotted course', async ({
+    page,
+  }) => {
+    await openHomePage(page, { tutorialDone: true });
+    await page.click('[data-testid="singlePlayerBtn"]');
+    await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
+
+    await expect(page.locator('[data-training-flight="true"]')).toContainText(
+      'Recommended first mission',
+    );
+    await expect(page.locator('.scenario-group-title')).toHaveText([
+      'Start Here',
+      'Learn Combat',
+      'Advanced Missions',
+      'Fleet Command',
+    ]);
+
+    await page.click('[data-training-flight="true"]');
+    await waitForDisplay(page, '[data-testid="hud"]', 'block');
+    await dismissScenarioBriefingIfPresent(page);
+
+    await expect(page.locator('[data-testid="tutorialTip"]')).toBeVisible();
+    await expect(page.locator('[data-testid="tutorialTip"]')).toContainText(
+      'Choose a numbered burn circle',
+    );
+    await expect(page.locator('[data-testid="fuelGauge"]')).toContainText(
+      'Stay landed · 0 fuel',
+    );
+    await expect(page.locator('[data-testid="confirmBtn"]')).toContainText(
+      'STAY LANDED',
+    );
+
+    await page.keyboard.press('1');
+    await expect(page.locator('[data-testid="fuelGauge"]')).toContainText(
+      'Burn · −1 fuel · next speed 1',
+    );
+    await expect(page.locator('[data-testid="confirmBtn"]')).toContainText(
+      'CONFIRM COURSE',
+    );
   });
 
   test('can select a ship, queue a burn, and confirm the first turn', async ({
@@ -70,6 +112,58 @@ test.describe('single-player smoke tests', () => {
     await expect(page.locator('[data-testid="helpOverlay"]')).toContainText(
       'Tap arrow',
     );
+  });
+
+  test('keeps the guided mission picker inside a narrow phone viewport', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await openHomePage(page, { tutorialDone: true });
+    await page.click('[data-testid="singlePlayerBtn"]');
+    await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
+
+    const layout = await page.evaluate(() => {
+      const list = document.getElementById('scenarioList');
+      const training = document.querySelector('[data-training-flight="true"]');
+      if (
+        !(list instanceof HTMLElement) ||
+        !(training instanceof HTMLElement)
+      ) {
+        return null;
+      }
+      const card = training.getBoundingClientRect();
+      return {
+        listFits: list.scrollWidth <= list.clientWidth,
+        cardLeft: card.left,
+        cardRight: card.right,
+        viewportWidth: window.innerWidth,
+      };
+    });
+
+    expect(layout).not.toBeNull();
+    expect(layout?.listFits).toBe(true);
+    expect(layout?.cardLeft ?? -1).toBeGreaterThanOrEqual(0);
+    expect(layout?.cardRight ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(
+      layout?.viewportWidth ?? 0,
+    );
+  });
+
+  test('keeps a plotted course summary readable on mobile', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await launchSinglePlayerScenario(page, 'biplanetary', {
+      tutorialDone: true,
+    });
+
+    await page.keyboard.press('1');
+    const gauge = page.locator('[data-testid="fuelGauge"]');
+    await expect(gauge).toContainText('Burn · −1 fuel · next speed 1');
+
+    const bounds = await gauge.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(375);
   });
 
   test('fleet building can return to the menu before launch', async ({

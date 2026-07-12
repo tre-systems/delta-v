@@ -33,6 +33,7 @@ export const buildHudChromeInputFromViewModel = (
   queuedCombatAttackCount: hud.queuedCombatAttackCount,
   speed: hud.speed,
   fuelToStop: hud.fuelToStop,
+  courseSummary: hud.courseSummary,
   combatHudHint: hud.combatTargetLabel,
   combatAttackImpossible: hud.combatAttackImpossible,
   statusOverrideText:

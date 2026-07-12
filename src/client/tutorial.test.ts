@@ -20,13 +20,13 @@ describe('tutorial', () => {
     renderTutorialDom();
   });
 
-  it('uses scenario-neutral welcome copy for the first astrogation tip', () => {
+  it('opens with one immediate, scenario-neutral instruction', () => {
     const tutorial = createTutorial();
 
     tutorial.onPhaseChange('astrogation', 1);
 
     expect(document.getElementById('tutorialTipText')?.textContent).toBe(
-      'Welcome! Your ship will coast to the end of the dashed drift arrow. Choose one of the 6 numbered burn circles around that point, then Confirm. Burns cost 1 fuel and velocity carries into later turns.',
+      'Your ship is selected. Choose a numbered burn circle to change its dashed route.',
     );
 
     tutorial.dispose();
@@ -66,16 +66,16 @@ describe('tutorial', () => {
 
     tutorial.onPhaseChange('ordnance', 1);
     expect(document.getElementById('tutorialTipText')?.textContent).toContain(
-      'Ordnance is optional.',
+      'launch ordnance',
     );
     document.getElementById('tutorialNextBtn')?.click();
 
     tutorial.onPhaseChange('combat', 1);
     expect(document.getElementById('tutorialTipText')?.textContent).toContain(
-      'Combat is optional.',
+      'Select an enemy to see the odds.',
     );
     expect(document.getElementById('tutorialTipText')?.textContent).toContain(
-      'No damage possible',
+      'finish combat',
     );
     document.getElementById('tutorialNextBtn')?.click();
 
@@ -161,7 +161,7 @@ describe('tutorial', () => {
     reloadedSession.onPhaseChange('astrogation', 1);
 
     expect(document.getElementById('tutorialTipText')?.textContent).toContain(
-      'The dashed arrow shows where your ship will drift.',
+      'The course summary previews fuel, speed, and danger',
     );
     expect(window.localStorage.getItem('deltav_tutorial_progress')).toBe(
       '["welcome"]',

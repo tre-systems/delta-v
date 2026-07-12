@@ -94,6 +94,7 @@ type MainInteractionDeps = {
   >;
   mainNetworkDeps: MainNetworkDeps;
   setAIDifficulty: (difficulty: AIDifficulty) => void;
+  resetTutorial: () => void;
   exitToMenu: () => void;
   trackEvent: (event: string, props?: Record<string, unknown>) => void;
 };
@@ -124,6 +125,34 @@ const createCommandSessionRead = (
 export const createMainInteractionController = (
   deps: MainInteractionDeps,
 ): MainInteractionController => {
+  let comprehensionGameId: string | null = null;
+  const firstTurnActions = new Set<string>();
+
+  const trackFirstTurnAction = (action: string): void => {
+    const gameState = deps.ctx.gameStateSignal.peek();
+
+    if (!gameState || gameState.turnNumber !== 1) {
+      return;
+    }
+
+    const gameId = String(gameState.gameId);
+    if (gameId !== comprehensionGameId) {
+      comprehensionGameId = gameId;
+      firstTurnActions.clear();
+    }
+
+    if (firstTurnActions.has(action)) {
+      return;
+    }
+
+    firstTurnActions.add(action);
+    deps.trackEvent('first_turn_action', {
+      action,
+      scenario: gameState.scenario,
+      mode: deps.ctx.isLocalGame ? 'local' : 'multiplayer',
+    });
+  };
+
   const sendFleetReady = (purchases: FleetPurchase[]) => {
     const gameState = deps.ctx.gameStateSignal.peek();
     if (
@@ -199,7 +228,69 @@ export const createMainInteractionController = (
   };
 
   const dispatch = (cmd: GameCommand) => {
+    const gameStateBefore = deps.ctx.gameStateSignal.peek();
+    const clientStateBefore = deps.ctx.stateSignal.peek();
+    const selectedShipBefore = deps.ctx.planningState.selectedShipId;
+    const burnShipId =
+      cmd.type === 'setBurnDirection'
+        ? (cmd.shipId ?? selectedShipBefore)
+        : selectedShipBefore;
+    const burnBefore = burnShipId
+      ? deps.ctx.planningState.burns.get(burnShipId)
+      : undefined;
+
     dispatchGameCommand(commandRouterDeps, cmd);
+
+    if (
+      !gameStateBefore ||
+      gameStateBefore.turnNumber !== 1 ||
+      !clientStateBefore.startsWith('playing_')
+    ) {
+      return;
+    }
+
+    switch (cmd.type) {
+      case 'selectShip': {
+        const ship = gameStateBefore.ships.find(
+          (candidate) => candidate.id === cmd.shipId,
+        );
+        if (
+          ship?.owner === (deps.ctx.playerId as PlayerId) &&
+          deps.ctx.planningState.selectedShipId === cmd.shipId
+        ) {
+          trackFirstTurnAction('ship_selected');
+        }
+        return;
+      }
+      case 'setBurnDirection':
+        if (
+          cmd.direction !== null &&
+          burnShipId &&
+          deps.ctx.planningState.burns.get(burnShipId) !== burnBefore
+        ) {
+          trackFirstTurnAction('burn_planned');
+        }
+        return;
+      case 'undoBurn':
+        if (
+          selectedShipBefore &&
+          burnBefore !== undefined &&
+          deps.ctx.planningState.burns.get(selectedShipBefore) === undefined
+        ) {
+          trackFirstTurnAction('undo_used');
+        }
+        return;
+      case 'toggleHelp':
+        trackFirstTurnAction('help_opened');
+        return;
+      case 'confirmOrders':
+        if (clientStateBefore === 'playing_astrogation' && deps.ctx.transport) {
+          trackFirstTurnAction('orders_confirmed');
+        }
+        return;
+      default:
+        return;
+    }
   };
 
   const handleInput = (event: InputEvent) => {
@@ -280,7 +371,11 @@ export const createMainInteractionController = (
           scenario: plan.scenario,
           from: 'ai',
           difficulty: plan.difficulty,
+          ...(plan.training ? { entry: 'training' } : {}),
         });
+        if (plan.training) {
+          deps.resetTutorial();
+        }
         deps.setAIDifficulty(plan.difficulty);
         startLocalGameFromMain(deps.mainNetworkDeps, plan.scenario);
         return;

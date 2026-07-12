@@ -82,6 +82,8 @@ export interface HudViewModel {
   multipleShipsAlive: boolean;
   speed: number;
   fuelToStop: number;
+  /** Compact preview of the selected ship's currently plotted course. */
+  courseSummary: string | null;
   launchMineState: OrdnanceActionState;
   launchTorpedoState: OrdnanceActionState;
   launchNukeState: OrdnanceActionState;

@@ -26,6 +26,69 @@ import type { HudPlanningSnapshot } from './planning';
 import { getSelectedShip } from './selection';
 import type { HudViewModel, OrdnanceActionState } from './types';
 
+const buildCourseSummary = (
+  state: GameState,
+  selectedShip: ReturnType<typeof getSelectedShip>,
+  planning: HudPlanningSnapshot,
+  map?: SolarSystemMap | null,
+): string | null => {
+  if (!selectedShip || !map || state.phase !== 'astrogation') return null;
+
+  const burn = planning.burns.get(selectedShip.id) ?? null;
+  const overload = planning.overloads.get(selectedShip.id) ?? null;
+  const landingSet = planning.landingShips.has(selectedShip.id);
+  const course = computeCourse(selectedShip, burn, map, {
+    overload,
+    weakGravityChoices: planning.weakGravityChoices.get(selectedShip.id) ?? {},
+    destroyedBases: state.destroyedBases,
+    land: landingSet,
+  });
+
+  if (
+    selectedShip.lifecycle === 'landed' &&
+    burn === null &&
+    overload === null &&
+    !landingSet
+  ) {
+    return 'Stay landed · 0 fuel';
+  }
+
+  const action =
+    selectedShip.damage.disabledTurns > 0
+      ? 'Forced drift'
+      : landingSet && course.outcome === 'landing'
+        ? 'Land'
+        : course.fuelSpent === 2
+          ? 'Overload'
+          : course.fuelSpent === 1
+            ? 'Burn'
+            : 'Coast';
+  const fuelCost =
+    course.fuelSpent === 0 ? '0 fuel' : `\u2212${course.fuelSpent} fuel`;
+  const speed = hexVecLength(course.newVelocity);
+  const leavesMap =
+    course.destination.q < map.bounds.minQ ||
+    course.destination.q > map.bounds.maxQ ||
+    course.destination.r < map.bounds.minR ||
+    course.destination.r > map.bounds.maxR;
+  const outcome =
+    course.outcome === 'crash'
+      ? `CRASH: ${course.crashBody}`
+      : course.outcome === 'landing'
+        ? selectedShip.lifecycle === 'landed' && course.fuelSpent === 0
+          ? 'Landed'
+          : `Land at ${course.landedAt}`
+        : leavesMap
+          ? 'Leaves map'
+          : course.enteredGravityEffects.some((effect) => !effect.ignored)
+            ? 'Gravity next turn'
+            : null;
+
+  return [action, fuelCost, `next speed ${speed}`, outcome]
+    .filter((part): part is string => part !== null)
+    .join(' \u00b7 ');
+};
+
 export const getObjective = (
   state: GameState,
   playerId: PlayerId | -1,
@@ -398,6 +461,7 @@ export const deriveHudViewModel = (
     multipleShipsAlive: myShips.filter(isOrderableShip).length > 1,
     speed: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
     fuelToStop: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
+    courseSummary: buildCourseSummary(state, selectedShip, planning, map),
     launchMineState: getOrdnanceActionState(
       state,
       selectedShip,

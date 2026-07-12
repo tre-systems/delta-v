@@ -92,7 +92,11 @@ const createController = () => {
     | 'playing_movementAnim' = 'playing_astrogation';
   let currentGameState = { gameId: asGameId('GAME1') } as object | null;
   const transport = createTransport();
-  const planningState = { id: 'planning-state' };
+  const planningState = {
+    id: 'planning-state',
+    selectedShipId: null as string | null,
+    burns: new Map<string, number | null>(),
+  };
   const mainNetworkDeps = { id: 'network-deps' } as unknown as MainNetworkDeps;
   const ctx = {
     stateSignal: { peek: vi.fn(() => currentState) },
@@ -146,6 +150,7 @@ const createController = () => {
     cancelQuickMatch: vi.fn(),
   };
   const setAIDifficulty = vi.fn();
+  const resetTutorial = vi.fn();
   const exitToMenu = vi.fn();
   const trackEvent = vi.fn();
 
@@ -165,6 +170,7 @@ const createController = () => {
     sessionApi,
     mainNetworkDeps,
     setAIDifficulty,
+    resetTutorial,
     exitToMenu,
     trackEvent,
   };
@@ -197,6 +203,58 @@ const createController = () => {
 describe('main-interactions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.dispatchGameCommand.mockReset();
+  });
+
+  it('emits deduplicated first-turn comprehension milestones after successful commands', () => {
+    const { controller, deps, planningState, setGameState } =
+      createController();
+    setGameState({
+      gameId: asGameId('GAME1'),
+      turnNumber: 1,
+      scenario: 'biplanetary',
+      ships: [{ id: 'ship-0', owner: 0 }],
+    });
+    mocks.dispatchGameCommand.mockImplementation((_routerDeps, command) => {
+      if (command.type === 'selectShip') {
+        planningState.selectedShipId = command.shipId;
+      }
+      if (command.type === 'setBurnDirection' && command.direction !== null) {
+        planningState.burns.set(
+          command.shipId ?? planningState.selectedShipId ?? '',
+          command.direction,
+        );
+      }
+      if (command.type === 'undoBurn' && planningState.selectedShipId) {
+        planningState.burns.delete(planningState.selectedShipId);
+      }
+    });
+
+    controller.dispatch({ type: 'selectShip', shipId: 'ship-0' });
+    controller.dispatch({ type: 'selectShip', shipId: 'ship-0' });
+    controller.dispatch({ type: 'setBurnDirection', direction: 2 });
+    controller.dispatch({ type: 'undoBurn' });
+    controller.dispatch({ type: 'toggleHelp' });
+    controller.dispatch({ type: 'toggleHelp' });
+    controller.dispatch({ type: 'confirmOrders' });
+
+    expect(
+      deps.trackEvent.mock.calls
+        .filter(([event]) => event === 'first_turn_action')
+        .map(([, props]) => props),
+    ).toEqual(
+      [
+        'ship_selected',
+        'burn_planned',
+        'undo_used',
+        'help_opened',
+        'orders_confirmed',
+      ].map((action) => ({
+        action,
+        scenario: 'biplanetary',
+        mode: 'multiplayer',
+      })),
+    );
   });
 
   it('builds live command-router deps and fleet-ready callbacks', () => {
@@ -350,6 +408,36 @@ describe('main-interactions', () => {
       'ROOM2',
     );
     expect(deps.ui.overlay.showToast).toHaveBeenCalledWith('Saved', 'info');
+  });
+
+  it('resets tutorial progress before starting a training flight', () => {
+    const { controller, deps, mainNetworkDeps } = createController();
+    mocks.resolveUIEventPlan.mockReturnValueOnce({
+      kind: 'startSinglePlayer',
+      scenario: 'biplanetary',
+      difficulty: 'easy',
+      training: true,
+    });
+
+    controller.handleUIEvent({
+      type: 'startSinglePlayer',
+      scenario: 'biplanetary',
+      difficulty: 'easy',
+      training: true,
+    });
+
+    expect(deps.resetTutorial).toHaveBeenCalledOnce();
+    expect(deps.trackEvent).toHaveBeenCalledWith('scenario_selected', {
+      scenario: 'biplanetary',
+      from: 'ai',
+      difficulty: 'easy',
+      entry: 'training',
+    });
+    expect(deps.setAIDifficulty).toHaveBeenCalledWith('easy');
+    expect(mocks.startLocalGameFromMain).toHaveBeenCalledWith(
+      mainNetworkDeps,
+      'biplanetary',
+    );
   });
 
   it('routes UI event plans to session, replay, chat, tracking, and commands', async () => {

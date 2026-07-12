@@ -10,7 +10,13 @@ export type UIEvent =
   | { type: 'cancelQuickMatch' }
   | { type: 'acceptOfficialBotMatch' }
   | { type: 'selectScenario'; scenario: string }
-  | { type: 'startSinglePlayer'; scenario: string; difficulty: AIDifficulty }
+  | {
+      type: 'startSinglePlayer';
+      scenario: string;
+      difficulty: AIDifficulty;
+      /** Replays the guided first-flight tutorial for this local match. */
+      training?: true;
+    }
   | { type: 'join'; code: string; playerToken?: string | null }
   // In-game actions
   | { type: 'undo' }

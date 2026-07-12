@@ -11,6 +11,7 @@ export type UIEventPlan =
       kind: 'startSinglePlayer';
       scenario: string;
       difficulty: AIDifficulty;
+      training?: true;
     }
   | { kind: 'joinGame'; code: string; playerToken: string | null }
   | { kind: 'command'; command: GameCommand }
@@ -40,6 +41,7 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
         kind: 'startSinglePlayer',
         scenario: event.scenario,
         difficulty: event.difficulty,
+        ...(event.training ? { training: true as const } : {}),
       };
     case 'join':
       return {

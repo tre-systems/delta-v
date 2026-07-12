@@ -937,6 +937,67 @@
   margin: -0.6rem;
 }
 
+.scenario-intro {
+  margin: -0.35rem 0 0.25rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.scenario-training,
+.scenario-group {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+}
+
+.scenario-group {
+  gap: 0.45rem;
+  padding-top: 0.15rem;
+}
+
+.scenario-group-title {
+  margin: 0;
+  color: #f7fbff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.scenario-group-description {
+  margin: 0;
+  color: rgba(180, 198, 226, 0.88);
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  line-height: 1.4;
+}
+
+.scenario-group-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.btn-training-flight {
+  --btn-border: rgba(109, 255, 202, 0.42);
+  --btn-border-hover: rgba(109, 255, 202, 0.78);
+  --btn-bg: rgba(45, 187, 137, 0.1);
+  --btn-bg-hover: rgba(45, 187, 137, 0.16);
+  box-shadow: 0 0 24px rgba(45, 187, 137, 0.08);
+}
+
+.scenario-recommendation {
+  margin-bottom: 0.45rem;
+  color: #6dffca;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 #scenarioList::-webkit-scrollbar {
   display: none;
 }

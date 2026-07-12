@@ -334,11 +334,13 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
         !hideActions && hudView.skipShipVisible,
         HUD_ACTION_BUTTON_DISPLAY,
       );
+      setBtnLabel(skipShipBtn, hudView.skipShipLabel);
       visible(
         confirmBtn,
         !hideActions && hudView.confirmVisible,
         HUD_ACTION_BUTTON_DISPLAY,
       );
+      setBtnLabel(confirmBtn, hudView.confirmLabel);
       visible(
         landFromOrbitBtn,
         !hideActions && hudView.landFromOrbit.visible,
@@ -558,7 +560,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
         !hideActions && fireButton.isVisible,
         HUD_ACTION_BUTTON_DISPLAY,
       );
-      setBtnLabel(fireBtn, 'END COMBAT');
+      setBtnLabel(fireBtn, 'FINISH COMBAT');
       fireBtn.className = 'btn btn-skip';
     });
 

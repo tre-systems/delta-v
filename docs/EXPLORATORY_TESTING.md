@@ -797,11 +797,15 @@ npx wrangler d1 execute delta-v-telemetry --remote --json --command \
           OR props LIKE '%\"bKey\":\"%'
           OR props LIKE '%\"winnerKey\":\"%');"
 
-# Tutorial funnel — drop-off across the steps
+# First-match comprehension funnel — exposure, actions, and completion
 npx wrangler d1 execute delta-v-telemetry --remote --json --command \
-  "SELECT event, COUNT(*) AS n FROM events
-   WHERE event IN ('tutorial_started','tutorial_step_shown','tutorial_completed','tutorial_skipped','tutorial_open_help')
-   GROUP BY event ORDER BY n DESC;"
+  "SELECT event, COALESCE(json_extract(props,'\$.action'), '<none>') AS action,
+          COUNT(*) AS n
+   FROM events
+   WHERE event IN ('tutorial_started','tutorial_step_shown','tutorial_completed',
+                   'tutorial_skipped','tutorial_open_help','first_turn_action',
+                   'first_turn_completed')
+   GROUP BY event, action ORDER BY event, n DESC;"
 
 # Top error / quality events
 npx wrangler d1 execute delta-v-telemetry --remote --json --command \

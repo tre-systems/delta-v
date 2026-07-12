@@ -87,6 +87,7 @@ const buildInput = (
   },
   speed: 0,
   fuelToStop: 0,
+  courseSummary: null,
   ...overrides,
 });
 
@@ -302,7 +303,7 @@ describe('HUDChromeView', () => {
 
     view.showFireButton(true, 3);
     const fireBtn = document.getElementById('fireBtn') as HTMLElement;
-    expect(fireBtn.textContent).toBe('END COMBAT');
+    expect(fireBtn.textContent).toBe('FINISH COMBAT');
     expect(fireBtn.style.display).toBe('inline-flex');
 
     view.update(

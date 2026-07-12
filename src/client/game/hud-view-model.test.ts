@@ -135,6 +135,43 @@ describe('game-client-hud-view-model fleet progress', () => {
   });
 });
 
+describe('game-client-hud-view-model course summary', () => {
+  it('keeps an unchanged landed course concise', () => {
+    const ship = createShip({ lifecycle: 'landed' });
+    const planning = createPlanningStore();
+    planning.selectShip(ship.id);
+
+    const hud = deriveHudViewModel(createState(ship), 0, planning, map);
+
+    expect(hud.courseSummary).toBe('Stay landed · 0 fuel');
+  });
+
+  it('summarizes the selected burn using derived fuel and speed', () => {
+    const ship = createShip({ velocity: { dq: 1, dr: 0 } });
+    const planning = createPlanningStore();
+    planning.selectShip(ship.id);
+    planning.setShipBurn(ship.id, 0);
+
+    const hud = deriveHudViewModel(createState(ship), 0, planning, map);
+
+    expect(hud.courseSummary).toContain('Burn · −1 fuel · next speed 2');
+  });
+
+  it('calls out a plotted crash by body name', () => {
+    const terra = must(map.bodies.find((body) => body.name === 'Terra'));
+    const ship = createShip({
+      position: { q: terra.center.q - 3, r: terra.center.r },
+      velocity: { dq: 3, dr: 0 },
+    });
+    const planning = createPlanningStore();
+    planning.selectShip(ship.id);
+
+    const hud = deriveHudViewModel(createState(ship), 0, planning, map);
+
+    expect(hud.courseSummary).toContain('CRASH: Terra');
+  });
+});
+
 describe('game-client-hud-view-model combat guidance', () => {
   it('shows exact penalties and flags attacks that cannot damage', () => {
     const attacker = createShip({ position: { q: 0, r: 0 } });

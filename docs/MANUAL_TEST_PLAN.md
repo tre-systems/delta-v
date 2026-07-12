@@ -62,6 +62,10 @@ Skip this section when the release did not touch agent or MCP surfaces.
 
 Start from the menu without opening any docs. Within the first 10 s it should be obvious which ship is yours, the goal, and the next action. Finish turn 1 without guessing what CONFIRM will do. Make and recover from a deliberate mistake (wrong burn / selection) using in-game affordances (deselect, undo, help). After the AI turn, within 3 s you should know: objective, selected ship, next action, why the last event happened. Reach turn 3 without external explanation.
 
+Open **Play vs AI** and confirm **Training Flight** is the prominent recommended card above the staged mission groups. It must launch an Easy Bi-Planetary game, replay the tutorial even for a profile that previously completed it, label an unchanged takeoff plan **STAY LANDED**, and change to **CONFIRM COURSE** after a burn is plotted. The course summary must show fuel cost, resulting speed, and any known gravity, landing, map-exit, or crash outcome. Open **Create Private Match** separately and confirm Training Flight is absent there while all normal scenario groups remain available.
+
+Each tutorial tip should give one immediate instruction rather than a rules paragraph; the Help path owns the deeper explanation. For a first-turn telemetry spot-check, confirm `first_turn_action` emits each successful milestone at most once for the loaded match (`ship_selected`, `burn_planned`, `undo_used` / `help_opened` when used, and `orders_confirmed`), then confirm the existing `first_turn_completed` event follows when turn 1 actually rolls over.
+
 ## 2. Vector movement (Bi-Planetary)
 
 - **Velocity persists:** confirm a burn, then confirm with no burn — ship coasts at same velocity.

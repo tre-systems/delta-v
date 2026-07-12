@@ -63,44 +63,44 @@ const STEPS: TutorialStep[] = [
   {
     id: 'welcome',
     phase: 'astrogation',
-    text: 'Welcome! Your ship will coast to the end of the dashed drift arrow. Choose one of the 6 numbered burn circles around that point, then Confirm. Burns cost 1 fuel and velocity carries into later turns.',
+    text: 'Your ship is selected. Choose a numbered burn circle to change its dashed route.',
     mobileText:
-      'Welcome! Your ship will coast to the end of the dashed drift arrow. Tap one of the 6 numbered burn circles around that point, then Confirm. Burns cost 1 fuel and velocity carries into later turns.',
+      'Your ship is selected. Tap a numbered burn circle to change its dashed route.',
   },
   {
     id: 'select-ship',
     phase: 'astrogation',
-    text: 'Click your ship or press Tab to select it. The dashed arrow shows where your ship will drift. The 6 arrows around that point are your burn options — click one or press 1-6 to accelerate.',
+    text: "Choose this turn's burn. The course summary previews fuel, speed, and danger before you confirm.",
     mobileText:
-      'Tap your ship to select it. The dashed arrow shows where your ship will drift. The 6 arrows around that point are your burn options — tap one to accelerate.',
+      "Choose this turn's burn. The course summary previews fuel, speed, and danger before you confirm.",
   },
   {
     id: 'gravity',
     phase: 'astrogation',
-    text: 'Planets and the sun have gravity. Entering a gravity hex sets up a deflection on the following turn, which is how you can sling around planets and settle into orbit. The colored rings around bodies show those gravity fields.',
+    text: 'Watch the course preview near colored gravity rings. Gravity bends your route on the following turn.',
     minTurn: 2,
   },
   {
     id: 'fuel',
     phase: 'astrogation',
-    text: 'Each burn costs 1 fuel. You can also drift without burning (free). Your fuel gauge is at the top of the screen. Land at a friendly base to refuel and repair.',
+    text: 'Check your fuel before confirming. Drifting is free; each burn costs 1 fuel.',
     minTurn: 3,
   },
   {
     id: 'ordnance-intro',
     phase: 'ordnance',
-    text: 'Ordnance is optional. To boost a torpedo, click an adjacent hex first (click it again for ×2), then press TORPEDO. Pressing TORPEDO without choosing a boost launches it straight immediately. Use N=mine, T=torpedo, K=nuke.',
+    text: 'Select a ship that can launch ordnance—or skip this optional phase.',
     mobileText:
-      'Ordnance is optional. To boost a torpedo, tap an adjacent hex first (tap it again for ×2), then tap TORPEDO. Tapping TORPEDO without choosing a boost launches it straight immediately.',
+      'Tap a ship that can launch ordnance—or skip this optional phase.',
     once: true,
     completionOptional: true,
   },
   {
     id: 'combat-intro',
     phase: 'combat',
-    text: 'Combat is optional. Click an enemy ship or nuke to see the odds plus range and relative-speed penalties. If the HUD says “No damage possible,” choose another target or END COMBAT. Otherwise press ATTACK (or Enter) to fire.',
+    text: 'Select an enemy to see the odds. Fire if damage is possible, or finish combat.',
     mobileText:
-      'Combat is optional. Tap an enemy ship or nuke to see the odds plus range and relative-speed penalties. If the HUD says “No damage possible,” choose another target or END COMBAT. Otherwise tap ATTACK to fire.',
+      'Tap an enemy to see the odds. Fire if damage is possible, or finish combat.',
     once: true,
     completionOptional: true,
   },

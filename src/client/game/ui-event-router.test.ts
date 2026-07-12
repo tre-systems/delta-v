@@ -32,6 +32,20 @@ describe('game-client-ui-event-router', () => {
 
     expect(
       resolveUIEventPlan({
+        type: 'startSinglePlayer',
+        scenario: 'biplanetary',
+        difficulty: 'easy',
+        training: true,
+      }),
+    ).toEqual({
+      kind: 'startSinglePlayer',
+      scenario: 'biplanetary',
+      difficulty: 'easy',
+      training: true,
+    });
+
+    expect(
+      resolveUIEventPlan({
         type: 'join',
         code: 'ABCDE',
         playerToken: 'token',

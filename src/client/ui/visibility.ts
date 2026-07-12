@@ -35,4 +35,15 @@ export const applyUIVisibility = (
   visible(byId('soundBtn'), v.soundBtn !== 'none', v.soundBtn);
   visible(byId('exitGameBtn'), v.exitGameBtn !== 'none', v.exitGameBtn);
   visible(byId('helpOverlay'), v.helpOverlay !== 'none', v.helpOverlay);
+
+  const hudVisible = v.hud !== 'none';
+  document
+    .getElementById('hudBoardSummary')
+    ?.setAttribute('aria-hidden', String(!hudVisible));
+
+  if (!hudVisible) {
+    const phaseAlert = document.getElementById('phaseAlert');
+    phaseAlert?.classList.remove('active');
+    phaseAlert?.setAttribute('aria-hidden', 'true');
+  }
 };

@@ -34,6 +34,33 @@ import {
   type WaitingScreenState,
 } from './screens';
 
+const SCENARIO_PROGRESSION = [
+  {
+    id: 'start',
+    title: 'Start Here',
+    description: 'Learn the flight model in a short, focused race.',
+    scenarios: new Set(['biplanetary']),
+  },
+  {
+    id: 'combat',
+    title: 'Learn Combat',
+    description: 'Add weapons and interception to the movement rules.',
+    scenarios: new Set(['duel', 'blockade']),
+  },
+  {
+    id: 'missions',
+    title: 'Advanced Missions',
+    description: 'Apply navigation, asymmetric roles, and logistics.',
+    scenarios: new Set(['grandTour', 'escape', 'convoy']),
+  },
+  {
+    id: 'fleets',
+    title: 'Fleet Command',
+    description: 'Build and command multiple ships in long battles.',
+    scenarios: new Set(['fleetAction', 'interplanetaryWar']),
+  },
+] as const;
+
 export interface LobbyViewDeps {
   emit: (event: UIEvent) => void;
   showMenu: () => void;
@@ -250,7 +277,9 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
   };
 
   const bindScenarioList = () => {
-    for (const key of LOBBY_SCENARIO_DISPLAY_ORDER) {
+    const createScenarioButton = (
+      key: (typeof LOBBY_SCENARIO_DISPLAY_ORDER)[number],
+    ): HTMLButtonElement => {
       const def = SCENARIOS[key];
       const btn = document.createElement('button');
       btn.className = 'btn btn-scenario';
@@ -304,7 +333,71 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         lobbyMeta?.hook ? `${def.name}: ${lobbyMeta.hook}` : def.name,
       );
 
-      scenarioListEl.appendChild(btn);
+      return btn;
+    };
+
+    const trainingSection = document.createElement('section');
+    trainingSection.className = 'scenario-training';
+    trainingSection.dataset.trainingOnly = 'true';
+    trainingSection.setAttribute('aria-labelledby', 'trainingFlightTitle');
+
+    const trainingBtn = document.createElement('button');
+    trainingBtn.className = 'btn btn-scenario btn-training-flight';
+    trainingBtn.dataset.trainingFlight = 'true';
+    trainingBtn.setAttribute(
+      'aria-label',
+      'Training Flight: guided Easy mission, recommended for new pilots',
+    );
+    setTrustedHTML(
+      trainingBtn,
+      '<div class="scenario-recommendation">Recommended first mission</div>' +
+        '<div id="trainingFlightTitle" class="scenario-name">Training Flight</div>' +
+        '<div class="scenario-hook">Learn by flying, one step at a time.</div>' +
+        '<div class="scenario-desc">A guided Easy Bi-Planetary match. Replays the flight tutorial from the beginning.</div>' +
+        '<div class="scenario-meta">About 10 minutes · Movement basics · No fleet building</div>',
+    );
+    trainingSection.appendChild(trainingBtn);
+    scenarioListEl.appendChild(trainingSection);
+
+    const groupedKeys = new Set<string>();
+    for (const group of SCENARIO_PROGRESSION) {
+      const keys = LOBBY_SCENARIO_DISPLAY_ORDER.filter((key) =>
+        group.scenarios.has(key),
+      );
+      if (keys.length === 0) continue;
+
+      const section = document.createElement('section');
+      section.className = 'scenario-group';
+      section.dataset.progression = group.id;
+      section.setAttribute('aria-labelledby', `scenarioGroup-${group.id}`);
+
+      const heading = document.createElement('h3');
+      heading.id = `scenarioGroup-${group.id}`;
+      heading.className = 'scenario-group-title';
+      heading.textContent = group.title;
+      section.appendChild(heading);
+
+      const description = document.createElement('p');
+      description.className = 'scenario-group-description';
+      description.textContent = group.description;
+      section.appendChild(description);
+
+      const cards = document.createElement('div');
+      cards.className = 'scenario-group-cards';
+      for (const key of keys) {
+        groupedKeys.add(key);
+        cards.appendChild(createScenarioButton(key));
+      }
+      section.appendChild(cards);
+      scenarioListEl.appendChild(section);
+    }
+
+    // Preserve access if a new lobby scenario is added before its learning
+    // stage is assigned.
+    for (const key of LOBBY_SCENARIO_DISPLAY_ORDER) {
+      if (!groupedKeys.has(key)) {
+        scenarioListEl.appendChild(createScenarioButton(key));
+      }
     }
   };
 
@@ -395,7 +488,19 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
       const button = (event.target as HTMLElement).closest<HTMLElement>(
         '.btn-scenario',
       );
+      const trainingFlight = button?.dataset.trainingFlight === 'true';
       const scenario = button?.dataset.scenario;
+
+      if (trainingFlight && pendingAIGameSignal.peek()) {
+        pendingAIGameSignal.value = false;
+        deps.emit({
+          type: 'startSinglePlayer',
+          scenario: 'biplanetary',
+          difficulty: 'easy',
+          training: true,
+        });
+        return;
+      }
 
       if (!scenario) {
         return;
@@ -966,6 +1071,15 @@ export const createLobbyView = (deps: LobbyViewDeps): LobbyView => {
         cls(btn, 'active', on);
         btn.setAttribute('aria-checked', on ? 'true' : 'false');
         btn.tabIndex = on ? 0 : -1;
+      }
+    });
+
+    effect(() => {
+      const trainingSection = scenarioListEl.querySelector<HTMLElement>(
+        '[data-training-only="true"]',
+      );
+      if (trainingSection) {
+        trainingSection.hidden = !pendingAIGameSignal.value;
       }
     });
 

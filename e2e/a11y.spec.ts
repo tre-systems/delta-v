@@ -44,6 +44,17 @@ test.describe('accessibility smoke checks', () => {
     await runA11yCheck(page, ['[data-testid="waiting"]']);
   });
 
+  test('guided mission picker has labelled groups and no serious accessibility violations', async ({
+    page,
+  }) => {
+    await openHomePage(page);
+    await page.click('[data-testid="singlePlayerBtn"]');
+    await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
+
+    await expect(page.locator('.scenario-group')).toHaveCount(4);
+    await runA11yCheck(page, ['[data-testid="scenarioSelect"]']);
+  });
+
   test('in-game HUD and help overlay have no serious/critical DOM accessibility violations', async ({
     page,
   }) => {

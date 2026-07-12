@@ -24,6 +24,8 @@ export interface HUDView {
   undoVisible: boolean;
   skipShipVisible: boolean;
   confirmVisible: boolean;
+  confirmLabel: string;
+  skipShipLabel: string;
   launchMine: UIButtonView;
   launchTorpedo: UIButtonView;
   launchNuke: UIButtonView;
@@ -292,6 +294,8 @@ export interface HUDInput {
   astrogationCtx: AstrogationContext;
   speed: number;
   fuelToStop: number;
+  /** Selected ship's derived course, e.g. "Burn · −1 fuel · next speed 2". */
+  courseSummary: string | null;
   statusOverrideText?: string | null;
   /** Combat-only: label for keyboard-selected target (see `deriveHudViewModel`). */
   combatHudHint?: string | null;
@@ -329,6 +333,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     astrogationCtx,
     speed,
     fuelToStop,
+    courseSummary,
     isMobile,
     combatHudHint,
     combatAttackImpossible,
@@ -364,11 +369,13 @@ export const buildHUDView = (input: HUDInput): HUDView => {
           ? isMyTurn
             ? 'Select a ship'
             : 'No ship selected'
-          : speed > 0
-            ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 Speed ${speed} (${fuelToStop} to stop)`
-            : astrogationCtx.selectedShipLanded
-              ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 Landed`
-              : `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)}`,
+          : isMyTurn && phase === 'astrogation' && courseSummary
+            ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 ${courseSummary}`
+            : speed > 0
+              ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 Speed ${speed} (${fuelToStop} to stop)`
+              : astrogationCtx.selectedShipLanded
+                ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 Landed`
+                : `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)}`,
     statusText: !isMyTurn
       ? null
       : phase === 'astrogation'
@@ -386,14 +393,14 @@ export const buildHUDView = (input: HUDInput): HUDView => {
                     : '';
                 const hintPrefix = combatHudHint ? `${combatHudHint} · ` : '';
                 if (combatAttackImpossible) {
-                  return `${hintPrefix}Choose another target · END COMBAT`;
+                  return `${hintPrefix}Choose another target · FINISH COMBAT`;
                 }
                 return isMobile
                   ? astrogationCtx.hasSelection
-                    ? `${hintPrefix}Choose target \u00b7 ATTACK fires \u00b7 END COMBAT${queueSuffix}`
+                    ? `${hintPrefix}Choose target \u00b7 ATTACK fires \u00b7 FINISH COMBAT${queueSuffix}`
                     : `${hintPrefix}Select ship or target enemy${queueSuffix}`
                   : astrogationCtx.hasSelection
-                    ? `${hintPrefix}Choose target \u00b7 ATTACK/Enter fires \u00b7 END COMBAT${queueSuffix}`
+                    ? `${hintPrefix}Choose target \u00b7 ATTACK/Enter fires \u00b7 FINISH COMBAT${queueSuffix}`
                     : `${hintPrefix}Select ship or target enemy${queueSuffix}`;
               })()
             : phase === 'logistics'
@@ -414,6 +421,21 @@ export const buildHUDView = (input: HUDInput): HUDView => {
       phase === 'astrogation' &&
       (astrogationCtx.allShipsAcknowledged ||
         !astrogationCtx.multipleShipsAlive),
+    confirmLabel: astrogationCtx.multipleShipsAlive
+      ? isMobile
+        ? 'CONFIRM'
+        : 'CONFIRM COURSES'
+      : astrogationCtx.selectedShipLanded &&
+          !astrogationCtx.selectedShipHasBurn &&
+          !astrogationCtx.selectedShipLandingSet
+        ? 'STAY LANDED'
+        : astrogationCtx.selectedShipHasBurn ||
+            astrogationCtx.selectedShipLandingSet
+          ? 'CONFIRM COURSE'
+          : isMobile
+            ? 'DRIFT (NO BURN)'
+            : 'DRIFT WITHOUT BURNING',
+    skipShipLabel: isMobile ? 'DRIFT SHIP' : 'DRIFT THIS SHIP',
     landFromOrbit:
       isMyTurn &&
       phase === 'astrogation' &&

@@ -44,6 +44,7 @@ const buildInput = (overrides: Partial<HUDInput> = {}): HUDInput => ({
   astrogationCtx: defaultCtx,
   speed: 0,
   fuelToStop: 0,
+  courseSummary: null,
   isMobile: false,
   ...overrides,
 });
@@ -274,7 +275,8 @@ describe('ui hud helpers', () => {
       buildHUDView(buildInput({ turn: 5, phase: 'combat' })),
     ).toMatchObject({
       phaseText: 'COMBAT',
-      statusText: 'Choose target \u00b7 ATTACK/Enter fires \u00b7 END COMBAT',
+      statusText:
+        'Choose target \u00b7 ATTACK/Enter fires \u00b7 FINISH COMBAT',
       skipCombatVisible: false,
     });
 
@@ -288,7 +290,7 @@ describe('ui hud helpers', () => {
       ),
     ).toMatchObject({
       statusText:
-        'Choose target \u00b7 ATTACK/Enter fires \u00b7 END COMBAT \u00b7 2 attacks queued',
+        'Choose target \u00b7 ATTACK/Enter fires \u00b7 FINISH COMBAT \u00b7 2 attacks queued',
     });
 
     expect(
@@ -325,7 +327,7 @@ describe('ui hud helpers', () => {
       ),
     ).toMatchObject({
       statusText:
-        'Target: Frigate · Choose target \u00b7 ATTACK/Enter fires \u00b7 END COMBAT',
+        'Target: Frigate · Choose target \u00b7 ATTACK/Enter fires \u00b7 FINISH COMBAT',
     });
 
     expect(
@@ -340,7 +342,7 @@ describe('ui hud helpers', () => {
       ),
     ).toMatchObject({
       statusText:
-        'Target: Frigate · 1:1 · range −5 · speed −0 · No damage possible · Choose another target · END COMBAT',
+        'Target: Frigate · 1:1 · range −5 · speed −0 · No damage possible · Choose another target · FINISH COMBAT',
     });
   });
 
@@ -439,6 +441,71 @@ describe('ui hud helpers', () => {
     });
   });
 
+  it('puts the plotted course cost and result beside the current fuel', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          fuel: 8,
+          courseSummary: 'Burn · −1 fuel · next speed 2',
+        }),
+      ),
+    ).toMatchObject({
+      fuelGaugeText: 'Fuel: 8/10 · Burn · −1 fuel · next speed 2',
+      confirmLabel: 'DRIFT WITHOUT BURNING',
+    });
+
+    expect(
+      buildHUDView(
+        buildInput({
+          courseSummary: 'Burn · −1 fuel · next speed 2',
+          astrogationCtx: {
+            ...defaultCtx,
+            selectedShipHasBurn: true,
+          },
+        }),
+      ).confirmLabel,
+    ).toBe('CONFIRM COURSE');
+  });
+
+  it('labels an unchanged landed course without calling it a drift', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          courseSummary: 'Stay landed · 0 fuel',
+          astrogationCtx: {
+            ...defaultCtx,
+            selectedShipLanded: true,
+          },
+        }),
+      ),
+    ).toMatchObject({
+      fuelGaugeText: 'Fuel: 10/10 · Stay landed · 0 fuel',
+      confirmLabel: 'STAY LANDED',
+    });
+  });
+
+  it('uses outcome-oriented labels for fleet movement', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          astrogationCtx: {
+            ...defaultCtx,
+            multipleShipsAlive: true,
+            allShipsAcknowledged: true,
+          },
+        }),
+      ),
+    ).toMatchObject({
+      confirmLabel: 'CONFIRM COURSES',
+      skipShipLabel: 'DRIFT THIS SHIP',
+    });
+
+    expect(buildHUDView(buildInput({ isMobile: true }))).toMatchObject({
+      confirmLabel: 'DRIFT (NO BURN)',
+      skipShipLabel: 'DRIFT SHIP',
+    });
+  });
+
   it('prompts for a ship selection instead of showing empty fuel capacity', () => {
     expect(
       buildHUDView(
@@ -506,7 +573,7 @@ describe('ui hud helpers', () => {
 
     expect(
       buildHUDView(buildInput({ isMobile: true, phase: 'combat' })).statusText,
-    ).toBe('Choose target \u00b7 ATTACK fires \u00b7 END COMBAT');
+    ).toBe('Choose target \u00b7 ATTACK fires \u00b7 FINISH COMBAT');
 
     expect(
       buildHUDView(
@@ -517,7 +584,7 @@ describe('ui hud helpers', () => {
         }),
       ).statusText,
     ).toBe(
-      'Choose target \u00b7 ATTACK fires \u00b7 END COMBAT \u00b7 1 queued',
+      'Choose target \u00b7 ATTACK fires \u00b7 FINISH COMBAT \u00b7 1 queued',
     );
 
     expect(

@@ -253,7 +253,9 @@ describe('LobbyView', () => {
     expect(emit).toHaveBeenCalledWith({ type: 'browseScenarios' });
 
     const scenarioButtons = Array.from(
-      document.querySelectorAll<HTMLElement>('#scenarioList .btn-scenario'),
+      document.querySelectorAll<HTMLElement>(
+        '#scenarioList .btn-scenario[data-scenario]',
+      ),
     );
     expect(scenarioButtons.map((button) => button.dataset.scenario)).toEqual([
       ...LOBBY_SCENARIO_DISPLAY_ORDER,
@@ -283,6 +285,78 @@ describe('LobbyView', () => {
       scenario: scenarioButtons[1]?.dataset.scenario,
       difficulty: 'hard',
     });
+  });
+
+  it('offers a guided first mission only in single-player scenario browsing', () => {
+    const emit = vi.fn();
+    createLobbyView({
+      emit,
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot',
+      setPlayerName: (name) => name,
+      getPlayerKey: () => 'human_test',
+      resetPlayerIdentity: () => ({ username: 'Pilot' }),
+    });
+
+    const trainingSection = document.querySelector<HTMLElement>(
+      '[data-training-only="true"]',
+    );
+    expect(trainingSection?.hidden).toBe(true);
+
+    document.getElementById('singlePlayerBtn')?.click();
+    expect(trainingSection?.hidden).toBe(false);
+    expect(
+      document.querySelector('.scenario-recommendation')?.textContent,
+    ).toContain('Recommended first mission');
+
+    document
+      .querySelector<HTMLElement>('[data-training-flight="true"]')
+      ?.click();
+    expect(emit).toHaveBeenLastCalledWith({
+      type: 'startSinglePlayer',
+      scenario: 'biplanetary',
+      difficulty: 'easy',
+      training: true,
+    });
+  });
+
+  it('groups every visible scenario into a labelled learning stage', () => {
+    createLobbyView({
+      emit: vi.fn(),
+      showMenu: vi.fn(),
+      showScenarioSelect: vi.fn(),
+      showToast: vi.fn(),
+      toggleHelpOverlay: vi.fn(),
+      getPlayerName: () => 'Pilot',
+      setPlayerName: (name) => name,
+      getPlayerKey: () => 'human_test',
+      resetPlayerIdentity: () => ({ username: 'Pilot' }),
+    });
+
+    const groups = Array.from(
+      document.querySelectorAll<HTMLElement>('.scenario-group'),
+    );
+    expect(
+      groups.map((group) =>
+        group.querySelector('.scenario-group-title')?.textContent?.trim(),
+      ),
+    ).toEqual([
+      'Start Here',
+      'Learn Combat',
+      'Advanced Missions',
+      'Fleet Command',
+    ]);
+
+    const groupedScenarios = groups.flatMap((group) =>
+      Array.from(group.querySelectorAll<HTMLElement>('[data-scenario]')).map(
+        (button) => button.dataset.scenario,
+      ),
+    );
+    expect(groupedScenarios).toEqual([...LOBBY_SCENARIO_DISPLAY_ORDER]);
+    expect(document.querySelector('[data-scenario="evacuation"]')).toBeNull();
   });
 
   it('supports keyboard navigation in the difficulty radiogroup', () => {

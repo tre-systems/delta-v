@@ -335,6 +335,7 @@ export const createGameClient = () => {
     sessionApi,
     mainNetworkDeps: networkDeps,
     setAIDifficulty: (difficulty) => setAIDifficulty(ctx, difficulty),
+    resetTutorial: () => tutorial.reset(),
     exitToMenu,
     trackEvent: (event, props) => track(event, props),
   });
