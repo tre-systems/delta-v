@@ -250,12 +250,12 @@ const getOrdnanceStatusText = (input: HUDInput, isMobile: boolean): string => {
 
   if (summary.ready.length === 0) {
     segments.push(isMobile ? 'Press SKIP' : 'Press Skip (S)');
-  } else if (
-    !isMobile &&
-    launchTorpedoState.visible &&
-    !launchTorpedoState.disabled
-  ) {
-    segments.push('Torpedo boost uses an adjacent hex');
+  } else if (launchTorpedoState.visible && !launchTorpedoState.disabled) {
+    segments.push(
+      isMobile
+        ? 'Boost first: tap an adjacent hex; TORPEDO now launches straight'
+        : 'Boost first: click an adjacent hex; TORPEDO now launches straight',
+    );
   }
 
   return segments.join(' \u00b7 ');
@@ -293,6 +293,8 @@ export interface HUDInput {
   statusOverrideText?: string | null;
   /** Combat-only: label for keyboard-selected target (see `deriveHudViewModel`). */
   combatHudHint?: string | null;
+  /** True when even a natural 6 cannot damage the selected target. */
+  combatAttackImpossible?: boolean;
   suppressActionButtons?: boolean;
   isMobile: boolean;
 }
@@ -327,6 +329,7 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     fuelToStop,
     isMobile,
     combatHudHint,
+    combatAttackImpossible,
   } = input;
 
   const showOrdnance = isMyTurn && phase === 'ordnance';
@@ -376,6 +379,9 @@ export const buildHUDView = (input: HUDInput): HUDView => {
                       : ` \u00b7 ${q} attack${q === 1 ? '' : 's'} queued`
                     : '';
                 const hintPrefix = combatHudHint ? `${combatHudHint} · ` : '';
+                if (combatAttackImpossible) {
+                  return `${hintPrefix}Choose another target · END COMBAT`;
+                }
                 return isMobile
                   ? astrogationCtx.hasSelection
                     ? `${hintPrefix}Choose target \u00b7 ATTACK fires \u00b7 END COMBAT${queueSuffix}`

@@ -208,6 +208,24 @@ describe('ui hud helpers', () => {
     });
   });
 
+  it('warns that the torpedo button immediately launches straight', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          phase: 'ordnance',
+          launchTorpedoState: {
+            visible: true,
+            disabled: false,
+            title: '',
+          },
+        }),
+      ),
+    ).toMatchObject({
+      statusText:
+        'Ready: Torpedo · Boost first: click an adjacent hex; TORPEDO now launches straight',
+    });
+  });
+
   it('shows disabled ordnance reasons when the selected ship has no legal actions', () => {
     expect(
       buildHUDView(
@@ -283,6 +301,21 @@ describe('ui hud helpers', () => {
     ).toMatchObject({
       statusText:
         'Target: Frigate · Choose target \u00b7 ATTACK/Enter fires \u00b7 END COMBAT',
+    });
+
+    expect(
+      buildHUDView(
+        buildInput({
+          turn: 5,
+          phase: 'combat',
+          combatHudHint:
+            'Target: Frigate · 1:1 · range −5 · speed −0 · No damage possible',
+          combatAttackImpossible: true,
+        }),
+      ),
+    ).toMatchObject({
+      statusText:
+        'Target: Frigate · 1:1 · range −5 · speed −0 · No damage possible · Choose another target · END COMBAT',
     });
   });
 

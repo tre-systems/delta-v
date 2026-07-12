@@ -1,6 +1,7 @@
 import {
   byId,
   cls,
+  el,
   hide,
   listen,
   setTrustedHTML,
@@ -154,6 +155,25 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
     else btn.textContent = label;
   };
 
+  const setSelectFleetButtonLabel = (active: boolean): void => {
+    const labelEl = selectFleetBtn.querySelector<HTMLElement>('.btn-label');
+
+    if (!labelEl) {
+      selectFleetBtn.textContent = active ? 'STEER' : 'SELECT FLEET';
+      return;
+    }
+
+    if (active) {
+      labelEl.textContent = 'STEER';
+      return;
+    }
+
+    labelEl.replaceChildren(
+      el('span', { class: 'btn-label-extra', text: 'SELECT ' }),
+      'FLEET',
+    );
+  };
+
   const setMobile = (isMobile: boolean): void => {
     isMobileSignal.value = isMobile;
   };
@@ -213,7 +233,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
     requestAnimationFrame(() => {
       scrollToTarget();
       if (!wasOpen) {
-        helpCloseBtn.focus();
+        helpCloseBtn.focus({ preventScroll: true });
       }
     });
   };
@@ -338,10 +358,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
         HUD_ACTION_BUTTON_DISPLAY,
       );
       selectFleetBtn.classList.toggle('is-active', hudView.selectFleet.active);
-      setBtnLabel(
-        selectFleetBtn,
-        hudView.selectFleet.active ? 'STEER' : 'FLEET',
-      );
+      setSelectFleetButtonLabel(hudView.selectFleet.active);
 
       visible(
         launchMineBtn,

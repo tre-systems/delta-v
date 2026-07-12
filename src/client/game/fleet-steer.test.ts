@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { HEX_DIRECTIONS, hexAdd, hexKey } from '../../shared/hex';
 import { asShipId } from '../../shared/ids';
 import type { Ship, SolarSystemMap } from '../../shared/types/domain';
 import { chooseSteerBurn, planFleetSteer } from './fleet-steer';
@@ -80,10 +81,26 @@ describe('planFleetSteer', () => {
   });
 
   it('omits a ship with no legal non-crash course', () => {
-    // A ship whose every candidate crashes is skipped. We simulate this with
-    // a stub map/ship where computeCourse always crashes is impractical here;
-    // instead assert the shape: an empty ship list yields no orders.
-    expect(planFleetSteer([], { q: 1, r: 0 }, emptyMap, [])).toEqual([]);
+    const ship = createShip({ velocity: { dq: 2, dr: 0 } });
+    const driftDestination = { q: 2, r: 0 };
+    const crashHexes = [
+      driftDestination,
+      ...HEX_DIRECTIONS.map((direction) => hexAdd(driftDestination, direction)),
+    ];
+    const blockedMap: SolarSystemMap = {
+      ...emptyMap,
+      hexes: new Map(
+        crashHexes.map((hex, index) => [
+          hexKey(hex),
+          {
+            terrain: 'planetSurface' as const,
+            body: { name: `Body ${index}`, destructive: true },
+          },
+        ]),
+      ),
+    };
+
+    expect(planFleetSteer([ship], { q: 5, r: 0 }, blockedMap, [])).toEqual([]);
   });
 });
 

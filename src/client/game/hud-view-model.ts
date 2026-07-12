@@ -1,3 +1,10 @@
+import {
+  computeGroupRangeMod,
+  computeGroupVelocityMod,
+  computeOdds,
+  getCombatStrength,
+  lookupGunCombat,
+} from '../../shared/combat';
 import { SHIP_STATS } from '../../shared/constants';
 import { validateBaseEmplacement } from '../../shared/engine/ordnance';
 import {
@@ -272,7 +279,7 @@ export const deriveHudViewModel = (
 
   const fleetStatusLine = getFleetStatus(state, playerId);
 
-  const combatTargetLabel =
+  const combatTargetPresentation =
     state.phase === 'combat' &&
     planning.combatTargetId &&
     planning.combatTargetType
@@ -281,11 +288,36 @@ export const deriveHudViewModel = (
             const targetShip = state.ships.find(
               (ship) => ship.id === planning.combatTargetId,
             );
-            return targetShip
-              ? `Target: ${SHIP_STATS[targetShip.type].name}`
-              : null;
+            if (!targetShip) return null;
+
+            const attackers = state.ships.filter((ship) =>
+              (planning.combatAttackerIds ?? []).includes(ship.id),
+            );
+            if (attackers.length === 0) {
+              return {
+                label: `Target: ${SHIP_STATS[targetShip.type].name}`,
+                impossible: false,
+              };
+            }
+
+            const attackStrength =
+              planning.combatAttackStrength ?? getCombatStrength(attackers);
+            const odds = computeOdds(
+              attackStrength,
+              getCombatStrength([targetShip]),
+            );
+            const rangeMod = computeGroupRangeMod(attackers, targetShip);
+            const velocityMod = computeGroupVelocityMod(attackers, targetShip);
+            const impossible =
+              lookupGunCombat(odds, 6 - rangeMod - velocityMod).type === 'none';
+            const warning = impossible ? ' · No damage possible' : '';
+
+            return {
+              label: `Target: ${SHIP_STATS[targetShip.type].name} · ${odds} · range −${rangeMod} · speed −${velocityMod}${warning}`,
+              impossible,
+            };
           })()
-        : 'Target: Enemy nuke'
+        : { label: 'Target: Enemy nuke', impossible: false }
       : null;
 
   const isSpectator = playerId < 0;
@@ -361,7 +393,8 @@ export const deriveHudViewModel = (
       : null,
     queuedLaunchCount: planning.queuedOrdnanceLaunches.length,
     queuedCombatAttackCount: planning.queuedAttacks.length,
-    combatTargetLabel,
+    combatTargetLabel: combatTargetPresentation?.label ?? null,
+    combatAttackImpossible: combatTargetPresentation?.impossible ?? false,
     multipleShipsAlive: myShips.filter(isOrderableShip).length > 1,
     speed: selectedShip ? hexVecLength(selectedShip.velocity) : 0,
     fuelToStop: selectedShip ? hexVecLength(selectedShip.velocity) : 0,

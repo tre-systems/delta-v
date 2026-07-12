@@ -75,18 +75,31 @@ export const attachSessionPlanningSelectionEffect = (
  * instead of imperative updates from combat action code.
  */
 export const attachSessionCombatButtonsEffect = (
-  session: Pick<ClientSession, 'stateSignal' | 'planningState'>,
+  session: Pick<
+    ClientSession,
+    'stateSignal' | 'gameStateSignal' | 'playerIdSignal' | 'planningState'
+  >,
   ui: SessionCombatButtonsUI,
 ): Dispose =>
   effect(() => {
     const isCombatMode =
       deriveInteractionMode(session.stateSignal.value) === 'combat';
+    const gameState = session.gameStateSignal.value;
+    const playerId = session.playerIdSignal.value;
     session.planningState.revisionSignal?.value;
 
     const hasTarget = session.planningState.combatTargetId !== null;
+    const attackImpossible =
+      isCombatMode && gameState && playerId >= 0
+        ? deriveHudViewModel(
+            gameState,
+            playerId as PlayerId,
+            session.planningState,
+          ).combatAttackImpossible
+        : false;
     const hasSelection = session.planningState.selectedShipId !== null;
     const queuedCombat = session.planningState.queuedAttacks.length;
-    ui.showAttackButton(isCombatMode && hasTarget);
+    ui.showAttackButton(isCombatMode && hasTarget && !attackImpossible);
     ui.showFireButton(
       isCombatMode && (hasTarget || hasSelection),
       queuedCombat,

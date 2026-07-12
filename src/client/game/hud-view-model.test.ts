@@ -134,3 +134,34 @@ describe('game-client-hud-view-model fleet progress', () => {
     expect(hud.fleetGroupSize).toBe(2);
   });
 });
+
+describe('game-client-hud-view-model combat guidance', () => {
+  it('shows exact penalties and flags attacks that cannot damage', () => {
+    const attacker = createShip({ position: { q: 0, r: 0 } });
+    const target = createShip({
+      id: asShipId('enemy'),
+      owner: 1,
+      originalOwner: 1,
+      position: { q: 5, r: 0 },
+    });
+    const state = createState(attacker, {
+      phase: 'combat',
+      ships: [attacker, target],
+    });
+    const planning = createPlanningStore();
+    planning.selectShip(attacker.id);
+    planning.applyCombatPlanUpdate({
+      combatTargetId: target.id,
+      combatTargetType: 'ship',
+      combatAttackerIds: [attacker.id],
+      combatAttackStrength: 4,
+    });
+
+    const hud = deriveHudViewModel(state, 0, planning, map);
+
+    expect(hud.combatTargetLabel).toBe(
+      'Target: Corvette · 2:1 · range −5 · speed −0 · No damage possible',
+    );
+    expect(hud.combatAttackImpossible).toBe(true);
+  });
+});

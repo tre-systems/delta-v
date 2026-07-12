@@ -125,6 +125,8 @@ const applyGameStartPlan = (
   const shouldShowBriefing =
     deps.ctx.state !== 'gameOver' &&
     deps.ctx.playerId >= 0 &&
+    state.turnNumber === 1 &&
+    state.phase === 'astrogation' &&
     plan.nextState !== 'playing_fleetBuilding';
   deps.ui.overlay.hideGameOver();
   deps.resetTurnTelemetry();

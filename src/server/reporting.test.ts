@@ -33,16 +33,54 @@ describe('resolveReportingAllowedOrigin', () => {
     );
   });
 
-  it('reflects localhost origins for dev / wrangler dev', () => {
+  it.each([
+    'http://localhost:8787',
+    'https://localhost:8787',
+    'http://127.0.0.1:8787',
+    'https://127.0.0.1:8787',
+    'http://[::1]:8787',
+  ])('reflects exact loopback origin %s for local development', (origin) => {
     const req = new Request('http://localhost:8787/telemetry', {
-      headers: { Origin: 'http://localhost:8787' },
+      headers: { Origin: origin },
     });
-    expect(resolveReportingAllowedOrigin(req)).toBe('http://localhost:8787');
+    expect(resolveReportingAllowedOrigin(req)).toBe(origin);
+  });
+
+  it("reflects wrangler dev's HTTP canonical proxy origin in dev mode", () => {
+    const req = new Request('http://delta-v.tre.systems/telemetry', {
+      headers: { Origin: 'http://delta-v.tre.systems' },
+    });
+    expect(
+      resolveReportingAllowedOrigin(req, {
+        allowInsecureCanonicalOrigin: true,
+      }),
+    ).toBe('http://delta-v.tre.systems');
   });
 
   it('rejects arbitrary third-party origins by falling back to the canonical origin', () => {
     const req = new Request('https://delta-v.tre.systems/telemetry', {
       headers: { Origin: 'https://evil.example' },
+    });
+    expect(resolveReportingAllowedOrigin(req)).toBe(
+      'https://delta-v.tre.systems',
+    );
+  });
+
+  it.each([
+    'http://localhost.evil.example',
+    'http://127.0.0.1.evil.example',
+  ])('rejects loopback-lookalike origin %s', (origin) => {
+    const req = new Request('https://delta-v.tre.systems/telemetry', {
+      headers: { Origin: origin },
+    });
+    expect(resolveReportingAllowedOrigin(req)).toBe(
+      'https://delta-v.tre.systems',
+    );
+  });
+
+  it('rejects the insecure canonical origin away from loopback', () => {
+    const req = new Request('https://delta-v.tre.systems/telemetry', {
+      headers: { Origin: 'http://delta-v.tre.systems' },
     });
     expect(resolveReportingAllowedOrigin(req)).toBe(
       'https://delta-v.tre.systems',
@@ -65,6 +103,31 @@ describe('isReportingOriginAllowed', () => {
   it('rejects explicit third-party origins', () => {
     const req = new Request('https://delta-v.tre.systems/telemetry', {
       headers: { Origin: 'https://evil.example' },
+    });
+    expect(isReportingOriginAllowed(req)).toBe(false);
+  });
+
+  it('accepts the HTTPS loopback origin exposed by wrangler dev', () => {
+    const req = new Request('https://127.0.0.1:8787/telemetry', {
+      headers: { Origin: 'https://127.0.0.1:8787' },
+    });
+    expect(isReportingOriginAllowed(req)).toBe(true);
+  });
+
+  it("accepts wrangler dev's proxied canonical origin in dev mode", () => {
+    const req = new Request('http://delta-v.tre.systems/telemetry', {
+      headers: { Origin: 'http://delta-v.tre.systems' },
+    });
+    expect(
+      isReportingOriginAllowed(req, {
+        allowInsecureCanonicalOrigin: true,
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects loopback-prefix spoofing', () => {
+    const req = new Request('https://delta-v.tre.systems/telemetry', {
+      headers: { Origin: 'http://localhost.evil.example' },
     });
     expect(isReportingOriginAllowed(req)).toBe(false);
   });

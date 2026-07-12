@@ -77,6 +77,8 @@ export interface HudViewModel {
   queuedCombatAttackCount: number;
   /** Short label for the focused combat target (HUD status line). */
   combatTargetLabel: string | null;
+  /** True when even a natural 6 cannot damage the focused target. */
+  combatAttackImpossible: boolean;
   multipleShipsAlive: boolean;
   speed: number;
   fuelToStop: number;

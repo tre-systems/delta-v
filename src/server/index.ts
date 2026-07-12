@@ -571,6 +571,7 @@ const fetchHandler = async (
         request,
         console.error,
         'client-error',
+        { allowInsecureCanonicalOrigin: env.DEV_MODE === '1' },
       );
 
       if (payload && env.DB) {
@@ -603,6 +604,7 @@ const fetchHandler = async (
         request,
         console.log,
         'telemetry',
+        { allowInsecureCanonicalOrigin: env.DEV_MODE === '1' },
       );
 
       if (payload && env.DB) {

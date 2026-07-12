@@ -202,6 +202,18 @@ describe('fleet group selection', () => {
     expect([...(planning.selectedShipIds ?? [])]).toEqual(['a']);
   });
 
+  it('ignores an empty fleet toggle without changing single-select mode', () => {
+    const planning = createPlanningStore();
+    planning.selectShip('a');
+    const revision = planning.revisionSignal.peek();
+
+    planning.toggleShipsInSelection([]);
+
+    expect(planning.selectedShipId).toBe('a');
+    expect(planning.selectedShipIds?.size ?? 0).toBe(0);
+    expect(planning.revisionSignal.peek()).toBe(revision);
+  });
+
   it('a plain single select collapses the group', () => {
     const planning = createPlanningStore();
     planning.selectShips(['a', 'b']);

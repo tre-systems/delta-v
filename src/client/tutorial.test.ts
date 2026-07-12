@@ -16,7 +16,7 @@ const renderTutorialDom = () => {
 
 describe('tutorial', () => {
   beforeEach(() => {
-    localStorage.clear();
+    window.localStorage.clear();
     renderTutorialDom();
   });
 
@@ -26,7 +26,7 @@ describe('tutorial', () => {
     tutorial.onPhaseChange('astrogation', 1);
 
     expect(document.getElementById('tutorialTipText')?.textContent).toBe(
-      'Welcome! Astrogation is about burns and drift — pick a ship and choose a burn direction so it does not coast the wrong way. (You keep velocity between turns; details live in Help.)',
+      'Welcome! Your ship will coast to the end of the dashed drift arrow. Choose one of the 6 numbered burn circles around that point, then Confirm. Burns cost 1 fuel and velocity carries into later turns.',
     );
 
     tutorial.dispose();
@@ -50,7 +50,7 @@ describe('tutorial', () => {
     document.getElementById('tutorialNextBtn')?.click();
 
     expect(events.map(([event]) => event)).toContain('tutorial_completed');
-    expect(localStorage.getItem('deltav_tutorial_done')).toBe('1');
+    expect(window.localStorage.getItem('deltav_tutorial_done')).toBe('1');
     expect(tutorial.isActive()).toBe(false);
 
     tutorial.dispose();
@@ -66,17 +66,17 @@ describe('tutorial', () => {
 
     tutorial.onPhaseChange('ordnance', 1);
     expect(document.getElementById('tutorialTipText')?.textContent).toContain(
-      'Ordnance phase:',
+      'Ordnance is optional.',
     );
     document.getElementById('tutorialNextBtn')?.click();
 
     tutorial.onPhaseChange('combat', 1);
     expect(document.getElementById('tutorialTipText')?.textContent).toContain(
-      'Combat phase:',
+      'Combat is optional.',
     );
     document.getElementById('tutorialNextBtn')?.click();
 
-    expect(localStorage.getItem('deltav_tutorial_done')).toBeNull();
+    expect(window.localStorage.getItem('deltav_tutorial_done')).toBeNull();
 
     tutorial.dispose();
   });
@@ -145,5 +145,25 @@ describe('tutorial', () => {
     ).toHaveLength(2);
 
     tutorial.dispose();
+  });
+
+  it('resumes from the last acknowledged step after a reload', () => {
+    const firstSession = createTutorial();
+    firstSession.onPhaseChange('astrogation', 1);
+    document.getElementById('tutorialNextBtn')?.click();
+    firstSession.dispose();
+
+    renderTutorialDom();
+    const reloadedSession = createTutorial();
+    reloadedSession.onPhaseChange('astrogation', 1);
+
+    expect(document.getElementById('tutorialTipText')?.textContent).toContain(
+      'The dashed arrow shows where your ship will drift.',
+    );
+    expect(window.localStorage.getItem('deltav_tutorial_progress')).toBe(
+      '["welcome"]',
+    );
+
+    reloadedSession.dispose();
   });
 });

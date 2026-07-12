@@ -6,26 +6,57 @@ import type { CreateRateLimiterBinding, Env } from './env';
 // scripts a free channel to wake the rate-limited D1 insert path.
 const DEFAULT_ALLOWED_ORIGIN = 'https://delta-v.tre.systems';
 
-export const isReportingOriginAllowed = (request: Request): boolean => {
+const isLocalDevelopmentOrigin = (origin: string): boolean => {
+  try {
+    const url = new URL(origin);
+    const isWebProtocol = url.protocol === 'http:' || url.protocol === 'https:';
+    const isLoopbackHost =
+      url.hostname === 'localhost' ||
+      url.hostname === '127.0.0.1' ||
+      url.hostname === '[::1]';
+
+    return isWebProtocol && isLoopbackHost;
+  } catch {
+    return false;
+  }
+};
+
+interface ReportingOriginOptions {
+  // Wrangler rewrites both the local request URL and Origin host to the
+  // configured production domain, preserving only the browser's HTTP scheme.
+  // The Worker can distinguish that synthetic origin only through DEV_MODE.
+  allowInsecureCanonicalOrigin?: boolean;
+}
+
+export const isReportingOriginAllowed = (
+  request: Request,
+  options: ReportingOriginOptions = {},
+): boolean => {
   const origin = request.headers.get('Origin');
   if (!origin) return true;
   return (
     origin === DEFAULT_ALLOWED_ORIGIN ||
-    origin.startsWith('http://localhost') ||
-    origin.startsWith('http://127.0.0.1')
+    isLocalDevelopmentOrigin(origin) ||
+    (options.allowInsecureCanonicalOrigin === true &&
+      origin === 'http://delta-v.tre.systems')
   );
 };
 
-export const resolveReportingAllowedOrigin = (request: Request): string => {
+export const resolveReportingAllowedOrigin = (
+  request: Request,
+  options: ReportingOriginOptions = {},
+): string => {
   const origin = request.headers.get('Origin');
   if (!origin) return DEFAULT_ALLOWED_ORIGIN;
-  // Allow the canonical production origin and localhost for dev /
-  // `wrangler dev`. Everything else falls through to the production
-  // origin so cross-site scripts get a CORS rejection.
+  // Allow the canonical production origin and exact loopback hosts for local
+  // clients. `wrangler dev` rewrites its HTTP loopback Origin to the insecure
+  // canonical origin, which the caller opts into only in DEV_MODE. Everything
+  // else falls through so lookalike hosts fail CORS and the explicit check.
   if (
     origin === DEFAULT_ALLOWED_ORIGIN ||
-    origin.startsWith('http://localhost') ||
-    origin.startsWith('http://127.0.0.1')
+    isLocalDevelopmentOrigin(origin) ||
+    (options.allowInsecureCanonicalOrigin === true &&
+      origin === 'http://delta-v.tre.systems')
   ) {
     return origin;
   }
@@ -34,8 +65,12 @@ export const resolveReportingAllowedOrigin = (request: Request): string => {
 
 export const buildReportingCorsHeaders = (
   request: Request,
+  options: ReportingOriginOptions = {},
 ): Record<string, string> => ({
-  'Access-Control-Allow-Origin': resolveReportingAllowedOrigin(request),
+  'Access-Control-Allow-Origin': resolveReportingAllowedOrigin(
+    request,
+    options,
+  ),
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   Vary: 'Origin',
@@ -495,9 +530,10 @@ export const handleReport = async (
   request: Request,
   logFn: (msg: string, payload: unknown) => void,
   label: string,
+  options: ReportingOriginOptions = {},
 ): Promise<{ response: Response; payload?: Record<string, unknown> }> => {
-  const headers = buildReportingCorsHeaders(request);
-  if (!isReportingOriginAllowed(request)) {
+  const headers = buildReportingCorsHeaders(request, options);
+  if (!isReportingOriginAllowed(request, options)) {
     return {
       response: new Response('Origin not allowed', {
         status: 403,

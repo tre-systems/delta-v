@@ -7,8 +7,10 @@ import type { HUDInput } from './hud';
 import { createHUDChromeView } from './hud-chrome-view';
 
 const installFixture = () => {
-  const actionButtons = ACTION_BUTTON_IDS.map(
-    (id) => `<button id="${id}" style="display:inline-flex"></button>`,
+  const actionButtons = ACTION_BUTTON_IDS.map((id) =>
+    id === 'selectFleetBtn'
+      ? `<button id="${id}" style="display:inline-flex"><span class="btn-label"><span class="btn-label-extra">SELECT </span>FLEET</span></button>`
+      : `<button id="${id}" style="display:inline-flex"></button>`,
   ).join('');
 
   document.body.innerHTML = `
@@ -143,6 +145,50 @@ describe('HUDChromeView', () => {
     expect(compass.style.transform).toBe('rotate(-30deg)');
   });
 
+  it('keeps the full fleet label and restores it after steer mode', () => {
+    const view = createHUDChromeView({
+      queueLayoutSync: vi.fn(),
+      onStatusText: vi.fn(),
+    });
+    const button = document.getElementById(
+      'selectFleetBtn',
+    ) as HTMLButtonElement;
+
+    view.update(
+      buildInput({
+        astrogationCtx: {
+          ...buildInput().astrogationCtx,
+          fleetGroupSize: 0,
+        },
+      }),
+    );
+    expect(button.textContent).toBe('SELECT FLEET');
+    expect(button.querySelector('.btn-label-extra')?.textContent).toBe(
+      'SELECT ',
+    );
+
+    view.update(
+      buildInput({
+        astrogationCtx: {
+          ...buildInput().astrogationCtx,
+          fleetGroupSize: 2,
+        },
+      }),
+    );
+    expect(button.textContent).toBe('STEER');
+
+    view.update(
+      buildInput({
+        astrogationCtx: {
+          ...buildInput().astrogationCtx,
+          fleetGroupSize: 0,
+        },
+      }),
+    );
+    expect(button.textContent).toBe('SELECT FLEET');
+    expect(button.querySelector('.btn-label-extra')).not.toBeNull();
+  });
+
   it('renders separate ordnance skip and confirm buttons', () => {
     const view = createHUDChromeView({
       queueLayoutSync: vi.fn(),
@@ -223,11 +269,12 @@ describe('HUDChromeView', () => {
     view.toggleHelpOverlay();
     await Promise.resolve();
     const helpOverlay = document.getElementById('helpOverlay') as HTMLElement;
+    const helpCloseBtn = document.getElementById(
+      'helpCloseBtn',
+    ) as HTMLButtonElement;
     expect(helpOverlay.hasAttribute('hidden')).toBe(false);
     expect(helpOverlay.style.display).toBe('flex');
-    expect(document.activeElement).toBe(
-      document.getElementById('helpCloseBtn'),
-    );
+    expect(document.activeElement).toBe(helpCloseBtn);
     view.toggleHelpOverlay();
     await Promise.resolve();
     expect(helpOverlay.hasAttribute('hidden')).toBe(true);
@@ -295,6 +342,14 @@ describe('HUDChromeView', () => {
     });
 
     const helpOverlay = document.getElementById('helpOverlay') as HTMLElement;
+    const helpCloseBtn = document.getElementById(
+      'helpCloseBtn',
+    ) as HTMLButtonElement;
+    const originalFocus = helpCloseBtn.focus.bind(helpCloseBtn);
+    const helpCloseFocus = vi.fn((options?: FocusOptions) =>
+      originalFocus(options),
+    );
+    helpCloseBtn.focus = helpCloseFocus;
 
     view.openHelpSection('help-group-movement');
     await new Promise((r) => {
@@ -306,9 +361,8 @@ describe('HUDChromeView', () => {
       behavior: 'smooth',
       block: 'start',
     });
-    expect(document.activeElement).toBe(
-      document.getElementById('helpCloseBtn'),
-    );
+    expect(helpCloseFocus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(document.activeElement).toBe(helpCloseBtn);
   });
 
   it('traps focus inside the help overlay and closes it on Escape', async () => {

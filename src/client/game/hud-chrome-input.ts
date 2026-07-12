@@ -34,6 +34,7 @@ export const buildHudChromeInputFromViewModel = (
   speed: hud.speed,
   fuelToStop: hud.fuelToStop,
   combatHudHint: hud.combatTargetLabel,
+  combatAttackImpossible: hud.combatAttackImpossible,
   statusOverrideText:
     clientState === 'playing_movementAnim'
       ? 'Ships moving...'

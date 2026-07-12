@@ -182,6 +182,9 @@ export type HudPlanningSnapshot = Pick<
   Pick<
     CombatPlanningView,
     'queuedAttacks' | 'combatTargetId' | 'combatTargetType'
+  > &
+  Partial<
+    Pick<CombatPlanningView, 'combatAttackerIds' | 'combatAttackStrength'>
   >;
 export type KeyboardPlanningSnapshot = Pick<
   ShipSelectionView,
@@ -343,6 +346,13 @@ export const createPlanningStore = (): PlanningStore => {
       notifyPlanningChanged();
     },
     toggleShipsInSelection: (shipIds: string[]): void => {
+      // Shift-clicking empty space has no fleet members to toggle. Keep a
+      // normal single selection in single-select mode instead of silently
+      // turning it into a one-member fleet group.
+      if (shipIds.length === 0) {
+        return;
+      }
+
       const group = planningStore.selectedShipIds ?? new Set<string>();
 
       // Seed the group with the current single selection so shift-clicking

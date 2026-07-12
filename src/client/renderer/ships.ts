@@ -18,6 +18,8 @@ import {
   drawOrbitAndLandedRings,
   drawShipLabels,
 } from './ship-decor';
+import { scaledFont } from './text';
+import { minScreenScale, screenDash, screenLineWidth } from './visibility';
 
 export type DrawShipsLayerInput = {
   ctx: CanvasRenderingContext2D;
@@ -118,24 +120,28 @@ const drawOwnStackBadges = (
   for (const { count, pos } of counts.values()) {
     if (count < 2) continue;
 
-    const r = 8 * zoom;
-    const x = pos.x + 15 * zoom;
-    const y = pos.y - 15 * zoom;
+    // The camera transform already scales world coordinates by `zoom`.
+    // Use inverse-scaled metrics so this UI badge remains a readable,
+    // stable screen size instead of being scaled twice.
+    const inverseZoom = 1 / zoom;
+    const r = 8 * inverseZoom;
+    const x = pos.x + 15 * inverseZoom;
+    const y = pos.y - 15 * inverseZoom;
 
     ctx.save();
     ctx.fillStyle = 'rgba(10, 22, 40, 0.92)';
     ctx.strokeStyle = 'rgba(120, 200, 255, 0.9)';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = screenLineWidth(1.5, zoom);
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#dcefff';
-    ctx.font = `bold ${Math.round(11 * zoom)}px system-ui, sans-serif`;
+    ctx.font = scaledFont('bold 11px system-ui, sans-serif', zoom);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(count), x, y + 0.5 * zoom);
+    ctx.fillText(String(count), x, y + 0.5 * inverseZoom);
     ctx.restore();
   }
 };
@@ -176,6 +182,7 @@ const drawOneShip = ({
     planningSelectedShipId,
     planningSelectedShipIds,
     pos,
+    zoom,
   );
   drawShipIcon({
     ctx,
@@ -325,16 +332,17 @@ const drawFleetGroupRingIfNeeded = (
   selectedId: string | null,
   groupIds: ReadonlySet<string> | undefined,
   pos: PixelCoord,
+  zoom: number,
 ): void => {
   if (!groupIds || groupIds.size < 2) return;
   if (shipId === selectedId || !groupIds.has(shipId)) return;
 
   ctx.save();
   ctx.strokeStyle = 'rgba(79, 195, 247, 0.55)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([4, 3]);
+  ctx.lineWidth = screenLineWidth(2, zoom);
+  ctx.setLineDash(screenDash([4, 3], zoom));
   ctx.beginPath();
-  ctx.arc(pos.x, pos.y, 15, 0, Math.PI * 2);
+  ctx.arc(pos.x, pos.y, 15 * minScreenScale(zoom), 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 };

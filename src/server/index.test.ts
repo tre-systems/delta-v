@@ -1499,6 +1499,29 @@ describe('/telemetry endpoint', () => {
     expect(body).toBe('');
   });
 
+  it("accepts wrangler dev's proxied HTTP origin only in dev mode", async () => {
+    const { env } = createEnv(undefined, { DEV_MODE: '1' });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const response = await worker.fetch(
+      new Request('http://delta-v.tre.systems/telemetry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: 'http://delta-v.tre.systems',
+        },
+        body: JSON.stringify({ event: 'local_dev_event' }),
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
+      'http://delta-v.tre.systems',
+    );
+  });
+
   it('rejects explicit third-party origins with 403', async () => {
     const { env } = createEnv();
 

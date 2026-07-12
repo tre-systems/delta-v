@@ -450,5 +450,16 @@ export const processSurrender = (
 
   checkGameEnd(state, map, engineEvents);
 
+  if (state.outcome && state.outcome.winner !== playerId) {
+    state.outcome.reason = 'Opponent surrendered!';
+    for (let index = engineEvents.length - 1; index >= 0; index -= 1) {
+      const event = engineEvents[index];
+      if (event.type === 'gameOver') {
+        event.reason = 'Opponent surrendered!';
+        break;
+      }
+    }
+  }
+
   return { state, engineEvents };
 };

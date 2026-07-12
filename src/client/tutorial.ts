@@ -10,6 +10,7 @@ import { isMobileViewport } from './ui-breakpoints';
 import { getWebLocalStorage } from './web-local-storage';
 
 const STORAGE_KEY = 'deltav_tutorial_done';
+const PROGRESS_STORAGE_KEY = 'deltav_tutorial_progress';
 
 export interface TutorialCreateDeps {
   openHelpSection?: (sectionElementId: string) => void;
@@ -62,7 +63,9 @@ const STEPS: TutorialStep[] = [
   {
     id: 'welcome',
     phase: 'astrogation',
-    text: 'Welcome! Astrogation is about burns and drift — pick a ship and choose a burn direction so it does not coast the wrong way. (You keep velocity between turns; details live in Help.)',
+    text: 'Welcome! Your ship will coast to the end of the dashed drift arrow. Choose one of the 6 numbered burn circles around that point, then Confirm. Burns cost 1 fuel and velocity carries into later turns.',
+    mobileText:
+      'Welcome! Your ship will coast to the end of the dashed drift arrow. Tap one of the 6 numbered burn circles around that point, then Confirm. Burns cost 1 fuel and velocity carries into later turns.',
   },
   {
     id: 'select-ship',
@@ -86,18 +89,18 @@ const STEPS: TutorialStep[] = [
   {
     id: 'ordnance-intro',
     phase: 'ordnance',
-    text: 'Ordnance phase: ships can launch mines or nukes if they have cargo space, and warships can also launch torpedoes. Torpedoes can boost 1 or 2 hexes on launch; click the same arrow again to switch from x1 to x2. Use N=mine, T=torpedo, K=nuke.',
+    text: 'Ordnance is optional. To boost a torpedo, click an adjacent hex first (click it again for ×2), then press TORPEDO. Pressing TORPEDO without choosing a boost launches it straight immediately. Use N=mine, T=torpedo, K=nuke.',
     mobileText:
-      'Ordnance phase: ships can launch mines or nukes if they have cargo space, and warships can also launch torpedoes. Torpedoes can boost 1 or 2 hexes on launch; tap the same arrow again to switch from x1 to x2. Use the buttons below to launch.',
+      'Ordnance is optional. To boost a torpedo, tap an adjacent hex first (tap it again for ×2), then tap TORPEDO. Tapping TORPEDO without choosing a boost launches it straight immediately.',
     once: true,
     completionOptional: true,
   },
   {
     id: 'combat-intro',
     phase: 'combat',
-    text: 'Combat phase: click an enemy ship or nuke to target it. Gun attacks use combined firepower, while nukes are intercepted at 2:1 with range and relative velocity modifiers. Press Enter to attack or skip.',
+    text: 'Combat is optional. Click an enemy ship or nuke to see the odds plus range and relative-speed penalties. Press ATTACK (or Enter) to fire, or END COMBAT to hold fire.',
     mobileText:
-      'Combat phase: tap an enemy ship or nuke to target it. Gun attacks use combined firepower, while nukes are intercepted at 2:1 with range and relative velocity modifiers. Use the Attack or Skip button.',
+      'Combat is optional. Tap an enemy ship or nuke to see the odds plus range and relative-speed penalties. Tap ATTACK to fire, or END COMBAT to hold fire.',
     once: true,
     completionOptional: true,
   },
@@ -114,7 +117,22 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
 
   const storage = getWebLocalStorage();
   let completed = storage?.getItem(STORAGE_KEY) === '1';
-  let shownSteps = new Set<string>();
+  let shownSteps = (() => {
+    try {
+      const saved = JSON.parse(storage?.getItem(PROGRESS_STORAGE_KEY) ?? '[]');
+      const validStepIds = new Set(STEPS.map((step) => step.id));
+      return new Set<string>(
+        Array.isArray(saved)
+          ? saved.filter(
+              (stepId): stepId is string =>
+                typeof stepId === 'string' && validStepIds.has(stepId),
+            )
+          : [],
+      );
+    } catch {
+      return new Set<string>();
+    }
+  })();
   // Steps that already emitted `tutorial_step_shown`. Tracked separately
   // from shownSteps (which only grows on "Got it" clicks) so telemetry
   // dedupes per tutorial session while tips keep re-appearing visually.
@@ -147,6 +165,7 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
     completed = true;
     try {
       storage?.setItem(STORAGE_KEY, '1');
+      storage?.removeItem(PROGRESS_STORAGE_KEY);
     } catch {
       /* quota / private mode */
     }
@@ -207,6 +226,11 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
 
     if (activeStepId) {
       shownSteps.add(activeStepId);
+      try {
+        storage?.setItem(PROGRESS_STORAGE_KEY, JSON.stringify([...shownSteps]));
+      } catch {
+        /* quota / private mode */
+      }
     }
 
     const completedRequiredSteps = COMPLETION_STEPS.every((step) =>
@@ -273,6 +297,7 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
     tutorialStartTime = null;
     try {
       storage?.removeItem(STORAGE_KEY);
+      storage?.removeItem(PROGRESS_STORAGE_KEY);
     } catch {
       /* quota / private mode */
     }

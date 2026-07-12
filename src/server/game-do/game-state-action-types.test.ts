@@ -60,7 +60,7 @@ describe('GAME_STATE_ACTION_TYPES registry', () => {
     ).toBe(true);
     expect(result.state.outcome).toEqual({
       winner: 1,
-      reason: 'Fleet eliminated!',
+      reason: 'Opponent surrendered!',
     });
   });
 

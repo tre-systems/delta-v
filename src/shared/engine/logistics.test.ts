@@ -179,12 +179,12 @@ describe('processSurrender', () => {
     if (!('error' in result)) {
       expect(result.state.outcome).toEqual({
         winner: 1,
-        reason: 'Fleet eliminated!',
+        reason: 'Opponent surrendered!',
       });
       expect(result.engineEvents).toContainEqual({
         type: 'gameOver',
         winner: 1,
-        reason: 'Fleet eliminated!',
+        reason: 'Opponent surrendered!',
       });
     }
   });

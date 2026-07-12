@@ -68,6 +68,37 @@ const createDeps = (): MessageHandlerDeps => {
 };
 
 describe('message-handler', () => {
+  it('shows the mission briefing only when a match starts on turn one', () => {
+    const initialDeps = createDeps();
+    const initialGameState = initialDeps.ctx.gameState;
+    if (!initialGameState) throw new Error('expected initial game state');
+    const initialState = structuredClone(initialGameState);
+    initialState.turnNumber = 1;
+    initialState.phase = 'astrogation';
+
+    handleServerMessage(initialDeps, {
+      type: 'gameStart',
+      state: initialState,
+    });
+    expect(initialDeps.showScenarioBriefing).toHaveBeenCalledWith(
+      initialState,
+      0,
+    );
+
+    const reconnectDeps = createDeps();
+    const reconnectGameState = reconnectDeps.ctx.gameState;
+    if (!reconnectGameState) throw new Error('expected reconnect game state');
+    const resumedState = structuredClone(reconnectGameState);
+    resumedState.turnNumber = 1;
+    resumedState.phase = 'ordnance';
+
+    handleServerMessage(reconnectDeps, {
+      type: 'gameStart',
+      state: resumedState,
+    });
+    expect(reconnectDeps.showScenarioBriefing).not.toHaveBeenCalled();
+  });
+
   it('logs structured actionRejected hints instead of showing info toasts', () => {
     const deps = createDeps();
     const state = deps.ctx.gameState;
