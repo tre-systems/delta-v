@@ -6,9 +6,18 @@ import { createDisposalScope, effect, signal, withScope } from '../reactive';
 import { getScenarioBriefingCopy } from './scenario-briefing-copy';
 
 export interface ScenarioBriefingView {
-  show: (state: GameState, playerId: PlayerId) => void;
+  show: (
+    state: GameState,
+    playerId: PlayerId,
+    copyOverride?: ScenarioBriefingCopyOverride,
+  ) => void;
   hide: () => void;
   dispose: () => void;
+}
+
+export interface ScenarioBriefingCopyOverride {
+  title: string;
+  description: string;
 }
 
 export const createScenarioBriefingView = (): ScenarioBriefingView => {
@@ -75,12 +84,12 @@ export const createScenarioBriefingView = (): ScenarioBriefingView => {
   });
 
   return {
-    show: (state, playerId) => {
+    show: (state, playerId, copyOverride) => {
       const scenarioKey = isValidScenario(state.scenario)
         ? state.scenario
         : null;
       const scenario = scenarioKey ? SCENARIOS[scenarioKey] : null;
-      text(titleEl, scenario?.name ?? state.scenario);
+      text(titleEl, copyOverride?.title ?? scenario?.name ?? state.scenario);
       // Asymmetric scenarios (Convoy, Lunar Evacuation, Escape,
       // Blockade Runner) carry per-seat briefing narration so the
       // pirate / interceptor seat doesn't read the escort-side story.
@@ -92,7 +101,8 @@ export const createScenarioBriefingView = (): ScenarioBriefingView => {
           : null;
       text(
         descriptionEl,
-        seatCopy ??
+        copyOverride?.description ??
+          seatCopy ??
           scenario?.description ??
           'Complete the objective before the enemy.',
       );

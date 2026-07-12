@@ -5,6 +5,7 @@ import { findBaseHex, isValidScenario, SCENARIOS } from '../../shared/map-data';
 import type { GameState } from '../../shared/types/domain';
 import type { S2C } from '../../shared/types/protocol';
 import type { Renderer } from '../renderer/renderer';
+import type { ScenarioBriefingCopyOverride } from '../ui/scenario-briefing-view';
 import type { UIManager } from '../ui/ui';
 import { setScenario, setWaitingScreenState } from './client-context-store';
 import type { ConnectionManager } from './connection';
@@ -78,6 +79,7 @@ const resolveScenario = (scenario: string) => {
 export const startLocalGameFromMain = (
   deps: MainNetworkDeps,
   scenario: string,
+  briefingCopy?: ScenarioBriefingCopyOverride,
 ): void => {
   deps.ui.overlay.hideGameOver();
   deps.ui.log.setLocalGame(true);
@@ -113,7 +115,7 @@ export const startLocalGameFromMain = (
       applyGameState: deps.applyGameState,
       logScenarioBriefing: () => deps.hud.logScenarioBriefing(),
       showScenarioBriefing: (state, playerId) =>
-        deps.ui.showScenarioBriefing(state, playerId),
+        deps.ui.showScenarioBriefing(state, playerId, briefingCopy),
       setState: deps.setState,
       runLocalAI: deps.runLocalAI,
     },

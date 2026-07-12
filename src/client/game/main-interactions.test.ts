@@ -437,6 +437,11 @@ describe('main-interactions', () => {
     expect(mocks.startLocalGameFromMain).toHaveBeenCalledWith(
       mainNetworkDeps,
       'biplanetary',
+      {
+        title: 'Training Flight',
+        description:
+          'A guided Easy Bi-Planetary mission. Follow the prompts to plot burns and land on Mars before the AI reaches Venus.',
+      },
     );
   });
 

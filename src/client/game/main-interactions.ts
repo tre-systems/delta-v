@@ -377,7 +377,15 @@ export const createMainInteractionController = (
           deps.resetTutorial();
         }
         deps.setAIDifficulty(plan.difficulty);
-        startLocalGameFromMain(deps.mainNetworkDeps, plan.scenario);
+        if (plan.training) {
+          startLocalGameFromMain(deps.mainNetworkDeps, plan.scenario, {
+            title: 'Training Flight',
+            description:
+              'A guided Easy Bi-Planetary mission. Follow the prompts to plot burns and land on Mars before the AI reaches Venus.',
+          });
+        } else {
+          startLocalGameFromMain(deps.mainNetworkDeps, plan.scenario);
+        }
         return;
       case 'joinGame':
         joinGame(plan.code, plan.playerToken);

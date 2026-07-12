@@ -39,4 +39,22 @@ describe('ScenarioBriefingView', () => {
 
     view.dispose();
   });
+
+  it('can identify a guided mission without changing the scenario state', () => {
+    const view = createScenarioBriefingView();
+
+    view.show(createTestState({ scenario: 'biplanetary' }), 0, {
+      title: 'Training Flight',
+      description: 'Guided Bi-Planetary practice.',
+    });
+
+    expect(document.getElementById('scenarioBriefingTitle')?.textContent).toBe(
+      'Training Flight',
+    );
+    expect(
+      document.getElementById('scenarioBriefingDescription')?.textContent,
+    ).toBe('Guided Bi-Planetary practice.');
+
+    view.dispose();
+  });
 });

@@ -53,6 +53,12 @@ test.describe('single-player smoke tests', () => {
 
     await page.click('[data-training-flight="true"]');
     await waitForDisplay(page, '[data-testid="hud"]', 'block');
+    await expect(page.locator('#scenarioBriefingTitle')).toHaveText(
+      'Training Flight',
+    );
+    await expect(page.locator('#scenarioBriefingDescription')).toContainText(
+      'guided Easy Bi-Planetary mission',
+    );
     await dismissScenarioBriefingIfPresent(page);
 
     await expect(page.locator('[data-testid="tutorialTip"]')).toBeVisible();
