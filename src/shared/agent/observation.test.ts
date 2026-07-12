@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { createGameOrThrow } from '../engine/game-engine';
+import { asHexKey } from '../hex';
 import { asGameId, asOrdnanceId, asShipId } from '../ids';
 import { buildSolarSystemMap, findBaseHex, SCENARIOS } from '../map-data';
 import {
@@ -85,6 +86,13 @@ describe('buildCandidates', () => {
   it('works without a pre-supplied map (builds internally)', () => {
     const candidates = buildCandidates(state, 0);
     expect(candidates.length).toBeGreaterThan(0);
+  });
+
+  it('returns no fleet-building candidates after this seat is ready', () => {
+    const readyState = createTestState({ phase: 'fleetBuilding' });
+    readyState.players[0].ready = true;
+
+    expect(buildCandidates(readyState, 0, EMPTY_SOLAR_MAP)).toEqual([]);
   });
 
   it('offers broad directional astrogation choices for single-ship opening turns', () => {
@@ -243,6 +251,30 @@ describe('buildLegalActionInfo', () => {
       expect(typeof ship.canLaunchOrdnance).toBe('boolean');
     }
   });
+
+  it('reports legal takeoff burns and mission passengers', () => {
+    const landed = createTestShip({
+      lifecycle: 'landed',
+      passengersAboard: 40,
+    });
+    const info = buildLegalActionInfo(
+      createTestState({ phase: 'astrogation', ships: [landed] }),
+      0,
+    );
+
+    expect(info.ownShips[0]).toMatchObject({
+      canBurn: true,
+      canOverload: true,
+      passengersAboard: 40,
+    });
+  });
+
+  it('exposes no fleet action after this seat is ready', () => {
+    const readyState = createTestState({ phase: 'fleetBuilding' });
+    readyState.players[0].ready = true;
+
+    expect(buildLegalActionInfo(readyState, 0).allowedTypes).toEqual([]);
+  });
 });
 
 describe('buildStateSummary', () => {
@@ -254,6 +286,38 @@ describe('buildStateSummary', () => {
     expect(summary).toContain('YOUR SHIPS:');
     expect(summary).toContain('ENEMY SHIPS:');
     expect(summary).toContain('CANDIDATES:');
+  });
+
+  it('names passengers aboard mission ships', () => {
+    const passengerState = createTestState({
+      ships: [createTestShip({ passengersAboard: 40 })],
+    });
+    const summary = buildStateSummary(passengerState, 0, [], EMPTY_SOLAR_MAP);
+
+    expect(summary).toContain('40 passengers');
+  });
+
+  it('distinguishes courses that ignore optional weak gravity', () => {
+    const summary = buildStateSummary(
+      createTestState({ phase: 'astrogation' }),
+      0,
+      [
+        {
+          type: 'astrogation',
+          orders: [
+            {
+              shipId: asShipId('test-ship'),
+              burn: 4,
+              overload: null,
+              weakGravityChoices: { [asHexKey('9,-6')]: true },
+            },
+          ],
+        },
+      ],
+      EMPTY_SOLAR_MAP,
+    );
+
+    expect(summary).toContain('ignore weak gravity at 9,-6');
   });
 });
 

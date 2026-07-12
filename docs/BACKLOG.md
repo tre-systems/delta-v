@@ -41,13 +41,22 @@ pages except for narrow type fallout.
 Goal: make hard-vs-hard scenario play resolve credibly without invalid actions,
 fuel-stall loops, or timeout-heavy stalemates.
 
-No active queue items. The Blockade Runner randomized-start finding was
-triaged as a non-production stress case: the shipped scenario fixes the first
-active player to the interceptor (`startingPlayer: 1`), while `--randomize-start`
-forces packet-first openings that are not exposed in the player-facing game.
-Reopen this stream only if the production-start scorecard regresses, the
-scenario is deliberately changed to randomize starts, or a new AI stability
-counter trips.
+Active queue:
+
+- **Escape Enforcer Balance** — the 2026-07-12 all-scenario scorecard and a
+  focused paired-seed run both produced 60/60 Pilgrim wins at roughly 12.3
+  turns. Even Easy Pilgrims against Hard Enforcers won 24/30, so this is not
+  merely equal-AI first-seat noise. Capture representative pursuit states and
+  determine whether interceptor doctrine or scenario geometry prevents the
+  Enforcers from contesting the north escape line. Acceptance: a paired
+  multi-seed Hard-vs-Hard sweep brings P0 decided rate inside the documented
+  0-70% band without invalid actions, crashes, fuel stalls, or obscuring the
+  hidden-fugitive objective. Keep exact-movement regressions fixture-backed.
+
+The Blockade Runner randomized-start finding remains triaged as a
+non-production stress case: the shipped scenario fixes the first active player
+to the interceptor (`startingPlayer: 1`), while `--randomize-start` forces
+packet-first openings that are not exposed in the player-facing game.
 
 Primary write ownership: `src/shared/ai/`, `src/shared/ai/__fixtures__/`,
 `src/shared/map-data.ts`, `src/shared/simulate-ai-policy.test.ts`,

@@ -42,6 +42,28 @@ describe('ui ship list helpers', () => {
     ]);
   });
 
+  it("identifies the owning player's fugitive ship and passenger count", () => {
+    const [entry] = buildShipListView(
+      [
+        createShip({
+          identity: { hasFugitives: true, revealed: false },
+          passengersAboard: 40,
+        }),
+      ],
+      'ship-0',
+      new Map(),
+      false,
+    );
+
+    expect(entry.displayName).toBe('Transport ★');
+    expect(entry.passengerText).toBe('40 passengers');
+    expect(entry.detailRows).toContainEqual({
+      label: 'Passengers',
+      value: '40',
+      tone: 'success',
+    });
+  });
+
   it('builds status and fuel labels for destroyed, captured, heroic, and burning ships', () => {
     const view = buildShipListView(
       [

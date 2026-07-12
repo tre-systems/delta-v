@@ -314,6 +314,10 @@ export const buildCandidates = (
   playerId: PlayerId,
   map: SolarSystemMap = buildSolarSystemMap(),
 ): C2S[] => {
+  if (state.phase === 'fleetBuilding' && state.players[playerId].ready) {
+    return [];
+  }
+
   const seeds: C2S[] = [];
   for (const difficulty of ['hard', 'normal', 'easy'] as const) {
     const action = buildActionForDifficulty(state, playerId, difficulty, map);

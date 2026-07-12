@@ -300,6 +300,7 @@ its balance is being tuned.
 - Pilgrims (3 transports from Terra) vs Enforcers (1 corvette near Terra, 1 corsair near Venus).
 - Pilgrims must escape the solar system; Enforcers must stop them.
 - Hidden identity: one transport carries the fugitives (opponent doesn't know which). The server strips `identity` from unrevealed opponent ships.
+- Only the designated fugitive transport can win by crossing the north map edge; escaped decoy transports do not satisfy the objective.
 - Moral victory is tracked if the Pilgrims disable an Enforcer ship before being lost.
 
 ### Lunar Evacuation (escort)

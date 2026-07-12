@@ -152,7 +152,7 @@ Send one thematic chat via `delta_v_send_chat` at game start. Keep under 200 cha
 
 ### fleetBuilding (simultaneous)
 
-Always send `{ "type": "fleetReady", "purchases": [] }` when `state.phase === 'fleetBuilding'` unless you are intentionally customizing purchases. The phase is simultaneous, but it does not auto-submit on connect: `delta_v_wait_for_turn` may return while fleet building is still open for your seat, and the game only advances to `astrogation` after both seats have sent `fleetReady`. In default scenarios, empty purchases use the scenario defaults and are competitive. For Fleet Action / Interplanetary War, candidate labels or scenario defaults are safer than hand-written purchases unless you have full scenario context.
+Send `{ "type": "fleetReady", "purchases": [] }` when `state.phase === 'fleetBuilding'` and `agentReady.actionable === true`, unless you are intentionally customizing purchases. The phase is simultaneous, but it does not auto-submit on connect: `delta_v_wait_for_turn` may return while fleet building is still open for your seat. After submission, candidates are empty and `agentReady.reason` is `waiting_for_opponent`; do not submit again merely because the phase remains `fleetBuilding`. The game advances to `astrogation` after both seats have sent `fleetReady`. In default scenarios, empty purchases use the scenario defaults and are competitive. For Fleet Action / Interplanetary War, candidate labels or scenario defaults are safer than hand-written purchases unless you have full scenario context.
 
 ### astrogation (sequential)
 

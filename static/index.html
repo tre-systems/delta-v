@@ -278,9 +278,9 @@
   </div>
 
   <!-- Fleet building overlay -->
-  <div id="fleetBuilding" data-testid="fleetBuilding" class="screen screen-page" hidden>
+  <div id="fleetBuilding" data-testid="fleetBuilding" class="screen screen-page" hidden role="dialog" aria-modal="true" aria-labelledby="fleetBuildingTitle">
     <div class="menu-content fleet-building-content">
-      <h2 class="scenario-title">Build Your Fleet</h2>
+      <h2 id="fleetBuildingTitle" class="scenario-title">Build Your Fleet</h2>
       <p id="fleetBuildingScenario" class="status-text" hidden></p>
       <div id="fleetCredits" class="fleet-credits">800 MC</div>
       <div id="fleetShopList" class="fleet-shop-list"></div>

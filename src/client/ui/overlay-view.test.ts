@@ -339,9 +339,11 @@ describe('OverlayView', () => {
       'YOUR TURN',
     );
     expect(phaseAlert.classList.contains('active')).toBe(true);
+    expect(phaseAlert.getAttribute('aria-hidden')).toBe('false');
 
     vi.advanceTimersByTime(1200);
     expect(phaseAlert.classList.contains('active')).toBe(false);
+    expect(phaseAlert.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('suppresses non-error toasts while phase alert is visible', () => {

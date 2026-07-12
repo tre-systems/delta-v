@@ -231,7 +231,12 @@ Scenario keys are camelCase. Unknown keys fall back to `biplanetary` in `normali
 
 See [`static/agent-playbook.json`](./static/agent-playbook.json) for per-phase payload shapes and [`src/shared/types/protocol.ts`](./src/shared/types/protocol.ts) for the authoritative discriminated union.
 
-Fleet building is simultaneous but not implicit: when an observation reports `state.phase === 'fleetBuilding'`, the seat must still send `fleetReady` (often with `purchases: []`) before the game can advance. The phase flips to `astrogation` only after both seats have submitted `fleetReady`.
+Fleet building is simultaneous but not implicit: when an observation reports
+`state.phase === 'fleetBuilding'` and `agentReady.actionable === true`, the seat
+must send `fleetReady` (often with `purchases: []`) before the game can advance.
+After submitting, the seat receives no candidates and `agentReady.reason` is
+`waiting_for_opponent` until the other seat is ready. The phase flips to
+`astrogation` only after both seats have submitted `fleetReady`.
 
 ### 5.2 Submission guards
 

@@ -53,6 +53,9 @@ export const describeShip = (ship: Ship, bodies: CelestialBody[]): string => {
   ];
   if (ship.lifecycle === 'landed') parts.push('LANDED');
   if (ship.lifecycle === 'destroyed') parts.push('DESTROYED');
+  if ((ship.passengersAboard ?? 0) > 0) {
+    parts.push(`${ship.passengersAboard} passengers`);
+  }
   if (ship.damage.disabledTurns > 0)
     parts.push(`disabled ${ship.damage.disabledTurns}T`);
   return parts.join(', ');
@@ -64,10 +67,18 @@ export const describeCandidate = (action: C2S, index: number): string => {
     case 'astrogation': {
       const burns = action.orders
         .map((o) => {
-          if (o.burn === null) return `${o.shipId}: coast`;
-          const dir = DIRECTION_NAMES[o.burn] ?? `dir${o.burn}`;
-          const overload = o.overload !== null ? ' +overload' : '';
-          return `${o.shipId}: burn ${dir}${overload}`;
+          const course = (() => {
+            if (o.burn === null) return `${o.shipId}: coast`;
+            const dir = DIRECTION_NAMES[o.burn] ?? `dir${o.burn}`;
+            const overload = o.overload !== null ? ' +overload' : '';
+            return `${o.shipId}: burn ${dir}${overload}`;
+          })();
+          const ignoredWeakGravity = Object.entries(o.weakGravityChoices ?? {})
+            .filter(([, ignored]) => ignored)
+            .map(([hex]) => hex);
+          return ignoredWeakGravity.length > 0
+            ? `${course} (ignore weak gravity at ${ignoredWeakGravity.join(', ')})`
+            : course;
         })
         .join('; ');
       return `${prefix} astrogation — ${burns}`;

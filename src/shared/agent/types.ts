@@ -17,6 +17,7 @@ export interface LegalActionShipInfo {
   canLaunchOrdnance: boolean;
   cargoUsed: number;
   cargoCapacity: number;
+  passengersAboard: number;
   disabledTurns: number;
 }
 

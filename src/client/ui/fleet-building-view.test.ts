@@ -195,6 +195,20 @@ describe('FleetBuildingView', () => {
     expect(onFleetReady).not.toHaveBeenCalled();
   });
 
+  it('marks unaffordable shop choices as disabled for assistive technology', () => {
+    const view = createFleetBuildingView({
+      onFleetReady: vi.fn(),
+      onExit: vi.fn(),
+    });
+
+    view.show(createState(0), 0);
+
+    const disabledItems = document.querySelectorAll(
+      '.fleet-shop-item.disabled[aria-disabled="true"]',
+    );
+    expect(disabledItems.length).toBeGreaterThan(0);
+  });
+
   it('enables ready immediately when the player already has a ship', () => {
     const view = createFleetBuildingView({
       onFleetReady: vi.fn(),

@@ -17,6 +17,7 @@ export interface ShipListEntryView {
   statusText: string;
   hasBurn: boolean;
   fuelText: string;
+  passengerText: string;
   detailRows: ShipDetailRowView[];
   // Whose fleet this ship belongs to, for the spectator/replay side-by-side
   // view. Null when the viewer is the owner — the full fleet is already
@@ -139,6 +140,13 @@ const getShipDetailRows = (
           tone: null,
         }
       : null,
+    (ship.passengersAboard ?? 0) > 0
+      ? {
+          label: 'Passengers',
+          value: `${ship.passengersAboard}`,
+          tone: 'success' as const,
+        }
+      : null,
     velocityRow,
     ...exceptionalRows,
   ].filter((row): row is ShipDetailRowView => row !== null);
@@ -173,10 +181,13 @@ export const buildShipListView = (
     const ownerLabel = showOwner ? `P${ship.owner + 1}` : null;
     const isActivePlayerShip =
       sideContext !== null && ship.owner === sideContext.activePlayer;
+    const isOwnFugitive =
+      ship.identity?.hasFugitives === true &&
+      (sideContext === null || sideContext.viewerId === ship.owner);
 
     return {
       shipId: ship.id,
-      displayName: displayNames[index],
+      displayName: `${displayNames[index]}${isOwnFugitive ? ' ★' : ''}`,
       isSelected: ship.id === selectedId,
       isDestroyed: ship.lifecycle === 'destroyed',
       statusText: getStatusText(ship),
@@ -189,6 +200,10 @@ export const buildShipListView = (
                 ? formatCapacity(SHIP_STATS[ship.type].fuel)
                 : '?'
             }`,
+      passengerText:
+        (ship.passengersAboard ?? 0) > 0
+          ? `${ship.passengersAboard} passengers`
+          : '',
       detailRows: getShipDetailRows(ship, ship.id === selectedId, compact),
       ownerClass,
       ownerLabel,

@@ -111,6 +111,7 @@ export const createShipListView = (deps: ShipListViewDeps): ShipListView => {
           [
             entryView.displayName,
             entryView.fuelText && `fuel ${entryView.fuelText}`,
+            entryView.passengerText,
             statusLine,
           ]
             .filter(Boolean)

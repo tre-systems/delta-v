@@ -38,6 +38,8 @@ describe('getScenarioBriefingCopy', () => {
     expect(enforcers).not.toBeNull();
     expect(fugitives).not.toBe(enforcers);
     expect(fugitives).toMatch(/pilgrim|escape|hidden|north/i);
+    expect(fugitives).toContain('★ ship');
+    expect(fugitives).not.toMatch(/fly any ship/i);
     expect(enforcers).toMatch(/inspect|capture|destroy/i);
   });
 

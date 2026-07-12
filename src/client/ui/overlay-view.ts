@@ -637,6 +637,7 @@ export const createOverlayView = (
       text(phaseAlertSubtitleEl, phaseAlertView.subtitle);
       phaseAlertSubtitleEl.style.color = phaseAlertView.subtitleColor;
       phaseAlertEl.classList.toggle('active', phaseAlertView.active);
+      phaseAlertEl.setAttribute('aria-hidden', String(!phaseAlertView.active));
     });
 
     effect(() => {

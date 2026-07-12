@@ -761,6 +761,38 @@ describe('handleMcpRequest', () => {
     nowSpy.mockRestore();
   });
 
+  it('reports a ready fleet-building seat as waiting with no actions', async () => {
+    const fleetState = buildDuelState();
+    fleetState.phase = 'fleetBuilding';
+    fleetState.players[1].ready = true;
+    const deps = buildDeps({
+      getCurrentGameState: async () => fleetState,
+    });
+    const res = await handleMcpRequest(
+      deps,
+      new Request(
+        url('/mcp/observation', {
+          playerToken: TOKEN_B,
+          legalActionInfo: 'true',
+        }),
+        { method: 'GET' },
+      ),
+    );
+    const body = (await res?.json()) as {
+      agentReady?: Record<string, unknown>;
+      candidates?: unknown[];
+      legalActionInfo?: { allowedTypes?: string[] };
+    };
+
+    expect(body.agentReady).toMatchObject({
+      actionable: false,
+      reason: 'waiting_for_opponent',
+      fallbackAutoplayPending: false,
+    });
+    expect(body.candidates).toEqual([]);
+    expect(body.legalActionInfo?.allowedTypes).toEqual([]);
+  });
+
   it('observation route returns full structured observation', async () => {
     const stateRef = { current: buildDuelState() };
     const deps = buildDeps({

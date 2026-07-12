@@ -64,6 +64,7 @@ export const createFleetBuildingView = (
   const exitBtn = byId('fleetExitBtn');
   const waitingEl = byId('fleetWaiting');
   const scenarioEl = byId('fleetBuildingScenario');
+  const boardSummaryEl = document.getElementById('hudBoardSummary');
 
   const showFleetBuilding = (state: GameState, playerId: PlayerId): void => {
     const isSpectator = playerId !== 0 && playerId !== 1;
@@ -96,10 +97,21 @@ export const createFleetBuildingView = (
       cartSignal.value = [];
       waitingSignal.value = isSpectator;
     });
+    if (boardSummaryEl) {
+      text(
+        boardSummaryEl,
+        isSpectator
+          ? 'Fleet building. Waiting for both commanders.'
+          : 'Fleet building. Choose ships within your budget, then launch your fleet.',
+      );
+    }
   };
 
   const showWaiting = (): void => {
     waitingSignal.value = true;
+    if (boardSummaryEl) {
+      text(boardSummaryEl, 'Fleet submitted. Waiting for opponent.');
+    }
   };
 
   const dispose = (): void => {
@@ -229,6 +241,7 @@ export const createFleetBuildingView = (
         item.setAttribute('role', 'button');
         item.setAttribute('data-testid', 'fleet-shop-item');
         item.tabIndex = itemView.disabled ? -1 : 0;
+        item.setAttribute('aria-disabled', String(itemView.disabled));
         item.setAttribute(
           'aria-label',
           `${itemView.name}, ${itemView.statsText}, ${itemView.cost} MegaCredits`,

@@ -238,7 +238,7 @@ const isActionable = (state: GameState, playerId: PlayerSeat): boolean => {
     case 'gameOver':
       return false;
     case 'fleetBuilding':
-      return true;
+      return !state.players[playerId].ready;
     case 'astrogation':
     case 'ordnance':
     case 'combat':
@@ -260,7 +260,9 @@ const buildLocalAgentReadyInfo = (
     state.phase === 'gameOver'
       ? 'game_over'
       : state.phase === 'fleetBuilding'
-        ? 'fleet_building'
+        ? state.players[playerId].ready
+          ? 'waiting_for_opponent'
+          : 'fleet_building'
         : state.activePlayer === playerId
           ? 'your_turn'
           : 'waiting_for_opponent',

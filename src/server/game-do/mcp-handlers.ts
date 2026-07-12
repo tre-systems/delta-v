@@ -255,7 +255,11 @@ const agentReadyReason = (
   playerId: PlayerId,
 ): AgentReadyReason => {
   if (state.phase === 'gameOver') return 'game_over';
-  if (state.phase === 'fleetBuilding') return 'fleet_building';
+  if (state.phase === 'fleetBuilding') {
+    return state.players[playerId].ready
+      ? 'waiting_for_opponent'
+      : 'fleet_building';
+  }
   return state.activePlayer === playerId ? 'your_turn' : 'waiting_for_opponent';
 };
 
@@ -426,7 +430,7 @@ const isActionable = (state: GameState, playerId: PlayerId): boolean => {
     case 'gameOver':
       return false;
     case 'fleetBuilding':
-      return true;
+      return !state.players[playerId].ready;
     case 'astrogation':
     case 'ordnance':
     case 'combat':

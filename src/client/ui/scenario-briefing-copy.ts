@@ -38,8 +38,8 @@ const BRIEFING_BY_SCENARIO: Partial<Record<ScenarioKey, AsymmetricBriefing>> = {
   },
   escape: {
     seats: [
-      'Three pilgrim transports are breaking out of Terra. One carries the fugitives — keep them hidden in the formation and fly any ship off the north map edge to escape.',
-      'Three transports are trying to flee Terra. One carries the fugitives. Inspect, capture, or destroy them before any escape off the map edge.',
+      'Three pilgrim transports are breaking out of Terra. One carries the fugitives — keep the ★ ship hidden in the formation and fly it off the north map edge to escape. Decoy transports cannot win by escaping alone.',
+      'Three transports are trying to flee Terra. One carries the fugitives. Inspect, capture, or destroy the fugitive ship before it escapes off the map edge; the other transports are decoys.',
     ],
   },
   blockade: {

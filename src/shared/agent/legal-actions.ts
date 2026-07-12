@@ -16,13 +16,18 @@ export const buildLegalActionInfo = (
   playerId: PlayerId,
 ): LegalActionInfo => {
   const opponentId = playerId === 0 ? 1 : 0;
-  const allowedTypes = [...allowedActionTypesForPhase(state.phase)];
+  const allowedTypes =
+    state.phase === 'fleetBuilding' && state.players[playerId].ready
+      ? []
+      : [...allowedActionTypesForPhase(state.phase)];
 
   const ownShips: LegalActionShipInfo[] = state.ships
     .filter((s) => s.owner === playerId && s.lifecycle !== 'destroyed')
     .map((s) => {
       const stats = SHIP_STATS[s.type];
       const isActive = s.lifecycle === 'active';
+      const canManeuver =
+        (isActive || s.lifecycle === 'landed') && s.damage.disabledTurns === 0;
       const isOperational =
         s.damage.disabledTurns === 0 ||
         stats.operatesAtD1 ||
@@ -34,9 +39,9 @@ export const buildLegalActionInfo = (
         velocity: { dq: s.velocity.dq, dr: s.velocity.dr },
         fuel: s.fuel,
         lifecycle: s.lifecycle,
-        canBurn: isActive && s.fuel > 0,
+        canBurn: canManeuver && s.fuel > 0,
         canOverload:
-          isActive && stats.canOverload && !s.overloadUsed && s.fuel >= 2,
+          canManeuver && stats.canOverload && !s.overloadUsed && s.fuel >= 2,
         canAttack:
           isActive &&
           isOperational &&
@@ -49,6 +54,7 @@ export const buildLegalActionInfo = (
           s.cargoUsed < stats.cargo,
         cargoUsed: s.cargoUsed,
         cargoCapacity: isUnlimited(stats.cargo) ? -1 : stats.cargo,
+        passengersAboard: s.passengersAboard ?? 0,
         disabledTurns: s.damage.disabledTurns,
       };
     });

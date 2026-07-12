@@ -74,6 +74,16 @@ describe('ShipListView', () => {
     expect(onSelectShip).toHaveBeenCalledWith('burning');
   });
 
+  it('includes passenger count in the ship button accessible name', () => {
+    const view = createShipListView({ onSelectShip: vi.fn() });
+
+    view.update([createShip({ passengersAboard: 40 })], 'ship-0', new Map());
+
+    expect(
+      document.querySelector('.ship-entry')?.getAttribute('aria-label'),
+    ).toContain('40 passengers');
+  });
+
   it('shows an empty state when there are no ships', () => {
     const view = createShipListView({ onSelectShip: vi.fn() });
 

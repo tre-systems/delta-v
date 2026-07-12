@@ -49,7 +49,10 @@ The local stdio server above uses `delta_v_quick_match_connect` and a WebSocket 
 Quick pacing notes:
 
 - Treat `delta_v_send_action(...waitForResult=true)` with `autoSkipLikely: true` as a hint to `delta_v_wait_for_turn`, not to immediately chain the returned `nextPhase`.
-- If the first actionable observation is still `fleetBuilding`, you still need to send `fleetReady` explicitly, often with `purchases: []`.
+- If the first actionable observation is still `fleetBuilding`, send
+  `fleetReady` explicitly, often with `purchases: []`. Once submitted,
+  `agentReady.actionable` becomes false and candidates are empty while the
+  other seat finishes; do not resubmit.
 - Use `agentReady.msUntilAutoplay` to stay inside the server fallback window. If the agent crafts a custom action, call `delta_v_validate_action` first; it returns `valid: false` with the rejection stage/message without changing state.
 
 Details, token lifetimes, and failure modes: [SECURITY.md](./SECURITY.md) (remote MCP token model) and [DELTA_V_MCP.md](./DELTA_V_MCP.md). Deep protocol: [AGENT_SPEC.md](../AGENT_SPEC.md).

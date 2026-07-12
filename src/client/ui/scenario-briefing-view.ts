@@ -19,10 +19,27 @@ export const createScenarioBriefingView = (): ScenarioBriefingView => {
   const objectiveEl = byId('scenarioBriefingObjective');
   const startBtn = byId<HTMLButtonElement>('scenarioBriefingStartBtn');
   const visibleSignal = signal(false);
+  const backgroundIds = [
+    'gameCanvas',
+    'hudBoardSummary',
+    'hud',
+    'shipList',
+    'gameLog',
+    'logLatestBar',
+    'tutorialTip',
+    'phaseAlert',
+  ] as const;
   let returnFocusEl: HTMLElement | null = null;
+
+  const setBackgroundInert = (inert: boolean): void => {
+    for (const id of backgroundIds) {
+      document.getElementById(id)?.toggleAttribute('inert', inert);
+    }
+  };
 
   const close = (): void => {
     visibleSignal.value = false;
+    setBackgroundInert(false);
     const restoreTarget = returnFocusEl;
     returnFocusEl = null;
     if (restoreTarget && document.contains(restoreTarget)) {
@@ -81,10 +98,12 @@ export const createScenarioBriefingView = (): ScenarioBriefingView => {
       );
       text(objectiveEl, getObjective(state, playerId));
       returnFocusEl = document.activeElement as HTMLElement | null;
+      setBackgroundInert(true);
       visibleSignal.value = true;
     },
     hide: close,
     dispose: () => {
+      setBackgroundInert(false);
       document.body.classList.remove('scenario-briefing-active');
       scope.dispose();
     },

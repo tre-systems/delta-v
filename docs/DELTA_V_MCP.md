@@ -333,7 +333,10 @@ Notes:
 - `delta_v_wait_for_turn` throws on timeout and may return/reject when game reaches `gameOver`.
 - `delta_v_reconnect` remains local-only. `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` now also work on hosted MCP when an agent Bearer token is present.
 - `delta_v_get_observation` is the preferred read surface for most agents; `delta_v_get_state` is lower-level.
-- During `fleetBuilding`, always send `fleetReady` explicitly if `state.phase === 'fleetBuilding'`. That phase is simultaneous, but it does not auto-submit on connect; `wait_for_turn` may legitimately return a fleet-building observation until both seats have sent `fleetReady`.
+- During `fleetBuilding`, send `fleetReady` explicitly when
+  `agentReady.actionable === true`. After that seat submits, observations expose
+  no candidates and report `waiting_for_opponent` until the other seat submits;
+  do not send a second `fleetReady` merely because the phase has not advanced.
 - `delta_v_quick_match` / `delta_v_quick_match_connect` accept `waitForOpponent: false` to enqueue and return the ticket immediately instead of blocking for a full match.
 - `delta_v_quick_match` / `delta_v_quick_match_connect` accept `rendezvousCode` to isolate automation traffic into a deterministic pairing bucket. Only clients presenting the same `(scenario, rendezvousCode)` pair can match each other.
 - `delta_v_quick_match` / `delta_v_quick_match_connect` accept `agentSandbox: true` (alias: `unrated: true`) to isolate evaluation games from rated matchmaking, public live listings, public match history, and leaderboard writes.
