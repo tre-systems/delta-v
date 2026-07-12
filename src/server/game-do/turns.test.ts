@@ -32,6 +32,26 @@ const createEscapeState = (): GameState => {
   );
 };
 
+const createFleetBuildingState = (): GameState => {
+  return createGameOrThrow(
+    SCENARIOS.fleetAction,
+    buildSolarSystemMap(),
+    asGameId('TURNF'),
+    findBaseHex,
+  );
+};
+
+const createLogisticsState = (): GameState => {
+  const state = createGameOrThrow(
+    SCENARIOS.convoy,
+    buildSolarSystemMap(),
+    asGameId('TURNL'),
+    findBaseHex,
+  );
+  state.phase = 'logistics';
+  return state;
+};
+
 const createShip = (
   overrides: Partial<GameState['ships'][number]> = {},
 ): GameState['ships'][number] => {
@@ -145,6 +165,85 @@ describe('game-do-turns', () => {
 
     expect(outcome).not.toBeNull();
     expect(outcome?.state.activePlayer).toBe(1);
+  });
+
+  it('force-readies the timed-out seat during fleet building', () => {
+    const state = createFleetBuildingState();
+    const seat = state.activePlayer;
+
+    expect(state.phase).toBe('fleetBuilding');
+
+    const outcome = resolveTurnTimeoutOutcome(
+      state,
+      buildSolarSystemMap(),
+      () => 0.5,
+    );
+
+    expect(outcome).not.toBeNull();
+    expect(outcome?.lastTurnAutoPlayed).toMatchObject({
+      seat,
+      reason: 'timeout',
+    });
+    expect(typeof outcome?.lastTurnAutoPlayed?.index).toBe('number');
+    expect(outcome?.state.players[seat].ready).toBe(true);
+    // The other seat is still building, so the phase must not advance yet.
+    expect(outcome?.state.phase).toBe('fleetBuilding');
+    // The forced fleet must be legal, so the seat now owns at least one ship.
+    expect(outcome?.state.ships.some((ship) => ship.owner === seat)).toBe(true);
+  });
+
+  it('force-readies the other seat when the active seat already readied', () => {
+    const state = createFleetBuildingState();
+    const active = state.activePlayer;
+    const other = active === 0 ? 1 : 0;
+    state.players[active].ready = true;
+
+    const outcome = resolveTurnTimeoutOutcome(
+      state,
+      buildSolarSystemMap(),
+      () => 0.5,
+    );
+
+    expect(outcome).not.toBeNull();
+    expect(outcome?.lastTurnAutoPlayed).toMatchObject({
+      seat: other,
+      reason: 'timeout',
+    });
+    expect(outcome?.state.players[other].ready).toBe(true);
+    // Both seats ready — the game must move on to astrogation.
+    expect(outcome?.state.phase).toBe('astrogation');
+  });
+
+  it('returns null when every seat is already ready in fleet building', () => {
+    const state = createFleetBuildingState();
+    state.players[0].ready = true;
+    state.players[1].ready = true;
+
+    expect(
+      resolveTurnTimeoutOutcome(state, buildSolarSystemMap(), () => 0.5),
+    ).toBeNull();
+  });
+
+  it('auto-skips timed-out logistics turns', () => {
+    const state = createLogisticsState();
+    const seat = state.activePlayer;
+
+    const outcome = resolveTurnTimeoutOutcome(
+      state,
+      buildSolarSystemMap(),
+      () => 0.5,
+    );
+
+    expect(outcome).not.toBeNull();
+    expect(outcome?.primaryMessage?.type).toBe('stateUpdate');
+    expect(outcome?.lastTurnAutoPlayed).toMatchObject({
+      seat,
+      reason: 'timeout',
+    });
+    expect(typeof outcome?.lastTurnAutoPlayed?.index).toBe('number');
+    // Skipping logistics advances the turn to the opponent's astrogation.
+    expect(outcome?.state.phase).toBe('astrogation');
+    expect(outcome?.state.activePlayer).toBe(seat === 0 ? 1 : 0);
   });
 
   it('returns null for phases without timeout automation', () => {

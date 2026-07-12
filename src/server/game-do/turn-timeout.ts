@@ -1,3 +1,4 @@
+import { TURN_TIMEOUT_MS } from '../../shared/constants';
 import type { GameState, SolarSystemMap } from '../../shared/types/domain';
 import type {
   PublishStateChangeOptions,
@@ -36,6 +37,17 @@ export const runGameDoTurnTimeout = async (
     await deps.rescheduleAlarm();
     return;
   }
+  // Re-arm the turn timer for another full window when the timeout couldn't
+  // resolve an outcome. The deadline was deleted above, so without this a
+  // failed resolution would silently kill turn timeouts for the rest of the
+  // match and leave a stalled game to the inactivity reaper.
+  const rearmTurnTimer = async (): Promise<void> => {
+    await deps.storage.put(
+      GAME_DO_STORAGE_KEYS.turnTimeoutAt,
+      Date.now() + TURN_TIMEOUT_MS,
+    );
+    await deps.rescheduleAlarm();
+  };
   let outcome: ReturnType<typeof resolveTurnTimeoutOutcome>;
   try {
     const rng = await deps.getActionRng();
@@ -48,12 +60,18 @@ export const runGameDoTurnTimeout = async (
       err,
     );
     deps.reportEngineError(code, gameState.phase, gameState.turnNumber, err);
-    await deps.rescheduleAlarm();
+    await rearmTurnTimer();
     return;
   }
 
   if (!outcome) {
-    await deps.rescheduleAlarm();
+    // A live phase with no resolvable outcome keeps a ticking timer; the
+    // pre-game waiting room is not turn-timed, so only reschedule there.
+    if (gameState.phase === 'waiting') {
+      await deps.rescheduleAlarm();
+    } else {
+      await rearmTurnTimer();
+    }
     return;
   }
   await deps.publishStateChange(outcome.state, outcome.primaryMessage, {
