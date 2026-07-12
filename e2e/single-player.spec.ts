@@ -79,6 +79,18 @@ test.describe('single-player smoke tests', () => {
     await expect(page.locator('[data-testid="confirmBtn"]')).toContainText(
       'CONFIRM COURSE',
     );
+
+    await page.click('[data-testid="confirmBtn"]');
+    await expect(page.locator('#turnInfo')).toHaveText('Turn 2');
+    await expect(page.locator('[data-testid="tutorialTip"]')).toContainText(
+      /Good|moved|course|crash/i,
+    );
+    await expect(page.locator('[data-testid="logEntries"]')).toContainText(
+      'Flight coach:',
+    );
+    await expect(
+      page.locator('[data-testid="toastContainer"]'),
+    ).not.toContainText('Flight coach:');
   });
 
   test('can select a ship, queue a burn, and confirm the first turn', async ({

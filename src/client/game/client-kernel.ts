@@ -268,8 +268,10 @@ export const createGameClient = () => {
         events,
         () => {
           if (feedback) {
+            // The persistent tutorial card presents this guidance on the next
+            // astrogation entry. Keep a durable copy in the log, but do not
+            // duplicate it in a short-lived toast that competes for attention.
             logText(feedback);
-            showToast(feedback, 'info');
           }
           done();
         },
