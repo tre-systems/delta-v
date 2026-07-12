@@ -360,11 +360,15 @@ export const buildHUDView = (input: HUDInput): HUDView => {
         ? isUnlimited(cargoMax)
           ? 'Cargo: \u221e'
           : `Cargo: ${cargoFree}/${cargoMax}${getOrdnanceCapacityHint(cargoFree)}`
-        : speed > 0
-          ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 Speed ${speed} (${fuelToStop} to stop)`
-          : astrogationCtx.selectedShipLanded
-            ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 Landed`
-            : `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)}`,
+        : !astrogationCtx.hasSelection
+          ? isMyTurn
+            ? 'Select a ship'
+            : 'No ship selected'
+          : speed > 0
+            ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 Speed ${speed} (${fuelToStop} to stop)`
+            : astrogationCtx.selectedShipLanded
+              ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 Landed`
+              : `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)}`,
     statusText: !isMyTurn
       ? null
       : phase === 'astrogation'

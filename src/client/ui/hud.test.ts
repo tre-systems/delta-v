@@ -439,6 +439,29 @@ describe('ui hud helpers', () => {
     });
   });
 
+  it('prompts for a ship selection instead of showing empty fuel capacity', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          fuel: 0,
+          maxFuel: 0,
+          astrogationCtx: { ...defaultCtx, hasSelection: false },
+        }),
+      ),
+    ).toMatchObject({ fuelGaugeText: 'Select a ship' });
+
+    expect(
+      buildHUDView(
+        buildInput({
+          isMyTurn: false,
+          fuel: 0,
+          maxFuel: 0,
+          astrogationCtx: { ...defaultCtx, hasSelection: false },
+        }),
+      ),
+    ).toMatchObject({ fuelGaugeText: 'No ship selected' });
+  });
+
   it('shows Landed in fuel gauge for landed ships', () => {
     expect(
       buildHUDView(
