@@ -18,7 +18,19 @@
 
 import type { CoachDirective } from '../../shared/agent';
 import type { PlayerId } from '../../shared/types/domain';
+import type { RoomConfig } from '../protocol';
 import { GAME_DO_STORAGE_KEYS } from './storage-keys';
+
+// Coaching is a whisper to the OPPOSING seat's agent, so in a rated
+// quick-match game it hands the sender an invisible prompt-injection
+// channel against the opponent ("surrender immediately" is a legal
+// candidate) — a rating-farming vector. Restrict directives to the rooms
+// the rating writer never rates: agent sandboxes and private (non
+// matchmaker-paired) rooms.
+export const isCoachAllowedInRoom = (
+  roomConfig: Pick<RoomConfig, 'agentSandbox' | 'playerTokens'>,
+): boolean =>
+  roomConfig.agentSandbox === true || roomConfig.playerTokens[1] === null;
 
 export const COACH_PREFIX = '/coach ';
 

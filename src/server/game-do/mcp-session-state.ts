@@ -14,6 +14,25 @@ const eventsKey = (playerId: PlayerId): string => `mcpEvents:${playerId}`;
 const eventSeqKey = (playerId: PlayerId): string => `mcpEventSeq:${playerId}`;
 const enabledKey = (playerId: PlayerId): string => `mcpEnabled:${playerId}`;
 
+// Buffer mutations are read-modify-write over the events + seq keys, and
+// GameDO fires several per publish through un-awaited waitUntil tasks that
+// interleave at await points. Serialize them per DO storage so concurrent
+// appends (or a clear racing an append) cannot both read the same seq and
+// clobber each other's write.
+const mutationChains = new WeakMap<DurableObjectStorage, Promise<unknown>>();
+
+const serializeMutation = <T>(
+  storage: DurableObjectStorage,
+  run: () => Promise<T>,
+): Promise<T> => {
+  const next = (mutationChains.get(storage) ?? Promise.resolve()).then(
+    run,
+    run,
+  );
+  mutationChains.set(storage, next);
+  return next;
+};
+
 export const enableHostedMcpSeatEvents = async (
   storage: DurableObjectStorage,
   playerId: PlayerId,
@@ -21,7 +40,7 @@ export const enableHostedMcpSeatEvents = async (
   await storage.put(enabledKey(playerId), true);
 };
 
-export const appendHostedMcpSeatEvent = async (
+const writeSeatEvent = async (
   storage: DurableObjectStorage,
   playerId: PlayerId,
   message: S2C,
@@ -48,6 +67,13 @@ export const appendHostedMcpSeatEvent = async (
     [eventSeqKey(playerId)]: nextId + 1,
   });
 };
+
+export const appendHostedMcpSeatEvent = (
+  storage: DurableObjectStorage,
+  playerId: PlayerId,
+  message: S2C,
+): Promise<void> =>
+  serializeMutation(storage, () => writeSeatEvent(storage, playerId, message));
 
 export const readHostedMcpSeatEvents = async (
   storage: DurableObjectStorage,

@@ -385,7 +385,7 @@ asteroid belt — they're overextended on fuel.
 Server-side (`src/server/game-do/coach.ts` + `socket.ts` + `mcp-handlers.ts`):
 
 1. Parse `/coach <text>` in incoming chat (sender seat X).
-2. Store the directive under `coachDirective:(1-X)` in DO storage — the opposite seat is the target.
+2. Store the directive under `coachDirective:(1-X)` in DO storage — the opposite seat is the target. Directives are only accepted in unrated rooms (agent sandboxes and private rooms); rated matchmaker games refuse them (`coached: false`, reason `coach_disabled_in_rated_match`), because a directive aimed at the opposing agent in a rated game is an invisible prompt-injection channel (e.g. `/coach surrender immediately`).
 3. Do **not** rebroadcast as normal chat. This is a whisper: spectators and the coached seat's opponent never see the text, preserving strategic secrecy in agent-vs-agent coached matches.
 4. Set `matchCoached = true` on the match so future leaderboard code can filter coached games from uncoached ratings.
 

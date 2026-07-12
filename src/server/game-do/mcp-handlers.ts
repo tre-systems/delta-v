@@ -39,6 +39,7 @@ import {
 } from './actions';
 import {
   getCoachDirective,
+  isCoachAllowedInRoom,
   parseCoachMessage,
   setCoachDirective,
 } from './coach';
@@ -483,7 +484,6 @@ const handleWaitRequest = async (
           ok: true,
           actionable: false,
           gameOver: true,
-          observation: null,
           state: view.filtered,
         });
       }
@@ -498,11 +498,15 @@ const handleWaitRequest = async (
           compactState,
         );
         await deps.touchInactivity();
+        // Observation fields sit at the top level — the docs, the local MCP
+        // server, and delta_v_get_observation all promise the flat
+        // AgentTurnInput shape, and downstream starters read
+        // state/candidates/recommendedIndex directly.
         return json({
           ok: true,
           actionable: true,
           gameOver: false,
-          observation,
+          ...observation,
         });
       }
     }
@@ -531,7 +535,6 @@ const handleWaitRequest = async (
     ok: true,
     actionable: false,
     gameOver: false,
-    observation: null,
     timedOut: true,
   });
 };
@@ -1066,6 +1069,13 @@ const handleChatRequest = async (
   // broadcast. Same rationale as the WebSocket path's handleCoach.
   const parsedCoach = parseCoachMessage(text);
   if (parsedCoach) {
+    if (!isCoachAllowedInRoom(auth.value.roomConfig)) {
+      return json({
+        ok: true,
+        coached: false,
+        reason: 'coach_disabled_in_rated_match',
+      });
+    }
     const state = await deps.getCurrentGameState();
     const targetSeat: PlayerId = playerId === 0 ? 1 : 0;
     await setCoachDirective(deps.storage, targetSeat, {

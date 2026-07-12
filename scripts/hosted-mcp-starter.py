@@ -159,9 +159,20 @@ def main() -> int:
             )
             state = observation.get("state") or {}
             outcome = state.get("outcome")
-            if outcome is not None or state.get("phase") == "gameOver":
+            if (
+                observation.get("gameOver") is True
+                or outcome is not None
+                or state.get("phase") == "gameOver"
+            ):
                 print(f"Game over: {outcome}", flush=True)
                 break
+
+            if observation.get("actionable") is False:
+                # The long-poll window elapsed while the opponent was still
+                # thinking. Wait again — a quiet window is not a terminal
+                # state.
+                print("Not actionable yet; waiting again.", flush=True)
+                continue
 
             candidates = observation.get("candidates") or []
             if not isinstance(candidates, list) or not candidates:

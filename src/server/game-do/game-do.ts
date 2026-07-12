@@ -56,7 +56,11 @@ import {
   SERVER_AGENT_AI_DIFFICULTY,
 } from './bot';
 import { broadcastMessage } from './broadcast';
-import { parseCoachMessage, setCoachDirective } from './coach';
+import {
+  isCoachAllowedInRoom,
+  parseCoachMessage,
+  setCoachDirective,
+} from './coach';
 import { isDurableObjectCodeUpdateError } from './code-update';
 import { handleGameDoFetch } from './fetch';
 import {
@@ -627,6 +631,13 @@ export class GameDO extends DurableObject<Env> {
   ): Promise<boolean> {
     const parsed = parseCoachMessage(rawText);
     if (!parsed) return false;
+    const roomConfig = await this.getRoomConfig();
+    if (roomConfig && !isCoachAllowedInRoom(roomConfig)) {
+      // Consume without storing or broadcasting: the sender meant a
+      // private whisper, and rated matches must not accept directives
+      // aimed at the opposing agent.
+      return true;
+    }
     const state = await this.getCurrentGameState();
     const turnReceived = state?.turnNumber ?? 0;
     const targetSeat: PlayerId = senderId === 0 ? 1 : 0;
