@@ -114,3 +114,23 @@ describe('game-client-hud-view-model landing affordance', () => {
     }
   });
 });
+
+describe('game-client-hud-view-model fleet progress', () => {
+  it('reports orderable counts and fleet group size', () => {
+    const ship = createShip();
+    const planning = createPlanningStore();
+    const state = createState(ship);
+
+    let hud = deriveHudViewModel(state, 0, planning, map);
+    // One own orderable ship, none ordered yet, no group.
+    expect(hud.orderableTotal).toBe(1);
+    expect(hud.orderableOrdered).toBe(0);
+    expect(hud.fleetGroupSize).toBe(0);
+
+    planning.acknowledgeShip(ship.id);
+    planning.selectShips([ship.id, asShipId('enemy')]);
+    hud = deriveHudViewModel(state, 0, planning, map);
+    expect(hud.orderableOrdered).toBe(1);
+    expect(hud.fleetGroupSize).toBe(2);
+  });
+});

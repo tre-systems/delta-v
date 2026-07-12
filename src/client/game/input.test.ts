@@ -361,3 +361,84 @@ describe('game client input helpers', () => {
     });
   });
 });
+
+describe('fleet selection and steering', () => {
+  // Two own ships: one at the origin, one two hexes east.
+  const twoOwnShipsState = () =>
+    createState({
+      ships: [
+        createShip({
+          id: asShipId('own-0'),
+          owner: 0,
+          position: { q: 0, r: 0 },
+        }),
+        createShip({
+          id: asShipId('own-1'),
+          owner: 0,
+          position: { q: 2, r: 0 },
+        }),
+      ],
+    });
+
+  it('shift-click toggles the clicked hex ships into the group', () => {
+    const state = twoOwnShipsState();
+    expect(
+      resolveAstrogationClick(
+        state,
+        simpleMap,
+        0,
+        createPlanning(),
+        { q: 0, r: 0 },
+        true,
+      ),
+    ).toEqual({ type: 'toggleHexSelection', shipIds: [asShipId('own-0')] });
+  });
+
+  it('shift-click on empty space toggles an empty set', () => {
+    const state = twoOwnShipsState();
+    expect(
+      resolveAstrogationClick(
+        state,
+        simpleMap,
+        0,
+        createPlanning(),
+        { q: 4, r: 4 },
+        true,
+      ),
+    ).toEqual({ type: 'toggleHexSelection', shipIds: [] });
+  });
+
+  it('steers the fleet when a group of 2+ clicks a non-ship hex', () => {
+    const state = twoOwnShipsState();
+    const planning = createPlanning({
+      selectedShipId: 'own-1',
+      selectedShipIds: new Set(['own-0', 'own-1']),
+    });
+    expect(
+      resolveAstrogationClick(state, simpleMap, 0, planning, { q: 3, r: 0 }),
+    ).toEqual({ type: 'steerFleet', targetHex: { q: 3, r: 0 } });
+  });
+
+  it('clicking an own ship in fleet mode collapses to a single select', () => {
+    const state = twoOwnShipsState();
+    const planning = createPlanning({
+      selectedShipId: 'own-1',
+      selectedShipIds: new Set(['own-0', 'own-1']),
+    });
+    expect(
+      resolveAstrogationClick(state, simpleMap, 0, planning, { q: 0, r: 0 }),
+    ).toEqual({ type: 'selectShip', shipId: asShipId('own-0') });
+  });
+
+  it('does not steer with a single-ship group (normal mode)', () => {
+    const state = twoOwnShipsState();
+    const planning = createPlanning({
+      selectedShipId: 'own-0',
+      selectedShipIds: new Set(['own-0']),
+    });
+    // One-ship group is normal selection: an empty-hex click clears.
+    expect(
+      resolveAstrogationClick(state, simpleMap, 0, planning, { q: 5, r: 5 }),
+    ).toEqual({ type: 'clearSelection' });
+  });
+});

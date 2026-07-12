@@ -181,8 +181,10 @@ export const createGameClient = () => {
     getClientState: () => ctx.stateSignal.peek(),
     getPlayerId: () => ctx.playerId as PlayerId,
     getTransport: () => ctx.transport,
+    getMap: () => map,
     planningState: ctx.planningState,
     logText,
+    track: (event, props) => track(event, props),
   };
 
   const combatDeps: CombatActionDeps = {

@@ -10,6 +10,7 @@ export const ACTION_BUTTON_BINDINGS = [
   { id: 'skipShipBtn', event: { type: 'skipShip' } },
   { id: 'confirmBtn', event: { type: 'confirm' } },
   { id: 'landFromOrbitBtn', event: { type: 'landFromOrbit' } },
+  { id: 'selectFleetBtn', event: { type: 'selectFleet' } },
   {
     id: 'launchMineBtn',
     event: { type: 'launchOrdnance', ordType: 'mine' },

@@ -28,6 +28,7 @@ export interface HUDView {
   launchTorpedo: UIButtonView;
   launchNuke: UIButtonView;
   landFromOrbit: UIButtonView;
+  selectFleet: { visible: boolean; active: boolean };
   emplaceBase: UIButtonView;
   nextOrdnance: UILabelButtonView;
   confirmOrdnance: UILabelButtonView;
@@ -64,6 +65,10 @@ export interface AstrogationContext {
   allShipsAcknowledged: boolean;
   multipleShipsAlive: boolean;
   hasSelection: boolean;
+  // Fleet-steer state; optional so existing test fixtures need not set it.
+  fleetGroupSize?: number;
+  orderableTotal?: number;
+  orderableOrdered?: number;
   anyCrashed?: boolean;
   crashBody?: string | null;
 }
@@ -72,8 +77,30 @@ const getAstrogationStatusText = (
   ctx: AstrogationContext,
   isMobile: boolean,
 ): string => {
+  const fleetGroupSize = ctx.fleetGroupSize ?? 0;
+  const orderableTotal = ctx.orderableTotal ?? 0;
+  const orderableOrdered = ctx.orderableOrdered ?? 0;
+
+  // Fleet-steer mode: a group is selected, so a hex click points them all.
+  if (fleetGroupSize >= 2) {
+    return isMobile
+      ? `Fleet: ${fleetGroupSize} ships \u00b7 tap a destination`
+      : `Fleet: ${fleetGroupSize} ships \u00b7 click a destination hex to steer them together`;
+  }
+
+  const progress =
+    ctx.multipleShipsAlive && orderableTotal > 0
+      ? ` \u00b7 ${orderableOrdered}/${orderableTotal} ordered`
+      : '';
+
   if (!ctx.hasSelection && ctx.multipleShipsAlive) {
-    return 'Select a ship to begin';
+    // Nudge new players toward the fleet workflow on larger fleets.
+    if (orderableTotal >= 4 && orderableOrdered === 0) {
+      return isMobile
+        ? 'Tip: SELECT FLEET, then tap a destination'
+        : 'Tip: SELECT FLEET, then click a destination hex';
+    }
+    return `Select a ship to begin${progress}`;
   }
 
   if (ctx.selectedShipDisabled) {
@@ -98,9 +125,7 @@ const getAstrogationStatusText = (
   }
 
   if (ctx.selectedShipHasBurn && ctx.multipleShipsAlive) {
-    return isMobile
-      ? 'Burn set \u00b7 Select another ship'
-      : 'Burn set \u00b7 Select another ship';
+    return `Burn set \u00b7 Select another ship${progress}`;
   }
 
   if (ctx.selectedShipHasBurn) {
@@ -110,7 +135,9 @@ const getAstrogationStatusText = (
   }
 
   if (ctx.multipleShipsAlive) {
-    return isMobile ? 'Set burn or skip (S)' : 'Set burn or skip ship (S)';
+    return isMobile
+      ? `Set burn or skip (S)${progress}`
+      : `Set burn or skip ship (S)${progress}`;
   }
 
   return isMobile ? 'Set burn' : 'Set burn or confirm (Enter)';
@@ -389,6 +416,14 @@ export const buildHUDView = (input: HUDInput): HUDView => {
               : 'Land from orbit (1 fuel)',
           }
         : createHiddenButton(),
+
+    selectFleet: {
+      visible:
+        isMyTurn &&
+        phase === 'astrogation' &&
+        astrogationCtx.multipleShipsAlive,
+      active: (astrogationCtx.fleetGroupSize ?? 0) >= 2,
+    },
 
     launchMine: showOrdnance
       ? {

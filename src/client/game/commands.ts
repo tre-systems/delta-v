@@ -45,6 +45,9 @@ export type GameCommand =
   | { type: 'surrender'; shipIds: string[] }
   // Navigation / camera
   | { type: 'selectShip'; shipId: string }
+  | { type: 'toggleFleetSelection'; shipIds: string[] }
+  | { type: 'selectFleet' }
+  | { type: 'steerFleet'; targetHex: HexCoord }
   | { type: 'deselectShip' }
   | { type: 'cycleShip'; direction: 1 | -1 }
   | { type: 'focusNearestEnemy' }

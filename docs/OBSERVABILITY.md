@@ -103,6 +103,7 @@ From `migrations/0001_create_events.sql`:
   - `tutorial_skipped` with `{ step }` (id of the step active when skipped)
   - `tutorial_open_help` with `{ step, section }` (the player tapped "Help" from a tip)
   - `fleet_ready_submitted`, `surrender_submitted` (see `main-interactions.ts`)
+  - `fleet_steer_used` with `{ ships }` (fires once per fleet-steer click during astrogation — the number of grouped ships steered toward the target hex; measures uptake of the multi-ship movement helper)
   - `ai_game_started` with `{ scenario, difficulty }` (local AI path)
 - From client **`/error`**: `client_error` with `{ error, url, ua, ...context }`; current global handlers add either `{ source, line, col }` or `{ type: 'unhandledrejection' }`.
 - From **`game-do/telemetry.ts`**: `engine_error` with `{ code, phase, turn, message, stack? }` where message/stack are capped before D1 persistence; `projection_parity_mismatch` with `{ gameId, liveTurn, livePhase, projectedTurn, projectedPhase }`; `game_abandoned` with `{ gameId, turn, phase, reason, scenario }` (server-side; `anon_id` null, `ip_hash` `'server'`).

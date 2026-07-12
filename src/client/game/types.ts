@@ -64,6 +64,12 @@ export interface HudViewModel {
   torpedoAimingActive: boolean;
   torpedoAccelSteps: 1 | 2 | null;
   allShipsAcknowledged: boolean;
+  /** Orderable ships this turn (astrogation progress denominator). */
+  orderableTotal: number;
+  /** Orderable ships already ordered or auto-skipped (progress numerator). */
+  orderableOrdered: number;
+  /** Ships currently in the fleet-steer group (0 = single-select mode). */
+  fleetGroupSize: number;
   allOrdnanceShipsAcknowledged: boolean;
   queuedOrdnanceType: string | null;
   queuedLaunchCount: number;

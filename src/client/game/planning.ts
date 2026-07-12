@@ -8,6 +8,9 @@ type CombatTargetType = 'ship' | 'ordnance' | null;
 
 interface PlanningSelectionState {
   selectedShipId: string | null;
+  // Multi-ship group for fleet steering. Empty in single-select mode;
+  // `selectedShipId` is the most recently added member (the primary).
+  selectedShipIds: Set<string>;
   hoverHex: HexCoord | null;
   lastSelectedHex: string | null;
 }
@@ -38,6 +41,7 @@ interface CombatPlanningState {
 
 const createSelectionState = (): PlanningSelectionState => ({
   selectedShipId: null,
+  selectedShipIds: new Set(),
   hoverHex: null,
   lastSelectedHex: null,
 });
@@ -69,6 +73,11 @@ const createCombatPlanningState = (): CombatPlanningState => ({
 export interface PlanningState {
   readonly revisionSignal?: Signal<number>;
   selectedShipId: string | null;
+
+  // Fleet-steer group. Members steer together toward a clicked hex.
+  // Optional in the type so the many literal test snapshots need not
+  // declare it; the live store always initialises it to an empty set.
+  selectedShipIds?: Set<string>;
 
   // shipId -> burn direction (or null for no burn)
   burns: Map<string, number | null>;
@@ -116,7 +125,7 @@ export interface PlanningState {
 
 export type ShipSelectionView = Pick<
   PlanningState,
-  'selectedShipId' | 'lastSelectedHex'
+  'selectedShipId' | 'selectedShipIds' | 'lastSelectedHex'
 >;
 
 export type PlanningSelectionView = ShipSelectionView &
@@ -158,7 +167,10 @@ export type OrdnancePlanningSnapshot = ShipSelectionView &
   >;
 export type CombatPlanningSnapshot = Pick<ShipSelectionView, 'selectedShipId'> &
   CombatPlanningView;
-export type HudPlanningSnapshot = Pick<ShipSelectionView, 'selectedShipId'> &
+export type HudPlanningSnapshot = Pick<
+  ShipSelectionView,
+  'selectedShipId' | 'selectedShipIds'
+> &
   AstrogationPlanningView &
   Pick<
     OrdnancePlanningView,
@@ -198,6 +210,10 @@ export interface PlanningStore extends PlanningState {
   readonly revisionSignal: Signal<number>;
   setSelectedShipId: (shipId: string | null) => void;
   selectShip: (shipId: string, lastSelectedHex?: string | null) => void;
+  // Fleet group operations.
+  selectShips: (shipIds: string[]) => void;
+  toggleShipsInSelection: (shipIds: string[]) => void;
+  clearSelection: () => void;
   clearShipPlanning: (shipId: string) => void;
   enterPhase: (phase: PlanningPhase, selectedShipId?: string | null) => void;
   resetAstrogationPlanning: () => void;
@@ -237,7 +253,15 @@ export interface PlanningStore extends PlanningState {
 }
 
 export type PlanningSelectionStore = PlanningSelectionView &
-  Pick<PlanningStore, 'setSelectedShipId' | 'selectShip' | 'setHoverHex'>;
+  Pick<
+    PlanningStore,
+    | 'setSelectedShipId'
+    | 'selectShip'
+    | 'selectShips'
+    | 'toggleShipsInSelection'
+    | 'clearSelection'
+    | 'setHoverHex'
+  >;
 
 export type AstrogationPlanningStore = AstrogationPlanningView &
   Pick<
@@ -292,18 +316,72 @@ export const createPlanningStore = (): PlanningStore => {
     ...createOrdnancePlanningState(),
     ...createCombatPlanningState(),
     setSelectedShipId: (shipId: string | null): void => {
-      if (planningStore.selectedShipId === shipId) {
+      if (
+        planningStore.selectedShipId === shipId &&
+        (planningStore.selectedShipIds?.size ?? 0) === 0
+      ) {
         return;
       }
       planningStore.selectedShipId = shipId;
+      planningStore.selectedShipIds?.clear();
       notifyPlanningChanged();
     },
     selectShip: (shipId: string, lastSelectedHex?: string | null): void => {
       planningStore.selectedShipId = shipId;
+      // A plain single select collapses any active fleet group.
+      planningStore.selectedShipIds?.clear();
 
       if (lastSelectedHex !== undefined) {
         planningStore.lastSelectedHex = lastSelectedHex;
       }
+      notifyPlanningChanged();
+    },
+    selectShips: (shipIds: string[]): void => {
+      planningStore.selectedShipIds = new Set(shipIds);
+      planningStore.selectedShipId =
+        shipIds.length > 0 ? shipIds[shipIds.length - 1] : null;
+      notifyPlanningChanged();
+    },
+    toggleShipsInSelection: (shipIds: string[]): void => {
+      const group = planningStore.selectedShipIds ?? new Set<string>();
+
+      // Seed the group with the current single selection so shift-clicking
+      // a second ship while one is selected yields a two-ship group.
+      if (group.size === 0 && planningStore.selectedShipId) {
+        group.add(planningStore.selectedShipId);
+      }
+
+      // Toggle the whole clicked hex as a unit: if every ship there is
+      // already grouped, remove them all; otherwise add them all.
+      const allPresent =
+        shipIds.length > 0 && shipIds.every((id) => group.has(id));
+
+      for (const id of shipIds) {
+        if (allPresent) {
+          group.delete(id);
+        } else {
+          group.add(id);
+        }
+      }
+
+      planningStore.selectedShipIds = group;
+
+      if (!allPresent && shipIds.length > 0) {
+        planningStore.selectedShipId = shipIds[shipIds.length - 1];
+      } else if (group.size > 0) {
+        const primary = planningStore.selectedShipId;
+        if (!primary || !group.has(primary)) {
+          planningStore.selectedShipId = [...group][group.size - 1];
+        }
+      } else {
+        planningStore.selectedShipId = null;
+      }
+      notifyPlanningChanged();
+    },
+    clearSelection: (): void => {
+      planningStore.selectedShipId = null;
+      planningStore.selectedShipIds?.clear();
+      planningStore.lastSelectedHex = null;
       notifyPlanningChanged();
     },
     clearShipPlanning: (shipId: string): void => {
@@ -318,6 +396,7 @@ export const createPlanningStore = (): PlanningStore => {
       selectedShipId: string | null = null,
     ): void => {
       planningStore.selectedShipId = selectedShipId;
+      planningStore.selectedShipIds?.clear();
       resetAstrogationState();
       resetOrdnanceState();
       resetCombatState();

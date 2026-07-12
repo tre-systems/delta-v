@@ -68,6 +68,7 @@ describe('InputHandler', () => {
     expect(onInput).toHaveBeenNthCalledWith(2, {
       type: 'clickHex',
       hex: { q: 0, r: 0 },
+      shiftKey: false,
     });
   });
 

@@ -192,6 +192,7 @@ const createDeps = (overrides?: {
       getClientState: () => ctx.getState(),
       getPlayerId: () => ctx.getPlayerId(),
       getTransport: () => ctx.getTransport(),
+      getMap: () => null,
       planningState: ctx.planningState,
       logText: astrogationLogText,
     },

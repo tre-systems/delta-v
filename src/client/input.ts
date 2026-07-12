@@ -70,20 +70,20 @@ export const createInputHandler = (
     return true;
   };
 
-  const handleClick = (screenX: number, screenY: number) => {
+  const handleClick = (screenX: number, screenY: number, shiftKey = false) => {
     if (handleMinimapClick(screenX, screenY)) return;
 
     const worldPos = camera.screenToWorld(screenX, screenY);
     const hex = pixelToHex(worldPos, HEX_SIZE);
 
-    onInput({ type: 'clickHex', hex });
+    onInput({ type: 'clickHex', hex, shiftKey });
   };
 
-  const onPointerUp = (x: number, y: number) => {
+  const onPointerUp = (x: number, y: number, shiftKey = false) => {
     const clickPoint = interactions.endPointer(x, y);
 
     if (clickPoint) {
-      handleClick(clickPoint.x, clickPoint.y);
+      handleClick(clickPoint.x, clickPoint.y, shiftKey);
     }
   };
 
@@ -159,7 +159,7 @@ export const createInputHandler = (
 
     listen(window, 'mouseup', (event) => {
       const e = event as MouseEvent;
-      onPointerUp(e.clientX, e.clientY);
+      onPointerUp(e.clientX, e.clientY, e.shiftKey);
     });
 
     listen(canvas, 'dblclick', (event) => {

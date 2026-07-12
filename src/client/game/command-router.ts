@@ -1,3 +1,7 @@
+import {
+  getOrderableShipsForPlayer,
+  isOrderableShip,
+} from '../../shared/engine/util';
 import { hexKey } from '../../shared/hex';
 import type {
   FleetPurchase,
@@ -17,6 +21,7 @@ import {
   confirmOrders,
   setBurnDirection,
   skipShipBurn,
+  steerFleet,
   undoSelectedShipBurn,
 } from './astrogation-actions';
 import {
@@ -303,8 +308,28 @@ const fleetAndNavigationHandlers = {
   },
   surrender: (deps, cmd) => deps.sendSurrender(cmd.shipIds),
   selectShip: (deps, cmd) => selectShip(deps, cmd.shipId),
+  toggleFleetSelection: (deps, cmd) => {
+    deps.ctx.planningState.toggleShipsInSelection(cmd.shipIds);
+    if (cmd.shipIds.length > 0) {
+      playSelect();
+    }
+  },
+  selectFleet: (deps) => {
+    const gameState = deps.ctx.getGameState();
+    if (!gameState) return;
+    const playerId = deps.ctx.getPlayerId() as PlayerId;
+    const ids = getOrderableShipsForPlayer(gameState, playerId)
+      .filter(
+        (ship) => isOrderableShip(ship) && ship.damage.disabledTurns === 0,
+      )
+      .map((ship) => ship.id);
+    if (ids.length === 0) return;
+    deps.ctx.planningState.selectShips(ids);
+    playSelect();
+  },
+  steerFleet: (deps, cmd) => steerFleet(deps.astrogationDeps, cmd.targetHex),
   deselectShip: (deps) => {
-    deps.ctx.planningState.setSelectedShipId(null);
+    deps.ctx.planningState.clearSelection();
     playCancel();
   },
   cycleShip: (deps, cmd) => {
@@ -329,6 +354,9 @@ const fleetAndNavigationHandlers = {
   | 'fleetReady'
   | 'surrender'
   | 'selectShip'
+  | 'toggleFleetSelection'
+  | 'selectFleet'
+  | 'steerFleet'
   | 'deselectShip'
   | 'cycleShip'
   | 'focusNearestEnemy'

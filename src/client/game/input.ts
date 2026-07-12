@@ -1,4 +1,5 @@
 import { SHIP_STATS } from '../../shared/constants';
+import { isOrderableShip } from '../../shared/engine/util';
 import {
   HEX_DIRECTIONS,
   type HexCoord,
@@ -36,6 +37,8 @@ export type AstrogationInteraction =
       clearOverload: boolean;
     }
   | { type: 'selectShip'; shipId: string }
+  | { type: 'toggleHexSelection'; shipIds: string[] }
+  | { type: 'steerFleet'; targetHex: HexCoord }
   | { type: 'clearSelection' };
 
 export type OrdnanceInteraction =
@@ -56,6 +59,22 @@ const getShipById = (state: GameState, shipId: string | null): Ship | null => {
     ? (state.ships.find((ship) => ship.id === shipId) ?? null)
     : null;
 };
+
+// All own orderable, undamaged ships sharing a hex — used to toggle a whole
+// stack into the fleet group in one shift-click. Landed ships count: they
+// can take off, so they belong in a fleet steer.
+const getOwnOrderableShipsAtHex = (
+  state: GameState,
+  playerId: PlayerId,
+  clickHex: HexCoord,
+): Ship[] =>
+  state.ships.filter(
+    (ship) =>
+      ship.owner === playerId &&
+      isOrderableShip(ship) &&
+      ship.damage.disabledTurns === 0 &&
+      hexEqual(clickHex, ship.position),
+  );
 
 const getOwnShipAtHex = (
   state: GameState,
@@ -210,7 +229,30 @@ export const resolveAstrogationClick = (
   playerId: PlayerId,
   planning: AstrogationPlanningSnapshot,
   clickHex: HexCoord,
+  shiftKey = false,
 ): AstrogationInteraction => {
+  // Shift-click toggles every own orderable ship at the hex in/out of the
+  // fleet group (also the one-gesture way to grab a whole stack).
+  if (shiftKey) {
+    const shipIds = getOwnOrderableShipsAtHex(state, playerId, clickHex).map(
+      (ship) => ship.id,
+    );
+    return { type: 'toggleHexSelection', shipIds };
+  }
+
+  // Fleet mode: with two or more ships grouped, a click on any hex that is
+  // not one of the player's own ships steers the whole group toward it.
+  // Per-ship halo/overload/gravity editing is disabled in this mode.
+  const group = planning.selectedShipIds;
+  if (group && group.size >= 2) {
+    const ownShipHere = getOwnShipAtHex(state, playerId, clickHex);
+    if (!ownShipHere) {
+      return { type: 'steerFleet', targetHex: clickHex };
+    }
+    // Clicking an own ship falls through to a single select, collapsing
+    // the group so the player can hand-plot that ship.
+  }
+
   const selectedShip = getShipById(state, planning.selectedShipId);
 
   if (

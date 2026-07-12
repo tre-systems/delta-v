@@ -177,3 +177,51 @@ describe('planning', () => {
     dispose();
   });
 });
+
+describe('fleet group selection', () => {
+  it('selectShips sets the group and primary to the last id', () => {
+    const planning = createPlanningStore();
+    planning.selectShips(['a', 'b', 'c']);
+    expect([...(planning.selectedShipIds ?? [])]).toEqual(['a', 'b', 'c']);
+    expect(planning.selectedShipId).toBe('c');
+  });
+
+  it('toggleShipsInSelection seeds from the current single selection', () => {
+    const planning = createPlanningStore();
+    planning.selectShip('a');
+    // Group was empty; toggling b should yield {a, b}.
+    planning.toggleShipsInSelection(['b']);
+    expect([...(planning.selectedShipIds ?? [])].sort()).toEqual(['a', 'b']);
+    expect(planning.selectedShipId).toBe('b');
+  });
+
+  it('toggleShipsInSelection removes a hex already fully in the group', () => {
+    const planning = createPlanningStore();
+    planning.selectShips(['a', 'b']);
+    planning.toggleShipsInSelection(['b']);
+    expect([...(planning.selectedShipIds ?? [])]).toEqual(['a']);
+  });
+
+  it('a plain single select collapses the group', () => {
+    const planning = createPlanningStore();
+    planning.selectShips(['a', 'b']);
+    planning.selectShip('c');
+    expect(planning.selectedShipIds?.size ?? 0).toBe(0);
+    expect(planning.selectedShipId).toBe('c');
+  });
+
+  it('clearSelection empties the group and primary', () => {
+    const planning = createPlanningStore();
+    planning.selectShips(['a', 'b']);
+    planning.clearSelection();
+    expect(planning.selectedShipId).toBeNull();
+    expect(planning.selectedShipIds?.size ?? 0).toBe(0);
+  });
+
+  it('entering a phase clears the group', () => {
+    const planning = createPlanningStore();
+    planning.selectShips(['a', 'b']);
+    planning.enterPhase('astrogation');
+    expect(planning.selectedShipIds?.size ?? 0).toBe(0);
+  });
+});

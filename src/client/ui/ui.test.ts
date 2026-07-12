@@ -134,6 +134,7 @@ const installFixture = () => {
     <button id="skipShipBtn"></button>
     <button id="confirmBtn"></button>
     <button id="landFromOrbitBtn"></button>
+    <button id="selectFleetBtn"></button>
     <button id="launchMineBtn"></button>
     <button id="launchTorpedoBtn"></button>
     <button id="launchNukeBtn"></button>

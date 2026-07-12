@@ -342,6 +342,15 @@ export const deriveHudViewModel = (
           ship.damage.disabledTurns > 0 ||
           planning.acknowledgedShips.has(ship.id),
       ),
+    orderableTotal: myShips.filter(isOrderableShip).length,
+    orderableOrdered: myShips
+      .filter(isOrderableShip)
+      .filter(
+        (ship) =>
+          ship.damage.disabledTurns > 0 ||
+          planning.acknowledgedShips.has(ship.id),
+      ).length,
+    fleetGroupSize: planning.selectedShipIds?.size ?? 0,
     allOrdnanceShipsAcknowledged: actionableOrdnanceShipIds.every((shipId) =>
       planning.acknowledgedOrdnanceShips.has(shipId),
     ),

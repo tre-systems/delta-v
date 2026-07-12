@@ -26,6 +26,7 @@ export type DrawShipsLayerInput = {
   now: number;
   playerId: PlayerId;
   planningSelectedShipId: string | null;
+  planningSelectedShipIds?: ReadonlySet<string>;
   hexSize: number;
   animState: AnimationState | null;
   zoom: number;
@@ -39,6 +40,7 @@ type DrawOneShipInput = {
   now: number;
   playerId: PlayerId;
   planningSelectedShipId: string | null;
+  planningSelectedShipIds?: ReadonlySet<string>;
   hexSize: number;
   animState: AnimationState | null;
   stackOffsets: ReturnType<typeof getShipStackOffsets> | null;
@@ -61,6 +63,7 @@ export const drawShipsLayer = ({
   now,
   playerId,
   planningSelectedShipId,
+  planningSelectedShipIds,
   hexSize,
   animState,
   zoom,
@@ -77,11 +80,63 @@ export const drawShipsLayer = ({
       now,
       playerId,
       planningSelectedShipId,
+      planningSelectedShipIds,
       hexSize,
       animState,
       stackOffsets,
       zoom,
     });
+  }
+
+  // Stack-count badges: a small numeral on any own hex holding more than
+  // one ship, so overlapping ships read as a countable group at a glance.
+  if (!animState) {
+    drawOwnStackBadges(ctx, visibleShips, playerId, hexSize, zoom);
+  }
+};
+
+const drawOwnStackBadges = (
+  ctx: CanvasRenderingContext2D,
+  ships: GameState['ships'],
+  playerId: PlayerId,
+  hexSize: number,
+  zoom: number,
+): void => {
+  const counts = new Map<string, { count: number; pos: PixelCoord }>();
+
+  for (const ship of ships) {
+    if (ship.owner !== playerId || ship.lifecycle === 'destroyed') continue;
+    const key = hexKey(ship.position);
+    const entry = counts.get(key);
+    if (entry) {
+      entry.count += 1;
+    } else {
+      counts.set(key, { count: 1, pos: hexToPixel(ship.position, hexSize) });
+    }
+  }
+
+  for (const { count, pos } of counts.values()) {
+    if (count < 2) continue;
+
+    const r = 8 * zoom;
+    const x = pos.x + 15 * zoom;
+    const y = pos.y - 15 * zoom;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(10, 22, 40, 0.92)';
+    ctx.strokeStyle = 'rgba(120, 200, 255, 0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#dcefff';
+    ctx.font = `bold ${Math.round(11 * zoom)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(count), x, y + 0.5 * zoom);
+    ctx.restore();
   }
 };
 
@@ -93,6 +148,7 @@ const drawOneShip = ({
   now,
   playerId,
   planningSelectedShipId,
+  planningSelectedShipIds,
   hexSize,
   animState,
   stackOffsets,
@@ -114,6 +170,13 @@ const drawOneShip = ({
   );
 
   drawSelectionRingIfNeeded(ctx, ship.id, planningSelectedShipId, pos);
+  drawFleetGroupRingIfNeeded(
+    ctx,
+    ship.id,
+    planningSelectedShipId,
+    planningSelectedShipIds,
+    pos,
+  );
   drawShipIcon({
     ctx,
     x: pos.x,
@@ -249,6 +312,29 @@ const drawSelectionRingIfNeeded = (
   ctx.shadowBlur = 8;
   ctx.beginPath();
   ctx.arc(pos.x, pos.y, 16, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+};
+
+// Dimmer, non-pulsing ring for fleet-group members other than the primary
+// (which already gets the bright selection ring), so a multi-ship steer
+// group reads as a set without competing with the focused ship.
+const drawFleetGroupRingIfNeeded = (
+  ctx: CanvasRenderingContext2D,
+  shipId: string,
+  selectedId: string | null,
+  groupIds: ReadonlySet<string> | undefined,
+  pos: PixelCoord,
+): void => {
+  if (!groupIds || groupIds.size < 2) return;
+  if (shipId === selectedId || !groupIds.has(shipId)) return;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(79, 195, 247, 0.55)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, 15, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 };

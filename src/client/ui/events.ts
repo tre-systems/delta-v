@@ -17,6 +17,7 @@ export type UIEvent =
   | { type: 'skipShip' }
   | { type: 'confirm' }
   | { type: 'landFromOrbit' }
+  | { type: 'selectFleet' }
   | { type: 'launchOrdnance'; ordType: OrdnanceType }
   | { type: 'emplaceBase' }
   | { type: 'skipOrdnance' }

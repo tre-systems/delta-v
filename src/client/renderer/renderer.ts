@@ -397,6 +397,7 @@ export const createRenderer = (
         now,
         playerId,
         planningSelectedShipId: planningState.selectedShipId,
+        planningSelectedShipIds: planningState.selectedShipIds,
         hexSize: HEX_SIZE,
         animState: animState(),
         zoom: camera.zoom,

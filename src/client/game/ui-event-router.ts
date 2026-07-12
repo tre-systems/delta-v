@@ -55,6 +55,8 @@ export const resolveUIEventPlan = (event: UIEvent): UIEventPlan => {
       return { kind: 'command', command: { type: 'confirmOrders' } };
     case 'landFromOrbit':
       return { kind: 'command', command: { type: 'landFromOrbit' } };
+    case 'selectFleet':
+      return { kind: 'command', command: { type: 'selectFleet' } };
     case 'launchOrdnance':
       return {
         kind: 'command',

@@ -123,6 +123,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
   const skipShipBtn = byId('skipShipBtn');
   const confirmBtn = byId('confirmBtn');
   const landFromOrbitBtn = byId<HTMLButtonElement>('landFromOrbitBtn');
+  const selectFleetBtn = byId<HTMLButtonElement>('selectFleetBtn');
   const launchMineBtn = byId<HTMLButtonElement>('launchMineBtn');
   const launchTorpedoBtn = byId<HTMLButtonElement>('launchTorpedoBtn');
   const launchNukeBtn = byId<HTMLButtonElement>('launchNukeBtn');
@@ -332,6 +333,17 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       );
 
       visible(
+        selectFleetBtn,
+        !hideActions && hudView.selectFleet.visible,
+        HUD_ACTION_BUTTON_DISPLAY,
+      );
+      selectFleetBtn.classList.toggle('is-active', hudView.selectFleet.active);
+      setBtnLabel(
+        selectFleetBtn,
+        hudView.selectFleet.active ? 'STEER' : 'FLEET',
+      );
+
+      visible(
         launchMineBtn,
         !hideActions && hudView.launchMine.visible,
         HUD_ACTION_BUTTON_DISPLAY,
@@ -435,6 +447,7 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
           state.hudView.skipShipVisible ||
           state.hudView.confirmVisible ||
           state.hudView.landFromOrbit.visible ||
+          state.hudView.selectFleet.visible ||
           state.hudView.launchMine.visible ||
           state.hudView.launchTorpedo.visible ||
           state.hudView.launchNuke.visible ||

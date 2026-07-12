@@ -22,7 +22,7 @@ import type {
 } from './planning';
 
 export type InputEvent =
-  | { type: 'clickHex'; hex: HexCoord }
+  | { type: 'clickHex'; hex: HexCoord; shiftKey?: boolean }
   | { type: 'hoverHex'; hex: HexCoord | null };
 
 const interpretCombatClick = (
@@ -107,6 +107,7 @@ const interpretAstrogationClick = (
   map: SolarSystemMap,
   playerId: PlayerId,
   planning: AstrogationPlanningSnapshot,
+  shiftKey: boolean,
 ): GameCommand[] => {
   const interaction = resolveAstrogationClick(
     state,
@@ -114,6 +115,7 @@ const interpretAstrogationClick = (
     playerId,
     planning,
     hex,
+    shiftKey,
   );
 
   switch (interaction.type) {
@@ -146,6 +148,20 @@ const interpretAstrogationClick = (
         {
           type: 'selectShip',
           shipId: interaction.shipId,
+        },
+      ];
+    case 'toggleHexSelection':
+      return [
+        {
+          type: 'toggleFleetSelection',
+          shipIds: interaction.shipIds,
+        },
+      ];
+    case 'steerFleet':
+      return [
+        {
+          type: 'steerFleet',
+          targetHex: interaction.targetHex,
         },
       ];
     case 'clearSelection':
@@ -198,6 +214,7 @@ const interpretClickHex = (
   map: SolarSystemMap | null,
   playerId: PlayerId,
   planning: InteractivePlanningSnapshot,
+  shiftKey: boolean,
 ): GameCommand[] => {
   if (!state || !map) return [];
 
@@ -209,7 +226,14 @@ const interpretClickHex = (
     case 'ordnance':
       return interpretOrdnanceClick(hex, state, playerId, planning);
     case 'astrogation':
-      return interpretAstrogationClick(hex, state, map, playerId, planning);
+      return interpretAstrogationClick(
+        hex,
+        state,
+        map,
+        playerId,
+        planning,
+        shiftKey,
+      );
     default:
       return [];
   }
@@ -232,6 +256,7 @@ export const interpretInput = (
         map,
         playerId,
         planning,
+        event.shiftKey ?? false,
       );
     case 'hoverHex':
       if (state) return [{ type: 'setHoverHex', hex: event.hex }];
