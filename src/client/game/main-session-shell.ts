@@ -150,6 +150,13 @@ export const createMainSessionShell = (
   // the spectator-safe state before the controller schedules the next
   // entry.
   const wrapReplayDone = (onAnimationsDone: () => void) => () => {
+    // Animation/timeout completions have no cancel path and can fire after
+    // the player exits the replay (exitToMenuSession nulls the game state).
+    // Don't resurrect gameOver over the menu — it maps to the HUD screen
+    // and leaves the player on an empty board.
+    if (args.ctx.gameStateSignal.peek() === null) {
+      return;
+    }
     setState('gameOver');
     onAnimationsDone();
   };

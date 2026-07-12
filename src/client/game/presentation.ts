@@ -33,6 +33,7 @@ export interface PresentationDeps {
   setState: (newState: ClientState) => void;
   resetCombatState: () => void;
   getGameState: () => GameState | null;
+  getClientState: () => ClientState;
   getPlayerId: () => PlayerId;
   getMap: () => SolarSystemMap | null;
   renderer: {
@@ -282,6 +283,13 @@ export const showGameOverOutcome = (
   const effectDuration = deps.renderer.triggerGameOverEffect(won);
 
   setTimeout(() => {
+    // The reveal delay can outlive the session: if the player exited to the
+    // menu (or started another game) before it fires, showing the modal now
+    // would strand it over a non-game screen with no state change left to
+    // hide it.
+    if (deps.getClientState() !== 'gameOver') {
+      return;
+    }
     deps.ui.overlay.showGameOver(won, reason, stats);
     deps.onGameOverShown?.();
 

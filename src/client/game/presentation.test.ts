@@ -24,6 +24,7 @@ import {
   type PresentationDeps,
   presentCombatResults,
   presentMovementResult,
+  showGameOverOutcome,
 } from './presentation';
 
 vi.mock('../audio', () => ({
@@ -155,6 +156,7 @@ const createDeps = (state: GameState): PresentationDeps => ({
   setState: vi.fn(),
   resetCombatState: vi.fn(),
   getGameState: () => state,
+  getClientState: () => 'gameOver' as const,
   getPlayerId: () => 0 as PlayerId,
   getMap: () => map,
   renderer: {
@@ -269,5 +271,39 @@ describe('presentation audio cues', () => {
 
     vi.advanceTimersByTime(80);
     expect(playExplosion).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('showGameOverOutcome reveal delay', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it('shows the overlay when the client is still on the game-over screen', () => {
+    const state = createState({});
+    const deps = createDeps(state);
+    deps.renderer.triggerGameOverEffect = vi.fn(() => 1200);
+
+    showGameOverOutcome(deps, true, 'Fleet eliminated!');
+    vi.advanceTimersByTime(1200);
+
+    expect(deps.ui.overlay.showGameOver).toHaveBeenCalledTimes(1);
+  });
+
+  it('suppresses the overlay when the player exited before the delay fired', () => {
+    const state = createState({});
+    const deps = createDeps(state);
+    deps.renderer.triggerGameOverEffect = vi.fn(() => 1200);
+    deps.getClientState = () => 'menu' as const;
+
+    showGameOverOutcome(deps, true, 'Fleet eliminated!');
+    vi.advanceTimersByTime(1200);
+
+    expect(deps.ui.overlay.showGameOver).not.toHaveBeenCalled();
   });
 });
