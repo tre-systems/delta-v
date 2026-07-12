@@ -233,9 +233,11 @@ export const writeMatchRatingIfEligible = async (
   const newOpponent = await isNewOpponent(db, pair.aKey, pair.bKey, gameId);
   const officialBotMatch = hasOfficialQuickMatchBot(roomConfig.players);
 
-  // Four statements, all batched so either the whole rating update
-  // lands or none does. INSERT OR IGNORE on match_rating keeps the
-  // whole batch idempotent on game_id.
+  // All statements batched so either the whole rating update lands or
+  // none does. INSERT OR IGNORE on match_rating dedupes on game_id, and
+  // the player UPDATEs are conditioned on this batch's row (game_id +
+  // created_at) actually landing, so a duplicate invocation for the same
+  // game cannot double-increment games_played / distinct_opponents.
   const insertRating = db
     .prepare(
       'INSERT OR IGNORE INTO match_rating ' +
@@ -256,12 +258,15 @@ export const writeMatchRatingIfEligible = async (
     );
 
   const distinctBump = newOpponent ? 1 : 0;
+  const wroteThisBatch =
+    'EXISTS (SELECT 1 FROM match_rating WHERE game_id = ? AND created_at = ?)';
   const updateA = db
     .prepare(
       'UPDATE player SET rating = ?, rd = ?, volatility = ?, ' +
         'games_played = games_played + 1, ' +
         'distinct_opponents = distinct_opponents + ?, ' +
-        'last_match_at = ? WHERE player_key = ?',
+        'last_match_at = ? WHERE player_key = ? ' +
+        `AND ${wroteThisBatch}`,
     )
     .bind(
       newA.a.rating,
@@ -270,6 +275,8 @@ export const writeMatchRatingIfEligible = async (
       distinctBump,
       now,
       pair.aKey,
+      gameId,
+      now,
     );
 
   const updateB = db
@@ -277,7 +284,8 @@ export const writeMatchRatingIfEligible = async (
       'UPDATE player SET rating = ?, rd = ?, volatility = ?, ' +
         'games_played = games_played + 1, ' +
         'distinct_opponents = distinct_opponents + ?, ' +
-        'last_match_at = ? WHERE player_key = ?',
+        'last_match_at = ? WHERE player_key = ? ' +
+        `AND ${wroteThisBatch}`,
     )
     .bind(
       newA.b.rating,
@@ -286,6 +294,8 @@ export const writeMatchRatingIfEligible = async (
       distinctBump,
       now,
       pair.bKey,
+      gameId,
+      now,
     );
 
   try {

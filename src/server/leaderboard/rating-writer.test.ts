@@ -93,8 +93,31 @@ const buildMockDb = (seedPlayers: Record<string, Record<string, unknown>>) => {
           return { success: true };
         }
         if (lowered.startsWith('update player')) {
-          const [rating, rd, volatility, distinctBump, now, playerKey] =
-            args as [number, number, number, number, number, string];
+          const [
+            rating,
+            rd,
+            volatility,
+            distinctBump,
+            now,
+            playerKey,
+            guardGameId,
+            guardCreatedAt,
+          ] = args as [
+            number,
+            number,
+            number,
+            number,
+            number,
+            string,
+            string | undefined,
+            number | undefined,
+          ];
+          if (lowered.includes('exists') && guardGameId !== undefined) {
+            const ratingRow = matchRatings.get(guardGameId);
+            if (!ratingRow || ratingRow.created_at !== guardCreatedAt) {
+              return { success: true };
+            }
+          }
           const row = byKey.get(playerKey);
           if (row) {
             row.rating = rating;
@@ -272,6 +295,41 @@ describe('writeMatchRatingIfEligible', () => {
     expect(result.applied?.officialBotMatch).toBe(false);
     expect(result.applied?.ratingBeforeA).toBe(1500);
     expect(result.applied?.ratingAfterA).toBeGreaterThan(1500);
+  });
+
+  it('does not double-apply player increments when invoked twice for one game', async () => {
+    const { db, byKey, matchRatings } = buildMockDb({
+      human_aaa12345: seedPlayer('human_aaa12345', 'A', false),
+      human_bbb12345: seedPlayer('human_bbb12345', 'B', false),
+    });
+    const roomConfig = makeRoom(['human_aaa12345', 'human_bbb12345'], true);
+
+    const first = await writeMatchRatingIfEligible({
+      db,
+      roomConfig,
+      gameId,
+      outcomeWinner: 0,
+      now,
+    });
+    expect(first.ok).toBe(true);
+
+    const ratingAfterFirst = byKey.get('human_aaa12345')?.rating;
+
+    const second = await writeMatchRatingIfEligible({
+      db,
+      roomConfig,
+      gameId,
+      outcomeWinner: 0,
+      now: now + 5_000,
+    });
+    expect(second.ok).toBe(true);
+
+    expect(matchRatings.size).toBe(1);
+    expect(matchRatings.get(gameId)?.created_at).toBe(now);
+    expect(byKey.get('human_aaa12345')?.games_played).toBe(1);
+    expect(byKey.get('human_bbb12345')?.games_played).toBe(1);
+    expect(byKey.get('human_aaa12345')?.distinct_opponents).toBe(1);
+    expect(byKey.get('human_aaa12345')?.rating).toBe(ratingAfterFirst);
   });
 
   it('marks official-bot matches in the applied summary', async () => {
