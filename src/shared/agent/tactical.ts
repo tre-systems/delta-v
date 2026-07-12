@@ -3,6 +3,7 @@
 // the state's strategic shape without having to compute distances themselves.
 
 import { getCombatStrength } from '../combat';
+import { isUnlimited } from '../constants';
 import { hexDistance } from '../hex';
 import type {
   CelestialBody,
@@ -146,7 +147,7 @@ export const buildTacticalFeatures = (
   // number meaningful).
   const totalFuel = (ships: readonly Ship[]): number =>
     ships.reduce(
-      (sum, ship) => (Number.isFinite(ship.fuel) ? sum + ship.fuel : sum),
+      (sum, ship) => (isUnlimited(ship.fuel) ? sum : sum + ship.fuel),
       0,
     );
   const fuelAdvantage = totalFuel(ownShips) - totalFuel(enemyShips);

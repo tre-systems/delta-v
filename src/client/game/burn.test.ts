@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SHIP_STATS } from '../../shared/constants';
 import { asGameId, asShipId } from '../../shared/ids';
 import type { GameState, PlayerState, Ship } from '../../shared/types/domain';
 import { deriveBurnChangePlan } from './burn';
@@ -139,6 +140,28 @@ describe('game-client-burn', () => {
       shipId: asShipId('ship-0'),
       nextBurn: null,
       clearOverload: false,
+    });
+  });
+
+  it('permits burns for a torch ship after a JSON round-trip', () => {
+    // Multiplayer state reaches the client via JSON.stringify (server
+    // broadcast, MCP observations, R2 replays). A literal Infinity fuel
+    // value would arrive as null and lock the torch out of burning
+    // forever; the unlimited-fuel sentinel must survive the trip.
+    const torch = createShip({ type: 'torch', fuel: SHIP_STATS.torch.fuel });
+    const wireState = JSON.parse(
+      JSON.stringify(createState(torch)),
+    ) as GameState;
+
+    const revivedFuel = wireState.ships[0].fuel;
+    expect(typeof revivedFuel).toBe('number');
+    expect(revivedFuel).toBeGreaterThan(0);
+
+    expect(deriveBurnChangePlan(wireState, 'ship-0', 2, null)).toEqual({
+      kind: 'update',
+      shipId: asShipId('ship-0'),
+      nextBurn: 2,
+      clearOverload: true,
     });
   });
 });

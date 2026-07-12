@@ -1,5 +1,6 @@
 import {
   isBaseCarrierType,
+  isUnlimited,
   isWarshipType,
   ORDNANCE_MASS,
   SHIP_STATS,
@@ -78,7 +79,7 @@ const scoreCombatFleetPlan = (purchases: FleetPurchase[]): number => {
   const totalCombat = sumBy(ships, (stats) => stats.combat);
   const totalCargo = sumBy(ships, (stats) => stats.cargo);
   const totalFuel = sumBy(ships, (stats) =>
-    Number.isFinite(stats.fuel) ? stats.fuel : 30,
+    isUnlimited(stats.fuel) ? 30 : stats.fuel,
   );
   const hullCount = ships.length;
   const overloadCount = sumBy(ships, (stats) => (stats.canOverload ? 1 : 0));

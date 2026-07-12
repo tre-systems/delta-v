@@ -6,6 +6,7 @@ import type {
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
+import { formatCapacity } from '../ui/formatters';
 
 export const buildShipTooltipHtml = (
   _state: GameState,
@@ -31,12 +32,12 @@ export const buildShipTooltipHtml = (
 
   if (!isEnemy) {
     parts.push(
-      `<div class="tt-stat">Fuel: ${ship.fuel}/${stats?.fuel ?? '?'}</div>`,
+      `<div class="tt-stat">Fuel: ${formatCapacity(ship.fuel)}/${stats ? formatCapacity(stats.fuel) : '?'}</div>`,
     );
 
     if (stats && stats.cargo > 0) {
       parts.push(
-        `<div class="tt-stat">Cargo: ${stats.cargo - ship.cargoUsed}/${stats.cargo}</div>`,
+        `<div class="tt-stat">Cargo: ${formatCapacity(stats.cargo - ship.cargoUsed)}/${formatCapacity(stats.cargo)}</div>`,
       );
     }
   }

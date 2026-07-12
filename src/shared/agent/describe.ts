@@ -1,7 +1,7 @@
 // Human-readable prose describers used by the agent `summary` field.
 // Pure functions over state; safe in browser and Worker runtimes.
 
-import { SHIP_STATS } from '../constants';
+import { isUnlimited, SHIP_STATS } from '../constants';
 import type { HexCoord, HexVec } from '../hex';
 import { hexDistance } from '../hex';
 import type { CelestialBody, Ship } from '../types/domain';
@@ -49,7 +49,7 @@ export const describeShip = (ship: Ship, bodies: CelestialBody[]): string => {
     `${stats.name} "${ship.id}"`,
     describePosition(ship.position, bodies),
     describeVelocity(ship.velocity),
-    `fuel ${ship.fuel}/${stats.fuel === Infinity ? 'inf' : stats.fuel}`,
+    `fuel ${isUnlimited(ship.fuel) ? 'inf' : ship.fuel}/${isUnlimited(stats.fuel) ? 'inf' : stats.fuel}`,
   ];
   if (ship.lifecycle === 'landed') parts.push('LANDED');
   if (ship.lifecycle === 'destroyed') parts.push('DESTROYED');

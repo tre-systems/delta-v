@@ -47,6 +47,20 @@ export const isCivilianType = (type: ShipType): type is CivilianType =>
 export const isBaseCarrierType = (type: ShipType): type is BaseCarrierType =>
   BASE_CARRIER_TYPES.has(type);
 
+// Finite stand-in for unlimited fuel/cargo capacity (torch drives, orbital bases).
+// A literal Infinity would not survive JSON serialization (JSON.stringify turns it
+// into null), which corrupts every serialized boundary: state broadcasts to
+// browsers, MCP observations, and R2 replay archives.
+export const UNLIMITED = 1_000_000;
+
+// Values at or above this threshold count as unlimited. Burns and transfers drain
+// at most a few units per turn, so a sentinel that has been spent from still reads
+// as unlimited for the length of any game.
+const UNLIMITED_THRESHOLD = UNLIMITED / 2;
+
+export const isUnlimited = (value: number): boolean =>
+  value >= UNLIMITED_THRESHOLD;
+
 export interface ShipStats {
   // Display name shown in the UI.
   name: string;
@@ -55,9 +69,9 @@ export interface ShipStats {
   // If true, this ship has a "D" suffix on combat strength: it can only defend,
   // not initiate attacks or counterattack (rulebook p.1). Civilians only.
   defensiveOnly: boolean;
-  // Maximum fuel capacity. Infinity for torch ships and orbital bases.
+  // Maximum fuel capacity. UNLIMITED for torch ships and orbital bases.
   fuel: number;
-  // Maximum cargo capacity in mass units. Infinity for orbital bases.
+  // Maximum cargo capacity in mass units. UNLIMITED for orbital bases.
   cargo: number;
   // Purchase cost in MegaCredits during fleet building (rulebook p.1 ship table).
   cost: number;
@@ -187,7 +201,7 @@ export const SHIP_STATS: Readonly<Record<ShipType, Readonly<ShipStats>>> = {
     name: 'Torch',
     combat: 8,
     defensiveOnly: false,
-    fuel: Infinity,
+    fuel: UNLIMITED,
     cargo: 10,
     cost: 400,
     canOverload: true,
@@ -200,8 +214,8 @@ export const SHIP_STATS: Readonly<Record<ShipType, Readonly<ShipStats>>> = {
     name: 'Orbital Base',
     combat: 16,
     defensiveOnly: false,
-    fuel: Infinity,
-    cargo: Infinity,
+    fuel: UNLIMITED,
+    cargo: UNLIMITED,
     cost: 1000,
     canOverload: false,
     canLaunchTorpedoes: true,

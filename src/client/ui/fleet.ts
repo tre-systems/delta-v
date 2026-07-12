@@ -15,6 +15,7 @@ import {
   isShipFleetPurchase,
 } from '../../shared/types/domain';
 import { sumBy } from '../../shared/util';
+import { formatCapacity } from './formatters';
 
 export interface FleetShopItemView {
   purchase: FleetPurchase;
@@ -181,8 +182,8 @@ export const getFleetShopView = (
       name: stats.name,
       statsText: [
         `Combat: ${stats.combat}${stats.defensiveOnly ? ' (def)' : ''}`,
-        `Fuel: ${stats.fuel === Infinity ? '\u221e' : stats.fuel}`,
-        ...(stats.cargo > 0 ? [`Cargo: ${stats.cargo}`] : []),
+        `Fuel: ${formatCapacity(stats.fuel)}`,
+        ...(stats.cargo > 0 ? [`Cargo: ${formatCapacity(stats.cargo)}`] : []),
       ].join(' \u00b7 '),
       cost: stats.cost,
       disabled: !canAddFleetPurchase(

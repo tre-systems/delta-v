@@ -1,7 +1,7 @@
 // Structured "what is legal right now" metadata for agents.
 // Keeps LLMs off-leash from inventing illegal ship IDs or phase-wrong actions.
 
-import { SHIP_STATS } from '../constants';
+import { isUnlimited, SHIP_STATS } from '../constants';
 import type { GameState, PlayerId } from '../types/domain';
 import { allowedActionTypesForPhase } from './candidates';
 import { DIRECTION_NAMES } from './describe';
@@ -48,7 +48,7 @@ export const buildLegalActionInfo = (
           !s.resuppliedThisTurn &&
           s.cargoUsed < stats.cargo,
         cargoUsed: s.cargoUsed,
-        cargoCapacity: stats.cargo === Infinity ? -1 : stats.cargo,
+        cargoCapacity: isUnlimited(stats.cargo) ? -1 : stats.cargo,
         disabledTurns: s.damage.disabledTurns,
       };
     });

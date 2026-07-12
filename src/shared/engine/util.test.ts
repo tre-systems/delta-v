@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { SHIP_STATS } from '../constants';
 import { asHexKey, HEX_DIRECTIONS } from '../hex';
 import { asShipId } from '../ids';
 import { buildSolarSystemMap } from '../map-data';
@@ -172,7 +173,7 @@ describe('hasLaunchableOrdnanceCapacity', () => {
     const ship = makeShip({
       type: 'orbitalBase',
       cargoUsed: 0,
-      fuel: Infinity,
+      fuel: SHIP_STATS.orbitalBase.fuel,
     });
 
     expect(hasLaunchableOrdnanceCapacity(ship, new Set(['mine']))).toBe(false);

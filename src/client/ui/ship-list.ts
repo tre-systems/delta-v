@@ -1,6 +1,7 @@
 import { SHIP_STATS } from '../../shared/constants';
 import { hexVecLength } from '../../shared/hex';
 import type { PlayerId, Ship } from '../../shared/types/domain';
+import { formatCapacity } from './formatters';
 
 export interface ShipDetailRowView {
   label: string;
@@ -134,7 +135,7 @@ const getShipDetailRows = (
     stats.cargo > 0
       ? {
           label: 'Cargo',
-          value: `${stats.cargo - ship.cargoUsed}/${stats.cargo}`,
+          value: `${formatCapacity(stats.cargo - ship.cargoUsed)}/${formatCapacity(stats.cargo)}`,
           tone: null,
         }
       : null,
@@ -183,7 +184,11 @@ export const buildShipListView = (
       fuelText:
         ship.lifecycle === 'destroyed'
           ? ''
-          : `${ship.fuel}/${SHIP_STATS[ship.type]?.fuel ?? '?'}`,
+          : `${formatCapacity(ship.fuel)}/${
+              SHIP_STATS[ship.type]
+                ? formatCapacity(SHIP_STATS[ship.type].fuel)
+                : '?'
+            }`,
       detailRows: getShipDetailRows(ship, ship.id === selectedId, compact),
       ownerClass,
       ownerLabel,

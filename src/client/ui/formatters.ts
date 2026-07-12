@@ -1,4 +1,4 @@
-import { SHIP_STATS } from '../../shared/constants';
+import { isUnlimited, SHIP_STATS } from '../../shared/constants';
 import { normalizePlayerToken, normalizeRoomCode } from '../../shared/ids';
 import type {
   CombatResult,
@@ -32,6 +32,11 @@ export interface LogEntryView {
 const getShipName = (ship: Ship | null, fallback: string): string => {
   return ship ? (SHIP_STATS[ship.type]?.name ?? ship.type) : fallback;
 };
+
+// Renders unlimited fuel/cargo amounts (torch drives, orbital bases) as the
+// infinity symbol instead of the finite sentinel they are stored as.
+export const formatCapacity = (value: number): string =>
+  isUnlimited(value) ? '∞' : String(value);
 
 const formatDamageResult = (
   damageType: string,

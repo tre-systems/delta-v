@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { must } from '../assert';
+import { SHIP_STATS } from '../constants';
 import { asGameId, asShipId } from '../ids';
 import { buildSolarSystemMap } from '../map-data';
 import type { GameState, Ship, TransferOrder } from '../types';
@@ -297,7 +298,7 @@ describe('getTransferEligiblePairs', () => {
       type: 'torch',
       owner: 0,
       originalOwner: 0,
-      fuel: Infinity,
+      fuel: SHIP_STATS.torch.fuel,
     });
     const target = makeShip({
       id: asShipId('corvette'),
@@ -311,6 +312,29 @@ describe('getTransferEligiblePairs', () => {
     // Torch can transfer cargo but not fuel
     if (pairs.length > 0) {
       expect(pairs[0].canTransferFuel).toBe(false);
+    }
+  });
+  it('does not offer refueling an unlimited-fuel ship that has burned', () => {
+    const source = makeShip({
+      id: asShipId('tanker'),
+      type: 'tanker',
+      owner: 0,
+      originalOwner: 0,
+      fuel: 50,
+    });
+    // A torch that has spent fuel sits below its capacity sentinel but
+    // must still never be offered as a refueling target.
+    const target = makeShip({
+      id: asShipId('torch'),
+      type: 'torch',
+      owner: 0,
+      originalOwner: 0,
+      fuel: SHIP_STATS.torch.fuel - 10,
+    });
+    const state = makeState([source, target]);
+    const pairs = getTransferEligiblePairs(state, 0);
+    for (const pair of pairs) {
+      expect(pair.canTransferFuel).toBe(false);
     }
   });
   it('allows looting disabled enemy ships', () => {
@@ -478,6 +502,31 @@ describe('processLogistics', () => {
         transfers: [transfer],
       });
     }
+  });
+  it('rejects fuel transfers to an unlimited-fuel ship', () => {
+    const source = makeShip({
+      id: asShipId('s1'),
+      type: 'tanker',
+      owner: 0,
+      originalOwner: 0,
+      fuel: 50,
+    });
+    const target = makeShip({
+      id: asShipId('s2'),
+      type: 'torch',
+      owner: 0,
+      originalOwner: 0,
+      fuel: SHIP_STATS.torch.fuel - 10,
+    });
+    const state = makeState([source, target]);
+    const transfer: TransferOrder = {
+      sourceShipId: asShipId('s1'),
+      targetShipId: asShipId('s2'),
+      transferType: 'fuel',
+      amount: 5,
+    };
+    const result = processLogistics(state, 0, [transfer], map);
+    expect('error' in result).toBe(true);
   });
   it('transfers cargo between ships', () => {
     const source = makeShip({

@@ -1,5 +1,5 @@
 import { canAttack, getCombatStrength, hasLineOfSight } from '../combat';
-import { SHIP_STATS } from '../constants';
+import { isUnlimited, SHIP_STATS } from '../constants';
 import { getTransferEligiblePairs } from '../engine/logistics';
 import { hexDistance, hexEqual, hexVecLength } from '../hex';
 import { computeCourse } from '../movement';
@@ -37,7 +37,7 @@ const estimateDesiredFuel = (
 ): number => {
   const stats = SHIP_STATS[ship.type];
 
-  if (!stats || stats.fuel === Number.POSITIVE_INFINITY) {
+  if (!stats || isUnlimited(stats.fuel)) {
     return 0;
   }
 
@@ -61,7 +61,7 @@ const freePassengerCapacity = (ship: Ship): number => {
   const stats = SHIP_STATS[ship.type];
 
   if (!stats) return 0;
-  if (stats.cargo === Number.POSITIVE_INFINITY) {
+  if (isUnlimited(stats.cargo)) {
     return Number.POSITIVE_INFINITY;
   }
 

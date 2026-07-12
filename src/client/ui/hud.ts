@@ -1,3 +1,6 @@
+import { isUnlimited } from '../../shared/constants';
+import { formatCapacity } from './formatters';
+
 export interface UIButtonView {
   visible: boolean;
   disabled: boolean;
@@ -322,12 +325,14 @@ export const buildHUDView = (input: HUDInput): HUDView => {
     fuelGaugeText: isSpectator
       ? ''
       : showOrdnance && cargoMax > 0
-        ? `Cargo: ${cargoFree}/${cargoMax}${getOrdnanceCapacityHint(cargoFree)}`
+        ? isUnlimited(cargoMax)
+          ? 'Cargo: \u221e'
+          : `Cargo: ${cargoFree}/${cargoMax}${getOrdnanceCapacityHint(cargoFree)}`
         : speed > 0
-          ? `Fuel: ${fuel}/${maxFuel} \u00b7 Speed ${speed} (${fuelToStop} to stop)`
+          ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 Speed ${speed} (${fuelToStop} to stop)`
           : astrogationCtx.selectedShipLanded
-            ? `Fuel: ${fuel}/${maxFuel} \u00b7 Landed`
-            : `Fuel: ${fuel}/${maxFuel}`,
+            ? `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)} \u00b7 Landed`
+            : `Fuel: ${formatCapacity(fuel)}/${formatCapacity(maxFuel)}`,
     statusText: !isMyTurn
       ? null
       : phase === 'astrogation'

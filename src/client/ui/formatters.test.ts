@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SHIP_STATS, UNLIMITED } from '../../shared/constants';
 import { asShipId } from '../../shared/ids';
 import type {
   CombatResult,
@@ -6,12 +7,30 @@ import type {
   Ship,
 } from '../../shared/types/domain';
 import {
+  formatCapacity,
   formatCombatResultEntries,
   formatMovementEventEntry,
   getLatencyStatus,
   getPhaseAlertCopy,
   parseJoinInput,
 } from './formatters';
+
+describe('formatCapacity', () => {
+  it('shows ordinary amounts as plain numbers', () => {
+    expect(formatCapacity(0)).toBe('0');
+    expect(formatCapacity(20)).toBe('20');
+  });
+
+  it('shows the unlimited sentinel as the infinity symbol', () => {
+    expect(formatCapacity(UNLIMITED)).toBe('∞');
+    expect(formatCapacity(SHIP_STATS.torch.fuel)).toBe('∞');
+    expect(formatCapacity(SHIP_STATS.orbitalBase.cargo)).toBe('∞');
+  });
+
+  it('still shows infinity for a torch that has spent fuel', () => {
+    expect(formatCapacity(SHIP_STATS.torch.fuel - 250)).toBe('∞');
+  });
+});
 
 const createShip = (overrides: Partial<Ship> = {}): Ship => ({
   id: asShipId('ship-0'),

@@ -5,6 +5,7 @@ import {
   BASE_COMBAT_ODDS,
   BURN_FUEL_COST,
   DAMAGE_ELIMINATION_THRESHOLD,
+  isUnlimited,
   LANDING_SPEED_REQUIRED,
   ORBITAL_BASE_MASS,
   ORDNANCE_LIFETIME,
@@ -12,6 +13,7 @@ import {
   OVERLOAD_TOTAL_FUEL_COST,
   SHIP_STATS,
   type ShipType,
+  UNLIMITED,
   VELOCITY_MODIFIER_THRESHOLD,
 } from './constants';
 
@@ -121,16 +123,43 @@ describe('SHIP_STATS', () => {
       torch: {
         combat: 8,
         defensiveOnly: false,
-        fuel: Infinity,
+        fuel: UNLIMITED,
         cargo: 10,
       },
       orbitalBase: {
         combat: 16,
         defensiveOnly: false,
-        fuel: Infinity,
-        cargo: Infinity,
+        fuel: UNLIMITED,
+        cargo: UNLIMITED,
       },
     });
+  });
+
+  it('unlimited capacities survive a JSON round-trip', () => {
+    // Infinity would serialize to null and break every JSON boundary
+    // (state broadcasts, MCP observations, R2 replay archives).
+    const revived = JSON.parse(JSON.stringify(SHIP_STATS)) as typeof SHIP_STATS;
+
+    expect(revived.torch.fuel).toBe(UNLIMITED);
+    expect(revived.orbitalBase.fuel).toBe(UNLIMITED);
+    expect(revived.orbitalBase.cargo).toBe(UNLIMITED);
+    expect(isUnlimited(revived.torch.fuel)).toBe(true);
+  });
+});
+
+describe('isUnlimited', () => {
+  it('recognizes the sentinel and partially spent values', () => {
+    expect(isUnlimited(UNLIMITED)).toBe(true);
+    // A torch spends a few fuel per turn; a spent-from sentinel still
+    // reads as unlimited for the length of any game.
+    expect(isUnlimited(UNLIMITED - 1_000)).toBe(true);
+    expect(isUnlimited(UNLIMITED / 2)).toBe(true);
+  });
+
+  it('treats ordinary fuel and cargo amounts as finite', () => {
+    expect(isUnlimited(0)).toBe(false);
+    expect(isUnlimited(50)).toBe(false);
+    expect(isUnlimited(UNLIMITED / 2 - 1)).toBe(false);
   });
 });
 

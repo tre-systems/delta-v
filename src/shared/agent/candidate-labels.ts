@@ -8,7 +8,7 @@ import {
   computeOdds,
   getCombatStrength,
 } from '../combat';
-import { SHIP_STATS } from '../constants';
+import { isUnlimited, SHIP_STATS } from '../constants';
 import { HEX_DIRECTIONS, hexDistance } from '../hex';
 import type {
   GameState,
@@ -158,7 +158,7 @@ const describeAstrogationDetails = (
     // Fuel accounting
     totalFuelBefore += ship.fuel;
     const stats = SHIP_STATS[ship.type];
-    totalFuelCapacity += Number.isFinite(stats.fuel) ? stats.fuel : 0;
+    totalFuelCapacity += isUnlimited(stats.fuel) ? 0 : stats.fuel;
     if (order.burn !== null) totalCost += 1;
     if (order.overload !== null) totalCost += 1;
 

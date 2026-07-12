@@ -1,5 +1,5 @@
 import { must } from '../assert';
-import { SHIP_STATS } from '../constants';
+import { isUnlimited, SHIP_STATS } from '../constants';
 import { hexEqual } from '../hex';
 import type { ShipId } from '../ids';
 import {
@@ -26,7 +26,7 @@ export interface TransferPair {
 }
 
 const freeCargoCapacity = (ship: Ship, stats: ShipStatsLike): number => {
-  if (stats.cargo === Number.POSITIVE_INFINITY) {
+  if (isUnlimited(stats.cargo)) {
     return Number.POSITIVE_INFINITY;
   }
   return stats.cargo - ship.cargoUsed - (ship.passengersAboard ?? 0);
@@ -84,9 +84,11 @@ export const getTransferEligiblePairs = (
       const targetStats = SHIP_STATS[target.type];
 
       if (!targetStats) continue;
-      // Sealed fuel (torch ships) cannot be transferred (rulebook p.8)
+      // Sealed fuel (torch ships) cannot be transferred (rulebook p.8),
+      // and unlimited-fuel ships never need refueling.
       const canTransferFuel =
         !sourceStats.fuelSealed &&
+        !isUnlimited(targetStats.fuel) &&
         source.fuel > 0 &&
         target.fuel < targetStats.fuel;
       const maxFuel = canTransferFuel
@@ -197,6 +199,13 @@ const validateTransfer = (
       return engineFailure(
         ErrorCode.NOT_ALLOWED,
         'Torch ships cannot transfer fuel',
+      ).error;
+    }
+
+    if (isUnlimited(targetStats.fuel)) {
+      return engineFailure(
+        ErrorCode.NOT_ALLOWED,
+        'Target ship does not take on fuel',
       ).error;
     }
 
