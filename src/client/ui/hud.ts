@@ -104,7 +104,9 @@ const getAstrogationStatusText = (
   }
 
   if (ctx.selectedShipDisabled) {
-    return 'Ship disabled \u2014 will drift this turn';
+    return isMobile
+      ? 'Ship disabled \u2014 it must drift \u00b7 Confirm'
+      : 'Ship disabled \u2014 it must drift \u00b7 Confirm (Enter)';
   }
 
   if (ctx.selectedShipLanded && !ctx.selectedShipHasBurn) {

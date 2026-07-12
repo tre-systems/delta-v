@@ -74,6 +74,9 @@ describe('tutorial', () => {
     expect(document.getElementById('tutorialTipText')?.textContent).toContain(
       'Combat is optional.',
     );
+    expect(document.getElementById('tutorialTipText')?.textContent).toContain(
+      'No damage possible',
+    );
     document.getElementById('tutorialNextBtn')?.click();
 
     expect(window.localStorage.getItem('deltav_tutorial_done')).toBeNull();

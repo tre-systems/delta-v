@@ -190,6 +190,56 @@ describe('aiAstrogation', () => {
     expect(disabledOrder).toBeDefined();
     expect(disabledOrder?.burn).toBeNull();
   });
+  it('does not spend fuel to stop beside a live enemy', () => {
+    const aiShip = createTestShip({
+      id: asShipId('gravity-braking-ai'),
+      type: 'frigate',
+      owner: 1,
+      originalOwner: 1,
+      position: { q: 3, r: 1 },
+      velocity: { dq: 2, dr: -3 },
+      pendingGravityEffects: [
+        {
+          hex: { q: 3, r: 1 },
+          direction: 3,
+          bodyName: 'Mercury',
+          strength: 'full',
+          ignored: false,
+        },
+        {
+          hex: { q: 3, r: 1 },
+          direction: 4,
+          bodyName: 'Mercury',
+          strength: 'full',
+          ignored: false,
+        },
+      ],
+    });
+    const enemy = createTestShip({
+      id: asShipId('gravity-braking-enemy'),
+      type: 'frigate',
+      owner: 0,
+      originalOwner: 0,
+      position: { q: 3, r: 2 },
+      velocity: { dq: 0, dr: 1 },
+      detected: true,
+    });
+    const state = createTestState({
+      scenario: 'duel',
+      phase: 'astrogation',
+      activePlayer: 1,
+      ships: [enemy, aiShip],
+    });
+
+    const [order] = aiAstrogation(state, 1, openMap, 'hard');
+    const course = computeCourse(aiShip, order.burn, openMap, {
+      overload: order.overload,
+      land: order.land,
+      destroyedBases: state.destroyedBases,
+    });
+
+    expect(hexVecLength(course.newVelocity)).toBeGreaterThan(0);
+  });
   it('destroyed ships are skipped (no order generated)', () => {
     const state = createGameOrThrow(
       SCENARIOS.biplanetary,
@@ -2792,6 +2842,36 @@ describe('aiCombat', () => {
         reason: 'lowOdds',
       },
     });
+  });
+  it('holds fire when even the best gun-combat roll cannot cause damage', () => {
+    const attacker = createTestShip({
+      id: asShipId('impossible-attacker'),
+      type: 'frigate',
+      owner: 0,
+      originalOwner: 0,
+      position: { q: 0, r: 0 },
+      velocity: { dq: 0, dr: 0 },
+    });
+    const target = createTestShip({
+      id: asShipId('impossible-target'),
+      type: 'frigate',
+      owner: 1,
+      originalOwner: 1,
+      position: { q: 4, r: 0 },
+      velocity: { dq: 3, dr: -1 },
+      detected: true,
+    });
+
+    expect(
+      chooseCombatAttackGroupPlan({
+        targetId: target.id,
+        targetType: 'ship',
+        enemyShip: target,
+        availableAttackers: [attacker],
+        shipRoles: new Map(),
+        minRollThreshold: 1,
+      }),
+    ).toBeNull();
   });
   it('keeps race-role ships out of opportunistic gun attacks when cover can fire', () => {
     const racer = createTestShip({

@@ -1,7 +1,9 @@
 import {
   computeGroupRangeMod,
   computeGroupVelocityMod,
+  computeOdds,
   getCombatStrength,
+  lookupGunCombat,
 } from '../../combat';
 import { hexDistance } from '../../hex';
 import type { OrdnanceId, ShipId } from '../../ids';
@@ -159,6 +161,14 @@ export const chooseCombatAttackGroupPlan = (
   const defendStrength = getCombatStrength([enemyShip]);
   const rangeMod = computeGroupRangeMod([...available], enemyShip);
   const velMod = computeGroupVelocityMod([...available], enemyShip);
+  const bestPossibleResult = lookupGunCombat(
+    computeOdds(attackStrength, defendStrength),
+    6 - rangeMod - velMod,
+  );
+
+  // Gun attacks are optional. Never recommend spending the phase on a shot
+  // that cannot damage the target even on a natural six.
+  if (bestPossibleResult.type === 'none') return null;
 
   if (
     6 - rangeMod - velMod < input.minRollThreshold &&

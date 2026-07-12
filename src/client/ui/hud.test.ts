@@ -80,6 +80,31 @@ describe('ui hud helpers', () => {
     });
   });
 
+  it('tells disabled players how to confirm their forced drift', () => {
+    expect(
+      buildHUDView(
+        buildInput({
+          astrogationCtx: {
+            ...defaultCtx,
+            selectedShipDisabled: true,
+          },
+        }),
+      ).statusText,
+    ).toBe('Ship disabled — it must drift · Confirm (Enter)');
+
+    expect(
+      buildHUDView(
+        buildInput({
+          isMobile: true,
+          astrogationCtx: {
+            ...defaultCtx,
+            selectedShipDisabled: true,
+          },
+        }),
+      ).statusText,
+    ).toBe('Ship disabled — it must drift · Confirm');
+  });
+
   it('builds ordnance button states from cargo and ship capabilities', () => {
     const view = buildHUDView(
       buildInput({

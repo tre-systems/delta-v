@@ -1856,6 +1856,19 @@ export const aiAstrogation = (
         }
       }
 
+      if (
+        course.outcome === 'normal' &&
+        hexVecLength(course.newVelocity) === 0 &&
+        canBurnFuel &&
+        !seekingFuel &&
+        enemyCombatShips.length > 0
+      ) {
+        // A stationary combat ship is an easy ram target and cannot evade if
+        // disabled. Penalise the resolved result, not just a no-burn coast,
+        // because gravity can cancel an otherwise active-looking order.
+        score -= cfg.combatStayLandedPenalty * cfg.multiplier;
+      }
+
       if (opt.burn === null) {
         if (!interceptingEnemy) {
           // Coast bonus / penalty. The legacy unconditional bonus

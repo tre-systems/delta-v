@@ -273,13 +273,17 @@ The intent-first shift is successful but incomplete:
 - Combat target selection, attack grouping, hold-fire, and anti-ordnance
   grouping now emit named plan traces. The low-level odds and range math stays
   inside combat; captures show the strategic intent that used those numbers.
+  Optional gun attacks are held when even the best possible modified roll
+  cannot damage the selected target.
 - Ordnance launches, race-role holds, and anti-nuke reach rejections emit named
   plan traces. Intercept geometry remains local to ordnance code; captures show
   the launch or rejection reason.
 - Astrogation captures include named movement/refuel plan traces plus a generic
   scalar-course trace for orders that do not come from a named plan. Generic
   scalar traces summarize the chosen order and the strongest rejected burn
-  candidates.
+  candidates. Combat ships also penalize courses whose fully resolved velocity,
+  including pending gravity, would leave them stationary while live enemies
+  remain.
 - Passenger doctrine has a shared turn context, and emergency escort planning
   now consumes that context for carrier, threat, and role state. Passenger
   carriers also use four-turn bounded map-continuation checks before accepting

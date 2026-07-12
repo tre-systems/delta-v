@@ -98,9 +98,9 @@ const STEPS: TutorialStep[] = [
   {
     id: 'combat-intro',
     phase: 'combat',
-    text: 'Combat is optional. Click an enemy ship or nuke to see the odds plus range and relative-speed penalties. Press ATTACK (or Enter) to fire, or END COMBAT to hold fire.',
+    text: 'Combat is optional. Click an enemy ship or nuke to see the odds plus range and relative-speed penalties. If the HUD says “No damage possible,” choose another target or END COMBAT. Otherwise press ATTACK (or Enter) to fire.',
     mobileText:
-      'Combat is optional. Tap an enemy ship or nuke to see the odds plus range and relative-speed penalties. Tap ATTACK to fire, or END COMBAT to hold fire.',
+      'Combat is optional. Tap an enemy ship or nuke to see the odds plus range and relative-speed penalties. If the HUD says “No damage possible,” choose another target or END COMBAT. Otherwise tap ATTACK to fire.',
     once: true,
     completionOptional: true,
   },
