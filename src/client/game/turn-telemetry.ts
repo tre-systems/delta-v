@@ -77,6 +77,15 @@ export const createTurnTelemetryTracker = ({
 
     if (nextState.startsWith('playing_')) {
       phaseStartedAt = now();
+
+      // Game starts enter play via setState without a turn log (the first
+      // onTurnLogged can arrive as late as the opponent's astrogation), so
+      // anchor the turn window at the first playing state. Otherwise the
+      // first turn_completed reports a totalMs smaller than the phase
+      // durations accrued before the log.
+      if (turnStartedAt === null) {
+        turnStartedAt = now();
+      }
     }
   };
 
@@ -86,9 +95,11 @@ export const createTurnTelemetryTracker = ({
   ): void => {
     if (lastTurnNumber > 0) {
       emitTurnCompleted(context);
+      turnStartedAt = now();
+    } else if (turnStartedAt === null) {
+      turnStartedAt = now();
     }
 
-    turnStartedAt = now();
     lastTurnNumber = turnNumber;
     lastLoggedTurn = turnNumber;
   };

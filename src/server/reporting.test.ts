@@ -4,8 +4,10 @@ import type { Env } from './env';
 import {
   buildReportingCorsHeaders,
   EVENTS_RETENTION_MS,
+  insertEvent,
   isErrorReportRateLimited,
   isReportingOriginAllowed,
+  isServerReservedEvent,
   isTelemetryReportRateLimited,
   purgeOldEvents,
   resolveReportingAllowedOrigin,
@@ -114,6 +116,67 @@ describe('scrubReportPayload', () => {
     // through untouched so operational metadata is preserved.
     expect(result.gameId).toBe('ABCDE-m1');
     expect(result.benignField).toBe('fine');
+  });
+});
+
+describe('isServerReservedEvent', () => {
+  it.each([
+    'engine_error',
+    'projection_parity_mismatch',
+    'game_started',
+    'game_ended',
+    'server_create_request',
+    'matchmaker_paired',
+    'matchmaker_official_bot_filled',
+    'rating_applied',
+    'mcp_action_accepted',
+    'disconnect_grace_expired',
+    'live_registry_register_failed',
+  ])('reserves server-originated event name %s', (event) => {
+    expect(isServerReservedEvent(event)).toBe(true);
+  });
+
+  it.each([
+    'client_error',
+    'game_over',
+    'turn_completed',
+    'quick_match_queued',
+    'ws_session_quality',
+    'tutorial_started',
+  ])('allows client event name %s', (event) => {
+    expect(isServerReservedEvent(event)).toBe(false);
+  });
+
+  it('treats non-string event values as unreserved', () => {
+    expect(isServerReservedEvent(undefined)).toBe(false);
+    expect(isServerReservedEvent(42)).toBe(false);
+  });
+});
+
+describe('insertEvent', () => {
+  const makeDb = () => {
+    const run = vi.fn(async () => ({}));
+    const bind = vi.fn((..._args: unknown[]) => ({ run }));
+    const prepare = vi.fn((_sql: string) => ({ bind }));
+    return { db: { prepare } as unknown as D1Database, prepare, bind };
+  };
+
+  it('drops client posts that use a server-reserved event name', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const { db, prepare } = makeDb();
+
+    await insertEvent(db, { event: 'engine_error', code: 'x' }, 'hash', null);
+
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it('inserts ordinary client events', async () => {
+    const { db, bind } = makeDb();
+
+    await insertEvent(db, { event: 'game_over', won: true }, 'hash', 'ua');
+
+    expect(bind).toHaveBeenCalledTimes(1);
+    expect(bind.mock.calls[0]?.[2]).toBe('game_over');
   });
 });
 

@@ -323,7 +323,9 @@ const scheduleServerAuditEvent = (
   if (!db) {
     return;
   }
-  ctx.waitUntil(insertEvent(db, payload, ipHash, ua));
+  ctx.waitUntil(
+    insertEvent(db, payload, ipHash, ua, { allowServerReserved: true }),
+  );
 };
 
 const fetchHandler = async (
@@ -573,10 +575,12 @@ const fetchHandler = async (
 
       if (payload && env.DB) {
         const ua = (payload.ua as string) ?? request.headers.get('user-agent');
+        // Spread first so a client-supplied `event` field cannot override
+        // the route's canonical event name.
         ctx.waitUntil(
           insertEvent(
             env.DB,
-            { event: 'client_error', ...payload },
+            { ...payload, event: 'client_error' },
             ipHash,
             ua,
           ),

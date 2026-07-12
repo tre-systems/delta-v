@@ -86,6 +86,78 @@ describe('TurnTelemetryTracker', () => {
     expect(telemetry.getLastLoggedTurn()).toBe(1);
   });
 
+  it('anchors the turn window at the first playing state when the turn log arrives late', () => {
+    // Production local-duel shape: the opening astrogation is entered via
+    // setState with no turn log; the first onTurnLogged only fires at the
+    // opponent's astrogation of the same turn. The turn-1 emit must span
+    // the whole turn instead of just the post-log slice.
+    let now = 0;
+    const trackEvent =
+      vi.fn<(event: string, props?: Record<string, unknown>) => void>();
+    const telemetry = createTurnTelemetryTracker({
+      now: () => now,
+      trackEvent,
+    });
+
+    telemetry.onStateChanged('menu', 'playing_astrogation');
+
+    now = 44_537;
+    telemetry.onStateChanged('playing_astrogation', 'playing_ordnance');
+
+    now = 51_214;
+    telemetry.onStateChanged('playing_ordnance', 'playing_opponentTurn');
+
+    now = 53_200;
+    telemetry.onTurnLogged(1, { scenario: 'duel', isLocalGame: true });
+
+    now = 55_718;
+    telemetry.onTurnLogged(2, { scenario: 'duel', isLocalGame: true });
+
+    expect(trackEvent).toHaveBeenNthCalledWith(1, 'turn_completed', {
+      turn: 1,
+      totalMs: 55_718,
+      phases: { astrogation: 44_537, ordnance: 6_677 },
+      scenario: 'duel',
+      mode: 'local',
+    });
+  });
+
+  it('covers pre-turn fleet building in the first-turn window', () => {
+    let now = 0;
+    const trackEvent =
+      vi.fn<(event: string, props?: Record<string, unknown>) => void>();
+    const telemetry = createTurnTelemetryTracker({
+      now: () => now,
+      trackEvent,
+    });
+
+    telemetry.onStateChanged('menu', 'playing_fleetBuilding');
+
+    now = 51_280;
+    telemetry.onStateChanged('playing_fleetBuilding', 'playing_astrogation');
+    telemetry.onTurnLogged(1, {
+      scenario: 'interplanetaryWar',
+      isLocalGame: true,
+    });
+
+    now = 94_239;
+    telemetry.onStateChanged('playing_astrogation', 'playing_opponentTurn');
+
+    now = 103_237;
+    telemetry.onTurnLogged(2, {
+      scenario: 'interplanetaryWar',
+      isLocalGame: true,
+    });
+
+    expect(trackEvent).toHaveBeenNthCalledWith(1, 'turn_completed', {
+      turn: 1,
+      totalMs: 103_237,
+      phases: { fleetBuilding: 51_280, astrogation: 42_959 },
+      scenario: 'interplanetaryWar',
+      mode: 'local',
+    });
+  });
+
   it('emits a dedicated first-turn milestone exactly once', () => {
     let now = 0;
     const trackEvent =

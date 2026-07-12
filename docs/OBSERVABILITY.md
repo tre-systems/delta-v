@@ -93,7 +93,7 @@ From `migrations/0001_create_events.sql`:
   - `ws_connect_error` with no additional props (fires on `WebSocket` `error` before close)
   - `ws_connect_closed` with `{ code, wasClean, reasonLen }` (first connect / reconnect close telemetry)
   - `ws_session_quality` with `{ durationMs, samples, latencyAvgMs, latencyMinMs, latencyMaxMs, closeCode }` (one event per WS lifecycle that received at least one pong; aggregates the 5-second RTT samples so we can spot players on consistently slow / jittery connections without piling per-pong rows into D1)
-  - `turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
+  - `turn_completed` with `{ turn, totalMs, phases, scenario, mode }` — `totalMs` is the wall-clock span of the whole game turn (anchored at the first playing state for turn 1, including pre-turn fleet building), while `phases` records only this player's interactive phases, so `totalMs` ≥ any single phase but can exceed the phase sum by opponent/animation time
   - `first_turn_completed` with `{ turn, totalMs, phases, scenario, mode }`
   - `scenario_browsed` with no additional props (fires when the player opens scenario selection from the menu)
   - `scenario_selected` with `{ scenario, from: 'ai' | 'private', difficulty? }` (fires when the player commits to a scenario from the menu, before the round-trip — captures intent even when the user bails out of the waiting room)
@@ -164,6 +164,7 @@ Worker entrypoint observability also records two abuse-focused signals:
 
 - `server_create_request` in the D1 `events` table for every `POST /create`, with `{ route, outcome, scenario, payloadBytes, status, error? }`. This covers direct script traffic that never emits first-party client telemetry.
 - sampled `console.log` lines under `[auth-failure]` and `[rate-limit]` for invalid MCP / quick-match Bearers, malformed `POST /api/agent-token` payloads, and create-class / MCP rate-limit hits. Sampling is deterministic per hashed IP so repeated abuse from the same source still leaves a tail signal without flooding logs.
+- `[telemetry] dropped client post using reserved event` lines when a `POST /telemetry` payload names a server-originated event (`engine_error`, lifecycle, matchmaker/rating/MCP-action families). Those rows are dropped at the gateway so client traffic cannot forge the `ip_hash = 'server'` event families that drive alerts and official-bot segmentation.
 
 ### Internal metrics endpoint
 

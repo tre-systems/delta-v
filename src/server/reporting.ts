@@ -394,14 +394,57 @@ export const scrubReportPayload = (
   return scrubbed;
 };
 
+// Event names written only by the server itself (`ip_hash = 'server'` rows
+// from the DOs and the Worker entrypoint). The public /telemetry gateway
+// must not be able to mint them: engine_error / projection_parity_mismatch
+// drive operator paging, and the lifecycle names drive official-bot and
+// queue segmentation, so a forged row corrupts metrics or fires false
+// alerts. Keep in sync with the emit sites in src/server/game-do/telemetry.ts,
+// src/server/matchmaker-do.ts, and src/server/index.ts.
+const SERVER_RESERVED_EVENTS = new Set([
+  'engine_error',
+  'projection_parity_mismatch',
+  'game_abandoned',
+  'game_started',
+  'game_ended',
+  'agent_autoplay_fired',
+  'turn_timeout_fired',
+  'server_create_request',
+  'game_do_code_update_evicted',
+  'mcp_observation_timeout',
+]);
+
+const SERVER_RESERVED_EVENT_PREFIXES = [
+  'matchmaker_',
+  'rating_',
+  'mcp_action_',
+  'disconnect_grace_',
+  'live_registry_',
+];
+
+export const isServerReservedEvent = (event: unknown): boolean =>
+  typeof event === 'string' &&
+  (SERVER_RESERVED_EVENTS.has(event) ||
+    SERVER_RESERVED_EVENT_PREFIXES.some((prefix) => event.startsWith(prefix)));
+
 export const insertEvent = async (
   db: D1Database,
   payload: Record<string, unknown>,
   ipHash: string,
   ua: string | null,
+  options?: {
+    // Set only by the Worker's own audit paths (scheduleServerAuditEvent);
+    // the public /telemetry and /error gateways must leave it unset.
+    allowServerReserved?: boolean;
+  },
 ): Promise<void> => {
   const scrubbed = scrubReportPayload(payload);
   const { event, anonId, ts, ...rest } = scrubbed;
+
+  if (!options?.allowServerReserved && isServerReservedEvent(event)) {
+    console.log('[telemetry] dropped client post using reserved event', event);
+    return;
+  }
 
   try {
     await db
