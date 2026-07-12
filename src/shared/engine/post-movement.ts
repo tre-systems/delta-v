@@ -238,6 +238,9 @@ export const checkOrbitalBaseResupply = (
         ship.fuel = stats.fuel;
         ship.cargoUsed = getCargoUsedAfterResupply(ship);
         ship.nukesLaunchedSinceResupply = 0;
+        // SPEC: refueling includes maintenance — damage repaired and one
+        // overload allowance restored, same as landing at a base.
+        ship.overloadUsed = false;
         ship.damage = { disabledTurns: 0 };
         ship.control = 'own';
         ship.resuppliedThisTurn = true;

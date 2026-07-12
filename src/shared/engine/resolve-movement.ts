@@ -12,7 +12,11 @@ import type { EngineEvent } from './engine-events';
 import type { MovementResult } from './game-engine';
 import { shouldEnterLogisticsPhase } from './logistics';
 import { moveOrdnance, queueAsteroidHazards } from './ordnance';
-import { transitionPhaseWithEvent, usesEscapeInspectionRules } from './util';
+import {
+  OOB_DESTRUCTION_MARGIN,
+  transitionPhaseWithEvent,
+  usesEscapeInspectionRules,
+} from './util';
 import {
   advanceTurn,
   applyCheckpoints,
@@ -25,6 +29,7 @@ import {
   checkInspection,
   checkOrbitalBaseResupply,
   checkRamming,
+  shipEscapeWinsAtCurrentPosition,
 } from './victory';
 
 // Viewer identity: player seat or spectator/public.
@@ -243,9 +248,15 @@ export const resolveMovementPhase = (
       });
     }
 
-    // Destroy ships that drift far beyond the map boundary
-    if (ship.lifecycle !== 'destroyed') {
-      const oobMargin = 2;
+    // Destroy ships that drift far beyond the map boundary — except a ship
+    // whose being out here IS its owner's escape victory; destroying it
+    // would invert the scenario outcome (the game-end check right after
+    // movement awards the escape win).
+    if (
+      ship.lifecycle !== 'destroyed' &&
+      !shipEscapeWinsAtCurrentPosition(state, ship, map)
+    ) {
+      const oobMargin = OOB_DESTRUCTION_MARGIN;
       const { minQ, maxQ, minR, maxR } = map.bounds;
       const p = ship.position;
       if (

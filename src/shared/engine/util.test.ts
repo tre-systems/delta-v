@@ -94,11 +94,11 @@ describe('hasEscaped', () => {
   });
 
   it('returns false at boundary + margin edge', () => {
-    expect(hasEscaped({ q: 13, r: 0 }, bounds)).toBe(false);
+    expect(hasEscaped({ q: 12, r: 0 }, bounds)).toBe(false);
   });
 
   it('returns true beyond q+ boundary', () => {
-    expect(hasEscaped({ q: 14, r: 0 }, bounds)).toBe(true);
+    expect(hasEscaped({ q: 13, r: 0 }, bounds)).toBe(true);
   });
 
   it('returns true beyond q- boundary', () => {
@@ -120,11 +120,11 @@ describe('hasEscapedNorth', () => {
   });
 
   it('returns false at north edge + margin', () => {
-    expect(hasEscapedNorth({ q: 0, r: -13 }, bounds)).toBe(false);
+    expect(hasEscapedNorth({ q: 0, r: -12 }, bounds)).toBe(false);
   });
 
   it('returns true beyond north boundary', () => {
-    expect(hasEscapedNorth({ q: 0, r: -14 }, bounds)).toBe(true);
+    expect(hasEscapedNorth({ q: 0, r: -13 }, bounds)).toBe(true);
   });
 
   it('returns false beyond south boundary (north-only escape)', () => {

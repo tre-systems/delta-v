@@ -247,9 +247,17 @@ export const projectShipEvent = (
       projectedShip.value.damage = { disabledTurns: 0 };
       projectedShip.value.control = 'own';
       projectedShip.value.resuppliedThisTurn = true;
+      // Both resupply sources include maintenance: overload restored on
+      // landing and orbital-base resupply alike (mirrors post-movement.ts).
+      projectedShip.value.overloadUsed = false;
 
-      if (event.source === 'base') {
-        projectedShip.value.overloadUsed = false;
+      // The supplying orbital base may not fire this player-turn; project
+      // its flag too or a DO recovery lets it illegally fire (parity).
+      if (event.source === 'orbitalBase' && event.sourceId) {
+        const supplier = state.ships.find((s) => s.id === event.sourceId);
+        if (supplier) {
+          supplier.resuppliedThisTurn = true;
+        }
       }
 
       return {

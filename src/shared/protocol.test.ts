@@ -361,6 +361,26 @@ describe('validateClientMessage', () => {
       });
     });
 
+    it('preserves the explicit land intent through validation', () => {
+      const result = validateClientMessage({
+        type: 'astrogation',
+        orders: [{ shipId: asShipId('p0s0'), burn: null, land: true }],
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok || result.value.type !== 'astrogation') return;
+      expect(result.value.orders[0].land).toBe(true);
+    });
+
+    it('rejects non-boolean land values', () => {
+      const result = validateClientMessage({
+        type: 'astrogation',
+        orders: [{ shipId: asShipId('p0s0'), burn: null, land: 'yes' }],
+      });
+
+      expect(result.ok).toBe(false);
+    });
+
     it('accepts orders with undefined overload (defaults to null)', () => {
       const result = validateClientMessage({
         type: 'astrogation',

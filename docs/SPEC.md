@@ -216,7 +216,7 @@ Each ship tracks position, velocity, fuel, cargo/ordnance load, damage state, de
 - To land on a planet or satellite, a ship must first be in orbit and then spend 1 fuel to land on a base hex side.
 - Intersecting a planet or satellite any other way is a crash.
 - A ship may land on Ceres, the clandestine asteroid, or an unnamed asteroid by stopping in that asteroid hex.
-- Takeoff from a planetary base is free — boosters push the ship outward, surface gravity cancels that boost, and the ship begins stationary in the gravity hex above the base. After takeoff, fuel must still be spent normally to enter/leave orbit.
+- Takeoff from a planetary base costs 1 fuel: the ship burns in a chosen direction and exits at speed 1 in that direction. Burning toward the planet crashes the ship. After takeoff, fuel must still be spent normally to enter/leave orbit.
 - Landed ships at planetary bases are immune to gunfire, mines, torpedoes, and ramming — but not nukes.
 - Landed ships may not fire guns or launch ordnance.
 

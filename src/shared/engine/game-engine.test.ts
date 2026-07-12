@@ -712,6 +712,31 @@ describe('Escape scenario', () => {
     expect(result.state.outcome?.winner).toBe(0);
     expect(result.state.outcome?.reason).toContain('escaped beyond Jupiter');
   });
+  it('fugitive crossing the boundary through movement escapes instead of being destroyed', () => {
+    // Regression: the out-of-bounds destruction margin used to be tighter
+    // than the escape margin, so a fugitive flying off the map through
+    // real movement was destroyed mid-resolution and the win handed to
+    // the Enforcers before the escape check could see it.
+    const fugitive = must(
+      escapeState.ships.find((s) => s.identity?.hasFugitives),
+    );
+    fugitive.position = { q: 0, r: map.bounds.minR };
+    fugitive.velocity = { dq: 0, dr: -6 };
+    fugitive.lifecycle = 'active';
+    const orders: AstrogationOrder[] = escapeState.ships
+      .filter((s) => s.owner === 0)
+      .map((s) => ({ shipId: s.id, burn: null, overload: null }));
+    const astro = processAstrogation(escapeState, 0, orders, map, Math.random);
+    if ('error' in astro) throw new Error('astrogation was rejected');
+    // Movement resolves after the ordnance phase commits.
+    const result = processOrdnance(astro.state, 0, [], map, Math.random);
+    if ('error' in result) throw new Error('ordnance was rejected');
+    expect(result.state.phase).toBe('gameOver');
+    expect(result.state.outcome?.winner).toBe(0);
+    expect(result.state.outcome?.reason).toContain('escaped beyond Jupiter');
+    const after = must(result.state.ships.find((s) => s.id === fugitive.id));
+    expect(after.lifecycle).not.toBe('destroyed');
+  });
   it('destroying all pilgrim ships wins for enforcer', () => {
     // Destroy all pilgrim ships
     for (const ship of escapeState.ships) {

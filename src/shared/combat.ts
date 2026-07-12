@@ -442,7 +442,9 @@ const chooseCounterattackTarget = (attackers: Ship[]): Ship =>
       return b.damage.disabledTurns - a.damage.disabledTurns;
     }
 
-    return a.id.localeCompare(b.id);
+    // Codepoint compare, not localeCompare: this tie-break is an engine
+    // determinism boundary and must not vary with runtime locale.
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   })[0];
 
 // Resolve a single combat attack.

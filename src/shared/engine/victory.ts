@@ -79,6 +79,28 @@ const fugitiveHasEscaped = (
   return hasEscaped(ship.position, map.bounds);
 };
 
+// True when this ship, at its current position, satisfies its owner's
+// escape victory condition. Shared with the movement resolver's
+// out-of-bounds destruction check: a ship that wins by being out here must
+// not be destroyed for being out here.
+export const shipEscapeWinsAtCurrentPosition = (
+  state: GameState,
+  ship: Ship,
+  map: SolarSystemMap,
+): boolean => {
+  if (ship.lifecycle === 'destroyed') return false;
+
+  if (!state.players[ship.owner].escapeWins) return false;
+
+  if (!fugitiveHasEscaped(state, ship, map)) return false;
+
+  const hasFugitiveScenario = state.ships.some(
+    (s) => s.owner === ship.owner && s.identity?.hasFugitives,
+  );
+
+  return !hasFugitiveScenario || ship.identity?.hasFugitives === true;
+};
+
 const hasReturnedCapturedFugitivesToBase = (
   state: GameState,
   map: SolarSystemMap,
@@ -171,19 +193,7 @@ export const checkImmediateVictory = (
   }
 
   for (const ship of state.ships) {
-    if (ship.lifecycle === 'destroyed') continue;
-
-    if (!state.players[ship.owner].escapeWins) continue;
-
-    if (!fugitiveHasEscaped(state, ship, map)) continue;
-
-    const hasFugitiveScenario = state.ships.some(
-      (s) => s.owner === ship.owner && s.identity?.hasFugitives,
-    );
-
-    if (hasFugitiveScenario && !ship.identity?.hasFugitives) {
-      continue;
-    }
+    if (!shipEscapeWinsAtCurrentPosition(state, ship, map)) continue;
 
     const escapeReason = ship.identity?.hasFugitives
       ? hexVecLength(ship.velocity) + 1 <= ship.fuel

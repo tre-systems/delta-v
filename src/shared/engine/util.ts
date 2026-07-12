@@ -418,6 +418,12 @@ export const shuffle = <T>(items: T[], rng: () => number): T[] => {
   return copy;
 };
 
+// Ships drifting this far beyond the map bounds are destroyed by the
+// movement resolver. Escape victories share the same threshold: the escape
+// margin must never exceed the destruction margin, or an escaping ship is
+// destroyed (and the win inverted) before the escape check can ever see it.
+export const OOB_DESTRUCTION_MARGIN = 2;
+
 export const hasEscaped = (
   pos: { q: number; r: number },
   bounds: {
@@ -427,7 +433,7 @@ export const hasEscaped = (
     maxR: number;
   },
 ): boolean => {
-  const margin = 3;
+  const margin = OOB_DESTRUCTION_MARGIN;
 
   return (
     pos.q < bounds.minQ - margin ||
@@ -462,7 +468,7 @@ export const hasEscapedNorth = (
     maxR: number;
   },
 ): boolean => {
-  const margin = 3;
+  const margin = OOB_DESTRUCTION_MARGIN;
 
   return pos.r < bounds.minR - margin;
 };

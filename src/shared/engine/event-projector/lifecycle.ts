@@ -94,6 +94,10 @@ export const projectLifecycleEvent = (
             weakGravityChoices: order.weakGravityChoices
               ? { ...order.weakGravityChoices }
               : undefined,
+            // Keep the explicit landing intent — dropping it here would
+            // lose a committed landing on DO recovery and diverge from
+            // the live pendingAstrogationOrders (parity).
+            ...(order.land === true ? { land: true } : {}),
           }),
         );
       }

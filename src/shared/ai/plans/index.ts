@@ -132,7 +132,9 @@ export const comparePlanCandidates = <TAction>(
 
   if (priorityDiff !== 0) return priorityDiff;
 
-  return left.id.localeCompare(right.id);
+  // Codepoint compare keeps plan selection deterministic across runtimes
+  // regardless of locale.
+  return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
 };
 
 export const chooseBestPlan = <TAction>(

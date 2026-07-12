@@ -137,6 +137,10 @@ const parseAstrogationOrders = (raw: unknown): AstrogationOrder[] | null => {
       return null;
     }
 
+    if (item.land !== undefined && typeof item.land !== 'boolean') {
+      return null;
+    }
+
     const weakGravityChoices = parseWeakGravityChoices(item.weakGravityChoices);
 
     if (weakGravityChoices === null) {
@@ -148,6 +152,9 @@ const parseAstrogationOrders = (raw: unknown): AstrogationOrder[] | null => {
       burn: item.burn,
       overload: item.overload === undefined ? null : item.overload,
       weakGravityChoices,
+      // The explicit orbital-landing intent must survive the validator —
+      // dropping it turns a confirmed landing into staying in orbit.
+      ...(item.land === true ? { land: true } : {}),
     });
   }
 
