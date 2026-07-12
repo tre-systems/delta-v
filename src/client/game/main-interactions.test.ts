@@ -106,6 +106,8 @@ const createController = () => {
     playerId: 0,
     transport,
     isLocalGame: false,
+    onboardingEntry: null as 'training' | 'post_training' | null,
+    trainingMovementFeedback: null as string | null,
   };
   const actionDeps = {
     astrogationDeps: { id: 'astrogation-deps' },
@@ -151,6 +153,7 @@ const createController = () => {
   };
   const setAIDifficulty = vi.fn();
   const resetTutorial = vi.fn();
+  const onTutorialGameplayAction = vi.fn();
   const exitToMenu = vi.fn();
   const trackEvent = vi.fn();
 
@@ -171,6 +174,7 @@ const createController = () => {
     mainNetworkDeps,
     setAIDifficulty,
     resetTutorial,
+    onTutorialGameplayAction,
     exitToMenu,
     trackEvent,
   };
@@ -427,6 +431,7 @@ describe('main-interactions', () => {
     });
 
     expect(deps.resetTutorial).toHaveBeenCalledOnce();
+    expect(deps.ctx.onboardingEntry).toBe('training');
     expect(deps.trackEvent).toHaveBeenCalledWith('scenario_selected', {
       scenario: 'biplanetary',
       from: 'ai',
@@ -442,6 +447,33 @@ describe('main-interactions', () => {
         description:
           'A guided Easy Bi-Planetary mission. Follow the prompts to plot burns and land on the enemy world before the AI.',
       },
+    );
+  });
+
+  it('attributes the first mission launched after Training Flight', () => {
+    const { controller, deps, mainNetworkDeps } = createController();
+    deps.ctx.onboardingEntry = 'post_training';
+    mocks.resolveUIEventPlan.mockReturnValueOnce({
+      kind: 'startSinglePlayer',
+      scenario: 'duel',
+      difficulty: 'easy',
+    });
+
+    controller.handleUIEvent({
+      type: 'startSinglePlayer',
+      scenario: 'duel',
+      difficulty: 'easy',
+    });
+
+    expect(deps.trackEvent).toHaveBeenCalledWith('scenario_selected', {
+      scenario: 'duel',
+      from: 'ai',
+      difficulty: 'easy',
+      entry: 'post_training',
+    });
+    expect(mocks.startLocalGameFromMain).toHaveBeenCalledWith(
+      mainNetworkDeps,
+      'duel',
     );
   });
 

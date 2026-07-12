@@ -9,6 +9,8 @@ import { createPlanningStore, type PlanningStore } from './planning';
 import type { ReconnectOverlayState } from './session-ui-state';
 import type { GameTransport } from './transport';
 
+export type OnboardingEntry = 'training' | 'post_training';
+
 const defineReactiveSessionProperty = <T>(
   session: object,
   key: string,
@@ -45,6 +47,10 @@ export interface ClientSession {
   readonly logisticsStateSignal: ReadonlySignal<LogisticsStore | null>;
   isLocalGame: boolean;
   readonly isLocalGameSignal: ReadonlySignal<boolean>;
+  /** Identifies the guided match or the first mission launched after it. */
+  onboardingEntry: OnboardingEntry | null;
+  /** Most recent guided-flight movement explanation, shown on the next turn. */
+  trainingMovementFeedback: string | null;
   aiDifficulty: AIDifficulty;
   transport: GameTransport | null;
   planningState: PlanningStore;
@@ -109,6 +115,8 @@ export const createInitialClientSession = (): ClientSession => {
     spectatorMode: false,
     scenario: 'biplanetary',
     aiDifficulty: 'normal',
+    onboardingEntry: null,
+    trainingMovementFeedback: null,
     transport: null,
     planningState: createPlanningStore(),
     reconnectAttempts: 0,
@@ -187,6 +195,8 @@ export type ClientSessionStateTransitionContext = Pick<
   | 'logisticsState'
   | 'planningState'
   | 'isLocalGame'
+  | 'onboardingEntry'
+  | 'trainingMovementFeedback'
 >;
 
 /** Merge defaults for tests and focused fakes. */

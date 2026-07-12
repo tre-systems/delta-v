@@ -1,7 +1,7 @@
 import type { AIDifficulty } from '../../shared/ai';
 import type { PlayerId } from '../../shared/types/domain';
 import type { WaitingScreenState } from '../ui/screens';
-import type { ClientSession } from './session-model';
+import type { ClientSession, OnboardingEntry } from './session-model';
 import type { ReconnectOverlayState } from './session-ui-state';
 import type { GameTransport } from './transport';
 
@@ -31,6 +31,8 @@ type ScenarioState = Pick<ClientSession, 'scenario'>;
 type LocalGameState = Pick<ClientSession, 'isLocalGame'>;
 
 type DifficultyState = Pick<ClientSession, 'aiDifficulty'>;
+
+type OnboardingState = Pick<ClientSession, 'onboardingEntry'>;
 
 type PlayerState = Pick<ClientSession, 'playerId'>;
 
@@ -109,6 +111,13 @@ export const setAIDifficulty = (
   aiDifficulty: AIDifficulty,
 ): void => {
   ctx.aiDifficulty = aiDifficulty;
+};
+
+export const setOnboardingEntry = (
+  ctx: OnboardingState,
+  onboardingEntry: OnboardingEntry | null,
+): void => {
+  ctx.onboardingEntry = onboardingEntry;
 };
 
 export const setPlayerId = (

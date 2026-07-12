@@ -73,6 +73,7 @@ export const HEX_SIZE = 28;
 export const createRenderer = (
   canvas: HTMLCanvasElement,
   planningState: PlanningState,
+  deps: { isTrainingFlight?: () => boolean } = {},
 ) => {
   const ctx = must(canvas.getContext('2d'));
   const camera = createCamera();
@@ -172,6 +173,7 @@ export const createRenderer = (
       hexSize: HEX_SIZE,
       drawShipIcon: drawShipIcon,
       zoom: camera.zoom,
+      showTrainingRecommendation: deps.isTrainingFlight?.() ?? false,
     });
   };
 

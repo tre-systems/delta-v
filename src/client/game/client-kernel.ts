@@ -52,6 +52,7 @@ import {
 import { attachMainSessionEffects } from './session-signals';
 import { createSessionTokenService } from './session-token-service';
 import { createTurnTimerManager } from './timer';
+import { deriveTrainingMovementFeedback } from './training-guidance';
 import { createTurnTelemetryTracker } from './turn-telemetry';
 
 export type { ClientSession, MainNetworkDeps };
@@ -83,7 +84,9 @@ export const createGameClient = () => {
   );
 
   const canvas = byId<HTMLCanvasElement>('gameCanvas');
-  const renderer = createRenderer(canvas, ctx.planningState);
+  const renderer = createRenderer(canvas, ctx.planningState, {
+    isTrainingFlight: () => ctx.onboardingEntry === 'training',
+  });
   const connectivity = createConnectivityController();
   const ui = createUIManager({
     playerProfile,
@@ -207,18 +210,29 @@ export const createGameClient = () => {
     logText,
   };
 
-  const showGameOverOutcome = (won: boolean, reason: string) => {
+  const showGameOverOutcome = (
+    won: boolean,
+    reason: string,
+    ratingDelta?: number,
+  ) => {
+    const onboardingEntry = ctx.onboardingEntry;
     track('game_over', {
       won,
       reason,
       scenario: ctx.scenario,
       mode: ctx.isLocalGame ? 'local' : 'multiplayer',
       turn: ctx.gameStateSignal.peek()?.turnNumber,
+      ...(onboardingEntry ? { entry: onboardingEntry } : {}),
     });
     if (ctx.isLocalGame) {
       recordLocalAiMatchCompleted();
     }
-    presentGameOver(presentationDeps, won, reason);
+    presentGameOver(presentationDeps, won, reason, ratingDelta, {
+      trainingComplete: onboardingEntry === 'training',
+    });
+    if (onboardingEntry === 'training') {
+      ctx.onboardingEntry = 'post_training';
+    }
   };
 
   const localGameFlowDeps: LocalGameFlowDeps = {
@@ -233,15 +247,34 @@ export const createGameClient = () => {
       ordnanceMovements,
       events,
       done,
-    ) =>
+    ) => {
+      const feedback =
+        ctx.onboardingEntry === 'training'
+          ? deriveTrainingMovementFeedback(
+              state,
+              ctx.playerId as PlayerId,
+              movements,
+              map,
+            )
+          : null;
+      if (feedback) {
+        ctx.trainingMovementFeedback = feedback;
+      }
       presentMovementResult(
         presentationDeps,
         state,
         movements,
         ordnanceMovements,
         events,
-        done,
-      ),
+        () => {
+          if (feedback) {
+            logText(feedback);
+            showToast(feedback, 'info');
+          }
+          done();
+        },
+      );
+    },
     presentCombatResults: (prev, state, results, resetCombatFlag = true) =>
       presentCombatResults(
         presentationDeps,
@@ -336,6 +369,7 @@ export const createGameClient = () => {
     mainNetworkDeps: networkDeps,
     setAIDifficulty: (difficulty) => setAIDifficulty(ctx, difficulty),
     resetTutorial: () => tutorial.reset(),
+    onTutorialGameplayAction: (action) => tutorial.onGameplayAction(action),
     exitToMenu,
     trackEvent: (event, props) => track(event, props),
   });

@@ -32,6 +32,7 @@ export interface GameOverStats {
   basesDestroyed: number;
   ordnanceInFlight: number;
   ratingDelta?: number;
+  trainingComplete?: boolean;
   shipFates: ShipFate[];
 }
 

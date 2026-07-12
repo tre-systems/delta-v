@@ -19,6 +19,19 @@ export const drawCourseMarkerView = (
   ctx.arc(marker.position.x, marker.position.y, marker.size, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  if (marker.recommended) {
+    ctx.beginPath();
+    ctx.arc(
+      marker.position.x,
+      marker.position.y,
+      marker.size + 5,
+      0,
+      Math.PI * 2,
+    );
+    ctx.strokeStyle = 'rgba(255, 212, 90, 0.72)';
+    ctx.lineWidth = screenLineWidth(1.5, zoom);
+    ctx.stroke();
+  }
   ctx.restore();
   if (marker.label && marker.labelColor) {
     ctx.fillStyle = marker.labelColor;
@@ -26,6 +39,17 @@ export const drawCourseMarkerView = (
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(marker.label, marker.position.x, marker.position.y);
+  }
+  if (marker.coachLabel) {
+    ctx.fillStyle = '#ffe68a';
+    ctx.font = scaledFont('bold 9px monospace', zoom);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(
+      marker.coachLabel,
+      marker.position.x,
+      marker.position.y - marker.size - 7,
+    );
   }
 };
 

@@ -15,6 +15,7 @@ describe('TurnTelemetryTracker', () => {
     telemetry.onTurnLogged(1, {
       scenario: 'biplanetary',
       isLocalGame: false,
+      onboardingEntry: 'training',
     });
     telemetry.onStateChanged('menu', 'playing_astrogation');
 
@@ -31,6 +32,7 @@ describe('TurnTelemetryTracker', () => {
     telemetry.onTurnLogged(2, {
       scenario: 'biplanetary',
       isLocalGame: false,
+      onboardingEntry: 'training',
     });
 
     expect(trackEvent).toHaveBeenCalledTimes(2);
@@ -43,6 +45,7 @@ describe('TurnTelemetryTracker', () => {
       },
       scenario: 'biplanetary',
       mode: 'multiplayer',
+      entry: 'training',
     });
     expect(trackEvent).toHaveBeenNthCalledWith(2, 'first_turn_completed', {
       turn: 1,
@@ -53,6 +56,7 @@ describe('TurnTelemetryTracker', () => {
       },
       scenario: 'biplanetary',
       mode: 'multiplayer',
+      entry: 'training',
     });
     expect(telemetry.getLastLoggedTurn()).toBe(2);
   });

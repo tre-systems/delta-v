@@ -13,6 +13,7 @@ import {
   setGameCode,
   setIsLocalGame,
   setLatencyMs,
+  setOnboardingEntry,
   setOpponentDisconnectDeadlineMs,
   setPlayerId,
   setReconnectOverlayState,
@@ -169,8 +170,10 @@ export interface ExitToMenuSessionDeps {
     | 'reconnectOverlayState'
     | 'reconnectAttempts'
     | 'opponentDisconnectDeadlineMs'
+    | 'onboardingEntry'
     | 'spectatorMode'
     | 'transport'
+    | 'trainingMovementFeedback'
     | 'waitingScreenState'
   >;
   stopPing: () => void;
@@ -296,6 +299,7 @@ export const resumeLocalGameSession = (
   snapshot: StoredLocalGameSession,
 ): void => {
   setAIDifficulty(deps.ctx, snapshot.aiDifficulty);
+  setOnboardingEntry(deps.ctx, snapshot.onboardingEntry ?? null);
   completeLocalGameSession(
     deps,
     snapshot.scenario,
@@ -441,6 +445,8 @@ export const exitToMenuSession = (deps: ExitToMenuSessionDeps): void => {
   setIsLocalGame(deps.ctx, false);
   setReconnectOverlayState(deps.ctx, null);
   setOpponentDisconnectDeadlineMs(deps.ctx, null);
+  setOnboardingEntry(deps.ctx, null);
+  deps.ctx.trainingMovementFeedback = null;
   setPlayerId(deps.ctx, -1);
   setTransport(deps.ctx, null);
   deps.replaceRoute('/');

@@ -16,6 +16,12 @@ export interface TutorialCreateDeps {
   openHelpSection?: (sectionElementId: string) => void;
 }
 
+export interface TutorialPhaseContext {
+  training?: boolean;
+  targetBody?: string | null;
+  movementFeedback?: string | null;
+}
+
 const helpSectionForTutorialStep = (step: TutorialStep): string => {
   switch (step.id) {
     case 'welcome':
@@ -53,7 +59,12 @@ export interface Tutorial {
     | ((event: string, props?: Record<string, unknown>) => void)
     | null;
   isActive: () => boolean;
-  onPhaseChange: (phase: string, turn: number) => void;
+  onPhaseChange: (
+    phase: string,
+    turn: number,
+    context?: TutorialPhaseContext,
+  ) => void;
+  onGameplayAction: (action: string) => void;
   hideTip: () => void;
   reset: () => void;
   dispose: () => void;
@@ -171,7 +182,11 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
     }
   };
 
-  const showStep = (step: TutorialStep): void => {
+  const showStep = (
+    step: TutorialStep,
+    context: TutorialPhaseContext,
+    turn: number,
+  ): void => {
     // Funnel telemetry dedupes per tutorial session. A passive player who
     // never clicks "Got it" re-enters astrogation every turn with an empty
     // shownSteps set (it only grows in advance()), and hideTip() clears
@@ -195,7 +210,20 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
     activeStepId = step.id;
     openHelpTargetSection = helpSectionForTutorialStep(step);
 
-    text(textEl, cachedMobile && step.mobileText ? step.mobileText : step.text);
+    const trainingWelcome =
+      step.id === 'welcome' && context.training && turn === 1
+        ? `Try the glowing gold burn circle toward ${context.targetBody ?? 'the objective'}. It is a safe first burn, and you can Undo before confirming.`
+        : null;
+    const movementFeedback =
+      step.id === 'select-ship' && context.movementFeedback
+        ? `${context.movementFeedback.replace(/^Flight coach:\s*/, '')} ${step.text}`
+        : null;
+    text(
+      textEl,
+      trainingWelcome ??
+        movementFeedback ??
+        (cachedMobile && step.mobileText ? step.mobileText : step.text),
+    );
 
     visible(tipEl, true, 'block');
     visible(openHelpBtnEl, Boolean(deps.openHelpSection), 'inline-block');
@@ -260,7 +288,11 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
     return !completed;
   };
 
-  const onPhaseChange = (phase: string, turn: number): void => {
+  const onPhaseChange = (
+    phase: string,
+    turn: number,
+    context: TutorialPhaseContext = {},
+  ): void => {
     if (completed) {
       return;
     }
@@ -282,7 +314,7 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
     });
 
     if (step) {
-      showStep(step);
+      showStep(step, context, turn);
       return;
     }
 
@@ -300,6 +332,15 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
       storage?.removeItem(PROGRESS_STORAGE_KEY);
     } catch {
       /* quota / private mode */
+    }
+  };
+
+  const onGameplayAction = (action: string): void => {
+    if (
+      (activeStepId === 'welcome' && action === 'burn_planned') ||
+      (activeStepId === 'select-ship' && action === 'orders_confirmed')
+    ) {
+      advance();
     }
   };
 
@@ -337,6 +378,7 @@ export const createTutorial = (deps: TutorialCreateDeps = {}): Tutorial => {
     },
     isActive,
     onPhaseChange,
+    onGameplayAction,
     hideTip,
     reset,
     dispose,

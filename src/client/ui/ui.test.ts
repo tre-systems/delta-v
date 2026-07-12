@@ -68,6 +68,7 @@ const installFixture = () => {
     <div id="gameOverKicker"></div>
     <div id="gameOverReason"></div>
     <div id="gameOverStats"></div>
+    <p id="trainingCompleteSummary"></p>
     <div id="replayStatus"></div>
     <div id="replayControls"></div>
     <button id="replayMatchPrevBtn"></button>
@@ -146,6 +147,7 @@ const installFixture = () => {
     <button id="skipCombatBtn"></button>
     <button id="skipLogisticsBtn"></button>
     <button id="confirmTransfersBtn"></button>
+    <button id="nextMissionBtn"></button>
     <button id="rematchBtn"></button>
     <button id="exitBtn"></button>
     <button id="menuHowToPlayBtn"></button>
@@ -227,6 +229,7 @@ describe('UIManager', () => {
     document.getElementById('nextOrdnanceBtn')?.click();
     document.getElementById('confirmOrdnanceBtn')?.click();
     document.getElementById('undoBtn')?.click();
+    document.getElementById('nextMissionBtn')?.click();
     document.getElementById('rematchBtn')?.click();
     document.getElementById('replayToggleBtn')?.click();
 
@@ -235,6 +238,7 @@ describe('UIManager', () => {
       { type: 'skipOrdnanceShip' },
       { type: 'confirmOrdnance' },
       { type: 'undo' },
+      { type: 'startSinglePlayer', scenario: 'duel', difficulty: 'easy' },
       { type: 'rematch' },
       { type: 'toggleReplay' },
     ]);

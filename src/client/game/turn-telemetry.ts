@@ -1,9 +1,11 @@
 import { track } from '../telemetry';
 import type { ClientState } from './phase';
+import type { OnboardingEntry } from './session-model';
 
 export interface TurnTelemetryContext {
   scenario: string;
   isLocalGame: boolean;
+  onboardingEntry?: OnboardingEntry | null;
 }
 
 interface TurnTelemetryDeps {
@@ -58,6 +60,7 @@ export const createTurnTelemetryTracker = ({
       phases: { ...phaseDurations },
       scenario: context.scenario,
       mode: context.isLocalGame ? 'local' : 'multiplayer',
+      ...(context.onboardingEntry ? { entry: context.onboardingEntry } : {}),
     };
 
     trackEvent('turn_completed', props);

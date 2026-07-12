@@ -197,6 +197,8 @@ export const createOverlayView = (
   const gameOverKickerEl = byId('gameOverKicker');
   const gameOverTextEl = byId('gameOverText');
   const gameOverReasonEl = byId('gameOverReason');
+  const trainingCompleteSummaryEl = byId('trainingCompleteSummary');
+  const nextMissionBtn = byId<HTMLButtonElement>('nextMissionBtn');
   const rematchBtn = byId<HTMLButtonElement>('rematchBtn');
   const replayStatusEl = byId('replayStatus');
   const replayControlsEl = byId('replayControls');
@@ -464,8 +466,17 @@ export const createOverlayView = (
       text(gameOverTextEl, gameOverView.titleText);
       gameOverTextEl.className = gameOverView.titleClass;
       text(gameOverReasonEl, gameOverView.reasonText);
+      const trainingSummaryText = gameOverView.trainingSummaryText ?? '';
+      text(trainingCompleteSummaryEl, trainingSummaryText);
+      visible(
+        trainingCompleteSummaryEl,
+        trainingSummaryText.length > 0,
+        'block',
+      );
+      visible(nextMissionBtn, trainingSummaryText.length > 0, 'inline-flex');
       text(rematchBtn, gameOverView.rematchText);
       rematchBtn.disabled = gameOverView.rematchDisabled;
+      visible(rematchBtn, trainingSummaryText.length === 0, 'inline-flex');
 
       // Apply outcome theme to the overlay root
       gameOverEl.classList.remove(
@@ -494,7 +505,11 @@ export const createOverlayView = (
         show(gameOverEl, 'flex');
         void gameOverEl.offsetWidth;
         gameOverEl.classList.add('game-over-enter');
-        if (!gameOverView.rematchDisabled) {
+        if (trainingSummaryText.length > 0) {
+          queueMicrotask(() => {
+            nextMissionBtn.focus({ preventScroll: true });
+          });
+        } else if (!gameOverView.rematchDisabled) {
           queueMicrotask(() => {
             rematchBtn.focus({ preventScroll: true });
           });

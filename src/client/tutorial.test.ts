@@ -32,6 +32,49 @@ describe('tutorial', () => {
     tutorial.dispose();
   });
 
+  it('points Training Flight players at the highlighted safe burn', () => {
+    const tutorial = createTutorial();
+
+    tutorial.onPhaseChange('astrogation', 1, {
+      training: true,
+      targetBody: 'Mars',
+    });
+
+    expect(document.getElementById('tutorialTipText')?.textContent).toBe(
+      'Try the glowing gold burn circle toward Mars. It is a safe first burn, and you can Undo before confirming.',
+    );
+
+    tutorial.dispose();
+  });
+
+  it('advances first-flight tips when the player performs the instructed action', () => {
+    const tutorial = createTutorial();
+
+    tutorial.onPhaseChange('astrogation', 1, {
+      training: true,
+      targetBody: 'Mars',
+    });
+    tutorial.onGameplayAction('burn_planned');
+    tutorial.onPhaseChange('astrogation', 2, {
+      training: true,
+      targetBody: 'Mars',
+      movementFeedback:
+        'Flight coach: Good — your velocity now carries you toward Mars.',
+    });
+
+    expect(document.getElementById('tutorialTipText')?.textContent).toContain(
+      'velocity now carries you toward Mars',
+    );
+    expect(document.getElementById('tutorialTipText')?.textContent).toContain(
+      "Choose this turn's burn",
+    );
+    expect(
+      document.getElementById('tutorialTipText')?.textContent,
+    ).not.toContain('glowing gold');
+
+    tutorial.dispose();
+  });
+
   it('completes after the core movement tips without requiring ordnance or combat phases', () => {
     const events: Array<[string, Record<string, unknown> | undefined]> = [];
     const tutorial = createTutorial();

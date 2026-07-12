@@ -53,6 +53,8 @@ const createDeps = (
       logisticsState: null,
       planningState: createPlanningStore(),
       isLocalGame: false,
+      onboardingEntry: null,
+      trainingMovementFeedback: null,
     },
     getMap: () => buildSolarSystemMap(),
     ui: {
@@ -100,7 +102,11 @@ describe('applyClientStateTransition', () => {
     expect(deps.calls['turnTimer.start']).toHaveLength(1);
     expect(deps.calls['renderer.frameOnShips']).toHaveLength(1);
     expect(deps.calls['tutorial.onPhaseChange']).toEqual([
-      ['astrogation', state.turnNumber],
+      [
+        'astrogation',
+        state.turnNumber,
+        { training: false, targetBody: '', movementFeedback: null },
+      ],
     ]);
 
     expect(deps.ctx.planningState.selectedShipId).toBe(state.ships[0].id);

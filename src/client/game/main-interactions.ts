@@ -36,9 +36,11 @@ type MainInteractionSession = Pick<
   | 'gameStateSignal'
   | 'isLocalGame'
   | 'logisticsStateSignal'
+  | 'onboardingEntry'
   | 'planningState'
   | 'playerId'
   | 'stateSignal'
+  | 'trainingMovementFeedback'
   | 'transport'
 >;
 
@@ -95,6 +97,7 @@ type MainInteractionDeps = {
   mainNetworkDeps: MainNetworkDeps;
   setAIDifficulty: (difficulty: AIDifficulty) => void;
   resetTutorial: () => void;
+  onTutorialGameplayAction: (action: string) => void;
   exitToMenu: () => void;
   trackEvent: (event: string, props?: Record<string, unknown>) => void;
 };
@@ -150,7 +153,9 @@ export const createMainInteractionController = (
       action,
       scenario: gameState.scenario,
       mode: deps.ctx.isLocalGame ? 'local' : 'multiplayer',
+      ...(deps.ctx.onboardingEntry ? { entry: deps.ctx.onboardingEntry } : {}),
     });
+    deps.onTutorialGameplayAction(action);
   };
 
   const sendFleetReady = (purchases: FleetPurchase[]) => {
@@ -327,10 +332,12 @@ export const createMainInteractionController = (
   };
 
   const spectateGame = (code: string) => {
+    deps.ctx.onboardingEntry = null;
     beginSpectateGameFromMain(deps.mainNetworkDeps, code);
   };
 
   const viewArchivedReplay = (code: string, gameId: string) => {
+    deps.ctx.onboardingEntry = null;
     beginArchivedReplayFromMain(deps.mainNetworkDeps, code, gameId);
   };
 
@@ -339,6 +346,7 @@ export const createMainInteractionController = (
 
     switch (plan.kind) {
       case 'quickMatch':
+        deps.ctx.onboardingEntry = null;
         void deps.sessionApi.startQuickMatch();
         return;
       case 'cancelQuickMatch': {
@@ -352,10 +360,12 @@ export const createMainInteractionController = (
         return;
       }
       case 'acceptOfficialBotMatch': {
+        deps.ctx.onboardingEntry = null;
         void deps.sessionApi.acceptOfficialBotMatch();
         return;
       }
       case 'createGame':
+        deps.ctx.onboardingEntry = null;
         // Emit before the round-trip so we capture the scenario even if
         // the /create request fails or the user bails out of the waiting
         // room; `ai_game_started` / `match_created` already cover the
@@ -367,11 +377,19 @@ export const createMainInteractionController = (
         deps.sessionApi.createGame(plan.scenario);
         return;
       case 'startSinglePlayer':
+        deps.ctx.trainingMovementFeedback = null;
+        deps.ctx.onboardingEntry = plan.training
+          ? 'training'
+          : deps.ctx.onboardingEntry === 'post_training'
+            ? 'post_training'
+            : null;
         deps.trackEvent('scenario_selected', {
           scenario: plan.scenario,
           from: 'ai',
           difficulty: plan.difficulty,
-          ...(plan.training ? { entry: 'training' } : {}),
+          ...(deps.ctx.onboardingEntry
+            ? { entry: deps.ctx.onboardingEntry }
+            : {}),
         });
         if (plan.training) {
           deps.resetTutorial();
@@ -388,6 +406,7 @@ export const createMainInteractionController = (
         }
         return;
       case 'joinGame':
+        deps.ctx.onboardingEntry = null;
         joinGame(plan.code, plan.playerToken);
         return;
       case 'command':

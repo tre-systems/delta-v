@@ -82,6 +82,7 @@ export interface GameOverStatsLike {
   basesDestroyed: number;
   ordnanceInFlight: number;
   ratingDelta?: number;
+  trainingComplete?: boolean;
   playerId?: number;
   shipFates?: Array<{
     name: string;
@@ -116,6 +117,7 @@ export interface GameOverView {
   reasonText: string;
   summaryItems: GameOverSummaryItem[];
   shipGroups: GameOverShipGroup[];
+  trainingSummaryText: string | null;
   rematchText: 'Rematch';
   rematchDisabled: false;
 }
@@ -503,6 +505,9 @@ export const buildGameOverView = (
   reasonText: reason,
   summaryItems: stats ? buildSummaryItems(stats) : [],
   shipGroups: stats ? buildShipGroups(stats) : [],
+  trainingSummaryText: stats?.trainingComplete
+    ? 'Training complete — you learned to plot burns, read momentum, and manage fuel. Next, Duel teaches targeting and combat.'
+    : null,
   rematchText: 'Rematch',
   rematchDisabled: false,
 });

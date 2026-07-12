@@ -13,8 +13,16 @@ describe('ui-button-bindings', () => {
     );
   });
 
-  it('includes replay, rematch, and exit in the static button binding set', () => {
-    expect(STATIC_BUTTON_BINDINGS.slice(-16)).toEqual([
+  it('includes onboarding, replay, rematch, and exit in the static button binding set', () => {
+    expect(STATIC_BUTTON_BINDINGS.slice(-17)).toEqual([
+      {
+        id: 'nextMissionBtn',
+        event: {
+          type: 'startSinglePlayer',
+          scenario: 'duel',
+          difficulty: 'easy',
+        },
+      },
       { id: 'rematchBtn', event: { type: 'rematch' } },
       { id: 'replayMatchPrevBtn', event: { type: 'replayMatchPrev' } },
       { id: 'replayMatchNextBtn', event: { type: 'replayMatchNext' } },

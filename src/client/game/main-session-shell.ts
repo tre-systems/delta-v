@@ -340,6 +340,9 @@ export const createMainSessionShell = (
     get scenario() {
       return args.ctx.scenario;
     },
+    get onboardingEntry() {
+      return args.ctx.onboardingEntry;
+    },
     onTurnLogged: (turnNumber, context) =>
       args.turnTelemetry.onTurnLogged(turnNumber, context),
     logTurn: (turnNumber, playerLabel) =>

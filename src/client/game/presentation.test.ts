@@ -295,6 +295,22 @@ describe('showGameOverOutcome reveal delay', () => {
     expect(deps.ui.overlay.showGameOver).toHaveBeenCalledTimes(1);
   });
 
+  it('marks the guided match as complete in the game-over stats', () => {
+    const state = createState({ scenario: 'biplanetary' });
+    const deps = createDeps(state);
+
+    showGameOverOutcome(deps, true, 'Landed first', undefined, {
+      trainingComplete: true,
+    });
+    vi.runAllTimers();
+
+    expect(deps.ui.overlay.showGameOver).toHaveBeenCalledWith(
+      true,
+      'Landed first',
+      expect.objectContaining({ trainingComplete: true }),
+    );
+  });
+
   it('suppresses the overlay when the player exited before the delay fired', () => {
     const state = createState({});
     const deps = createDeps(state);

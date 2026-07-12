@@ -841,6 +841,18 @@ h2.game-over-neutral {
   margin: 0;
 }
 
+.training-complete-summary {
+  max-width: 34rem;
+  margin: 0 auto 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(100, 220, 255, 0.32);
+  border-radius: 10px;
+  color: var(--text-primary);
+  background: rgba(30, 80, 110, 0.2);
+  line-height: 1.45;
+  text-align: center;
+}
+
 /* ── Game over: stats container ── */
 
 .game-over-stats {

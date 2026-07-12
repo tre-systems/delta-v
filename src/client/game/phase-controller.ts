@@ -10,6 +10,7 @@ export interface PhaseControllerDeps {
   lastLoggedTurn: number;
   isLocalGame: boolean;
   scenario: string;
+  onboardingEntry?: TurnTelemetryContext['onboardingEntry'];
   onTurnLogged: (turnNumber: number, context: TurnTelemetryContext) => void;
   logTurn: (turnNumber: number, playerLabel: string) => void;
   beginCombat: () => void;
@@ -34,6 +35,7 @@ export const transitionClientPhase = (deps: PhaseControllerDeps): void => {
     deps.onTurnLogged(transition.turnLogNumber, {
       scenario: deps.scenario,
       isLocalGame: deps.isLocalGame,
+      onboardingEntry: deps.onboardingEntry,
     });
     deps.logTurn(transition.turnLogNumber, transition.turnLogPlayerLabel);
   }

@@ -3,6 +3,7 @@ import type { GameState, PlayerId } from '../../shared/types/domain';
 import type { Dispose } from '../reactive';
 import { effect } from '../reactive';
 import type { ClientState } from './phase';
+import type { OnboardingEntry } from './session-model';
 
 export interface LocalSessionStorageLike {
   getItem(key: string): string | null;
@@ -16,6 +17,7 @@ export interface StoredLocalGameSession {
   aiDifficulty: AIDifficulty;
   playerId: PlayerId;
   gameState: GameState;
+  onboardingEntry?: Extract<OnboardingEntry, 'training'>;
   updatedAt: number;
 }
 
@@ -26,6 +28,7 @@ type LocalSessionPersistenceContext = {
   playerIdSignal: { value: PlayerId | -1 };
   scenario: string;
   aiDifficulty: AIDifficulty;
+  onboardingEntry?: OnboardingEntry | null;
 };
 
 const AI_DIFFICULTIES = new Set<AIDifficulty>(['easy', 'normal', 'hard']);
@@ -45,6 +48,8 @@ const isStoredLocalGameSession = (
     candidate.version === 1 &&
     typeof candidate.scenario === 'string' &&
     AI_DIFFICULTIES.has(candidate.aiDifficulty as AIDifficulty) &&
+    (candidate.onboardingEntry === undefined ||
+      candidate.onboardingEntry === 'training') &&
     (candidate.playerId === 0 || candidate.playerId === 1) &&
     typeof candidate.updatedAt === 'number' &&
     Number.isFinite(candidate.updatedAt) &&
@@ -132,6 +137,9 @@ export const attachLocalGameSessionPersistence = (
       aiDifficulty: ctx.aiDifficulty,
       playerId,
       gameState,
+      ...(ctx.onboardingEntry === 'training'
+        ? { onboardingEntry: 'training' as const }
+        : {}),
       updatedAt: now(),
     });
   });

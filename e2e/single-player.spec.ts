@@ -63,7 +63,7 @@ test.describe('single-player smoke tests', () => {
 
     await expect(page.locator('[data-testid="tutorialTip"]')).toBeVisible();
     await expect(page.locator('[data-testid="tutorialTip"]')).toContainText(
-      'Choose a numbered burn circle',
+      'glowing gold burn circle',
     );
     await expect(page.locator('[data-testid="fuelGauge"]')).toContainText(
       'Stay landed · 0 fuel',

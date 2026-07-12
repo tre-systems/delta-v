@@ -19,6 +19,11 @@ interface TransitionTutorial {
   onPhaseChange: (
     phase: 'astrogation' | 'ordnance' | 'combat',
     turnNumber: number,
+    context?: {
+      training?: boolean;
+      targetBody?: string | null;
+      movementFeedback?: string | null;
+    },
   ) => void;
 }
 
@@ -101,6 +106,15 @@ export const applyClientStateTransition = (
       deps.tutorial.onPhaseChange(
         entryPlan.tutorialPhase,
         deps.ctx.gameState.turnNumber,
+        {
+          training: deps.ctx.onboardingEntry === 'training',
+          targetBody:
+            deps.ctx.playerId >= 0
+              ? (deps.ctx.gameState.players[deps.ctx.playerId as PlayerId]
+                  ?.targetBody ?? null)
+              : null,
+          movementFeedback: deps.ctx.trainingMovementFeedback,
+        },
       );
     }
 

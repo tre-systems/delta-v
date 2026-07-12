@@ -169,6 +169,28 @@ describe('main-session-network', () => {
     expect(deps.runLocalAI).toHaveBeenCalledOnce();
   });
 
+  it('consumes the post-training handoff when the next AI game starts', () => {
+    const deps = createDeps();
+    deps.ctx.onboardingEntry = 'post_training';
+
+    startLocalGameFromMain(deps, 'duel');
+    const localDeps = mocks.startLocalGameSession.mock.calls[0]?.[0];
+    if (!localDeps) throw new Error('Expected local session deps');
+
+    localDeps.trackGameCreated({
+      scenario: 'duel',
+      mode: 'local',
+      difficulty: 'easy',
+    });
+
+    expect(deps.track).toHaveBeenCalledWith('ai_game_started', {
+      scenario: 'duel',
+      difficulty: 'easy',
+      entry: 'post_training',
+    });
+    expect(deps.ctx.onboardingEntry).toBeNull();
+  });
+
   it('reuses the shared remote-session bridge for spectating', () => {
     const deps = createDeps();
     const replaceState = vi

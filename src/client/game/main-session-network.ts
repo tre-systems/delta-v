@@ -106,11 +106,17 @@ export const startLocalGameFromMain = (
       setChatEnabled: (enabled) => deps.ui.log.setChatEnabled(enabled),
       logText: (text) => deps.ui.log.logText(text),
       trackGameCreated: (details) => {
-        deps.track('game_created', details);
+        const entry = deps.ctx.onboardingEntry;
+        const props = entry ? { ...details, entry } : details;
+        deps.track('game_created', props);
         deps.track('ai_game_started', {
           scenario: details.scenario,
           difficulty: details.difficulty,
+          ...(entry ? { entry } : {}),
         });
+        if (entry === 'post_training') {
+          deps.ctx.onboardingEntry = null;
+        }
       },
       applyGameState: deps.applyGameState,
       logScenarioBriefing: () => deps.hud.logScenarioBriefing(),

@@ -35,6 +35,14 @@ export const ACTION_BUTTON_BINDINGS = [
 
 export const STATIC_BUTTON_BINDINGS = [
   ...ACTION_BUTTON_BINDINGS,
+  {
+    id: 'nextMissionBtn',
+    event: {
+      type: 'startSinglePlayer',
+      scenario: 'duel',
+      difficulty: 'easy',
+    },
+  },
   { id: 'rematchBtn', event: { type: 'rematch' } },
   { id: 'replayMatchPrevBtn', event: { type: 'replayMatchPrev' } },
   { id: 'replayMatchNextBtn', event: { type: 'replayMatchNext' } },

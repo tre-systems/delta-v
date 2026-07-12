@@ -15,6 +15,7 @@ const installFixture = () => {
       <div id="gameOverText"></div>
       <div id="gameOverReason"></div>
       <div id="gameOverStats"></div>
+      <p id="trainingCompleteSummary" hidden></p>
       <div id="replayStatus" hidden></div>
       <div id="replayControls" hidden>
         <button id="replayMatchPrevBtn"></button>
@@ -29,6 +30,7 @@ const installFixture = () => {
           <button id="replayEndBtn"></button>
         </div>
       </div>
+      <button id="nextMissionBtn" hidden>Next: Duel</button>
       <button id="rematchBtn" disabled>Rematch</button>
       <button id="exitBtn">Exit</button>
     </div>
@@ -122,6 +124,41 @@ describe('OverlayView', () => {
     state.showRematchPending();
     expect(rematchBtn.textContent).toBe('Waiting...');
     expect(rematchBtn.disabled).toBe(true);
+  });
+
+  it('graduates Training Flight players into Duel', async () => {
+    const state = createOverlayStateStore();
+    createOverlayView(state);
+
+    state.showGameOver(true, 'Landed first', {
+      turns: 4,
+      myShipsAlive: 1,
+      myShipsTotal: 1,
+      enemyShipsAlive: 1,
+      enemyShipsTotal: 1,
+      myShipsDestroyed: 0,
+      enemyShipsDestroyed: 0,
+      myFuelSpent: 4,
+      enemyFuelSpent: 5,
+      basesDestroyed: 0,
+      ordnanceInFlight: 0,
+      trainingComplete: true,
+    });
+
+    expect(
+      document.getElementById('trainingCompleteSummary')?.textContent,
+    ).toContain('learned to plot burns');
+    const nextMissionBtn = document.getElementById(
+      'nextMissionBtn',
+    ) as HTMLButtonElement;
+    expect(nextMissionBtn.hasAttribute('hidden')).toBe(false);
+    expect(
+      (document.getElementById('rematchBtn') as HTMLButtonElement).hasAttribute(
+        'hidden',
+      ),
+    ).toBe(true);
+    await Promise.resolve();
+    expect(document.activeElement).toBe(nextMissionBtn);
   });
 
   it('shows reconnect overlay and runs cancel handler', () => {

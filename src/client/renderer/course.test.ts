@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { must } from '../../shared/assert';
 import { hexKey } from '../../shared/hex';
 import { asGameId, asShipId } from '../../shared/ids';
-import { buildSolarSystemMap } from '../../shared/map-data';
+import { buildSolarSystemMap, findBaseHex } from '../../shared/map-data';
 import type {
   GameState,
   GravityEffect,
@@ -106,6 +106,30 @@ describe('renderer course helpers', () => {
     expect(previews[0].burnMarkers).toHaveLength(6);
     expect(previews[0].overloadMarkers).toHaveLength(0);
     expect(previews[0].fuelCostLabel).toBeNull();
+  });
+
+  it('emphasizes exactly one safe first burn during Training Flight', () => {
+    const map = buildSolarSystemMap();
+    const venusBase = must(findBaseHex(map, 'Venus'));
+    const state = createState([
+      createShip({ position: venusBase, lifecycle: 'landed' }),
+    ]);
+    state.players[0].targetBody = 'Mars';
+
+    const previews = buildAstrogationCoursePreviewViews(
+      state,
+      0,
+      createPlanning({ selectedShipId: 'ship-0' }),
+      map,
+      28,
+      true,
+    );
+
+    const recommended = previews[0].burnMarkers.filter(
+      (marker) => marker.recommended,
+    );
+    expect(recommended).toHaveLength(1);
+    expect(recommended[0]).toMatchObject({ coachLabel: 'TRY' });
   });
 
   it('builds overload ring and fuel label for a warship with a declared burn', () => {

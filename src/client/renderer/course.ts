@@ -15,6 +15,7 @@ import type {
   Ship,
   SolarSystemMap,
 } from '../../shared/types/domain';
+import { deriveTrainingFirstBurnDirection } from '../game/training-guidance';
 import { MOBILE_BREAKPOINT_PX } from '../ui-breakpoints';
 
 export interface CoursePreviewPlanningState {
@@ -36,6 +37,8 @@ export interface CourseMarkerView {
   shadowColor: string | null;
   label: string | null;
   labelColor: string | null;
+  recommended?: boolean;
+  coachLabel?: string | null;
 }
 
 export interface CourseArrowView {
@@ -230,6 +233,7 @@ const buildBurnMarkers = (
   hoverHex: HexCoord | null,
   predictedDestination: HexCoord,
   hexSize: number,
+  recommendedBurnDirection: number | null,
 ): CourseMarkerView[] => {
   if (ship.fuel <= 0 || ship.damage.disabledTurns > 0) return [];
 
@@ -266,6 +270,19 @@ const buildBurnMarkers = (
     marker.labelColor = isHovered
       ? 'rgba(0, 0, 0, 0.9)'
       : 'rgba(210, 246, 255, 0.9)';
+
+    if (direction === recommendedBurnDirection) {
+      marker.recommended = true;
+      marker.coachLabel = 'TRY';
+      marker.size = 20;
+      marker.fillColor = 'rgba(255, 205, 70, 0.46)';
+      marker.strokeColor = '#ffd45a';
+      marker.lineWidth = 2.5;
+      marker.shadowBlur = 16;
+      marker.shadowColor = 'rgba(255, 212, 90, 0.95)';
+      marker.label = showLabel ? String(direction + 1) : '★';
+      marker.labelColor = '#fff6c7';
+    }
 
     markers.push(marker);
   });
@@ -445,6 +462,7 @@ export const buildAstrogationCoursePreviewViews = (
   planning: CoursePreviewPlanningState,
   map: SolarSystemMap,
   hexSize: number,
+  showTrainingRecommendation = false,
 ): CoursePreviewView[] => {
   if (state.phase !== 'astrogation' || state.activePlayer !== playerId) {
     return [];
@@ -476,6 +494,9 @@ export const buildAstrogationCoursePreviewViews = (
 
     const destination = hexToPixel(course.destination, hexSize);
     const predictedDestination = predictDestination(ship);
+    const recommendedBurnDirection = showTrainingRecommendation
+      ? deriveTrainingFirstBurnDirection(state, playerId, ship, map)
+      : null;
 
     const takeoffSegment = null;
     const mainPath = course.path;
@@ -518,6 +539,7 @@ export const buildAstrogationCoursePreviewViews = (
               planning.hoverHex,
               predictedDestination,
               hexSize,
+              recommendedBurnDirection,
             )
           : [],
 

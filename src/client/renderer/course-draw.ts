@@ -229,6 +229,7 @@ export type DrawAstrogationCoursePreviewLayerInput = {
   hexSize: number;
   drawShipIcon: DrawShipIconFn;
   zoom: number;
+  showTrainingRecommendation?: boolean;
 };
 
 export const drawAstrogationCoursePreviewLayer = (
@@ -243,6 +244,7 @@ export const drawAstrogationCoursePreviewLayer = (
     hexSize,
     drawShipIcon,
     zoom,
+    showTrainingRecommendation = false,
   } = input;
   for (const preview of buildAstrogationCoursePreviewViews(
     state,
@@ -250,6 +252,7 @@ export const drawAstrogationCoursePreviewLayer = (
     planningState,
     map,
     hexSize,
+    showTrainingRecommendation,
   )) {
     drawSingleCoursePreview(ctx, preview, drawShipIcon, playerId, zoom);
   }

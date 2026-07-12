@@ -87,6 +87,7 @@ describe('local-session-store', () => {
       playerIdSignal: signal<0 | 1 | -1>(-1),
       scenario: 'duel',
       aiDifficulty: 'hard' as const,
+      onboardingEntry: 'training' as const,
     };
 
     const dispose = attachLocalGameSessionPersistence(storage, ctx, () => 999);
@@ -102,6 +103,7 @@ describe('local-session-store', () => {
       scenario: 'duel',
       aiDifficulty: 'hard',
       playerId: 1,
+      onboardingEntry: 'training',
       updatedAt: 999,
     });
 

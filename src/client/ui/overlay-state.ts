@@ -49,6 +49,7 @@ interface GameOverOverlayView {
   reasonText: string;
   summaryItems: GameOverSummaryItem[];
   shipGroups: GameOverShipGroup[];
+  trainingSummaryText: string | null;
   rematchText: string;
   rematchDisabled: boolean;
 }
@@ -118,6 +119,7 @@ const HIDDEN_GAME_OVER_VIEW: GameOverOverlayView = {
   reasonText: '',
   summaryItems: [],
   shipGroups: [],
+  trainingSummaryText: null,
   rematchText: 'Rematch',
   rematchDisabled: false,
 };
@@ -180,6 +182,7 @@ export const createOverlayStateStore = (): OverlayStateStore => {
       reasonText: view.reasonText,
       summaryItems: view.summaryItems,
       shipGroups: view.shipGroups,
+      trainingSummaryText: view.trainingSummaryText,
       rematchText: rematchView.rematchText,
       rematchDisabled: rematchView.rematchDisabled,
     };
