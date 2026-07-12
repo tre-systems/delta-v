@@ -57,7 +57,7 @@ test.describe('single-player smoke tests', () => {
       'Training Flight',
     );
     await expect(page.locator('#scenarioBriefingDescription')).toContainText(
-      'guided Easy Bi-Planetary mission',
+      'land on the enemy world before the AI',
     );
     await dismissScenarioBriefingIfPresent(page);
 

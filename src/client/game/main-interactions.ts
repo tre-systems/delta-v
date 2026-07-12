@@ -381,7 +381,7 @@ export const createMainInteractionController = (
           startLocalGameFromMain(deps.mainNetworkDeps, plan.scenario, {
             title: 'Training Flight',
             description:
-              'A guided Easy Bi-Planetary mission. Follow the prompts to plot burns and land on Mars before the AI reaches Venus.',
+              'A guided Easy Bi-Planetary mission. Follow the prompts to plot burns and land on the enemy world before the AI.',
           });
         } else {
           startLocalGameFromMain(deps.mainNetworkDeps, plan.scenario);
