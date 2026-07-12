@@ -172,6 +172,35 @@ test.describe('single-player smoke tests', () => {
     expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(375);
   });
 
+  test('keeps the mobile Training prompt clear of the burn ring', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await openHomePage(page, { tutorialDone: true });
+    await page.click('[data-testid="singlePlayerBtn"]');
+    await waitForDisplay(page, '[data-testid="scenarioSelect"]', 'flex');
+    await page.click('[data-training-flight="true"]');
+    await waitForDisplay(page, '[data-testid="hud"]', 'block');
+    await dismissScenarioBriefingIfPresent(page);
+
+    const tip = page.locator('[data-testid="tutorialTip"]');
+    await expect(tip).toBeVisible();
+    await expect(tip).toContainText('glowing gold burn circle');
+    await expect
+      .poll(async () =>
+        page
+          .locator('#phaseAlert')
+          .evaluate((element) => element.classList.contains('active')),
+      )
+      .toBe(false);
+
+    const bounds = await tip.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds?.height ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(170);
+    expect(bounds?.y ?? 0).toBeGreaterThanOrEqual(300);
+    expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeLessThanOrEqual(500);
+  });
+
   test('fleet building can return to the menu before launch', async ({
     page,
   }) => {

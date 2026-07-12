@@ -285,6 +285,41 @@
 }
 
 @media (max-width: 420px) and (orientation: portrait) {
+  /* Keep the first-flight burn ring visible while its coach card is open.
+   * Stacking three tutorial actions made the card nearly 300px tall on
+   * short phones, covering the exact control the copy asked players to tap. */
+  .tutorial-tip {
+    bottom: calc(var(--hud-bottom-offset) + 0.25rem);
+    width: calc(100vw - 1rem);
+    padding: 0.65rem 0.75rem;
+    border-radius: 14px;
+  }
+
+  .tutorial-tip-text {
+    font-size: 0.72rem;
+    line-height: 1.4;
+  }
+
+  .tutorial-tip .tutorial-tip-actions {
+    flex-direction: row;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+  }
+
+  .tutorial-tip .tutorial-tip-actions .btn {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.45rem 0.3rem;
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+  }
+
+  .tutorial-progress {
+    margin-top: 0.45rem;
+  }
+
   #phaseAlert {
     top: calc(var(--hud-top-offset) + min(31vh, 250px) + 1.05rem);
     width: min(
