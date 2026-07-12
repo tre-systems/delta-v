@@ -1,9 +1,24 @@
 import { ORBITAL_BASE_MASS, SHIP_STATS } from '../../constants';
 import { hexKey } from '../../hex';
+import type { ShipId } from '../../ids';
+import type { SolarSystemMap } from '../../types';
 import type { GameState, Result } from '../../types/domain';
+import { queueAsteroidHazards } from '../ordnance';
 import { getCargoUsedAfterResupply } from '../util';
 import type { ShipProjectionEvent } from './support';
 import { cloneGravityEffects, requireShip, requireState } from './support';
+
+// Live never holds queued hazards for a destroyed ship at a publish
+// boundary: crashed / out-of-bounds ships are destroyed before the queue
+// step, resolve-movement drops entries for ships killed later in the same
+// resolution (ramming, ordnance), and a fatal hazard roll silently drops
+// the ship's remaining entries inside the same drain. All those boundaries
+// emit shipCrashed / shipDestroyed, so prune on them.
+const pruneHazardsForShip = (state: GameState, shipId: ShipId): void => {
+  state.pendingAsteroidHazards = state.pendingAsteroidHazards.filter(
+    (hazard) => hazard.shipId !== shipId,
+  );
+};
 
 const applyFriendlyBaseResupply = (
   state: GameState,
@@ -37,6 +52,7 @@ const applyFriendlyBaseResupply = (
 export const projectShipEvent = (
   state: GameState | null,
   event: ShipProjectionEvent,
+  map: SolarSystemMap,
 ): Result<GameState> => {
   switch (event.type) {
     case 'shipMoved': {
@@ -67,6 +83,19 @@ export const projectShipEvent = (
       }
       projectedShip.value.pendingGravityEffects = cloneGravityEffects(
         event.pendingGravityEffects,
+      );
+
+      // The live engine queues asteroid hazards right after moving each
+      // ship (resolve-movement.ts) and no dedicated event records the
+      // push, so requeue from the same deterministic inputs the event
+      // carries. Crash / out-of-bounds destruction events follow this one
+      // and prune again, matching live's skip for those ships.
+      queueAsteroidHazards(
+        projectedShip.value,
+        event.path,
+        event.newVelocity,
+        state,
+        map,
       );
 
       return {
@@ -118,6 +147,7 @@ export const projectShipEvent = (
       projectedShip.value.deathCause = 'crash';
       projectedShip.value.velocity = { dq: 0, dr: 0 };
       projectedShip.value.pendingGravityEffects = [];
+      pruneHazardsForShip(state, event.shipId);
 
       return {
         ok: true,
@@ -140,8 +170,17 @@ export const projectShipEvent = (
       }
 
       projectedShip.value.lifecycle = 'destroyed';
-      projectedShip.value.deathCause = event.cause;
+      // Prefer the exact live attribution when the event carries it;
+      // `cause` may be the attack label ('asteroidHazard') rather than
+      // the live deathCause ('asteroid').
+      projectedShip.value.deathCause = event.deathCause ?? event.cause;
+      // Older archived streams predate killedBy; leave legacy behavior
+      // (e.g. the combatAttack projection's attacker guess) untouched then.
+      if (event.killedBy !== undefined) {
+        projectedShip.value.killedBy = event.killedBy;
+      }
       projectedShip.value.velocity = { dq: 0, dr: 0 };
+      pruneHazardsForShip(state, event.shipId);
 
       return {
         ok: true,
@@ -357,7 +396,7 @@ export const projectShipEvent = (
         originalOwner: event.owner,
         position: { ...event.position },
         velocity: { ...event.velocity },
-        fuel: Infinity,
+        fuel: SHIP_STATS.orbitalBase.fuel,
         cargoUsed: 0,
         nukesLaunchedSinceResupply: 0,
         resuppliedThisTurn: false,

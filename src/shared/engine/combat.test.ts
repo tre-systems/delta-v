@@ -1259,6 +1259,58 @@ describe('endCombat', () => {
       }
     }
   });
+  it('resolves pending asteroid hazards before advancing the phase', () => {
+    const state = makeCombatState();
+    state.ships[0].damage.disabledTurns = 2;
+    state.pendingAsteroidHazards = [
+      { shipId: asShipId('a0'), hex: { q: 0, r: 0 } },
+    ];
+    // rng -> die roll 6: asteroid table deals 1 disabled turn.
+    const result = endCombat(state, 0, openMap, () => 0.99);
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      const hazard = result.results?.find(
+        (r) => r.attackType === 'asteroidHazard',
+      );
+      expect(hazard).toBeDefined();
+      expect(hazard?.disabledTurns).toBe(1);
+      expect(result.state.pendingAsteroidHazards).toHaveLength(0);
+      const ship = must(
+        result.state.ships.find((s) => s.id === asShipId('a0')),
+      );
+      // Hazard adds 1 disabled turn, then turn advance recovers 1: net 2.
+      // Without the hazard roll the ship would be at 1.
+      expect(ship.damage.disabledTurns).toBe(2);
+      expect(result.state.phase).not.toBe('combat');
+      expect(
+        result.engineEvents.some(
+          (e) => e.type === 'combatAttack' && e.attackType === 'asteroidHazard',
+        ),
+      ).toBe(true);
+    }
+  });
+  it('returns game over when a hazard destroys the last own ship', () => {
+    const state = makeCombatState();
+    state.ships[0].damage.disabledTurns = 5;
+    state.pendingAsteroidHazards = [
+      { shipId: asShipId('a0'), hex: { q: 0, r: 0 } },
+    ];
+    // Die roll 6 adds a disabled turn, crossing the elimination threshold.
+    const result = endCombat(state, 0, openMap, () => 0.99);
+    expect('error' in result).toBe(false);
+    if (!('error' in result)) {
+      const ship = must(
+        result.state.ships.find((s) => s.id === asShipId('a0')),
+      );
+      expect(ship.lifecycle).toBe('destroyed');
+      expect(ship.deathCause).toBe('asteroid');
+      expect(result.state.pendingAsteroidHazards).toHaveLength(0);
+      expect(result.state.outcome).not.toBeNull();
+      expect(result.engineEvents.some((e) => e.type === 'shipDestroyed')).toBe(
+        true,
+      );
+    }
+  });
   it('cleans up destroyed ordnance after combat', () => {
     const state = makeCombatState();
     state.ordnance = [makeOrdnance({ lifecycle: 'destroyed' })];

@@ -61,6 +61,15 @@ export type ConflictProjectionEvent = Extract<
 export const migrateGameState = (state: GameState): GameState => ({
   ...state,
   schemaVersion: state.schemaVersion ?? CURRENT_GAME_STATE_SCHEMA_VERSION,
+  // Checkpoints written before resolve-movement dropped destroyed ships'
+  // queued hazards may still carry such entries; they can never roll and
+  // no future event prunes them, so seed projection without them.
+  pendingAsteroidHazards: state.pendingAsteroidHazards.filter((hazard) => {
+    const ship = state.ships.find(
+      (candidate) => candidate.id === hazard.shipId,
+    );
+    return ship !== undefined && ship.lifecycle !== 'destroyed';
+  }),
 });
 
 // Resolves a scenario from either a key (e.g. "biplanetary") or a display

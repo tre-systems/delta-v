@@ -28,7 +28,7 @@ import {
   type SolarSystemMap,
 } from '../types';
 import { sumBy } from '../util';
-import type { EngineEvent } from './engine-events';
+import { type EngineEvent, shipDestroyedEvent } from './engine-events';
 import { shouldEnterLogisticsPhase } from './logistics';
 import { resolvePendingAsteroidHazards } from './ordnance';
 import {
@@ -283,11 +283,14 @@ const combatResultToEvents = (
   if (isShipTargetCombatResult(r)) {
     const target = state.ships.find((ship) => ship.id === r.targetId);
     if (r.damageType === 'eliminated' || target?.lifecycle === 'destroyed') {
-      events.push({
-        type: 'shipDestroyed',
-        shipId: r.targetId,
-        cause: r.attackType,
-      });
+      // Carry the target's exact deathCause/killedBy: `attackType` may
+      // differ from the live deathCause ('asteroidHazard' vs 'asteroid'),
+      // and group kills credit the strongest attacker, not attackerIds[0].
+      events.push(
+        target
+          ? shipDestroyedEvent(target, r.attackType)
+          : { type: 'shipDestroyed', shipId: r.targetId, cause: r.attackType },
+      );
     }
   } else if (isOrdnanceTargetCombatResult(r) && r.damageType === 'eliminated') {
     events.push({
@@ -893,7 +896,25 @@ export const endCombat = (
   const phaseError = validatePhaseAction(state, playerId, 'combat');
   if (phaseError) return engineFailure(phaseError.code, phaseError.message);
 
-  const results: CombatResult[] = [];
+  // Resolve deferred asteroid hazards before base defense and phase
+  // advance so ending the phase cannot skip hazard rolls the player owes.
+  const results = resolvePendingAsteroidHazards(state, playerId, rng);
+
+  for (const r of results) {
+    engineEvents.push(...combatResultToEvents(r, state));
+  }
+
+  applyEscapeMoralVictory(state);
+
+  if (map) {
+    checkGameEnd(state, map, engineEvents);
+  }
+
+  if (state.outcome !== null) {
+    return results.length > 0
+      ? { state, results, engineEvents }
+      : { state, engineEvents };
+  }
 
   if (map && isPlanetaryDefenseEnabled(state)) {
     const baseResults = resolveBaseDefense(state, playerId, map, rng);

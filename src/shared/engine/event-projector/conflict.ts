@@ -218,6 +218,21 @@ export const projectConflictEvent = (
       }
 
       state = baseState.value;
+
+      // resolvePendingAsteroidHazards emits one asteroidHazard attack per
+      // queue entry it rolls, in queue order; mirror the drain entry by
+      // entry. A fatal roll's shipDestroyed event prunes any remaining
+      // entries for the ship (see ships.ts).
+      if (event.attackType === 'asteroidHazard') {
+        const hazardIndex = state.pendingAsteroidHazards.findIndex(
+          (hazard) => hazard.shipId === event.targetId,
+        );
+
+        if (hazardIndex !== -1) {
+          state.pendingAsteroidHazards.splice(hazardIndex, 1);
+        }
+      }
+
       const targetKey = combatTargetKey(event.targetType, event.targetId);
 
       if (event.attackType !== 'baseDefense') {
@@ -316,6 +331,9 @@ export const projectConflictEvent = (
 
       if (event.damageType === 'eliminated') {
         projectedShip.value.lifecycle = 'destroyed';
+        // Legacy fallback for old streams: guess the first attacker and
+        // the attack label. Streams that carry attribution overwrite
+        // both via the shipDestroyed event that follows this one.
         projectedShip.value.deathCause = event.attackType;
         projectedShip.value.killedBy = event.attackerIds[0] ?? null;
         projectedShip.value.velocity = { dq: 0, dr: 0 };
@@ -331,6 +349,7 @@ export const projectConflictEvent = (
         projectedShip.value.damage.disabledTurns >= DAMAGE_ELIMINATION_THRESHOLD
       ) {
         projectedShip.value.lifecycle = 'destroyed';
+        // Legacy fallback; see the eliminated branch above.
         projectedShip.value.deathCause = event.attackType;
         projectedShip.value.killedBy = event.attackerIds[0] ?? null;
         projectedShip.value.velocity = { dq: 0, dr: 0 };

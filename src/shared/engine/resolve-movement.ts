@@ -39,28 +39,38 @@ export const filterStateForPlayer = (
   state: GameState,
   viewer: ViewerId,
 ): GameState => {
-  if (
-    !usesEscapeInspectionRules(state) &&
-    !state.ships.some((s) => s.identity?.hasFugitives)
-  ) {
+  // Committed-but-unresolved move orders are the active player's secret in
+  // every scenario — hide them from the opponent and spectators until
+  // movement resolves.
+  const hidePendingOrders =
+    state.pendingAstrogationOrders !== null && viewer !== state.activePlayer;
+  const hasHiddenIdentity =
+    usesEscapeInspectionRules(state) ||
+    state.ships.some((s) => s.identity?.hasFugitives);
+
+  if (!hidePendingOrders && !hasHiddenIdentity) {
     return state;
   }
+
   return {
     ...state,
-    ships: state.ships.map((ship) => {
-      // Spectators see no hidden identity
-      if (viewer === 'spectator') {
-        if (ship.identity?.revealed) return ship;
-        const { identity, ...rest } = ship;
-        return rest;
-      }
-      // Players see own ships' identity
-      if (ship.owner === viewer) return ship;
+    ...(hidePendingOrders ? { pendingAstrogationOrders: null } : {}),
+    ships: hasHiddenIdentity
+      ? state.ships.map((ship) => {
+          // Spectators see no hidden identity
+          if (viewer === 'spectator') {
+            if (ship.identity?.revealed) return ship;
+            const { identity, ...rest } = ship;
+            return rest;
+          }
+          // Players see own ships' identity
+          if (ship.owner === viewer) return ship;
 
-      if (ship.identity?.revealed) return ship;
-      const { identity, ...rest } = ship;
-      return rest;
-    }),
+          if (ship.identity?.revealed) return ship;
+          const { identity, ...rest } = ship;
+          return rest;
+        })
+      : state.ships,
   };
 };
 
@@ -314,6 +324,20 @@ export const resolveMovementPhase = (
     rng,
     engineEvents,
   );
+
+  // Ramming or ordnance detonation above can destroy a ship after its
+  // hazards were queued. resolvePendingAsteroidHazards would drop those
+  // entries without emitting an event — a boundary the event projector
+  // cannot mirror — so drop them here, inside the action that emitted the
+  // shipDestroyed event. Decision-neutral: destroyed-ship entries never
+  // roll and every hazard predicate already skips them.
+  state.pendingAsteroidHazards = state.pendingAsteroidHazards.filter(
+    (hazard) => {
+      const hazardShip = state.ships.find((s) => s.id === hazard.shipId);
+      return hazardShip !== undefined && hazardShip.lifecycle !== 'destroyed';
+    },
+  );
+
   applyDetection(state, map);
   applyEscapeMoralVictory(state);
   checkImmediateVictory(state, map, engineEvents);

@@ -92,8 +92,13 @@ const projectLifecycle: ProjectEventHandler<LifecycleEvent> = (
   return projectLifecycleEvent(state, event, gameId, map);
 };
 
-const projectShip: ProjectEventHandler<ShipEvent> = (state, event) => {
-  return projectShipEvent(state, event);
+const projectShip: ProjectEventHandler<ShipEvent> = (
+  state,
+  event,
+  _gameId,
+  map,
+) => {
+  return projectShipEvent(state, event, map);
 };
 
 const projectConflict: ProjectEventHandler<ConflictEvent> = (state, event) => {

@@ -15,7 +15,7 @@ import type {
   Ship,
   SolarSystemMap,
 } from '../types';
-import type { EngineEvent } from './engine-events';
+import { type EngineEvent, shipDestroyedEvent } from './engine-events';
 import {
   getCargoUsedAfterResupply,
   playerControlsBase,
@@ -77,11 +77,7 @@ export const checkRamming = (
         applyDamage(ship, result, 'ramming', otherShip.id);
 
         if ((ship.lifecycle as string) === 'destroyed') {
-          engineEvents?.push({
-            type: 'shipDestroyed',
-            shipId: ship.id,
-            cause: 'ramming',
-          });
+          engineEvents?.push(shipDestroyedEvent(ship, 'ramming'));
         }
       }
     }

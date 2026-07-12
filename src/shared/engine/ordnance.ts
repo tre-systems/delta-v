@@ -3,6 +3,7 @@ import {
   isBaseCarrierType,
   ORBITAL_BASE_MASS,
   ORDNANCE_LIFETIME,
+  SHIP_STATS,
 } from '../constants';
 import {
   analyzeHexLine,
@@ -32,7 +33,7 @@ import {
   type ShipMovement,
   type SolarSystemMap,
 } from '../types';
-import type { EngineEvent } from './engine-events';
+import { type EngineEvent, shipDestroyedEvent } from './engine-events';
 import {
   engineError,
   engineFailure,
@@ -214,7 +215,7 @@ export const processEmplacement = (
       originalOwner: playerId,
       position: { ...ship.position },
       velocity: { ...ship.velocity },
-      fuel: Infinity,
+      fuel: SHIP_STATS.orbitalBase.fuel,
       cargoUsed: 0,
       nukesLaunchedSinceResupply: 0,
       resuppliedThisTurn: false,
@@ -385,11 +386,7 @@ const resolveTorpedoDetonation = (
       pushDestroyedOrdnance(ord.id, 'torpedo', engineEvents);
 
       if (candidate.ship.lifecycle === 'destroyed') {
-        engineEvents?.push({
-          type: 'shipDestroyed',
-          shipId: candidate.ship.id,
-          cause: 'torpedo',
-        });
+        engineEvents?.push(shipDestroyedEvent(candidate.ship, 'torpedo'));
       }
 
       return true;
@@ -487,11 +484,7 @@ const resolveOrdnanceContactAtHex = (
     applyDamage(ship, result, ord.type, ord.id);
 
     if (ship.lifecycle === 'destroyed') {
-      engineEvents?.push({
-        type: 'shipDestroyed',
-        shipId: ship.id,
-        cause: ord.type,
-      });
+      engineEvents?.push(shipDestroyedEvent(ship, ord.type));
     }
 
     hitSomething = true;
@@ -774,11 +767,7 @@ export const moveOrdnance = (
                 disabledTurns: 0,
               });
               pushDestroyedOrdnance(ord.id, ord.type, engineEvents);
-              engineEvents?.push({
-                type: 'shipDestroyed',
-                shipId: ship.id,
-                cause: ord.type,
-              });
+              engineEvents?.push(shipDestroyedEvent(ship, ord.type));
             }
           }
 

@@ -272,20 +272,14 @@ export const projectReplayTimeline = (
 // - detected: visibility recomputed each tick from sensor data
 // - firedThisPhase / combatTargetedThisPhase / combatAttackGroupsThisPhase:
 //   sequential combat residue
-// - pendingAsteroidHazards: transient mid-phase queue. The live engine
-//   pushes onto it during movement and drains it at combat-resolution
-//   start, but no EngineEvent records the push, so event-stream replay
-//   can't reproduce the array. The field never persists across the
-//   movement→combat boundary by design, so the live/projected gap is
-//   only visible in the snapshot taken between those two passes — which
-//   is exactly when 43 false-positive `projection_parity_mismatch`
-//   reports were filed (all on `pendingAsteroidHazards[0]`) on
-//   2026-04-19 → 2026-04-24 traffic.
+// pendingAsteroidHazards is deliberately NOT stripped: the projector
+// requeues it from shipMoved events and drains it on asteroidHazard
+// combatAttack / shipDestroyed / shipCrashed, so live and projected agree
+// on it at every publish point and a diff there is a real divergence.
 export const normalizeStateForParity = (state: GameState): GameState => ({
   ...state,
   combatAttackGroupsThisPhase: undefined,
   combatTargetedThisPhase: undefined,
-  pendingAsteroidHazards: [],
   players: state.players.map((player) => ({
     ...player,
     connected: false,

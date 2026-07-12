@@ -150,6 +150,17 @@ export const projectLifecycleEvent = (
       state.turnNumber = event.turn;
       state.activePlayer = event.activePlayer;
 
+      // The live engine consumes pendingAstrogationOrders at the top of
+      // resolveMovementPhase, before any events fire. A player whose
+      // only units are emplaced orbital bases emits no shipMoved /
+      // ordnanceMoved to clear them here, so the post-movement phase
+      // transition must do it (parity: live null vs projected []).
+      // The astrogation -> ordnance transition is the one phase change
+      // that happens while committed orders are still pending live.
+      if (event.phase !== 'ordnance') {
+        state.pendingAstrogationOrders = null;
+      }
+
       return {
         ok: true,
         value: state,
@@ -232,6 +243,9 @@ export const projectLifecycleEvent = (
           ? { winner: event.winner, reason: event.reason }
           : null;
       state.phase = 'gameOver';
+      // processAstrogation nulls committed orders when the game ends
+      // right at the commit; mirror it so the final states agree.
+      state.pendingAstrogationOrders = null;
 
       return {
         ok: true,

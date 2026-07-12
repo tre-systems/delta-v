@@ -162,41 +162,6 @@ should not be assigned as active backlog work:
 leaderboard rows are still inert. Add it only in the same change that makes rows
 interactive.
 
-## Verified Defects Awaiting Fix (2026-07-12 deep review)
-
-Each item below is a confirmed defect with a traced failure path; fix in
-its own change with a regression test.
-
-- **Infinity fuel lost over JSON** — torch/orbitalBase ships carry
-  `fuel: Infinity` (`src/shared/constants.ts`), which serializes to `null`
-  in every `JSON.stringify` boundary (broadcast, MCP observations, R2
-  replays). Client burn gating reads `fuel <= 0`, so torches can never
-  burn in multiplayer. Pick a serialization-safe representation.
-- **Projector kill-attribution parity gaps** — `shipDestroyed` events
-  don't carry `killedBy`, group gun kills project the wrong attacker,
-  asteroid kills project a different `deathCause`, and an empty orders
-  commit leaves `pendingAstrogationOrders` as `[]` instead of `null`.
-  Each can fire `projection_parity_mismatch` and lose attribution after
-  DO recovery. Files: `src/shared/engine/engine-events.ts`,
-  `src/shared/engine/event-projector/`, `src/server/game-do/projection.ts`.
-- **Turn timeout cannot advance logistics or fleetBuilding** — an AFK
-  player in those phases voids the match via the inactivity alarm instead
-  of forfeiting (`src/server/game-do/turns.ts`, `turn-timeout.ts`).
-- **Committed move orders leak to opponents/spectators** —
-  `filterStateForPlayer` (`src/shared/engine/resolve-movement.ts`) keeps
-  `pendingAstrogationOrders` in every viewer's state during the ordnance
-  phase; MCP agents and spectators can read the active player's moves
-  before they resolve.
-- **endCombat skips pending asteroid hazards** — opening the combat phase
-  with `endCombat` defers or drops the acting player's hazard rolls
-  (`src/shared/engine/combat.ts`).
-- **Client polish cluster** — tutorial funnel events re-fire every turn
-  for passive players (`src/client/tutorial.ts`); quick-match poll and
-  the official-bot accept button can double-connect
-  (`src/client/game/session-api.ts`); opening a game/replay link silently
-  deletes an in-progress local save (`src/client/game/local-session-store.ts`
-  + `client-runtime.ts` ordering).
-
 ## Remaining Backlog Detail
 
 ### Maintain Fixture-Backed AI Workflow (P1, ongoing)

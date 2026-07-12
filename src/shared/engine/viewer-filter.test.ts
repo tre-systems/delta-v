@@ -147,6 +147,85 @@ describe('viewer-aware state filtering', () => {
     }
   });
 
+  it('opponent does not see the active player pending astrogation orders', () => {
+    const state = withFugitiveIdentity(
+      createGameOrThrow(
+        SCENARIOS.biplanetary,
+        map,
+        asGameId('V07'),
+        findBaseHex,
+      ),
+    );
+    state.activePlayer = 0;
+    state.pendingAstrogationOrders = [
+      { shipId: state.ships[0].id, burn: 2, overload: null },
+    ];
+
+    const filtered = filterStateForPlayer(state, 1);
+
+    expect(filtered.pendingAstrogationOrders).toBeNull();
+  });
+
+  it('spectator does not see pending astrogation orders', () => {
+    const state = withFugitiveIdentity(
+      createGameOrThrow(
+        SCENARIOS.biplanetary,
+        map,
+        asGameId('V08'),
+        findBaseHex,
+      ),
+    );
+    state.activePlayer = 0;
+    state.pendingAstrogationOrders = [
+      { shipId: state.ships[0].id, burn: 2, overload: null },
+    ];
+
+    const filtered = filterStateForPlayer(state, 'spectator');
+
+    expect(filtered.pendingAstrogationOrders).toBeNull();
+  });
+
+  it('the committing player keeps their own pending astrogation orders', () => {
+    const state = withFugitiveIdentity(
+      createGameOrThrow(
+        SCENARIOS.biplanetary,
+        map,
+        asGameId('V09'),
+        findBaseHex,
+      ),
+    );
+    state.activePlayer = 0;
+    const orders = [{ shipId: state.ships[0].id, burn: 2, overload: null }];
+    state.pendingAstrogationOrders = orders;
+
+    const filtered = filterStateForPlayer(state, 0);
+
+    expect(filtered.pendingAstrogationOrders).toEqual(orders);
+  });
+
+  it('pending orders are stripped even without hidden identity rules', () => {
+    const state = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      map,
+      asGameId('V10'),
+      findBaseHex,
+    );
+    state.activePlayer = 0;
+    state.pendingAstrogationOrders = [
+      { shipId: state.ships[0].id, burn: 1, overload: null },
+    ];
+
+    const opponentView = filterStateForPlayer(state, 1);
+    const spectatorView = filterStateForPlayer(state, 'spectator');
+    const ownView = filterStateForPlayer(state, 0);
+
+    expect(opponentView.pendingAstrogationOrders).toBeNull();
+    expect(spectatorView.pendingAstrogationOrders).toBeNull();
+    expect(ownView.pendingAstrogationOrders).not.toBeNull();
+    // Identity filtering stays untouched on this path
+    expect(opponentView.ships).toBe(state.ships);
+  });
+
   it('consistent filtering across live, replay, and spectator paths', () => {
     const state = withFugitiveIdentity(
       createGameOrThrow(

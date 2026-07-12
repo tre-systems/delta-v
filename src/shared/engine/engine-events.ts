@@ -101,6 +101,14 @@ export type EngineEvent =
       type: 'shipDestroyed';
       shipId: ShipId;
       cause: string;
+      // Exact live attribution, carried verbatim so projection can
+      // reconstruct kill credit: `cause` is the attack label (e.g.
+      // 'asteroidHazard') while `deathCause` is the engine's exact
+      // value (e.g. 'asteroid'), and `killedBy` is the attacker id
+      // (null for environmental deaths). Optional: older archived
+      // streams omit them and the projector keeps legacy behavior.
+      deathCause?: string;
+      killedBy?: ShipId | null;
     }
   | {
       type: 'asteroidDestroyed';
@@ -260,3 +268,17 @@ export type OrdnanceTargetCombatAttackEvent = CombatAttackEvent & {
 export const isShipTargetCombatAttackEvent = (
   event: CombatAttackEvent,
 ): event is ShipTargetCombatAttackEvent => event.targetType === 'ship';
+
+// Build a shipDestroyed event from a just-destroyed ship, carrying its
+// exact deathCause/killedBy so projection reconstructs kill attribution
+// verbatim. Fields the live ship never set stay absent from the event.
+export const shipDestroyedEvent = (
+  ship: { id: ShipId; deathCause?: string; killedBy?: ShipId | null },
+  cause: string,
+): Extract<EngineEvent, { type: 'shipDestroyed' }> => ({
+  type: 'shipDestroyed',
+  shipId: ship.id,
+  cause,
+  ...(ship.deathCause !== undefined ? { deathCause: ship.deathCause } : {}),
+  ...(ship.killedBy !== undefined ? { killedBy: ship.killedBy } : {}),
+});
