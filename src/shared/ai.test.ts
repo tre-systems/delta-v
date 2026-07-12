@@ -131,6 +131,39 @@ const loadAIFailureFixture = (name: string): SimulationFailureCapture =>
     readFileSync(new URL(`./ai/__fixtures__/${name}`, import.meta.url), 'utf8'),
   ) as SimulationFailureCapture;
 
+type EscapeInterceptFixture = {
+  scenario: 'escape';
+  gameId: string;
+  rngValue: number;
+  activePlayer: PlayerId;
+  difficulty: AIDifficulty;
+  enforcerShips: Array<
+    Pick<
+      GameState['ships'][number],
+      'id' | 'type' | 'position' | 'velocity' | 'fuel'
+    >
+  >;
+  expectedOrders: Array<Pick<AstrogationOrder, 'shipId' | 'burn' | 'overload'>>;
+  expectedCourses: Array<{
+    shipId: string;
+    destination: { q: number; r: number };
+    newVelocity: { dq: number; dr: number };
+    fuelSpent: number;
+    outcome: string;
+  }>;
+};
+
+const loadEscapeInterceptFixture = (): EscapeInterceptFixture =>
+  JSON.parse(
+    readFileSync(
+      new URL(
+        './ai/__fixtures__/escape-enforcer-north-intercept.json',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  ) as EscapeInterceptFixture;
+
 beforeEach(() => {
   map = buildSolarSystemMap();
 });
@@ -320,6 +353,57 @@ describe('aiAstrogation', () => {
 
     expect(corvetteOrder.burn).not.toBeNull();
     expect(corsairOrder.burn).not.toBeNull();
+  });
+  it('holds the fixture-backed northern intercept line', () => {
+    const fixture = loadEscapeInterceptFixture();
+    const state = createGameOrThrow(
+      SCENARIOS[fixture.scenario],
+      map,
+      asGameId(fixture.gameId),
+      findBaseHex,
+      () => fixture.rngValue,
+      fixture.scenario,
+    );
+    state.activePlayer = fixture.activePlayer;
+
+    expect(
+      state.ships
+        .filter((ship) => ship.owner === fixture.activePlayer)
+        .map(({ id, type, position, velocity, fuel }) => ({
+          id,
+          type,
+          position,
+          velocity,
+          fuel,
+        })),
+    ).toEqual(fixture.enforcerShips);
+
+    const orders = aiAstrogation(
+      state,
+      fixture.activePlayer,
+      map,
+      fixture.difficulty,
+      () => fixture.rngValue,
+    );
+    expect(orders).toMatchObject(fixture.expectedOrders);
+
+    const courses = orders.map((order) => {
+      const ship = must(state.ships.find(({ id }) => id === order.shipId));
+      const course = computeCourse(ship, order.burn, map, {
+        ...(order.overload != null ? { overload: order.overload } : {}),
+        destroyedBases: state.destroyedBases,
+      });
+
+      return {
+        shipId: ship.id,
+        destination: course.destination,
+        newVelocity: course.newVelocity,
+        fuelSpent: course.fuelSpent,
+        outcome: course.outcome,
+      };
+    });
+
+    expect(courses).toEqual(fixture.expectedCourses);
   });
   it('does not crash when ship has zero fuel', () => {
     const state = createGameOrThrow(
@@ -4421,15 +4505,17 @@ describe('aiOrdnance — defensive mine-laying', () => {
       findBaseHex,
     );
     const pilgrim = must(state.ships.find((s) => s.owner === 0));
-    const enforcer = must(state.ships.find((s) => s.owner === 1));
+    const enforcers = state.ships.filter((s) => s.owner === 1);
     pilgrim.lifecycle = 'active';
     pilgrim.position = { q: 0, r: -10 };
     pilgrim.velocity = { dq: 0, dr: -3 };
     pilgrim.cargoUsed = 0;
     // Place enforcer far enough to avoid regular mine range (>4 for easy)
     // but within defensive mine range (<=8)
-    enforcer.lifecycle = 'active';
-    enforcer.position = { q: 0, r: -4 };
+    for (const enforcer of enforcers) {
+      enforcer.lifecycle = 'active';
+      enforcer.position = { q: 0, r: -4 };
+    }
     state.pendingAstrogationOrders = [
       { shipId: pilgrim.id, burn: 0, overload: null },
     ];

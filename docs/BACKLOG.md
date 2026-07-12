@@ -41,17 +41,10 @@ pages except for narrow type fallout.
 Goal: make hard-vs-hard scenario play resolve credibly without invalid actions,
 fuel-stall loops, or timeout-heavy stalemates.
 
-Active queue:
-
-- **Escape Enforcer Balance** — the 2026-07-12 all-scenario scorecard and a
-  focused paired-seed run both produced 60/60 Pilgrim wins at roughly 12.3
-  turns. Even Easy Pilgrims against Hard Enforcers won 24/30, so this is not
-  merely equal-AI first-seat noise. Capture representative pursuit states and
-  determine whether interceptor doctrine or scenario geometry prevents the
-  Enforcers from contesting the north escape line. Acceptance: a paired
-  multi-seed Hard-vs-Hard sweep brings P0 decided rate inside the documented
-  0-70% band without invalid actions, crashes, fuel stalls, or obscuring the
-  hidden-fugitive objective. Keep exact-movement regressions fixture-backed.
+The queue item has shipped — see "Verified Not Active" below for the
+acceptance evidence. Reopen this stream when a focused scenario scorecard
+falls outside its documented balance band or reports invalid actions, crashes,
+fuel stalls, or timeout-heavy play.
 
 The Blockade Runner randomized-start finding remains triaged as a
 non-production stress case: the shipped scenario fixes the first active player
@@ -141,6 +134,15 @@ should not be assigned as active backlog work:
   terminal-fuel endgame is preserved as
   `fleet-action-terminal-intercept-stall.json` so the stall metric no longer
   treats a stranded no-progress hold as a fueled coasting regression.
+- **Escape Enforcer Balance** — the stationary Venus-side corsair could not
+  physically contest three transports already accelerating toward the north
+  edge. Moving that patrol to the northern exit corridor changed the paired
+  seeds 0-7, 20 games each, Hard-vs-Hard scorecard from 100% P0 decided at
+  12.28 average turns to 36.25% P0 decided at 9.54 average turns, with zero
+  crashes, invalid actions, fuel stalls, or timeouts. Easy Pilgrims against
+  Hard Enforcers on seed 21 finished 33-26-1 rather than 45-15. The exact
+  opening pursuit is preserved in
+  `escape-enforcer-north-intercept.json`.
 - **Blockade Runner Randomized-Start Pressure** — not a release gate for the
   current product. Blockade Runner intentionally starts with the interceptor
   active (`startingPlayer: 1`); `--randomize-start` forces packet-first games

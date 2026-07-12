@@ -115,6 +115,16 @@ fuel stalls, 0 invalid actions, 0 crashes, and 2/60 timeouts. `blockade 60
 --seed -403487708 --ci --quiet --json` now reports 47 Mars landings, 13 fleet
 eliminations, 0 invalid actions, 0 crashes, 0 stalls, and 0 timeouts.
 
+The 2026-07-12 Escape balance pass found a geometry problem rather than an
+interceptor-policy failure: the hard Enforcers accelerated immediately, but a
+stationary corsair near Venus could not reach any of three transports that
+began with escape velocity. Placing that corsair on the northern exit patrol
+line moved the paired seeds 0-7, 20 games each, Hard-vs-Hard mean P0 decided
+rate from 100% to 36.25% and average turns from 12.28 to 9.54. The sweep had no
+crashes, invalid actions, fuel stalls, or timeouts. A seed-21 Easy-P0 versus
+Hard-P1 check finished 33-26-1. The deterministic opening line is fixture-backed
+by `escape-enforcer-north-intercept.json`.
+
 **Failure captures.** Use `--capture-failures <dir>` to write bounded JSON
 snapshots for invalid built-in AI actions, fuel stalls, passenger-objective
 failures, passenger-transfer mistakes, and objective-scenario drift such as

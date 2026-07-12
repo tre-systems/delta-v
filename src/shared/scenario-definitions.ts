@@ -110,7 +110,10 @@ const SCENARIOS_INTERNAL = {
           },
           {
             type: 'corsair',
-            position: { q: -5, r: 5 },
+            // Patrol the northern exit corridor instead of beginning near
+            // Venus, where a stationary corsair cannot physically contest
+            // the transports' existing escape velocity before they leave.
+            position: { q: 0, r: -8 },
             velocity: { dq: 0, dr: 0 },
             startLanded: false,
           },
