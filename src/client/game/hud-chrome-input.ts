@@ -49,6 +49,7 @@ export const buildHudChromeInputFromViewModel = (
     selectedShipDisabled: hud.selectedShipDisabled,
     selectedShipHasBurn: hud.selectedShipHasBurn,
     selectedShipInOrbit: hud.selectedShipInOrbit,
+    selectedShipLandingBody: hud.selectedShipLandingBody,
     selectedShipLandingSet: hud.selectedShipLandingSet,
     allShipsAcknowledged: hud.allShipsAcknowledged,
     multipleShipsAlive: hud.multipleShipsAlive,

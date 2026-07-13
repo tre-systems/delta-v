@@ -106,6 +106,41 @@ describe('ui hud helpers', () => {
     ).toBe('Ship disabled — it must drift · Confirm');
   });
 
+  it('names the landing body and queued state on the landing action', () => {
+    const available = buildHUDView(
+      buildInput({
+        astrogationCtx: {
+          ...defaultCtx,
+          selectedShipInOrbit: true,
+          selectedShipLandingBody: 'Venus',
+        },
+      }),
+    ).landFromOrbit;
+
+    expect(available).toMatchObject({
+      visible: true,
+      label: 'LAND: VENUS',
+      title: 'Land at Venus from orbit (1 fuel)',
+    });
+
+    const queued = buildHUDView(
+      buildInput({
+        astrogationCtx: {
+          ...defaultCtx,
+          selectedShipInOrbit: true,
+          selectedShipLandingBody: 'Venus',
+          selectedShipLandingSet: true,
+        },
+      }),
+    ).landFromOrbit;
+
+    expect(queued).toMatchObject({
+      visible: true,
+      label: 'LANDING: VENUS',
+      title: 'Landing at Venus queued — click to cancel',
+    });
+  });
+
   it('builds ordnance button states from cargo and ship capabilities', () => {
     const view = buildHUDView(
       buildInput({

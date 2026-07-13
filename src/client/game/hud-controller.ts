@@ -59,6 +59,7 @@ export const createHudController = (deps: HudControllerDeps) => {
         overload,
         weakGravityChoices,
         destroyedBases: state.destroyedBases,
+        land: planning.landingShips.has(ship.id),
       });
 
       if (course.outcome === 'crash') {

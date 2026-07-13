@@ -6,6 +6,7 @@ export interface UIButtonView {
   disabled: boolean;
   opacity: string;
   title: string;
+  label?: string;
 }
 
 export interface UILabelButtonView extends UIButtonView {
@@ -63,6 +64,7 @@ export interface AstrogationContext {
   selectedShipDisabled: boolean;
   selectedShipHasBurn: boolean;
   selectedShipInOrbit?: boolean;
+  selectedShipLandingBody?: string | null;
   selectedShipLandingSet?: boolean;
   allShipsAcknowledged: boolean;
   multipleShipsAlive: boolean;
@@ -450,8 +452,11 @@ export const buildHUDView = (input: HUDInput): HUDView => {
             disabled: false,
             opacity: astrogationCtx.selectedShipLandingSet ? '1' : '0.7',
             title: astrogationCtx.selectedShipLandingSet
-              ? 'Landing queued \u2014 click to cancel'
-              : 'Land from orbit (1 fuel)',
+              ? `Landing at ${astrogationCtx.selectedShipLandingBody ?? 'destination'} queued \u2014 click to cancel`
+              : `Land at ${astrogationCtx.selectedShipLandingBody ?? 'destination'} from orbit (1 fuel)`,
+            label: astrogationCtx.selectedShipLandingSet
+              ? `LANDING: ${(astrogationCtx.selectedShipLandingBody ?? 'destination').toUpperCase()}`
+              : `LAND: ${(astrogationCtx.selectedShipLandingBody ?? 'destination').toUpperCase()}`,
           }
         : createHiddenButton(),
 

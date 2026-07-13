@@ -351,7 +351,10 @@ export const createHUDChromeView = (deps: HUDChromeViewDeps): HUDChromeView => {
       landFromOrbitBtn.title = hudView.landFromOrbit.title;
       setBtnLabel(
         landFromOrbitBtn,
-        hudView.landFromOrbit.title.startsWith('Landing') ? 'LANDING' : 'LAND',
+        hudView.landFromOrbit.label ??
+          (hudView.landFromOrbit.title.startsWith('Landing')
+            ? 'LANDING'
+            : 'LAND'),
       );
 
       visible(

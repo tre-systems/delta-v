@@ -61,6 +61,8 @@ export interface HudViewModel {
   selectedShipDisabled: boolean;
   selectedShipHasBurn: boolean;
   selectedShipInOrbit: boolean;
+  /** Body reached by the selected ship's legal landing course. */
+  selectedShipLandingBody: string | null;
   selectedShipLandingSet: boolean;
   torpedoAimingActive: boolean;
   torpedoAccelSteps: 1 | 2 | null;

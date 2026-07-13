@@ -342,6 +342,26 @@ export const deriveHudViewModel = (
 
   const fleetStatusLine = getFleetStatus(state, playerId);
 
+  const selectedShipLandingBody = (() => {
+    if (!selectedShip || !map) return null;
+    if (selectedShip.lifecycle !== 'active') return null;
+    if (selectedShip.fuel <= 0 || selectedShip.damage.disabledTurns > 0) {
+      return null;
+    }
+    const burn = planning.burns.get(selectedShip.id) ?? null;
+    const weakGravityChoices =
+      planning.weakGravityChoices.get(selectedShip.id) ?? {};
+    const course = computeCourse(selectedShip, burn, map, {
+      overload: null,
+      weakGravityChoices,
+      destroyedBases: state.destroyedBases,
+      land: true,
+    });
+    return course.outcome === 'landing' && course.fuelSpent === 1
+      ? course.landedAt
+      : null;
+  })();
+
   const combatTargetPresentation =
     state.phase === 'combat' &&
     planning.combatTargetId &&
@@ -408,23 +428,8 @@ export const deriveHudViewModel = (
     selectedShipHasBurn: selectedShip
       ? (planning.burns.get(selectedShip.id) ?? null) !== null
       : false,
-    selectedShipInOrbit: (() => {
-      if (!selectedShip || !map) return false;
-      if (selectedShip.lifecycle !== 'active') return false;
-      if (selectedShip.fuel <= 0 || selectedShip.damage.disabledTurns > 0) {
-        return false;
-      }
-      const burn = planning.burns.get(selectedShip.id) ?? null;
-      const weakGravityChoices =
-        planning.weakGravityChoices.get(selectedShip.id) ?? {};
-      const course = computeCourse(selectedShip, burn, map, {
-        overload: null,
-        weakGravityChoices,
-        destroyedBases: state.destroyedBases,
-        land: true,
-      });
-      return course.outcome === 'landing' && course.fuelSpent === 1;
-    })(),
+    selectedShipInOrbit: selectedShipLandingBody !== null,
+    selectedShipLandingBody,
     selectedShipLandingSet: selectedShip
       ? planning.landingShips.has(selectedShip.id)
       : false,

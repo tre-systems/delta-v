@@ -89,6 +89,7 @@ describe('game-client-hud-view-model landing affordance', () => {
     const hud = deriveHudViewModel(createState(ship), 0, planning, map);
 
     expect(hud.selectedShipInOrbit).toBe(true);
+    expect(hud.selectedShipLandingBody).toBe('Mars');
   });
 
   it('hides landing for fuel-starved, disabled, and base-less orbiting ships', () => {
@@ -111,6 +112,9 @@ describe('game-client-hud-view-model landing affordance', () => {
       expect(
         deriveHudViewModel(state, 0, planning, map).selectedShipInOrbit,
       ).toBe(false);
+      expect(
+        deriveHudViewModel(state, 0, planning, map).selectedShipLandingBody,
+      ).toBeNull();
     }
   });
 });
