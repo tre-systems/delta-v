@@ -24,6 +24,36 @@ test.describe('accessibility smoke checks', () => {
     expect(blocking).toEqual([]);
   });
 
+  test('OAuth consent passes WCAG A and AA checks', async ({ page }) => {
+    const clientResponse = await page.request.get('/oauth/test-client.json');
+    const client = (await clientResponse.json()) as {
+      client_id: string;
+      redirect_uris: string[];
+    };
+    const issuer = new URL(client.client_id).origin;
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: client.client_id,
+      redirect_uri: client.redirect_uris[0] ?? '',
+      resource: `${issuer}/mcp`,
+      scope: 'game:play',
+      code_challenge: 'a'.repeat(43),
+      code_challenge_method: 'S256',
+    });
+    await page.goto(`/oauth/authorize?${params.toString()}`, {
+      waitUntil: 'domcontentloaded',
+    });
+
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa'])
+      .analyze();
+    const blocking = results.violations.filter(
+      (violation) =>
+        violation.impact === 'critical' || violation.impact === 'serious',
+    );
+    expect(blocking).toEqual([]);
+  });
+
   test('menu view has no serious/critical DOM accessibility violations', async ({
     page,
   }) => {

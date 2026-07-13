@@ -35,19 +35,20 @@ Delta-V uses a full-stack TypeScript architecture built around a **shared side-e
 
 ```
 src/shared/      → Game logic (no I/O, fully testable, side-effect-free)
-src/server/      → Cloudflare Workers entry + three Durable Object classes
+src/server/      → Cloudflare Workers entry + four Durable Object classes
 src/client/      → State machine + Canvas renderer + DOM UI
 ```
 
 ### Cloudflare Durable Objects
 
-Three DO classes back the server, bound in [`wrangler.toml`](../wrangler.toml):
+Four DO classes back the server, bound in [`wrangler.toml`](../wrangler.toml):
 
 | Binding | Class | Purpose |
 | --- | --- | --- |
 | `GAME` | `GameDO` | One room per active match — event stream, checkpoints, WebSocket, alarms |
 | `MATCHMAKER` | `MatchmakerDO` | Singleton `global` instance — quick-match ticket queue and seat pairing |
 | `LIVE_REGISTRY` | `LiveRegistryDO` | Singleton — "Live now" registry powering `GET /api/matches?status=live` |
+| `OAUTH` | `OAuthDO` | Singleton `global` instance — short-lived authorization requests/codes and rotating ChatGPT refresh-token families |
 
 ```mermaid
 flowchart TB
@@ -68,9 +69,14 @@ flowchart TB
     L[LiveRegistryDO]
   end
 
+  subgraph OAUTH[OAUTH binding: one OAuthDO singleton]
+    O[OAuthDO<br/>global]
+  end
+
   W -->|POST /quick-match<br/>GET /quick-match/:ticket| M
   W -->|POST /create<br/>GET /join,replay,ws| GAME
   W -->|GET /api/matches?status=live| L
+  W -->|OAuth consent,<br/>code and refresh lifecycle| O
 
   M -.->|once paired<br/>idFromName| GAME
   GAME -.->|register /<br/>deregister| L
@@ -83,7 +89,7 @@ flowchart TB
   W -->|/telemetry, /error| D
 ```
 
-`GameDO` carries nearly all game state and is the focus of the rest of this document. The two support DOs are small (`src/server/matchmaker-do.ts`, `src/server/live-registry-do.ts`) and each lives behind a singleton binding (`idFromName('global')`) so there's exactly one of each in the cluster.
+`GameDO` carries nearly all game state and is the focus of the rest of this document. The three support DOs are small (`src/server/matchmaker-do.ts`, `src/server/live-registry-do.ts`, and `src/server/oauth/oauth-do.ts`) and each lives behind a singleton binding (`idFromName('global')`) so there's exactly one of each in the cluster.
 
 ### Diagrams (Mermaid)
 
@@ -358,7 +364,8 @@ The backend leverages Cloudflare's edge network.
 | `game-do/message-builders.ts`| S2C message construction from engine results                                                                     | Game-specific                                             |
 | `game-do/session.ts`         | Disconnect grace period, alarm scheduling                                                                        | **Fully generic**                                         |
 | `game-do/turns.ts`           | Turn timeout auto-advance                                                                                        | Mostly generic                                            |
-| `auth/`                      | Agent/match token signing, `POST /api/agent-token` issuance, HMAC/SHA-256 helpers, `AGENT_TOKEN_SECRET` resolution | **Fully generic**                                         |
+| `auth/`                      | Manual agent, OAuth access, and match-token signing; `POST /api/agent-token`; HMAC/SHA-256 helpers; secret resolution | **Fully generic**                                         |
+| `oauth/`                     | ChatGPT OAuth metadata, consent UI, S256 PKCE code exchange, rotating refresh families, and `OAuthDO` persistence | **Mostly generic**                                        |
 | `leaderboard/`               | Glicko-2 rating writer, claim-name and player-recovery routes, `GET /api/leaderboard`, per-player rank lookup, provisional rules | Game-agnostic rating + identity pattern                   |
 
 #### Key Patterns (pointers)
@@ -462,6 +469,7 @@ Minimal, fast build tooling with no heavy bundler configuration:
   | `GAME`                   | Durable Object | Authoritative game rooms                       |
   | `MATCHMAKER`             | Durable Object | Singleton quick-match queue                    |
   | `LIVE_REGISTRY`          | Durable Object | Singleton "Live now" registry                  |
+  | `OAUTH`                  | Durable Object | OAuth request, code, and refresh-family state   |
   | `DB`                     | D1             | Telemetry + `match_archive` + leaderboard tables |
   | `MATCH_ARCHIVE`          | R2             | Completed match JSON archives                  |
   | `ASSETS`                 | Static Assets  | `dist/` static bundle                          |
@@ -469,6 +477,7 @@ Minimal, fast build tooling with no heavy bundler configuration:
   | `TELEMETRY_RATE_LIMITER` | Rate Limit     | 120/60s — edge fallback for `/telemetry`       |
   | `ERROR_RATE_LIMITER`     | Rate Limit     | 40/60s — edge fallback for `/error`            |
   | `MCP_RATE_LIMITER`       | Rate Limit     | 20/60s — per `agentToken` hash or hashed IP    |
+  | `OAUTH_RATE_LIMITER`     | Rate Limit     | 30/60s — per hashed IP for authorize/token/revoke |
 
 ### F. Testing Infrastructure
 
@@ -657,7 +666,7 @@ game-do/game-do.ts (Durable Object)
 
 See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current architectural stances and why they exist.
 
-- **User accounts / auth**: Adds login friction that hurts adoption during user testing. The current anonymous token model is sufficient. Revisit for native app store distribution or payment integration.
+- **User accounts / auth**: Full human accounts still add login friction and are deferred. ChatGPT web uses a narrow OAuth 2.1 authorization layer instead: the browser consent flow creates or reuses a pseudonymous bot identity and callsign without creating a general Delta-V account. Manual MCP clients retain the 24-hour agent-token path. Revisit full accounts for native app distribution, cross-device human identity, or payments.
 - **N-player generalisation**: Delta-V is a 2-player game. `[PlayerState, PlayerState]` is clearer and more type-safe than `PlayerState[]`. Generalise when a second game actually needs it.
 - **Generic hex engine extraction**: Designing a framework from N=1 games is premature abstraction. Fork Delta-V when game #2 starts and build the framework from two concrete implementations.
 - **Serialisation codec**: `GameState` is plain JSON. A codec adds overhead with zero current benefit.

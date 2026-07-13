@@ -7,6 +7,7 @@ export interface Env {
   GAME: DurableObjectNamespace;
   MATCHMAKER: DurableObjectNamespace;
   LIVE_REGISTRY?: DurableObjectNamespace;
+  OAUTH: DurableObjectNamespace;
   DB: D1Database;
   CREATE_RATE_LIMITER?: CreateRateLimiterBinding;
   // Global rate limiters for /telemetry and /error. Backed by Cloudflare
@@ -19,6 +20,8 @@ export interface Env {
   // the agentToken hash when available, hashed IP otherwise. See
   // packages/mcp-adapter/src/handlers.ts.
   MCP_RATE_LIMITER?: CreateRateLimiterBinding;
+  // Per-IP limiter for authorization, token exchange, refresh, and revoke.
+  OAUTH_RATE_LIMITER?: CreateRateLimiterBinding;
   MATCH_ARCHIVE?: R2Bucket;
   // Shared secret for the internal GET /api/metrics route. Send as
   // `Authorization: Bearer <token>`. Leave unset to disable the route

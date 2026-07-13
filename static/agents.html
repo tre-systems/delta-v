@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#07101f">
-  <meta name="description" content="Connect Codex, ChatGPT desktop, Claude Code, or another MCP client and let an AI play Delta-V.">
+  <meta name="description" content="Connect ChatGPT web, Codex, Claude Code, or another MCP client and let an AI play Delta-V.">
   <meta property="og:title" content="Let your AI play Delta-V">
   <meta property="og:description" content="Connect an MCP-capable assistant in three steps, or use the developer guides to build your own Delta-V bot.">
   <meta property="og:type" content="website">
@@ -382,7 +382,7 @@
     <nav aria-label="On this page">
       <ul class="jump-nav">
         <li><a href="#support">What works</a></li>
-        <li><a href="#token">1. Get a token</a></li>
+        <li><a href="#token">1. Authenticate</a></li>
         <li><a href="#connect">2. Connect</a></li>
         <li><a href="#play">3. Play</a></li>
         <li><a href="#troubleshooting">Troubleshooting</a></li>
@@ -392,8 +392,13 @@
 
     <section id="support" data-testid="support-matrix">
       <h2>What works today</h2>
-      <p class="section-intro">Delta-V exposes a hosted Streamable HTTP MCP server. The only setup difference is how each client supplies its 24-hour bearer token.</p>
+      <p class="section-intro">Delta-V exposes a hosted Streamable HTTP MCP server. ChatGPT web signs in through a browser consent screen; command-line and desktop clients use a 24-hour bearer token.</p>
       <div class="support-grid">
+        <article class="card">
+          <span class="status">Works now</span>
+          <h3>ChatGPT on the web</h3>
+          <p>Create a developer-mode app, choose a bot callsign, and let ChatGPT handle OAuth securely.</p>
+        </article>
         <article class="card">
           <span class="status">Works now</span>
           <h3>Codex CLI and IDE</h3>
@@ -414,20 +419,18 @@
           <h3>Other MCP clients</h3>
           <p>Any client that supports Streamable HTTP and bearer headers can connect.</p>
         </article>
-        <article class="card">
-          <span class="status limited">Not direct yet</span>
-          <h3>ChatGPT on the web</h3>
-          <p>ChatGPT web apps require OAuth and cannot accept an arbitrary API token. Use ChatGPT desktop, Codex, or Claude Code for now.</p>
-        </article>
       </div>
     </section>
 
     <section id="token">
       <div class="step-heading">
         <span class="step-number" aria-hidden="true">1</span>
-        <h2>Create a 24-hour player token</h2>
+        <h2>Authenticate your AI</h2>
       </div>
-      <p class="section-intro">Choose a stable key beginning with <code>agent_</code>. The key identifies your bot; the returned token authenticates it.</p>
+      <p class="section-intro"><strong>Using ChatGPT on the web?</strong> Skip the commands below. ChatGPT opens Delta-V's OAuth consent screen when it first needs to play, where you choose a bot callsign and approve access.</p>
+
+      <h3>Codex, Claude Code, ChatGPT desktop, and other clients</h3>
+      <p class="section-intro">Choose a stable key beginning with <code>agent_</code>. The key identifies your bot; the returned 24-hour token authenticates it.</p>
 
       <details open>
         <summary>macOS, Linux, or WSL</summary>
@@ -465,7 +468,23 @@ $env:DELTA_V_AGENT_TOKEN = $reply.token</code></pre>
       </div>
       <p class="section-intro">Pick the client you use. The MCP server URL is always <code>https://delta-v.tre.systems/mcp</code>.</p>
 
-      <details open data-testid="codex-setup">
+      <details open data-testid="chatgpt-web-setup">
+        <summary>ChatGPT on the web</summary>
+        <div class="details-body">
+          <ol class="checklist">
+            <li>In <a href="https://chatgpt.com">ChatGPT</a>, open <strong>Settings → Security and login</strong> and turn on <strong>Developer mode</strong>. If the switch is unavailable, your workspace administrator needs to allow it.</li>
+            <li>Open <strong>Settings → Plugins</strong> (or go directly to <a href="https://chatgpt.com/plugins">chatgpt.com/plugins</a>), select the plus button, and create a developer-mode app.</li>
+            <li>Use <strong>Delta-V</strong> as the name, describe it as an app that plays the Delta-V strategy game, and set the MCP server URL to <code>https://delta-v.tre.systems/mcp</code>.</li>
+            <li>Select <strong>Create</strong>. ChatGPT should discover the Delta-V tools automatically.</li>
+            <li>Start a new chat, select <strong>+ → More → Delta-V</strong> near the composer, then use one of the prompts below.</li>
+          </ol>
+          <p>The first time ChatGPT invokes a play tool, it opens Delta-V's authorization page. Choose a unique bot callsign and select <strong>Authorize bot</strong>. The callsign is visible to opponents and on the agent leaderboard; Delta-V keeps OAuth tokens out of the model prompt and ChatGPT refreshes access automatically.</p>
+          <p>Your bot identity is remembered in this browser. Clearing Delta-V's authorization cookies creates a new identity, and a callsign already owned by another player must be replaced.</p>
+          <p>See the <a href="https://developers.openai.com/apps-sdk/deploy/connect-chatgpt">official ChatGPT connection guide</a> for the current developer-mode interface.</p>
+        </div>
+      </details>
+
+      <details data-testid="codex-setup">
         <summary>Codex CLI, Codex IDE, or ChatGPT desktop</summary>
         <div class="details-body">
           <p>Run this in the same environment where <code>DELTA_V_AGENT_TOKEN</code> is available:</p>
@@ -519,13 +538,6 @@ Authorization: Bearer &lt;your 24-hour token&gt;</code></pre>
         </div>
       </details>
 
-      <details data-testid="chatgpt-web-setup">
-        <summary>ChatGPT on the web</summary>
-        <div class="details-body">
-          <p><strong>There is no direct setup today.</strong> ChatGPT web apps require OAuth 2.1 authentication and cannot prompt for a custom bearer token. Delta-V currently issues fixed 24-hour tokens, so adding its URL in ChatGPT web would not complete authentication.</p>
-          <p>Use ChatGPT desktop through the Codex configuration above, Codex, or Claude Code. Native ChatGPT web support is tracked for a future OAuth/app integration. See the <a href="https://learn.chatgpt.com/apps-sdk/build/auth">official ChatGPT app authentication guide</a>.</p>
-        </div>
-      </details>
     </section>
 
     <section id="play">
@@ -561,7 +573,9 @@ Authorization: Bearer &lt;your 24-hour token&gt;</code></pre>
       <h2>If something does not work</h2>
       <ul class="checklist">
         <li><strong>No Delta-V tools:</strong> restart the client or start a new task, then check <code>/mcp</code>.</li>
-        <li><strong><code>401 Unauthorized</code>:</strong> the 24-hour token is missing or expired. Mint a new token, update the client environment/config, and restart it.</li>
+        <li><strong>Delta-V is missing in ChatGPT:</strong> confirm Developer mode is enabled, then open <strong>Settings → Plugins</strong>, select Delta-V, and choose <strong>Refresh</strong>. A workspace administrator may need to permit developer-mode apps.</li>
+        <li><strong>ChatGPT asks for authorization:</strong> this is expected on first use. Choose an available callsign on the Delta-V consent page and authorize the bot.</li>
+        <li><strong><code>401 Unauthorized</code> in Codex, Claude Code, or another manual client:</strong> the 24-hour token is missing or expired. Mint a new token, update the client environment/config, and restart it.</li>
         <li><strong>Still waiting:</strong> quick match requires another player. For a deterministic private test, use two clients with the same sandbox rendezvous code.</li>
         <li><strong>Stopped at fleet building:</strong> send the <code>fleetReady</code> candidate once, then wait for the other seat.</li>
         <li><strong>Turn advanced automatically:</strong> the server protects stalled games with a timeout. Ask the assistant to use <code>wait_for_turn</code> immediately after actions and stay inside <code>msUntilAutoplay</code>.</li>

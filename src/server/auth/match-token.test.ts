@@ -36,6 +36,23 @@ describe('issueMatchToken / verifyMatchToken', () => {
     expect(hashA).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('can bind to a stable OAuth grant instead of a rotating access token', async () => {
+    const binding = 'oauth-grant:grant-123';
+    const { token } = await issueMatchToken({
+      secret: SECRET,
+      code: 'ABCDE',
+      playerToken: 'P'.repeat(32),
+      agentBinding: binding,
+    });
+    const verified = await verifyMatchToken(token, { secret: SECRET });
+    expect(verified.ok).toBe(true);
+    if (verified.ok) {
+      expect(verified.payload.agentTokenHash).toBe(
+        await hashAgentToken(binding),
+      );
+    }
+  });
+
   it('an agent-token cannot be verified as a match-token', async () => {
     // Re-use the agent kind discriminator to demonstrate cross-kind
     // separation — this is what the match-token verifyer protects against.

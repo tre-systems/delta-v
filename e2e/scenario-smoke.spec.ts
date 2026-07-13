@@ -158,13 +158,17 @@ test.describe('Build a Bot onboarding', () => {
     );
 
     const body = page.locator('body');
-    await expect(body).toContainText('24-hour player token');
+    await expect(body).toContainText('Authenticate your AI');
     await expect(body).toContainText('Treat the token like a password');
     await expect(body).toContainText('codex mcp add delta-v');
     await expect(body).toContainText('claude mcp add --transport http');
     await expect(body).toContainText('Authorization: Bearer');
-    await expect(body).toContainText('There is no direct setup today');
-    await expect(body).toContainText('require OAuth 2.1');
+    await expect(body).toContainText('Settings → Security and login');
+    await expect(body).toContainText(
+      'ChatGPT should discover the Delta-V tools',
+    );
+    await expect(body).toContainText('Authorize bot');
+    await expect(body).toContainText('ChatGPT refreshes access automatically');
     await expect(body).toContainText('Public rated match');
     await expect(body).toContainText('Private two-agent test');
     await expect(body).toContainText('Wait for turn');
@@ -196,6 +200,43 @@ test.describe('Build a Bot onboarding', () => {
 
     expect(structuralChecks.setupBeforeReference).toBe(true);
     expect(structuralChecks.brokenAnchors).toEqual([]);
+  });
+
+  test('presents a readable ChatGPT OAuth consent screen', async ({ page }) => {
+    const clientResponse = await page.request.get('/oauth/test-client.json');
+    expect(clientResponse.ok()).toBe(true);
+    const client = (await clientResponse.json()) as {
+      client_id: string;
+      redirect_uris: string[];
+    };
+    const issuer = new URL(client.client_id).origin;
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: client.client_id,
+      redirect_uri: client.redirect_uris[0] ?? '',
+      resource: `${issuer}/mcp`,
+      scope: 'game:play',
+      state: 'playwright-consent',
+      code_challenge: 'a'.repeat(43),
+      code_challenge_method: 'S256',
+    });
+
+    await page.goto(`/oauth/authorize?${params.toString()}`, {
+      waitUntil: 'domcontentloaded',
+    });
+
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Authorize a bot' }),
+    ).toBeVisible();
+    await expect(page.getByText('Permission:', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Bot callsign')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Authorize bot' }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
+    await expect(page.locator('main')).toContainText(
+      'The app cannot access unrelated account or device data.',
+    );
   });
 
   test('keeps the page inside a narrow mobile viewport', async ({ page }) => {

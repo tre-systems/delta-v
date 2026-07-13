@@ -24,16 +24,24 @@ import {
   type AgentTokenPayload,
   extractBearerToken,
   hashAgentToken,
+  hasValidOAuthAccessClaims,
   isAgentTokenSecretSet,
   issueMatchToken,
   MissingAgentTokenSecretError,
+  type OAuthAccessTokenPayload,
   resolveAgentTokenSecret,
   verifyAgentToken,
   verifyMatchToken,
+  verifyOAuthAccessToken,
 } from '../../../src/server/auth';
 import type { Env } from '../../../src/server/env';
 import { handleLeaderboardQuery } from '../../../src/server/leaderboard/query-route';
 import { handleLiveMatchesList } from '../../../src/server/live-matches-list';
+import { OAUTH_SCOPE } from '../../../src/server/oauth/model';
+import {
+  buildOAuthChallenge,
+  oauthResource,
+} from '../../../src/server/oauth/routes';
 import {
   hashIp,
   logSampledOperationalEvent,
@@ -79,6 +87,9 @@ const SERVER_INTERNAL = 'https://game.internal';
 const RENDEZVOUS_CODE_PATTERN = /^[A-Za-z0-9]{3,16}$/;
 
 type JsonRecord = Record<string, unknown>;
+const OAUTH_SECURITY_SCHEMES = [
+  { type: 'oauth2', scopes: [OAUTH_SCOPE] },
+] as const;
 type ObservationBody = JsonRecord;
 type EventsBody = JsonRecord & {
   events?: Array<{
@@ -283,7 +294,7 @@ const resolveMatchTarget = async (
     fail(`Invalid matchToken: ${verified.reason}`);
   }
   if (!verified.ok) throw new Error('unreachable');
-  const expected = await hashAgentToken(authenticatedAgent.rawAgentToken);
+  const expected = await hashAgentToken(authenticatedAgent.matchBinding);
   if (verified.payload.agentTokenHash !== expected) {
     fail(
       'matchToken does not bind to the supplied agentToken — likely issued for a different agent',
@@ -333,6 +344,7 @@ const listHostedSessionsForAgent = async (
         code: session.code,
         playerToken: session.playerToken,
         agentToken: agentIdentity.rawAgentToken,
+        agentBinding: agentIdentity.matchBinding,
       });
       return {
         matchToken,
@@ -359,13 +371,15 @@ const matchResourceName = (
 ): string => `delta-v-match-${kind}-${session.code}-p${session.playerId}`;
 
 export interface AgentIdentity {
-  payload: AgentTokenPayload;
+  payload: AgentTokenPayload | OAuthAccessTokenPayload;
   rawAgentToken: string;
+  matchBinding: string;
 }
 
 export const buildMcpServer = (
   env: Env,
   agentIdentity: AgentIdentity | null,
+  oauthChallenge = 'Bearer resource_metadata="https://delta-v.tre.systems/.well-known/oauth-protected-resource/mcp", scope="game:play", error="invalid_token", error_description="Authentication is required to play Delta-V"',
 ): McpServer => {
   const server = new McpServer(
     { name: 'delta-v-mcp-remote', version: '0.1.0' },
@@ -378,6 +392,14 @@ export const buildMcpServer = (
   const getHostedSessions = (): Promise<HostedMcpSession[]> => {
     hostedSessionsPromise ??= listHostedSessionsForAgent(env, agentIdentity);
     return hostedSessionsPromise;
+  };
+  const authRequired = () => ({
+    content: [text('Authentication required to use Delta-V game tools.')],
+    isError: true,
+    _meta: { 'mcp/www_authenticate': [oauthChallenge] },
+  });
+  const toolAuthMeta = {
+    securitySchemes: OAUTH_SECURITY_SCHEMES,
   };
 
   for (const resource of listRulesResources()) {
@@ -606,17 +628,20 @@ export const buildMcpServer = (
 
   const quickMatchHandler = async (args: QuickMatchToolArgs) => {
     if (agentIdentity === null) {
-      fail(
-        'delta_v_quick_match requires Authorization: Bearer <agentToken>. Mint one via POST /api/agent-token first.',
-      );
+      return authRequired();
     }
     const authenticatedAgent = agentIdentity as AgentIdentity;
+    const oauthUsername =
+      'username' in authenticatedAgent.payload
+        ? authenticatedAgent.payload.username
+        : null;
 
     const playerKey =
-      args.playerKey ??
+      (oauthUsername ? authenticatedAgent.payload.playerKey : args.playerKey) ??
       authenticatedAgent.payload.playerKey ??
       `agent_remote_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
     const username =
+      oauthUsername ??
       args.username ??
       (authenticatedAgent.payload.playerKey ?? 'agent').slice(0, 20);
     const verifiedLeaderboardAgent = Boolean(
@@ -656,6 +681,7 @@ export const buildMcpServer = (
       code: matched.code,
       playerToken: matched.playerToken,
       agentToken: authenticatedAgent.rawAgentToken,
+      agentBinding: authenticatedAgent.matchBinding,
     });
     return ok(`Matched into a new game (scenario ${matched.scenario}).`, {
       matchToken,
@@ -675,6 +701,7 @@ export const buildMcpServer = (
       description:
         'Queue for matchmaking. Requires Authorization: Bearer <agentToken>. With agentSandbox=true (alias: unrated=true), creates an unrated evaluation match isolated from the public/rated queue. With waitForOpponent=false, returns a queued ticket immediately so another client can join later; otherwise blocks until paired. On match, returns { matchToken, sessionId, scenario } where matchToken is the canonical opaque handle for later tool calls and sessionId is a hosted compatibility alias. username/playerKey are inferred from the agentToken when present.',
       inputSchema: quickMatchInputSchema,
+      _meta: toolAuthMeta,
     },
     quickMatchHandler,
   );
@@ -685,6 +712,7 @@ export const buildMcpServer = (
       description:
         'Alias for delta_v_quick_match so local and hosted MCP can share one quick-match entry point name. Supports waitForOpponent=false for immediate ticket return. If the first actionable observation is still fleetBuilding, send fleetReady explicitly; that phase advances only after both seats submit it.',
       inputSchema: quickMatchInputSchema,
+      _meta: toolAuthMeta,
     },
     quickMatchHandler,
   );
@@ -694,12 +722,11 @@ export const buildMcpServer = (
     {
       description:
         'List active hosted MCP sessions for the authenticated agent. Requires Authorization: Bearer <agentToken> so the adapter can discover seated live matches and mint fresh matchTokens.',
+      _meta: toolAuthMeta,
     },
     async () => {
       if (agentIdentity === null) {
-        throw new Error(
-          'delta_v_list_sessions requires Authorization: Bearer <agentToken>.',
-        );
+        return authRequired();
       }
       return ok('Listed hosted MCP sessions.', {
         sessions: await getHostedSessions(),
@@ -712,8 +739,10 @@ export const buildMcpServer = (
     {
       description: 'Fetch the latest game state for a seat.',
       inputSchema: matchTargetSchema,
+      _meta: toolAuthMeta,
     },
     async (args) => {
+      if (agentIdentity === null) return authRequired();
       const target = await resolveMatchTarget(args, env, agentIdentity);
       const response = await callDurableObject(env, target.code, {
         url: `${SERVER_INTERNAL}/mcp/state?playerToken=${encodeURIComponent(target.playerToken)}`,
@@ -731,8 +760,10 @@ export const buildMcpServer = (
       description:
         'Build the unified agent observation (candidates, recommendedIndex, optional v2 enrichments). Matches the AgentTurnInput shape so agents that work via the bridge or local MCP work here unchanged.',
       inputSchema: { ...matchTargetSchema, ...includeOptionsSchema },
+      _meta: toolAuthMeta,
     },
     async (args) => {
+      if (agentIdentity === null) return authRequired();
       const target = await resolveMatchTarget(args, env, agentIdentity);
       const params = buildObservationParams(args);
       params.set('playerToken', target.playerToken);
@@ -756,8 +787,10 @@ export const buildMcpServer = (
         timeoutMs: z.number().int().min(1_000).max(25_000).optional(),
         ...includeOptionsSchema,
       },
+      _meta: toolAuthMeta,
     },
     async (args) => {
+      if (agentIdentity === null) return authRequired();
       const target = await resolveMatchTarget(args, env, agentIdentity);
       const response = await callDurableObject(env, target.code, {
         url: `${SERVER_INTERNAL}/mcp/wait?playerToken=${encodeURIComponent(target.playerToken)}`,
@@ -790,8 +823,10 @@ export const buildMcpServer = (
         limit: z.number().int().min(1).max(200).optional(),
         clear: z.boolean().optional(),
       },
+      _meta: toolAuthMeta,
     },
     async (args) => {
+      if (agentIdentity === null) return authRequired();
       const target = await resolveMatchTarget(args, env, agentIdentity);
       const response = await callDurableObject(env, target.code, {
         url: `${SERVER_INTERNAL}/mcp/events?playerToken=${encodeURIComponent(target.playerToken)}`,
@@ -823,8 +858,10 @@ export const buildMcpServer = (
         includeNextObservation: z.boolean().optional(),
         ...includeOptionsSchema,
       },
+      _meta: toolAuthMeta,
     },
     async (args) => {
+      if (agentIdentity === null) return authRequired();
       const parsedAction = validateClientMessage(args.action);
       if (!parsedAction.ok) {
         fail(`Invalid action payload: ${parsedAction.error}`);
@@ -870,8 +907,10 @@ export const buildMcpServer = (
         action: z.object({ type: z.string() }).passthrough(),
         autoGuards: z.boolean().optional(),
       },
+      _meta: toolAuthMeta,
     },
     async (args) => {
+      if (agentIdentity === null) return authRequired();
       const target = await resolveMatchTarget(args, env, agentIdentity);
       const response = await callDurableObject(env, target.code, {
         url: `${SERVER_INTERNAL}/mcp/validate-action?playerToken=${encodeURIComponent(target.playerToken)}`,
@@ -904,8 +943,10 @@ export const buildMcpServer = (
         text: z.string().min(1).max(200).optional(),
         message: z.string().min(1).max(200).optional(),
       },
+      _meta: toolAuthMeta,
     },
     async (args) => {
+      if (agentIdentity === null) return authRequired();
       const chatText = args.text ?? args.message;
       if (!chatText) {
         fail('send_chat requires a non-empty `text` (alias: `message`).');
@@ -929,8 +970,10 @@ export const buildMcpServer = (
       description:
         'Clear the hosted MCP event buffer for this seat. This does not invalidate the underlying matchToken or alter the match itself; it only resets the Durable-Object-backed helper state.',
       inputSchema: matchTargetSchema,
+      _meta: toolAuthMeta,
     },
     async (args) => {
+      if (agentIdentity === null) return authRequired();
       const target = await resolveMatchTarget(args, env, agentIdentity);
       const response = await callDurableObject(env, target.code, {
         url: `${SERVER_INTERNAL}/mcp/close?playerToken=${encodeURIComponent(target.playerToken)}`,
@@ -949,8 +992,9 @@ export const buildMcpServer = (
 };
 
 // Validate the Authorization header on entry. Returns:
-//   - { ok: true, identity: ... } when a valid agentToken was supplied
-//   - { ok: true, identity: null } when no header was supplied (legacy)
+//   - { ok: true, identity: ... } for a legacy agent token or OAuth token
+//   - { ok: true, identity: null } when no header was supplied, allowing MCP
+//     discovery before the client starts its authorization flow
 //   - { ok: false, response } when a header was supplied but invalid (401)
 const resolveAgentIdentity = async (
   request: Request,
@@ -961,38 +1005,111 @@ const resolveAgentIdentity = async (
 > => {
   const raw = extractBearerToken(request.headers.get('Authorization'));
   if (!raw) return { ok: true, identity: null };
-  const verified = await verifyAgentToken(raw, {
-    secret: resolveAgentTokenSecret(env),
-  });
-  if (!verified.ok) {
+  const secret = resolveAgentTokenSecret(env);
+  const legacy = await verifyAgentToken(raw, { secret });
+  if (legacy.ok) {
+    return {
+      ok: true,
+      identity: {
+        payload: legacy.payload,
+        rawAgentToken: raw,
+        matchBinding: raw,
+      },
+    };
+  }
+
+  const oauth =
+    legacy.reason === 'wrongKind'
+      ? await verifyOAuthAccessToken(raw, { secret })
+      : legacy;
+  const validOAuth =
+    oauth.ok &&
+    hasValidOAuthAccessClaims(oauth.payload as OAuthAccessTokenPayload, {
+      issuer: new URL(request.url).origin,
+      audience: oauthResource(request),
+      requiredScope: OAUTH_SCOPE,
+    });
+  if (!validOAuth) {
+    const detail = oauth.ok ? 'invalidClaims' : oauth.reason;
     const ipHash = await hashIp(
       request.headers.get('cf-connecting-ip') ?? 'unknown',
       env,
     );
     logSampledOperationalEvent('auth-failure', ipHash, {
       route: '/mcp',
-      reason: 'invalid_agent_token',
-      detail: verified.reason,
+      reason: 'invalid_bearer_token',
+      detail,
     });
     return {
       ok: false,
       response: Response.json(
         {
-          error: 'invalid_agent_token',
-          reason: verified.reason,
-          message: 'Authorization header present but agentToken did not verify',
+          error: 'invalid_token',
+          reason: detail,
+          message:
+            'Authorization header present but bearer token did not verify',
         },
         {
           status: 401,
-          headers: { 'WWW-Authenticate': 'Bearer realm="delta-v"' },
+          headers: {
+            'WWW-Authenticate': buildOAuthChallenge(
+              request,
+              'invalid_token',
+              'The bearer token is invalid or expired',
+            ),
+          },
         },
       ),
     };
   }
+  const payload = oauth.payload as OAuthAccessTokenPayload;
   return {
     ok: true,
-    identity: { payload: verified.payload, rawAgentToken: raw },
+    identity: {
+      payload,
+      rawAgentToken: raw,
+      matchBinding: `oauth-grant:${payload.grantId}`,
+    },
   };
+};
+
+const exposeToolSecuritySchemes = async (
+  response: Response,
+): Promise<Response> => {
+  if (
+    !(response.headers.get('content-type') ?? '').includes('application/json')
+  ) {
+    return response;
+  }
+  const raw = await response.text();
+  let parsed: {
+    result?: {
+      tools?: Array<{
+        _meta?: { securitySchemes?: unknown };
+        securitySchemes?: unknown;
+      }>;
+    };
+  };
+  try {
+    parsed = JSON.parse(raw) as typeof parsed;
+  } catch {
+    return new Response(raw, response);
+  }
+  let changed = false;
+  for (const tool of parsed.result?.tools ?? []) {
+    if (tool._meta?.securitySchemes && !tool.securitySchemes) {
+      tool.securitySchemes = tool._meta.securitySchemes;
+      changed = true;
+    }
+  }
+  if (!changed) return new Response(raw, response);
+  const headers = new Headers(response.headers);
+  headers.delete('Content-Length');
+  return new Response(JSON.stringify(parsed), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 };
 
 const isMcpRateLimitedInMemory = (key: string): boolean => {
@@ -1143,12 +1260,16 @@ export const handleMcpHttpRequest = async (
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
   });
-  const server = buildMcpServer(env, auth.identity);
+  const server = buildMcpServer(
+    env,
+    auth.identity,
+    buildOAuthChallenge(request),
+  );
   await server.connect(transport);
   try {
     const response = await transport.handleRequest(rebuilt);
     await transport.close();
-    return response;
+    return exposeToolSecuritySchemes(response);
   } catch (error) {
     await transport.close();
     if (error instanceof MissingAgentTokenSecretError) {

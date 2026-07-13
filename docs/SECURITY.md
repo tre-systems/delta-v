@@ -32,7 +32,38 @@ Together these cover host-seat integrity, reconnect safety, and server authority
 
 ## Remote MCP token model
 
-Agents that connect via the hosted MCP endpoint (`POST https://delta-v.tre.systems/mcp`) use a layered two-token scheme so raw match credentials never reach the agent's LLM context:
+Agents that connect via the hosted MCP endpoint (`POST https://delta-v.tre.systems/mcp`) authenticate through either ChatGPT OAuth 2.1 or a manually minted agent token. Both paths then use a separate, opaque match token so raw room credentials never reach the agent's LLM context.
+
+### ChatGPT web OAuth
+
+```mermaid
+sequenceDiagram
+  participant U as Player browser
+  participant C as ChatGPT
+  participant O as Delta-V OAuth
+  participant MCP as /mcp
+
+  C->>MCP: Discover protected tool
+  MCP-->>C: OAuth metadata challenge
+  C->>O: Authorization code + S256 PKCE request
+  O->>U: Consent + choose bot callsign
+  U->>O: Authorize bot
+  O-->>C: One-time code, then access + refresh tokens
+  C->>MCP: Authorization Bearer OAuth access token
+  MCP->>MCP: Verify issuer, audience, scope, expiry, grant binding
+```
+
+The protected resource is exactly `https://delta-v.tre.systems/mcp` and the only OAuth scope is `game:play`. ChatGPT identifies itself with a Client ID Metadata Document under `https://chatgpt.com/oauth/.../client.json`; the authorization server rejects other production client-ID origins, non-HTTPS redirects, redirects not listed in that document, requests without `resource`, and PKCE methods other than `S256`.
+
+The consent page displays the validated client name and redirect host, explains that the bot may play, chat, and enter the public rated queue, and requires a unique callsign. Delta-V generates the underlying `agent_oauth_...` player key server-side; the manual token issuer rejects that reserved namespace. An HMAC-signed, `Secure`, `HttpOnly`, `SameSite=Lax` browser cookie remembers the OAuth bot identity for 180 days. The consent request itself is short-lived, single-use, cookie-bound, and accepts its POST only from Delta-V's own origin.
+
+Authorization codes expire after 5 minutes and are atomically redeemed once with the original client, redirect, resource, and PKCE challenge. OAuth access tokens last 1 hour and carry a distinct token kind plus issuer, audience, scope, client, grant, subject, and player identity claims. Refresh tokens last up to 30 days, are stored only as SHA-256 hashes in `OAuthDO`, rotate on every use, and revoke their family when an old token is replayed. `POST /oauth/revoke` revokes the corresponding refresh family.
+
+ChatGPT's tool metadata declares OAuth per protected tool, and authentication failures include both the HTTP `WWW-Authenticate` discovery pointer and MCP `_meta["mcp/www_authenticate"]` challenge required to start or repeat linking. Access tokens are transported only in the HTTP Authorization header and are not placed in model prompts.
+
+### Manual agent-token flow
+
+Codex, Claude Code, ChatGPT desktop, and generic MCP clients may instead use the manually minted 24-hour agent token flow:
 
 ```mermaid
 sequenceDiagram
@@ -62,19 +93,21 @@ sequenceDiagram
 | Token | Purpose | Lifetime | Carrier | Source |
 |-------|---------|----------|---------|--------|
 | `agentToken` | Long-lived agent identity (embeds `playerKey`) | 24 h, renewable | `Authorization: Bearer …` header | `POST /api/agent-token` |
-| `matchToken` | Per-match credential (HMAC payload with `code` + `playerToken`) | 4 h | Tool args field `matchToken` | `delta_v_quick_match` (when called with agentToken auth) |
+| OAuth access token | ChatGPT grant identity bound to issuer, MCP audience, `game:play` scope, and server-generated player | 1 h, refreshed automatically | `Authorization: Bearer …` header | `POST /oauth/token` |
+| OAuth refresh token | Rotate the ChatGPT grant without repeating consent | 30 days maximum, rotated on every use | OAuth token exchange only | `POST /oauth/token` |
+| `matchToken` | Per-match credential (HMAC payload with `code` + `playerToken`) | 4 h | Tool args field `matchToken` | `delta_v_quick_match` after either authenticated path |
 
-Both are HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET` (set via `wrangler secret put AGENT_TOKEN_SECRET` in production). The Worker **fails closed** when the secret is unset: `/mcp` and `/api/agent-token` return `500 server_misconfigured` instead of signing with a placeholder. The same secret also salts `ip_hash` when a dedicated `IP_HASH_SALT` secret is not configured. The default `wrangler.toml` `[vars]` keeps `DEV_MODE = "0"`. For local `wrangler dev`, copy `.dev.vars.example` to `.dev.vars` and set `DEV_MODE=1` so deterministic placeholders can engage when secrets are unset (Wrangler merges `.dev.vars` over `[vars]`). Production deploys do not load `.dev.vars`, so the placeholder path never engages there. `npm run deploy` also runs `scripts/check-deploy-secrets.mjs`, which calls `wrangler secret list` and refuses to proceed when `AGENT_TOKEN_SECRET` is missing on the target environment.
+The agent, OAuth access, and match tokens are HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET` (set via `wrangler secret put AGENT_TOKEN_SECRET` in production); refresh tokens are random opaque values whose hashes and rotation families live in `OAuthDO`. The Worker **fails closed** when the signing secret is unset: `/mcp`, `/api/agent-token`, and the sensitive OAuth routes return `500 server_misconfigured` instead of signing with a placeholder. The same secret also salts `ip_hash` when a dedicated `IP_HASH_SALT` secret is not configured. The default `wrangler.toml` `[vars]` keeps `DEV_MODE = "0"`. For local `wrangler dev`, copy `.dev.vars.example` to `.dev.vars` and set `DEV_MODE=1` so deterministic placeholders can engage when secrets are unset (Wrangler merges `.dev.vars` over `[vars]`). Production deploys do not load `.dev.vars`, so the placeholder path never engages there. `npm run deploy` also runs `scripts/check-deploy-secrets.mjs`, which calls `wrangler secret list` and refuses to proceed when `AGENT_TOKEN_SECRET` is missing on the target environment.
 
-`matchToken` embeds a SHA-256 hash of the issuing `agentToken`. Hosted MCP **requires** the matching `agentToken` as `Authorization: Bearer …` on every tool call that passes `matchToken` (or the hosted compatibility alias `sessionId`), so a leaked blob alone cannot be replayed.
+`matchToken` embeds a SHA-256 identity binding. For manual clients this binds to the issuing `agentToken`; for OAuth it binds to the stable grant so a one-hour access-token refresh does not invalidate an in-progress match. Hosted MCP requires the matching authenticated identity on every tool call that passes `matchToken` (or the hosted compatibility alias `sessionId`), so a leaked blob alone cannot be replayed.
 
 `POST /quick-match` with an `agent_…` `playerKey` also requires a valid agent Bearer (or a preceding `POST /api/agent-token` mint step used by the shared queue helper) so leaderboard rows are not tagged `is_agent` from the prefix alone.
 
 Hosted MCP no longer accepts raw `{code, playerToken}` tool args. Agents must mint an `agentToken`, call `delta_v_quick_match` or `delta_v_list_sessions`, and then use the returned `matchToken` (or hosted `sessionId` alias) on later tool calls.
 
-Token revocation is currently coarse: rotate `AGENT_TOKEN_SECRET` to invalidate every issued token. Per-token revocation lists are out of scope for v1; agents that suspect a leak should re-issue and rotate the secret.
+Manual `agentToken` revocation remains coarse: rotate `AGENT_TOKEN_SECRET` to invalidate every issued manual token. OAuth refresh grants can be revoked individually and replayed refresh tokens revoke their whole family; an already issued OAuth access token remains valid only until its one-hour expiry.
 
-Implementation: `src/server/auth/` (token signing, issuance route), `packages/mcp-adapter/src/handlers.ts` (Authorization-header validation, matchToken minting + verification on every tool call).
+Implementation: `src/server/auth/` (token signing and manual issuance), `src/server/oauth/` (metadata, consent, code exchange, refresh rotation, and `OAuthDO` persistence), and `packages/mcp-adapter/src/handlers.ts` (Authorization-header validation, OAuth challenges, and matchToken minting + verification on every tool call).
 
 ## Remaining Competitive Risks
 

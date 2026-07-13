@@ -4,7 +4,7 @@ The canonical tool-and-transport reference for the Delta-V MCP server. Lists tra
 
 Related docs:
 
-- [`../static/agents.html`](../static/agents.html) — newcomer-facing setup for Codex, ChatGPT desktop, Claude Code, and other MCP clients
+- [`../static/agents.html`](../static/agents.html) — newcomer-facing setup for ChatGPT web, Codex, Claude Code, and other MCP clients
 - [`AGENT_STARTERS.md`](./AGENT_STARTERS.md) — packaged starter scripts and minimal entry points
 - [`AGENTS.md`](./AGENTS.md) — quick start, integration-path choice, tuning workflow.
 - [`AGENT_SPEC.md`](../AGENT_SPEC.md) — deep protocol and design reference.
@@ -15,7 +15,7 @@ Related docs:
 | Transport | Entry point | Shape | Session model |
 | --- | --- | --- | --- |
 | **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_reconnect`, `delta_v_close_session`). Outbound responses are **queued** so concurrent tool completions cannot corrupt stdout framing. Many MCP hosts still invoke tools **serially** (next call starts after the prior returns); use **local HTTP** (`npm run mcp:delta-v:http`) when you need concurrent tool requests from **separate processes** or hosts that pipeline multiple `tools/call` before prior responses return. |
-| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Requires `Authorization: Bearer <agentToken>` on every call, plus opaque per-match `matchToken` tool args for in-match tools. Hosted also accepts `sessionId` as a compatibility alias for the same opaque token. Clients must send `Accept: application/json, text/event-stream` or the endpoint rejects the call. New clients should initialize with MCP protocol version `2025-11-25` and send `MCP-Protocol-Version: 2025-11-25` on subsequent HTTP requests. The GAME DO now persists hosted seat event buffers so `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` work without Worker memory. `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
+| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Accepts either ChatGPT's OAuth 2.1 access token or a manually minted 24-hour `agentToken` on every call, plus opaque per-match `matchToken` tool args for in-match tools. Hosted also accepts `sessionId` as a compatibility alias for the same opaque token. Clients must send `Accept: application/json, text/event-stream` or the endpoint rejects the call. New clients should initialize with MCP protocol version `2025-11-25` and send `MCP-Protocol-Version: 2025-11-25` on subsequent HTTP requests. The GAME DO now persists hosted seat event buffers so `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` work without Worker memory. `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
 | **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
 
 ```mermaid
@@ -29,7 +29,7 @@ flowchart LR
 
   subgraph Hosted["Hosted MCP"]
     Host2["MCP host"]
-    Auth["Authorization: Bearer agentToken"]
+    Auth["OAuth or manual Bearer identity"]
     HTTP["POST /mcp"]
     Match["matchToken per live match"]
     Host2 --> Auth --> HTTP --> Match
@@ -51,6 +51,13 @@ Many MCP hosts invoke tools **one at a time** (the next `tools/call` starts afte
 Full token model (HMAC-SHA-256 signed with `AGENT_TOKEN_SECRET`): [SECURITY.md#remote-mcp-token-model](./SECURITY.md#remote-mcp-token-model).
 
 ## Hosted match-token flow
+
+ChatGPT web discovers Delta-V's protected-resource metadata, completes an
+OAuth 2.1 authorization-code flow with S256 PKCE, and supplies the resulting
+access token as the Bearer identity. The consent screen creates or reuses a
+browser-local bot identity and asks the player to choose its callsign. Other
+clients use the manual `agentToken` flow shown below. Both paths receive the
+same per-match `matchToken` after matchmaking.
 
 ```mermaid
 sequenceDiagram
@@ -83,6 +90,8 @@ sequenceDiagram
 - `https://delta-v.tre.systems/agents`
 - `https://delta-v.tre.systems/.well-known/agent.json`
 - `https://delta-v.tre.systems/agent-playbook.json`
+- `https://delta-v.tre.systems/.well-known/oauth-protected-resource/mcp`
+- `https://delta-v.tre.systems/.well-known/oauth-authorization-server`
 
 ## Resource catalog
 
@@ -98,7 +107,7 @@ Authenticated hosted MCP and local MCP also enumerate active match resources in 
 - `game://matches/{id}/log` — buffered append-only event log (`application/json`)
 - `game://matches/{id}/replay` — latest replay timeline (`application/json`)
 
-For local MCP, `{id}` is the `sessionId` / local `matchToken` alias. For hosted MCP, `{id}` is the opaque hosted `matchToken`; `resources/list` mints fresh active-session resource URIs for the authenticated `agentToken`.
+For local MCP, `{id}` is the `sessionId` / local `matchToken` alias. For hosted MCP, `{id}` is the opaque hosted `matchToken`; `resources/list` mints fresh active-session resource URIs for the authenticated OAuth or manual-token identity.
 
 ## Running the local MCP server
 
@@ -117,9 +126,47 @@ SERVER_URL=http://127.0.0.1:8787 npm run mcp:delta-v
 ## Connect an AI client to hosted MCP
 
 The hosted server is `https://delta-v.tre.systems/mcp`. It uses Streamable
-HTTP with a 24-hour Bearer token. Keep the same `agent_` player key when you
-renew a token so the player keeps one stable rating identity. The player key
-must match `^agent_[A-Za-z0-9_-]+$` and be 8–64 characters in total.
+HTTP with two authentication paths: ChatGPT web uses OAuth 2.1, while Codex,
+Claude Code, ChatGPT desktop, and generic clients can supply a manually minted
+24-hour Bearer token.
+
+### ChatGPT on the web
+
+No API token or local clone is required:
+
+1. In ChatGPT, open **Settings → Security and login** and turn on
+   **Developer mode**. If the switch is unavailable, ask the workspace
+   administrator to allow developer mode.
+2. Open **Settings → Plugins** or
+   [chatgpt.com/plugins](https://chatgpt.com/plugins), select the plus button,
+   and create a developer-mode app.
+3. Use **Delta-V** as the name, describe it as an app that plays the Delta-V
+   strategy game, and enter `https://delta-v.tre.systems/mcp` as the MCP
+   server URL.
+4. Select **Create** and confirm that ChatGPT discovers the Delta-V tools.
+5. Start a new chat, select **+ → More → Delta-V** near the composer, and ask
+   it to join a match.
+
+When ChatGPT invokes a protected play tool for the first time, Delta-V opens a
+consent page. Choose a unique bot callsign and select **Authorize bot**. The
+callsign is visible to opponents and on the agent leaderboard. The OAuth grant
+allows ChatGPT to play matches, send actions and chat, and enter the public
+rated queue when asked; it does not expose unrelated browser or device data.
+ChatGPT refreshes its access automatically, and Delta-V keeps the access token
+out of the model prompt.
+
+The bot identity is remembered in Delta-V's browser cookie. Clearing that
+authorization cookie creates a new bot identity. See the
+[official ChatGPT connection guide](https://developers.openai.com/apps-sdk/deploy/connect-chatgpt)
+for the current developer-mode UI.
+
+### Manual-token clients
+
+Keep the same `agent_` player key when you renew a token so the player keeps
+one stable rating identity. The player key must match
+`^agent_[A-Za-z0-9_-]+$` and be 8–64 characters in total. The
+`agent_oauth_` prefix is reserved for identities created by the ChatGPT
+consent flow.
 
 Mint a token into an environment variable without printing it:
 
@@ -196,18 +243,15 @@ environment at startup, use `.mcp.json`:
 
 See the [official Claude Code MCP guide](https://code.claude.com/docs/en/mcp).
 
-### ChatGPT web and other clients
-
-ChatGPT on the web cannot connect directly today. ChatGPT web apps require an
-OAuth 2.1 flow and cannot present Delta-V's custom fixed Bearer token. Use
-ChatGPT desktop, Codex, or Claude Code until Delta-V ships OAuth/app support.
-See the [official ChatGPT app authentication guide](https://learn.chatgpt.com/apps-sdk/build/auth).
+### Other clients
 
 Any other MCP client works when it supports **Streamable HTTP** and can attach
-`Authorization: Bearer <token>` to the server URL. A client limited to OAuth,
-legacy SSE, or unauthenticated remote servers cannot use the hosted endpoint.
-Normal MCP clients handle the `Accept` and `MCP-Protocol-Version` headers; the
-manual values below are only for raw JSON-RPC implementations.
+`Authorization: Bearer <token>` to the server URL. Delta-V's OAuth client
+metadata path is currently restricted to ChatGPT; other clients should use the
+manual token. A client limited to legacy SSE or unauthenticated remote servers
+cannot use the hosted endpoint. Normal MCP clients handle the `Accept` and
+`MCP-Protocol-Version` headers; the manual values below are only for raw
+JSON-RPC implementations.
 
 ## MCP host config (`mcp.json`)
 

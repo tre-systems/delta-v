@@ -75,4 +75,5 @@ export const isValidAgentPlayerKey = (raw: unknown): raw is string =>
   raw.length >= 8 &&
   raw.length <= 64 &&
   /^[A-Za-z0-9_-]+$/.test(raw) &&
-  raw.startsWith('agent_');
+  raw.startsWith('agent_') &&
+  !raw.startsWith('agent_oauth_');

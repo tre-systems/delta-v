@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { issueAgentToken, issueMatchToken } from '../../../src/server/auth';
+import {
+  issueAgentToken,
+  issueMatchToken,
+  issueOAuthAccessToken,
+} from '../../../src/server/auth';
 import type { Env } from '../../../src/server/env';
 import {
   hashIp,
@@ -255,7 +259,13 @@ describe('handleMcpHttpRequest', () => {
       env,
     );
     const body = (await res.json()) as {
-      result: { tools: { name: string }[] };
+      result: {
+        tools: Array<{
+          name: string;
+          securitySchemes?: unknown;
+          _meta?: { securitySchemes?: unknown };
+        }>;
+      };
     };
     const names = body.result.tools.map((t) => t.name).sort();
     expect(names).toEqual([
@@ -271,6 +281,11 @@ describe('handleMcpHttpRequest', () => {
       'delta_v_validate_action',
       'delta_v_wait_for_turn',
     ]);
+    for (const tool of body.result.tools) {
+      const expected = [{ type: 'oauth2', scopes: ['game:play'] }];
+      expect(tool._meta?.securitySchemes).toEqual(expected);
+      expect(tool.securitySchemes).toEqual(expected);
+    }
     void server; // keep import used
   });
 
@@ -883,7 +898,9 @@ describe('handleMcpHttpRequest', () => {
       env,
     );
     expect(res.status).toBe(401);
-    expect(res.headers.get('WWW-Authenticate')).toContain('Bearer');
+    expect(res.headers.get('WWW-Authenticate')).toContain(
+      'resource_metadata="https://w.test/.well-known/oauth-protected-resource/mcp"',
+    );
   });
 
   it('logs invalid Bearer failures on a sampled path', async () => {
@@ -909,7 +926,7 @@ describe('handleMcpHttpRequest', () => {
       '[auth-failure]',
       expect.objectContaining({
         route: '/mcp',
-        reason: 'invalid_agent_token',
+        reason: 'invalid_bearer_token',
       }),
     );
     log.mockRestore();
@@ -926,6 +943,101 @@ describe('handleMcpHttpRequest', () => {
       env,
     );
     expect(res.status).toBe(200);
+  });
+
+  it('accepts a valid OAuth access token for the MCP resource', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const { token } = await issueOAuthAccessToken({
+      secret: TEST_SECRET,
+      issuer: 'https://w.test',
+      audience: 'https://w.test/mcp',
+      scope: 'game:play',
+      clientId: 'https://chatgpt.com/oauth/test/client.json',
+      grantId: 'grant-1',
+      subject: 'subject-1',
+      playerKey: 'agent_oauth_test1',
+      username: 'OAuth Pilot',
+    });
+    const res = await handleMcpHttpRequest(
+      postAuthorized(initializeBody, token),
+      env,
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects an OAuth access token issued for another resource', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const { token } = await issueOAuthAccessToken({
+      secret: TEST_SECRET,
+      issuer: 'https://w.test',
+      audience: 'https://other.test/mcp',
+      scope: 'game:play',
+      clientId: 'https://chatgpt.com/oauth/test/client.json',
+      grantId: 'grant-1',
+      subject: 'subject-1',
+      playerKey: 'agent_oauth_test1',
+      username: 'OAuth Pilot',
+    });
+    const res = await handleMcpHttpRequest(
+      postAuthorized(initializeBody, token),
+      env,
+    );
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({
+      error: 'invalid_token',
+      reason: 'invalidClaims',
+    });
+  });
+
+  it('keeps an OAuth match handle valid after access-token refresh', async () => {
+    const { env, calls } = buildEnv(() =>
+      Response.json({ ok: true, code: 'ABCDE', hasState: false }),
+    );
+    const oauthGrant = {
+      secret: TEST_SECRET,
+      issuer: 'https://w.test',
+      audience: 'https://w.test/mcp',
+      scope: 'game:play',
+      clientId: 'https://chatgpt.com/oauth/test/client.json',
+      grantId: 'stable-grant',
+      subject: 'subject-1',
+      playerKey: 'agent_oauth_test1',
+      username: 'OAuth Pilot',
+    };
+    const now = Date.now();
+    const firstAccess = await issueOAuthAccessToken({
+      ...oauthGrant,
+      now,
+    });
+    const refreshedAccess = await issueOAuthAccessToken({
+      ...oauthGrant,
+      now: now + 1,
+    });
+    expect(firstAccess.token).not.toBe(refreshedAccess.token);
+    const match = await issueMatchToken({
+      secret: TEST_SECRET,
+      code: 'ABCDE',
+      playerToken: 'P'.repeat(32),
+      agentBinding: 'oauth-grant:stable-grant',
+    });
+
+    const res = await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 61,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_get_state',
+            arguments: { matchToken: match.token },
+          },
+        },
+        refreshedAccess.token,
+      ),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(calls.at(-1)?.url).toContain('/mcp/state?');
   });
 
   it('resolves matchToken into the hosted seat credentials when calling get_state', async () => {
@@ -1048,16 +1160,23 @@ describe('handleMcpHttpRequest', () => {
 
   it('rejects tool call without a hosted match handle', async () => {
     const { env } = buildEnv(() => new Response('{}'));
+    const { token } = await issueAgentToken({
+      secret: TEST_SECRET,
+      playerKey: 'agent_test_no_match',
+    });
     const res = await handleMcpHttpRequest(
-      post({
-        jsonrpc: '2.0',
-        id: 13,
-        method: 'tools/call',
-        params: {
-          name: 'delta_v_get_state',
-          arguments: {},
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 13,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_get_state',
+            arguments: {},
+          },
         },
-      }),
+        token,
+      ),
       env,
     );
     const body = (await res.json()) as {
@@ -1115,9 +1234,16 @@ describe('handleMcpHttpRequest', () => {
       result: { isError: boolean; content?: Array<{ text?: string }> };
     };
     expect(body.result.isError).toBe(true);
-    expect(body.result.content?.[0]?.text).toContain(
-      'delta_v_quick_match requires Authorization',
-    );
+    expect(body.result.content?.[0]?.text).toContain('Authentication required');
+    expect(
+      (body.result as { _meta?: Record<string, unknown> })._meta?.[
+        'mcp/www_authenticate'
+      ],
+    ).toEqual([
+      expect.stringContaining(
+        'resource_metadata="https://w.test/.well-known/oauth-protected-resource/mcp"',
+      ),
+    ]);
   });
 
   it('rejects invalid rendezvousCode at MCP validation time', async () => {
@@ -1221,6 +1347,58 @@ describe('handleMcpHttpRequest', () => {
       player?: { username?: unknown };
     };
     expect(body.player?.username).toBe('agent_claude_code_te');
+  });
+
+  it('uses the consented OAuth callsign and identity for matchmaking', async () => {
+    const { env, calls } = buildEnv((req) => {
+      if (req.url.endsWith('/enqueue')) {
+        return Response.json({
+          status: 'queued',
+          ticket: 'TICKET',
+          scenario: 'duel',
+        });
+      }
+      return Response.json({});
+    });
+    const { token } = await issueOAuthAccessToken({
+      secret: TEST_SECRET,
+      issuer: 'https://w.test',
+      audience: 'https://w.test/mcp',
+      scope: 'game:play',
+      clientId: 'https://chatgpt.com/oauth/test/client.json',
+      grantId: 'grant-callsign',
+      subject: 'subject-callsign',
+      playerKey: 'agent_oauth_consent1',
+      username: 'Nova Pilot',
+    });
+
+    await handleMcpHttpRequest(
+      postAuthorized(
+        {
+          jsonrpc: '2.0',
+          id: 331,
+          method: 'tools/call',
+          params: {
+            name: 'delta_v_quick_match',
+            arguments: {
+              waitForOpponent: false,
+              playerKey: 'agent_attempted_override',
+              username: 'Wrong Name',
+            },
+          },
+        },
+        token,
+      ),
+      env,
+    );
+
+    const body = (await calls[0].json()) as {
+      player?: { playerKey?: unknown; username?: unknown };
+    };
+    expect(body.player).toEqual({
+      playerKey: 'agent_oauth_consent1',
+      username: 'Nova Pilot',
+    });
   });
 
   it('validates send_action shape before resolving the session', async () => {

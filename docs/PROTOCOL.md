@@ -8,13 +8,14 @@ Wire format, state shapes, and hex math — the surface area an agent writer or 
 
 ## Cloudflare Topology
 
-Delta-V runs on Cloudflare Workers with three Durable Object classes ([`wrangler.toml`](../wrangler.toml)):
+Delta-V runs on Cloudflare Workers with four Durable Object classes ([`wrangler.toml`](../wrangler.toml)):
 
 | Binding | Class | Role |
 | --- | --- | --- |
 | `GAME` | `GameDO` | One room per active match — event stream, checkpoints, WebSocket, alarms |
 | `MATCHMAKER` | `MatchmakerDO` | Singleton `global` — quick-match ticket queue and seat pairing |
 | `LIVE_REGISTRY` | `LiveRegistryDO` | Singleton — "Live now" registry for `GET /api/matches?status=live` |
+| `OAUTH` | `OAuthDO` | Singleton — ChatGPT authorization requests/codes and rotating refresh-token families |
 
 Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 bucket (`MATCH_ARCHIVE`) for completed match JSON. See [ARCHITECTURE.md](./ARCHITECTURE.md) for how these fit together.
 
@@ -30,13 +31,18 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 | `/replay/:code` | GET | Replay for a specific match: public archived replay via `?viewer=spectator&gameId=ROOMCODE-mN`, or player-authenticated replay via `playerToken` |
 | `/ws/:code` | GET (upgrade) | WebSocket upgrade to the room's `GameDO` |
 | `/api/agent-token` | POST | Issue 24 h HMAC-signed `agentToken`; optional `claim: {username}` binds the agent to a leaderboard row (see [AGENT_SPEC.md](../AGENT_SPEC.md)) |
+| `/.well-known/oauth-protected-resource`<br>`/.well-known/oauth-protected-resource/mcp` | GET | RFC 9728 metadata for the hosted MCP resource and its `game:play` scope |
+| `/.well-known/oauth-authorization-server` | GET | OAuth authorization-server metadata: authorization/token/revocation endpoints, CIMD, S256 PKCE, and supported grants |
+| `/oauth/authorize` | GET, POST | Validate ChatGPT's Client ID Metadata Document and PKCE request, then show/process bot callsign consent |
+| `/oauth/token` | POST | Redeem a one-time authorization code or rotate a refresh token; form-encoded OAuth response |
+| `/oauth/revoke` | POST | Revoke the refresh-token family containing an OAuth refresh token |
 | `/api/claim-name` | POST | Bind a human `playerKey` to a leaderboard username (first-call-wins) |
 | `/api/player-recovery/issue` | POST | Issue a human callsign recovery code; returns the raw code once and stores only a D1 hash |
 | `/api/player-recovery/restore` | POST | Restore a human `{ playerKey, username }` profile from a valid recovery code |
 | `/api/player-recovery/revoke` | POST | Revoke the current recovery code for a human `playerKey` |
 | `/api/leaderboard` | GET | Public leaderboard query (ordered by Glicko-2 rating; provisional rows hidden by default) |
 | `/api/leaderboard/me` | GET | Per-player rank lookup (`?playerKey=…`) for the home-screen hint |
-| `/mcp` | POST | Remote MCP endpoint (stateless JSON — see [DELTA_V_MCP.md](./DELTA_V_MCP.md)) |
+| `/mcp` | POST | Remote MCP endpoint; accepts ChatGPT OAuth or a manual 24 h agent Bearer, then uses stateless JSON-RPC plus per-match handles (see [DELTA_V_MCP.md](./DELTA_V_MCP.md)) |
 | `/api/matches` | GET | Match listing (`?status=live` for in-progress from `LIVE_REGISTRY`; archived listing accepts `limit`, `before`, optional `scenario`, optional `winner=0|1|draw`, and optional `status=archived`; invalid filters return `400 invalid_query`; archived rows include public callsigns when rating metadata exists, but never expose player keys) |
 | `/api/metrics` | GET | Internal operator metrics snapshot; requires `Authorization: Bearer <INTERNAL_METRICS_TOKEN>` in production |
 | `/matches` | GET | Public match-history HTML page |
@@ -51,6 +57,24 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 Rate limits for each route: [SECURITY.md#3-rate-limiting-architecture](./SECURITY.md#3-rate-limiting-architecture).
 
 Public read endpoints (`/healthz`, `/api/matches`, `/api/leaderboard`, `/api/leaderboard/me`, `/replay/:code`, `/.well-known/agent.json`) send `Access-Control-Allow-Origin: *` plus the shared response-security header baseline documented in [SECURITY.md](./SECURITY.md).
+
+### ChatGPT OAuth contract
+
+ChatGPT web connects as a developer-mode app using
+`https://delta-v.tre.systems/mcp`. Its OAuth client ID is an HTTPS Client ID
+Metadata Document below `https://chatgpt.com/oauth/`; production rejects other
+client-ID origins. Authorization requests must use `response_type=code`, the
+exact MCP `resource`, the single `game:play` scope, an exact redirect from the
+validated client document, and an S256 PKCE challenge. The browser consent
+flow chooses a unique callsign and creates or reuses a server-generated
+`agent_oauth_...` identity.
+
+Authorization codes are single-use and expire after 5 minutes. Access tokens
+expire after 1 hour and are bound to issuer, MCP audience, scope, client,
+grant, subject, and player identity. Refresh tokens expire after at most 30
+days, rotate on every exchange, and are stored only as hashes in `OAuthDO`.
+See [SECURITY.md#remote-mcp-token-model](./SECURITY.md#remote-mcp-token-model)
+for the security invariants.
 
 ## Room Lifecycle
 

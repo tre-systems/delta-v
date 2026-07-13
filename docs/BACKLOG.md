@@ -199,21 +199,6 @@ section.)
 These items depend on product decisions or external triggers. They are not in
 the active queue.
 
-### ChatGPT Web OAuth for Hosted MCP
-
-**Trigger:** direct ChatGPT web play becomes a product priority. The hosted MCP
-endpoint currently accepts Delta-V's fixed 24-hour Bearer token, while ChatGPT
-web apps require OAuth 2.1 and cannot present arbitrary API keys.
-
-Add protected-resource metadata, an OAuth 2.1 authorization flow with PKCE and
-supported client registration, and per-tool security declarations. Cover the
-authorization and token-refresh paths with integration tests, then update the
-Build a Bot support matrix only after a real ChatGPT web connection has been
-smoke-tested.
-
-**Files:** `src/server/`, `packages/mcp-adapter/`, `static/agents.html`,
-`docs/DELTA_V_MCP.md`, `docs/SECURITY.md`
-
 ### Leaderboard Row Click Telemetry
 
 **Trigger:** leaderboard rows become interactive, for example by linking to

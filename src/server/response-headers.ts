@@ -26,6 +26,8 @@ export const buildContentSecurityPolicy = (request: Request): string =>
   ].join('; ');
 
 const PUBLIC_CORS_PATH_PATTERNS = [
+  /^\/\.well-known\/oauth-authorization-server$/,
+  /^\/\.well-known\/oauth-protected-resource(?:\/mcp)?$/,
   /^\/\.well-known\/agent\.json$/,
   /^\/api\/leaderboard$/,
   /^\/api\/leaderboard\/me$/,

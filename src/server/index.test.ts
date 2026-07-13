@@ -12,6 +12,10 @@ vi.mock('./live-registry-do', () => ({
   LiveRegistryDO: class LiveRegistryDO {},
 }));
 
+vi.mock('./oauth/oauth-do', () => ({
+  OAuthDO: class OAuthDO {},
+}));
+
 import { asGameId } from '../shared/ids';
 import { issueAgentToken } from './auth';
 import type { MatchArchive } from './game-do/match-archive';
@@ -59,6 +63,11 @@ type MockEnv = {
   CF_PAGES_COMMIT_SHA?: string;
   GIT_COMMIT_SHA?: string;
   CREATE_RATE_LIMITER?: {
+    limit: ReturnType<
+      typeof vi.fn<(options: { key: string }) => Promise<{ success: boolean }>>
+    >;
+  };
+  OAUTH_RATE_LIMITER?: {
     limit: ReturnType<
       typeof vi.fn<(options: { key: string }) => Promise<{ success: boolean }>>
     >;
@@ -346,6 +355,61 @@ describe('server index worker', () => {
     expect(response.headers.get('Referrer-Policy')).toBe(
       'strict-origin-when-cross-origin',
     );
+  });
+
+  it('serves OAuth discovery metadata with public CORS and no-store', async () => {
+    const { env } = createEnv();
+    const response = await worker.fetch(
+      new Request(
+        'https://delta-v.test/.well-known/oauth-protected-resource/mcp',
+      ),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    await expect(response.json()).resolves.toMatchObject({
+      resource: 'https://delta-v.test/mcp',
+      authorization_servers: ['https://delta-v.test'],
+      scopes_supported: ['game:play'],
+    });
+  });
+
+  it('fails sensitive OAuth routes closed when the signing secret is missing', async () => {
+    const { env } = createEnv(undefined, {
+      AGENT_TOKEN_SECRET: undefined,
+    });
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/oauth/token', { method: 'POST' }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: 'server_misconfigured',
+    });
+  });
+
+  it('applies the OAuth edge rate limiter before authorization work', async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    const { env } = createEnv(undefined, {
+      OAUTH_RATE_LIMITER: { limit },
+    });
+    const response = await worker.fetch(
+      new Request('https://delta-v.test/oauth/authorize', {
+        headers: { 'cf-connecting-ip': '12.34.56.78' },
+      }),
+      env as unknown as Env,
+      mockCtx(),
+    );
+
+    expect(response.status).toBe(429);
+    expect(limit).toHaveBeenCalledWith({
+      key: expect.stringMatching(/^oauth:/),
+    });
   });
 
   it('falls back to CF_PAGES_COMMIT_SHA when version metadata is unavailable', async () => {

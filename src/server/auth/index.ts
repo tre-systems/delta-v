@@ -18,6 +18,14 @@ export {
   verifyMatchToken,
 } from './match-token';
 export {
+  hasValidOAuthAccessClaims,
+  issueOAuthAccessToken,
+  OAUTH_ACCESS_TOKEN_KIND,
+  OAUTH_ACCESS_TOKEN_TTL_MS,
+  type OAuthAccessTokenPayload,
+  verifyOAuthAccessToken,
+} from './oauth-access-token';
+export {
   isAgentTokenSecretSet,
   MissingAgentTokenSecretError,
   resolveAgentTokenSecret,

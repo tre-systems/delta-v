@@ -84,6 +84,10 @@ describe('isValidAgentPlayerKey', () => {
     expect(isValidAgentPlayerKey('human123')).toBe(false);
   });
 
+  it('reserves the server-generated OAuth player-key namespace', () => {
+    expect(isValidAgentPlayerKey('agent_oauth_player1')).toBe(false);
+  });
+
   it('rejects keys with bad chars', () => {
     expect(isValidAgentPlayerKey('agent_with spaces')).toBe(false);
     expect(isValidAgentPlayerKey('agent_emoji_🚀')).toBe(false);

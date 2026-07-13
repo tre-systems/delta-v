@@ -7,9 +7,9 @@
 // path on every quick-match. Encoding {code, playerToken} into an HMAC blob
 // keeps the entire matchToken lifecycle in pure functions.
 //
-// The token binds to the issuing agent via `agentTokenHash` (SHA-256 of the
-// agentToken). Hosted MCP requires `Authorization: Bearer <agentToken>` on
-// every matchToken redemption so a leaked blob alone cannot be replayed.
+// The token binds to the issuing identity via `agentTokenHash`. Legacy agent
+// tokens hash the raw Bearer; OAuth agents hash a stable grant binding so a
+// refresh-token rotation does not invalidate an in-progress match.
 // (Payload is still signed, not encrypted — see SECURITY.md.)
 
 import {
@@ -52,13 +52,18 @@ export const issueMatchToken = async (opts: {
   secret: string;
   code: string;
   playerToken: string;
-  agentToken: string;
+  agentToken?: string;
+  agentBinding?: string;
   ttlMs?: number;
   now?: number;
 }): Promise<{ token: string; expiresAt: number }> => {
   const ttlMs = opts.ttlMs ?? MATCH_TOKEN_DEFAULT_TTL_MS;
   const now = opts.now ?? Date.now();
-  const agentTokenHash = await hashAgentToken(opts.agentToken);
+  const binding = opts.agentBinding ?? opts.agentToken;
+  if (!binding) {
+    throw new Error('issueMatchToken requires agentToken or agentBinding');
+  }
+  const agentTokenHash = await hashAgentToken(binding);
   const token = await signToken({
     secret: opts.secret,
     ttlMs,

@@ -4,6 +4,7 @@ import { asRoomCode } from '../shared/ids';
 import { normalizePlayerKey } from '../shared/player';
 import {
   extractBearerToken,
+  isAgentTokenSecretSet,
   MissingAgentTokenSecretError,
   resolveAgentTokenSecret,
   verifyAgentToken,
@@ -29,6 +30,7 @@ import { LiveRegistryDO } from './live-registry-do';
 import { handleMatchesList } from './matches-list';
 import { MatchmakerDO } from './matchmaker-do';
 import { handleMetricsRoute } from './metrics-route';
+import { handleOAuthRoute, OAuthDO } from './oauth';
 import { QUICK_MATCH_VERIFIED_AGENT_HEADER } from './quick-match-internal';
 import {
   applyResponseHeaders,
@@ -37,6 +39,9 @@ import {
 import { sentryOptions } from './sentry';
 
 let workerBootedAt: string | null = null;
+const oauthRateMap = new Map<string, { count: number; windowStart: number }>();
+const OAUTH_RATE_LIMIT = 30;
+const OAUTH_RATE_WINDOW_MS = 60_000;
 
 const resolveWorkerBootedAt = (): string => {
   if (workerBootedAt === null) {
@@ -208,7 +213,7 @@ export {
   telemetryReportRateMap,
   wsConnectRateMap,
 } from './reporting';
-export { GameDO, LiveRegistryDO, MatchmakerDO };
+export { GameDO, LiveRegistryDO, MatchmakerDO, OAuthDO };
 
 const isLoopbackAddress = (value: string | null): boolean => {
   if (!value) {
@@ -357,6 +362,40 @@ const fetchHandler = async (
   }
 
   const response = await (async (): Promise<Response> => {
+    const oauthSensitiveRoute =
+      url.pathname === '/oauth/authorize' ||
+      url.pathname === '/oauth/token' ||
+      url.pathname === '/oauth/revoke';
+    if (oauthSensitiveRoute) {
+      if (!isAgentTokenSecretSet(env) && env.DEV_MODE !== '1') {
+        return jsonError(
+          500,
+          'server_misconfigured',
+          'OAuth is unavailable because the signing secret is not configured.',
+        );
+      }
+      if (!shouldBypassIpRateLimits(request, env)) {
+        const ipHash = await hashIp(
+          request.headers.get('cf-connecting-ip') ?? 'unknown',
+          env,
+        );
+        const locallyBlocked = checkWindowedRateLimit(
+          oauthRateMap,
+          ipHash,
+          OAUTH_RATE_LIMIT,
+          OAUTH_RATE_WINDOW_MS,
+          RATE_LIMIT_MAP_MAX_KEYS,
+        );
+        const globallyBlocked = env.OAUTH_RATE_LIMITER
+          ? !(await env.OAUTH_RATE_LIMITER.limit({ key: `oauth:${ipHash}` }))
+              .success
+          : false;
+        if (locallyBlocked || globallyBlocked) return tooManyRequests();
+      }
+    }
+    const oauthResponse = await handleOAuthRoute(request, env);
+    if (oauthResponse) return oauthResponse;
+
     if (
       (url.pathname === '/healthz' ||
         url.pathname === '/health' ||
