@@ -43,6 +43,16 @@ export const preferNotificationChannel = (
 
 export type ToastDedupeType = 'error' | 'info' | 'success';
 
+/**
+ * Training Flight teaches through persistent surfaces, never timed toasts.
+ * Errors remain eligible because they require acknowledgement and the overlay
+ * already keeps error toasts visible until the player dismisses them.
+ */
+export const shouldPresentToast = (
+  type: ToastDedupeType,
+  isTrainingFlight: boolean,
+): boolean => !isTrainingFlight || type === 'error';
+
 /** Default window for suppressing identical transient toasts. */
 export const TOAST_DEDUPE_WINDOW_MS = 450;
 

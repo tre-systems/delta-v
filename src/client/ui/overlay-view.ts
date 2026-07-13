@@ -81,6 +81,8 @@ const trapTabFocus = (root: HTMLElement, event: KeyboardEvent): void => {
  * - Outcomes, connection, session hints → `showToast`.
  * - Turn instructions → HUD / chrome; do not duplicate as a toast unless it
  *   is also an error the player must acknowledge.
+ * - Training Flight → persistent coach/HUD/log surfaces; only errors may use
+ *   a toast, and errors remain visible until explicitly dismissed.
  * - Narrative / history → game log, not toasts.
  *
  * Precedence helpers: `NOTIFICATION_CHANNEL_PRECEDENCE` and

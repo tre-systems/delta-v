@@ -414,6 +414,21 @@ describe('main-interactions', () => {
     expect(deps.ui.overlay.showToast).toHaveBeenCalledWith('Saved', 'info');
   });
 
+  it('suppresses timed toasts but preserves errors during Training Flight', () => {
+    const { controller, deps } = createController();
+    deps.ctx.onboardingEntry = 'training';
+
+    controller.showToast('Saved', 'success');
+    controller.showToast('Helpful hint', 'info');
+    controller.showToast('Something failed', 'error');
+
+    expect(deps.ui.overlay.showToast).toHaveBeenCalledTimes(1);
+    expect(deps.ui.overlay.showToast).toHaveBeenCalledWith(
+      'Something failed',
+      'error',
+    );
+  });
+
   it('resets tutorial progress before starting a training flight', () => {
     const { controller, deps, mainNetworkDeps } = createController();
     mocks.resolveUIEventPlan.mockReturnValueOnce({

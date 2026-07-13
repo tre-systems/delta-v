@@ -66,6 +66,11 @@ Open **Play vs AI** and confirm **Training Flight** is the prominent recommended
 
 Each tutorial tip should give one immediate instruction rather than a rules paragraph; the Help path owns the deeper explanation. For a first-turn telemetry spot-check, confirm `first_turn_action` emits each successful milestone at most once for the loaded match (`ship_selected`, `burn_planned`, `undo_used` / `help_opened` when used, and `orders_confirmed`), then confirm the existing `first_turn_completed` event follows when turn 1 actually rolls over.
 
+Training Flight must not use transient phase banners or informational toasts
+for teaching. The coach card remains until the player dismisses it or performs
+the action it requests; the HUD owns current phase/turn state and the game log
+owns history. Error alerts may still appear and remain until dismissed.
+
 ### 1b. Moderated first-time-player sessions (five newcomers)
 
 Use five people who have never played Delta-V and a fresh browser profile for each. Do not show documentation. Say only: “Start Training Flight and think aloud.” If someone is stuck, wait 30 seconds before offering help and record the exact prompt required. Do not collect names, account details, or recordings unless separately consented; aggregate notes are sufficient.

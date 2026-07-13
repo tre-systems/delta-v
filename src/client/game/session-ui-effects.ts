@@ -119,11 +119,13 @@ export type SessionPhaseAlertOverlay = {
  * phase that matches `gameState.phase` (avoids flashes during movement
  * animation or other client/game mismatches). Re-shows after leaving and
  * re-entering the same turn phase (e.g. returning from `playing_movementAnim`).
+ * Training Flight omits this transient surface: its persistent coach card and
+ * HUD already explain the phase without asking new players to read a timer.
  */
 export const attachSessionPhaseAlertEffect = (
   session: Pick<
     ClientSession,
-    'stateSignal' | 'gameStateSignal' | 'playerIdSignal'
+    'stateSignal' | 'gameStateSignal' | 'playerIdSignal' | 'onboardingEntry'
   >,
   overlay: SessionPhaseAlertOverlay,
 ): Dispose => {
@@ -135,6 +137,11 @@ export const attachSessionPhaseAlertEffect = (
     const playerId = session.playerIdSignal.value;
     const mode = deriveInteractionMode(clientState);
     const uiPhase = clientPlayPhaseToGamePhase(clientState);
+
+    if (session.onboardingEntry === 'training') {
+      lastAlertKey = '';
+      return;
+    }
 
     if (!PHASE_ALERT_MODES.has(mode) || uiPhase === null) {
       lastAlertKey = '';

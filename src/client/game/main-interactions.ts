@@ -6,6 +6,7 @@ import type {
   SolarSystemMap,
 } from '../../shared/types/domain';
 import { isShipFleetPurchase } from '../../shared/types/domain';
+import { shouldPresentToast } from '../messages/notification-policy';
 import type { UIEvent } from '../ui/events';
 import type { AstrogationActionDeps } from './astrogation-actions';
 import type { CombatActionDeps } from './combat-actions';
@@ -453,6 +454,9 @@ export const createMainInteractionController = (
     message: string,
     type: 'error' | 'info' | 'success' = 'info',
   ) => {
+    if (!shouldPresentToast(type, deps.ctx.onboardingEntry === 'training')) {
+      return;
+    }
     deps.ui.overlay.showToast(message, type);
   };
 

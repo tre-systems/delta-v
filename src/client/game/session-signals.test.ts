@@ -251,6 +251,28 @@ describe('session-signals', () => {
     dispose();
   });
 
+  it('keeps transient phase alerts out of Training Flight', () => {
+    const session = createInitialClientSession();
+    const showPhaseAlert = vi.fn();
+    const dispose = attachSessionPhaseAlertEffect(session, { showPhaseAlert });
+
+    const gameState = createGameOrThrow(
+      SCENARIOS.biplanetary,
+      buildSolarSystemMap(),
+      asGameId('PATRAIN'),
+      findBaseHex,
+    );
+
+    session.onboardingEntry = 'training';
+    session.playerId = 0;
+    session.gameState = gameState;
+    session.state = 'playing_astrogation';
+
+    expect(showPhaseAlert).not.toHaveBeenCalled();
+
+    dispose();
+  });
+
   it('syncs combat action buttons from session state and planning', () => {
     const session = createInitialClientSession();
     const showAttackButton = vi.fn();

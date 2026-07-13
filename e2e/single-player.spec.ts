@@ -62,6 +62,10 @@ test.describe('single-player smoke tests', () => {
     await dismissScenarioBriefingIfPresent(page);
 
     await expect(page.locator('[data-testid="tutorialTip"]')).toBeVisible();
+    await expect(page.locator('#phaseAlert')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
     await expect(page.locator('[data-testid="tutorialTip"]')).toContainText(
       'glowing gold burn circle',
     );
@@ -87,6 +91,10 @@ test.describe('single-player smoke tests', () => {
     );
     await expect(page.locator('[data-testid="logEntries"]')).toContainText(
       'Flight coach:',
+    );
+    await expect(page.locator('#phaseAlert')).toHaveAttribute(
+      'aria-hidden',
+      'true',
     );
     await expect(
       page.locator('[data-testid="toastContainer"]'),

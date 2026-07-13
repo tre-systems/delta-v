@@ -5,6 +5,7 @@ import {
   NOTIFICATION_CHANNEL_PRECEDENCE,
   notificationChannelPrecedenceIndex,
   preferNotificationChannel,
+  shouldPresentToast,
 } from './notification-policy';
 
 describe('notificationChannelPrecedenceIndex', () => {
@@ -35,6 +36,23 @@ describe('preferNotificationChannel', () => {
 
   it('returns the first argument on a tie', () => {
     expect(preferNotificationChannel('toast', 'toast')).toBe('toast');
+  });
+});
+
+describe('shouldPresentToast', () => {
+  it('keeps timed information and success messages out of Training Flight', () => {
+    expect(shouldPresentToast('info', true)).toBe(false);
+    expect(shouldPresentToast('success', true)).toBe(false);
+  });
+
+  it('keeps persistent errors available during Training Flight', () => {
+    expect(shouldPresentToast('error', true)).toBe(true);
+  });
+
+  it('does not change notification behavior outside Training Flight', () => {
+    expect(shouldPresentToast('info', false)).toBe(true);
+    expect(shouldPresentToast('success', false)).toBe(true);
+    expect(shouldPresentToast('error', false)).toBe(true);
   });
 });
 

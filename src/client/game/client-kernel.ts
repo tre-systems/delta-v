@@ -4,6 +4,7 @@ import { playWarning } from '../audio';
 import { createConnectivityController } from '../connectivity';
 import { byId, clearHTML } from '../dom';
 import { createInputHandler } from '../input';
+import { shouldPresentToast } from '../messages/notification-policy';
 import { TOAST } from '../messages/toasts';
 import { recordLocalAiMatchCompleted } from '../pwa-install';
 import type { Dispose } from '../reactive';
@@ -112,6 +113,7 @@ export const createGameClient = () => {
   };
 
   const showToast = (message: string, type: 'error' | 'info' | 'success') => {
+    if (!shouldPresentToast(type, ctx.onboardingEntry === 'training')) return;
     ui.overlay.showToast(message, type);
   };
 
