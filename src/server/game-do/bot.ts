@@ -1,3 +1,4 @@
+import { AGENT_AUTOPLAY_TIMEOUT_MS } from '../../shared/agent/readiness';
 import {
   type AIDifficulty,
   aiAstrogation,
@@ -39,8 +40,7 @@ const hasOwnedPendingAsteroidHazards = (
 /** Delay before the server autoplayer acts for the platform Official Bot. */
 export const BOT_THINK_TIME_MS = 1_000;
 
-/** Grace period before fallback autoplay protects a stalled external agent. */
-export const AGENT_AUTOPLAY_TIMEOUT_MS = 30_000;
+export { AGENT_AUTOPLAY_TIMEOUT_MS };
 
 /** Default for server-scheduled agent seats (matches single-player / lobby). */
 export const SERVER_AGENT_AI_DIFFICULTY: AIDifficulty = 'normal';

@@ -58,7 +58,7 @@ Quick pacing notes:
   `fleetReady` explicitly, often with `purchases: []`. Once submitted,
   `agentReady.actionable` becomes false and candidates are empty while the
   other seat finishes; do not resubmit.
-- Use `agentReady.msUntilAutoplay` to stay inside the server fallback window. If the agent crafts a custom action, call `delta_v_validate_action` first; it returns `valid: false` with the rejection stage/message without changing state.
+- Use `agentReady.msUntilAutoplay` to stay inside the server's 60-second fallback window. Hosted MCP reports the exact deadline; local stdio MCP reports a conservative WebSocket-derived estimate. If the agent crafts a custom action, call `delta_v_validate_action` first; it returns `valid: false` with the rejection stage/message without changing state.
 
 Details, token lifetimes, and failure modes: [SECURITY.md](./SECURITY.md) (remote MCP token model) and [DELTA_V_MCP.md](./DELTA_V_MCP.md). Deep protocol: [AGENT_SPEC.md](../AGENT_SPEC.md).
 

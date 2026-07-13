@@ -11,9 +11,9 @@ import {
 import WebSocket from 'ws';
 
 import {
-  type AgentReadyInfo,
   type AgentTurnInput,
   allowedActionTypesForPhase,
+  buildEstimatedAgentReadyInfo,
   buildLeaderboardAgentsResourceDocument,
   buildMatchLogResourceDocument,
   buildMatchObservationResourceDocument,
@@ -76,6 +76,8 @@ interface DeltaVSession {
   events: SessionEvent[];
   nextEventId: number;
   lastState: GameState | null;
+  /** Receipt time for the latest successful authoritative state transition. */
+  lastStateObservedAt: number | null;
   connectionStatus: 'connecting' | 'open' | 'closed';
   lastDisconnectAt: number | null;
   lastDisconnectReason: string | null;
@@ -180,9 +182,10 @@ const wakeStateWaiters = (session: DeltaVSession): void => {
 };
 
 const pushEvent = (session: DeltaVSession, message: S2C): void => {
+  const receivedAt = Date.now();
   session.events.push({
     id: session.nextEventId,
-    receivedAt: Date.now(),
+    receivedAt,
     message,
   });
   session.nextEventId += 1;
@@ -196,9 +199,15 @@ const pushEvent = (session: DeltaVSession, message: S2C): void => {
     message.type === 'movementResult' ||
     message.type === 'combatResult' ||
     message.type === 'combatSingleResult' ||
-    message.type === 'stateUpdate' ||
-    message.type === 'actionRejected'
+    message.type === 'stateUpdate'
   ) {
+    session.lastState = message.state;
+    session.lastStateObservedAt = receivedAt;
+    stateChanged = true;
+  }
+  // A rejection carries a fresh state, but it does not restart the server's
+  // fallback timer. Preserve the prior estimate instead of extending it.
+  if (message.type === 'actionRejected') {
     session.lastState = message.state;
     stateChanged = true;
   }
@@ -251,25 +260,16 @@ const isActionable = (state: GameState, playerId: PlayerSeat): boolean => {
   }
 };
 
-const buildLocalAgentReadyInfo = (
-  state: GameState,
-  playerId: PlayerSeat,
-): AgentReadyInfo => ({
-  actionable: isActionable(state, playerId),
-  reason:
-    state.phase === 'gameOver'
-      ? 'game_over'
-      : state.phase === 'fleetBuilding'
-        ? state.players[playerId].ready
-          ? 'waiting_for_opponent'
-          : 'fleet_building'
-        : state.activePlayer === playerId
-          ? 'your_turn'
-          : 'waiting_for_opponent',
-  actionDeadlineAt: null,
-  msUntilAutoplay: null,
-  fallbackAutoplayPending: false,
-});
+const buildSessionAgentReadyInfo = (session: DeltaVSession) => {
+  if (session.lastState === null || session.playerId === null) {
+    throw new Error('Session has no player state');
+  }
+  return buildEstimatedAgentReadyInfo({
+    state: session.lastState,
+    playerId: session.playerId,
+    stateObservedAt: session.lastStateObservedAt,
+  });
+};
 
 // Wait for the next state-bearing S2C message or a timeout.
 // Returns true if a state arrived, false on timeout.
@@ -560,7 +560,7 @@ const buildLocalMatchObservationResource = (session: DeltaVSession): string => {
     includeSummary: true,
     includeLegalActionInfo: true,
     includeCandidateLabels: true,
-    agentReady: buildLocalAgentReadyInfo(session.lastState, session.playerId),
+    agentReady: buildSessionAgentReadyInfo(session),
   });
   return JSON.stringify(
     buildMatchObservationResourceDocument(
@@ -865,6 +865,7 @@ const createConnectedQuickMatchSession = async (args: {
     events: [],
     nextEventId: 1,
     lastState: null,
+    lastStateObservedAt: null,
     connectionStatus: 'connecting',
     lastDisconnectAt: null,
     lastDisconnectReason: null,
@@ -1160,7 +1161,7 @@ server.registerTool(
       includeTactical,
       includeSpatialGrid,
       includeCandidateLabels,
-      agentReady: buildLocalAgentReadyInfo(session.lastState, session.playerId),
+      agentReady: buildSessionAgentReadyInfo(session),
     });
     const out = shapeObservationForTool(observation, compactState);
 
@@ -1275,7 +1276,7 @@ server.registerTool(
             includeTactical,
             includeSpatialGrid,
             includeCandidateLabels,
-            agentReady: buildLocalAgentReadyInfo(state, playerId),
+            agentReady: buildSessionAgentReadyInfo(session),
           });
           const out = shapeObservationForTool(observation, compactState);
           return toolOk(
@@ -1437,7 +1438,7 @@ server.registerTool(
         includeTactical,
         includeSpatialGrid,
         includeCandidateLabels,
-        agentReady: buildLocalAgentReadyInfo(state, session.playerId),
+        agentReady: buildSessionAgentReadyInfo(session),
       });
       return shapeObservationForTool(
         observation,

@@ -164,7 +164,7 @@ MCP tools (`delta_v_get_observation`, `delta_v_wait_for_turn`, `delta_v_send_act
 | `includeSpatialGrid: true` | ASCII hex-grid view (fog-of-war compliant — see §6) |
 | `includeCandidateLabels: true` | Each candidate gets `{ label, reasoning, risk }` |
 
-Observations may include `agentReady`, with `actionable`, `reason`, `actionDeadlineAt`, `msUntilAutoplay`, and `fallbackAutoplayPending`. Treat `msUntilAutoplay` as a hard budget signal when it is present. Local MCP defaults `state` to the compact `{ phase, turnNumber, activePlayer }` shape; pass `compactState: false` when you explicitly need the full `GameState`.
+Observations may include `agentReady`, with `actionable`, `reason`, `actionDeadlineAt`, `msUntilAutoplay`, and `fallbackAutoplayPending`. Treat `msUntilAutoplay` as a hard budget signal within the 60-second fallback window. Hosted MCP reports the exact deadline; local stdio MCP reports a conservative estimate derived from the latest WebSocket state. Local MCP defaults `state` to the compact `{ phase, turnNumber, activePlayer }` shape; pass `compactState: false` when you explicitly need the full `GameState`.
 
 ### 4.3 Tactical features
 

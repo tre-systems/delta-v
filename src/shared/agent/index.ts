@@ -50,6 +50,11 @@ export {
   requireMatchedQuickMatch,
 } from './quick-match';
 export {
+  AGENT_AUTOPLAY_TIMEOUT_MS,
+  AGENT_DEADLINE_ESTIMATE_SAFETY_MS,
+  buildEstimatedAgentReadyInfo,
+} from './readiness';
+export {
   buildCurrentRulesResourceDocument,
   buildLeaderboardAgentsResourceDocument,
   buildMatchLogResourceDocument,
