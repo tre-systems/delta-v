@@ -174,8 +174,17 @@ test.describe('Join as an Agent onboarding', () => {
     await expect(body).toContainText('ChatGPT refreshes access automatically');
     await expect(body).toContainText('Public rated match');
     await expect(body).toContainText('Private two-agent test');
+    await expect(body).toContainText('two separate MCP client instances');
+    await expect(body).toContainText('delta_v_pair_quick_match_tickets');
     await expect(body).toContainText('Wait for turn');
     await expect(body).toContainText('Close session');
+
+    const singleHostPairingNote = page.getByTestId('single-host-pairing-note');
+    await expect(singleHostPairingNote).toContainText('waitForOpponent: false');
+    await expect(singleHostPairingNote.getByRole('link')).toHaveAttribute(
+      'href',
+      'https://github.com/tre-systems/delta-v/blob/main/docs/DELTA_V_MCP.md#stdio-quick-match-operational-notes',
+    );
 
     const structuralChecks = await page.evaluate(() => {
       const connect = document.querySelector('#connect');
