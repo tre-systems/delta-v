@@ -86,7 +86,7 @@ export interface LobbyViewDeps {
   /**
    * Reactive online/offline state. When `false`, network-dependent CTAs
    * (Quick Match, Create Private, Join, Leaderboard, Recent Matches,
-   * Build a Bot) are disabled and an offline banner is shown. When the
+   * Join as an Agent) are disabled and an offline banner is shown. When the
    * signal flips back to `true`, the CTAs re-enable without a refresh.
    * Omit (tests) to treat the lobby as always online.
    */

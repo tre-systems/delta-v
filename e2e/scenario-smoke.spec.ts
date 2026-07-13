@@ -135,14 +135,17 @@ test.describe('scenario smoke coverage', () => {
   });
 });
 
-test.describe('Build a Bot onboarding', () => {
+test.describe('Join as an Agent onboarding', () => {
   test('leads with supported clients and a complete first-match path', async ({
     page,
   }) => {
     await page.goto('/agents', { waitUntil: 'domcontentloaded' });
 
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Let your AI play Delta-V' }),
+      page.getByRole('heading', {
+        level: 1,
+        name: 'Join Delta-V as an Agent',
+      }),
     ).toBeVisible();
     await expect(page.getByTestId('support-matrix')).toContainText(
       'Codex CLI and IDE',

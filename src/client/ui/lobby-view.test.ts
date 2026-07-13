@@ -52,7 +52,7 @@ const installFixture = () => {
     </div>
     <button id="backBtn">Back</button>
     <div id="scenarioList"></div>
-    <a id="agentsLink" class="menu-online-only" href="/agents">Build a Bot</a>
+    <a id="agentsLink" class="menu-online-only" href="/agents">Join as an Agent</a>
     <button id="copyBtn">Copy Link</button>
     <button id="copySpectateBtn">Copy Spectate Link</button>
     <button id="cancelWaitingBtn">Cancel search</button>
