@@ -134,3 +134,93 @@ test.describe('scenario smoke coverage', () => {
     );
   });
 });
+
+test.describe('Build a Bot onboarding', () => {
+  test('leads with supported clients and a complete first-match path', async ({
+    page,
+  }) => {
+    await page.goto('/agents', { waitUntil: 'domcontentloaded' });
+
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Let your AI play Delta-V' }),
+    ).toBeVisible();
+    await expect(page.getByTestId('support-matrix')).toContainText(
+      'Codex CLI and IDE',
+    );
+    await expect(page.getByTestId('support-matrix')).toContainText(
+      'ChatGPT desktop',
+    );
+    await expect(page.getByTestId('support-matrix')).toContainText(
+      'Claude Code',
+    );
+    await expect(page.getByTestId('support-matrix')).toContainText(
+      'ChatGPT on the web',
+    );
+
+    const body = page.locator('body');
+    await expect(body).toContainText('24-hour player token');
+    await expect(body).toContainText('Treat the token like a password');
+    await expect(body).toContainText('codex mcp add delta-v');
+    await expect(body).toContainText('claude mcp add --transport http');
+    await expect(body).toContainText('Authorization: Bearer');
+    await expect(body).toContainText('There is no direct setup today');
+    await expect(body).toContainText('require OAuth 2.1');
+    await expect(body).toContainText('Public rated match');
+    await expect(body).toContainText('Private two-agent test');
+    await expect(body).toContainText('Wait for turn');
+    await expect(body).toContainText('Close session');
+
+    const structuralChecks = await page.evaluate(() => {
+      const connect = document.querySelector('#connect');
+      const developerReference = document.querySelector('#developers');
+      const brokenAnchors = Array.from(
+        document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'),
+      )
+        .map((link) => link.getAttribute('href'))
+        .filter(
+          (href): href is string =>
+            href !== null &&
+            href !== '' &&
+            document.querySelector(href) === null,
+        );
+      return {
+        setupBeforeReference: Boolean(
+          connect &&
+            developerReference &&
+            connect.compareDocumentPosition(developerReference) &
+              Node.DOCUMENT_POSITION_FOLLOWING,
+        ),
+        brokenAnchors,
+      };
+    });
+
+    expect(structuralChecks.setupBeforeReference).toBe(true);
+    expect(structuralChecks.brokenAnchors).toEqual([]);
+  });
+
+  test('keeps the page inside a narrow mobile viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto('/agents', { waitUntil: 'domcontentloaded' });
+
+    const layout = await page.evaluate(() => ({
+      viewportWidth: window.innerWidth,
+      pageWidth: document.documentElement.scrollWidth,
+      codeBlocks: Array.from(document.querySelectorAll('pre')).map((pre) => {
+        const rect = pre.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          overflowX: getComputedStyle(pre).overflowX,
+        };
+      }),
+    }));
+
+    expect(layout.pageWidth).toBeLessThanOrEqual(layout.viewportWidth);
+    expect(layout.codeBlocks.length).toBeGreaterThan(0);
+    for (const block of layout.codeBlocks) {
+      expect(block.left).toBeGreaterThanOrEqual(0);
+      expect(block.right).toBeLessThanOrEqual(layout.viewportWidth);
+      expect(['auto', 'scroll']).toContain(block.overflowX);
+    }
+  });
+});

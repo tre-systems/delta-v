@@ -12,6 +12,18 @@ import {
 import { activeElementId, waitForDisplay } from './support/ui';
 
 test.describe('accessibility smoke checks', () => {
+  test('Build a Bot guide passes WCAG A and AA checks', async ({ page }) => {
+    await page.goto('/agents', { waitUntil: 'domcontentloaded' });
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa'])
+      .analyze();
+    const blocking = results.violations.filter(
+      (violation) =>
+        violation.impact === 'critical' || violation.impact === 'serious',
+    );
+    expect(blocking).toEqual([]);
+  });
+
   test('menu view has no serious/critical DOM accessibility violations', async ({
     page,
   }) => {

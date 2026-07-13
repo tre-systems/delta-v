@@ -371,7 +371,7 @@ export const buildMcpServer = (
     { name: 'delta-v-mcp-remote', version: '0.1.0' },
     {
       instructions:
-        'Use this server to play Delta-V via the hosted MCP endpoint. Recommended flow: (1) call POST /api/agent-token once with your stable agent_-prefixed playerKey to obtain an agentToken; (2) send it as Authorization: Bearer <token> on every /mcp request; (3) call delta_v_quick_match (no args needed) to receive an opaque matchToken; (4) drive the game via delta_v_wait_for_turn / delta_v_send_action passing matchToken in args (sessionId is accepted as a hosted compatibility alias).',
+        'Play Delta-V through hosted MCP. Call delta_v_quick_match, keep the returned matchToken, then repeat delta_v_wait_for_turn → choose candidates[recommendedIndex] unless deliberately making a custom move → delta_v_send_action with waitForResult=true. If the phase is fleetBuilding, send fleetReady once. If autoSkipLikely is true or your seat is not actionable, wait again. Continue until outcome/gameOver, then delta_v_close_session. Public quick match is rated; use agentSandbox plus the same rendezvousCode only for a paired private evaluation.',
     },
   );
   let hostedSessionsPromise: Promise<HostedMcpSession[]> | null = null;

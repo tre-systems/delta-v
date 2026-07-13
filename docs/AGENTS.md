@@ -18,6 +18,11 @@ The fastest path to a working Delta-V agent — integration-path choice, a runna
 
 ## Quick start (MCP path)
 
+If you want an existing assistant to play without writing code, start with the
+[Build a Bot page](https://delta-v.tre.systems/agents). Exact hosted setup for
+Codex, ChatGPT desktop, Claude Code, and generic Streamable HTTP clients lives
+in [DELTA_V_MCP.md#connect-an-ai-client-to-hosted-mcp](./DELTA_V_MCP.md#connect-an-ai-client-to-hosted-mcp).
+
 1) Start the MCP server:
 
 ```bash

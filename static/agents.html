@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0c1220">
-  <meta name="description" content="Build autonomous Delta-V agents for real-time multiplayer tactical space combat with vector movement and orbital gravity.">
-  <meta property="og:title" content="Delta-V Agents">
-  <meta property="og:description" content="Build autonomous Delta-V agents for real-time multiplayer tactical space combat with vector movement and orbital gravity.">
+  <meta name="theme-color" content="#07101f">
+  <meta name="description" content="Connect Codex, ChatGPT desktop, Claude Code, or another MCP client and let an AI play Delta-V.">
+  <meta property="og:title" content="Let your AI play Delta-V">
+  <meta property="og:description" content="Connect an MCP-capable assistant in three steps, or use the developer guides to build your own Delta-V bot.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://delta-v.tre.systems/agents">
   <meta property="og:image" content="https://delta-v.tre.systems/og-card.png">
@@ -14,32 +14,16 @@
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Delta-V tactical space combat with ships plotting vector burns around a planet.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Delta-V Agents">
-  <meta name="twitter:description" content="Build autonomous Delta-V agents for real-time multiplayer tactical space combat with vector movement and orbital gravity.">
+  <meta name="twitter:title" content="Let your AI play Delta-V">
+  <meta name="twitter:description" content="Connect an MCP-capable assistant in three steps, or build your own Delta-V bot.">
   <meta name="twitter:image" content="https://delta-v.tre.systems/og-card.png">
-  <title>Agents — Delta-V</title>
+  <title>Let your AI play — Delta-V</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <style>
     @font-face {
       font-family: 'Space Grotesk';
       font-style: normal;
-      font-weight: 400;
-      font-display: swap;
-      src: url('/fonts/space-grotesk-latin.woff2') format('woff2');
-    }
-
-    @font-face {
-      font-family: 'Space Grotesk';
-      font-style: normal;
-      font-weight: 500;
-      font-display: swap;
-      src: url('/fonts/space-grotesk-latin.woff2') format('woff2');
-    }
-
-    @font-face {
-      font-family: 'Space Grotesk';
-      font-style: normal;
-      font-weight: 700;
+      font-weight: 400 700;
       font-display: swap;
       src: url('/fonts/space-grotesk-latin.woff2') format('woff2');
     }
@@ -47,1158 +31,577 @@
     @font-face {
       font-family: 'IBM Plex Mono';
       font-style: normal;
-      font-weight: 400;
+      font-weight: 400 600;
       font-display: swap;
       src: url('/fonts/ibm-plex-mono-latin-400.woff2') format('woff2');
     }
 
-    @font-face {
-      font-family: 'IBM Plex Mono';
-      font-style: normal;
-      font-weight: 500;
-      font-display: swap;
-      src: url('/fonts/ibm-plex-mono-latin-500.woff2') format('woff2');
-    }
-
-    @font-face {
-      font-family: 'IBM Plex Mono';
-      font-style: normal;
-      font-weight: 600;
-      font-display: swap;
-      src: url('/fonts/ibm-plex-mono-latin-600.woff2') format('woff2');
-    }
-
     :root {
       --bg: #040b16;
-      --panel: rgba(9, 18, 34, 0.72);
-      --panel-strong: rgba(7, 14, 28, 0.88);
-      --border: rgba(142, 176, 235, 0.16);
-      --border-strong: rgba(122, 215, 255, 0.38);
-      --text: #eef4ff;
-      --muted: #90a0ba;
-      --muted-strong: #b4c0d7;
+      --surface: rgba(9, 20, 38, 0.82);
+      --surface-strong: #0b1729;
+      --border: rgba(143, 181, 239, 0.18);
+      --border-strong: rgba(122, 215, 255, 0.46);
+      --text: #eef5ff;
+      --muted: #a7b5ca;
       --accent: #7ad7ff;
-      --accent-soft: rgba(122, 215, 255, 0.14);
-      --success: #95d687;
-      --warning: #ffc56a;
-      --danger: #ff8a8a;
-      --radius: 14px;
-      --radius-sm: 8px;
-      --font-display: 'Space Grotesk', sans-serif;
-      --font-mono: 'IBM Plex Mono', monospace;
+      --accent-soft: rgba(122, 215, 255, 0.12);
+      --success: #9cdf8d;
+      --warning: #ffcb78;
+      --warning-soft: rgba(255, 203, 120, 0.1);
+      --radius: 16px;
+      --radius-sm: 9px;
+      --display: 'Space Grotesk', system-ui, sans-serif;
+      --mono: 'IBM Plex Mono', ui-monospace, monospace;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    html { background: var(--bg); }
-
+    * { box-sizing: border-box; }
+    html { background: var(--bg); scroll-behavior: smooth; }
     body {
-      font-family: var(--font-display);
-      color: var(--text);
-      line-height: 1.6;
+      margin: 0;
+      min-width: 0;
       min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(33, 107, 168, 0.22), transparent 32rem),
+        radial-gradient(circle at 92% 32%, rgba(57, 68, 139, 0.16), transparent 28rem),
+        var(--bg);
+      font-family: var(--display);
+      line-height: 1.65;
     }
 
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    a { color: var(--accent); }
+    a:hover { text-decoration-thickness: 2px; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 4px;
+      border-radius: 3px;
+    }
 
-    /* Layout */
     .page-header {
-      background: rgba(4, 9, 18, 0.92);
-      border-bottom: 1px solid var(--border);
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
       position: sticky;
       top: 0;
       z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.8rem clamp(1rem, 4vw, 2rem);
+      border-bottom: 1px solid var(--border);
+      background: rgba(4, 11, 22, 0.9);
       backdrop-filter: blur(16px);
     }
 
-    .header-logo {
-      height: 28px;
-      width: 28px;
-      opacity: 0.9;
-    }
-
-    .header-title {
-      font-size: 1.05rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      color: var(--accent);
-      text-transform: uppercase;
-    }
-
-    .header-home {
+    .brand {
       display: inline-flex;
       align-items: center;
-      gap: 0.55rem;
+      gap: 0.65rem;
+      color: var(--text);
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
       text-decoration: none;
-      color: inherit;
-      border-radius: 4px;
-      padding: 2px 4px;
-      margin: -2px -4px;
-      transition: opacity 0.12s;
-    }
-    .header-home:hover,
-    .header-home:focus-visible {
-      opacity: 0.85;
-      outline: none;
+      text-transform: uppercase;
     }
 
-    .header-sep {
-      color: var(--muted);
-      font-size: 0.85rem;
-    }
+    .brand img { width: 28px; height: 28px; }
+    .page-label { color: var(--muted); font-size: 0.86rem; }
+    .back-link { margin-left: auto; color: var(--muted); font-size: 0.86rem; }
 
-    .header-page {
-      font-size: 0.95rem;
-      color: var(--muted-strong);
-    }
-
-    .header-back {
-      margin-left: auto;
-      font-size: 0.85rem;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      padding: 0.35rem 0.85rem;
-      border-radius: 999px;
-      transition: border-color 0.15s, color 0.15s;
-    }
-
-    .header-back:hover {
-      color: var(--accent);
-      border-color: var(--border-strong);
-      text-decoration: none;
-    }
-
-    .container {
-      max-width: 860px;
+    main {
+      width: min(100% - 2rem, 980px);
       margin: 0 auto;
-      padding: 3rem 2rem 6rem;
+      padding: clamp(3rem, 7vw, 5.5rem) 0 6rem;
     }
 
-    /* Hero */
-    .hero {
-      margin-bottom: 3.5rem;
-    }
-
-    .hero-eyebrow {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
+    .hero { max-width: 790px; margin-bottom: 3rem; }
+    .eyebrow {
+      margin: 0 0 0.7rem;
       color: var(--accent);
+      font: 600 0.76rem/1.4 var(--mono);
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      margin-bottom: 0.75rem;
     }
 
-    .hero h1 {
-      font-size: clamp(2rem, 5vw, 3rem);
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      line-height: 1.15;
-      margin-bottom: 1rem;
+    h1, h2, h3 { line-height: 1.18; }
+    h1 {
+      margin: 0;
+      font-size: clamp(2.4rem, 8vw, 4.6rem);
+      letter-spacing: -0.045em;
     }
 
     .hero-lead {
-      font-size: 1.1rem;
-      color: var(--muted-strong);
-      max-width: 640px;
-      line-height: 1.7;
-    }
-
-    /* Section */
-    .section {
-      margin-bottom: 3rem;
-    }
-
-    .section-anchor {
-      scroll-margin-top: 80px;
-    }
-
-    h2 {
-      font-size: 1.35rem;
-      font-weight: 700;
-      color: var(--accent);
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    h2 .section-num {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
+      max-width: 720px;
+      margin: 1.2rem 0 0;
       color: var(--muted);
+      font-size: clamp(1.05rem, 2.5vw, 1.28rem);
+    }
+
+    .hero-note {
+      display: inline-flex;
+      margin-top: 1.35rem;
+      padding: 0.55rem 0.8rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
       background: var(--accent-soft);
-      border: 1px solid var(--border);
-      padding: 0.1rem 0.45rem;
-      border-radius: 4px;
-    }
-
-    h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--muted-strong);
-      margin: 1.5rem 0 0.5rem;
-    }
-
-    p {
-      color: var(--muted-strong);
-      margin-bottom: 0.85rem;
-    }
-
-    ul, ol {
-      color: var(--muted-strong);
-      padding-left: 1.5rem;
-      margin-bottom: 0.85rem;
-    }
-
-    li { margin-bottom: 0.35rem; }
-
-    /* Code */
-    code {
-      font-family: var(--font-mono);
-      font-size: 0.85em;
-      background: var(--accent-soft);
-      border: 1px solid var(--border);
-      padding: 0.1em 0.35em;
-      border-radius: 4px;
-      color: var(--accent);
-    }
-
-    pre {
-      background: var(--panel-strong);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 1.1rem 1.25rem;
-      overflow-x: auto;
-      margin: 0.75rem 0 1.25rem;
-    }
-
-    pre code {
-      background: none;
-      border: none;
-      padding: 0;
-      font-size: 0.82rem;
       color: var(--text);
-      line-height: 1.55;
-    }
-
-    /* Panel cards */
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem 1.5rem;
-      margin-bottom: 1rem;
-    }
-
-    .panel-title {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 0.75rem;
-    }
-
-    /* Endpoint table */
-    .endpoint-grid {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 0;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      overflow: hidden;
-      margin: 0.75rem 0 1.25rem;
-    }
-
-    .endpoint-row {
-      display: contents;
-    }
-
-    .endpoint-method {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 0.6rem 0.9rem;
-      background: var(--panel-strong);
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-
-    .endpoint-method.get { color: var(--success); }
-    .endpoint-method.post { color: var(--warning); }
-    .endpoint-method.ws { color: #c9a0ff; }
-
-    .endpoint-path {
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      padding: 0.6rem 1rem;
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
-      border-left: 1px solid var(--border);
-      color: var(--text);
-    }
-
-    .endpoint-row:last-child .endpoint-method,
-    .endpoint-row:last-child .endpoint-path {
-      border-bottom: none;
-    }
-
-    /* Field table */
-    .field-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 0.75rem 0 1.25rem;
       font-size: 0.88rem;
     }
 
-    .field-table th {
-      text-align: left;
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+    .jump-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      margin: 0 0 3.5rem;
+      padding: 0;
+      list-style: none;
+    }
+
+    .jump-nav a {
+      display: block;
+      padding: 0.45rem 0.72rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
       color: var(--muted);
-      padding: 0.4rem 0.75rem;
-      border-bottom: 1px solid var(--border);
+      font-size: 0.83rem;
+      text-decoration: none;
+    }
+    .jump-nav a:hover { color: var(--accent); border-color: var(--border-strong); }
+
+    section { margin-top: 4rem; scroll-margin-top: 5.5rem; }
+    h2 { margin: 0 0 0.7rem; font-size: clamp(1.55rem, 4vw, 2.2rem); }
+    h3 { margin: 0; font-size: 1.12rem; }
+    .section-intro { max-width: 730px; margin: 0 0 1.6rem; color: var(--muted); }
+
+    .support-grid, .client-grid, .resource-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
     }
 
-    .field-table td {
-      padding: 0.5rem 0.75rem;
-      border-bottom: 1px solid rgba(142, 176, 235, 0.08);
-      vertical-align: top;
-      color: var(--muted-strong);
-    }
-
-    .field-table td:first-child {
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      color: var(--accent);
-      white-space: nowrap;
-    }
-
-    .field-table tr:last-child td { border-bottom: none; }
-
-    /* Callout */
-    .callout {
-      background: var(--accent-soft);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-sm);
-      padding: 0.9rem 1.1rem;
-      margin: 0.75rem 0 1.25rem;
-      font-size: 0.9rem;
-      color: var(--text);
-    }
-
-    .callout-label {
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 0.35rem;
-    }
-
-    /* TOC */
-    .toc {
-      background: var(--panel);
+    .card {
+      min-width: 0;
+      padding: 1.25rem;
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 1.25rem 1.5rem;
-      margin-bottom: 3rem;
+      background: var(--surface);
     }
 
-    .toc-title {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
+    .card p { margin: 0.55rem 0 0; color: var(--muted); }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.6rem;
+      color: var(--success);
+      font: 600 0.7rem/1 var(--mono);
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 0.75rem;
+    }
+    .status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .status.limited { color: var(--warning); }
+
+    .step-heading {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .step-number {
+      display: grid;
+      flex: 0 0 2rem;
+      width: 2rem;
+      height: 2rem;
+      place-items: center;
+      border: 1px solid var(--border-strong);
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font: 600 0.82rem/1 var(--mono);
     }
 
-    .toc ol {
-      padding-left: 1.25rem;
-      margin: 0;
+    pre {
+      max-width: 100%;
+      margin: 1rem 0 0;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #030913;
+      color: #d9e9ff;
+      padding: 1rem;
+      font: 400 0.79rem/1.65 var(--mono);
+      tab-size: 2;
+      -webkit-overflow-scrolling: touch;
     }
-
-    .toc li {
-      margin-bottom: 0.3rem;
-      font-size: 0.9rem;
-    }
-
-    .toc a {
-      color: var(--muted-strong);
-    }
-
-    .toc a:hover { color: var(--accent); }
-
-    /* Tag badges */
-    .badge {
-      display: inline-block;
-      font-family: var(--font-mono);
-      font-size: 0.68rem;
-      padding: 0.15rem 0.45rem;
+    code { font-family: var(--mono); }
+    :not(pre) > code {
+      overflow-wrap: anywhere;
       border-radius: 4px;
-      letter-spacing: 0.06em;
-      vertical-align: middle;
+      background: rgba(122, 215, 255, 0.09);
+      padding: 0.12em 0.32em;
+      color: #cbeeff;
+      font-size: 0.9em;
     }
 
-    .badge-required {
-      background: rgba(255, 138, 138, 0.12);
-      border: 1px solid rgba(255, 138, 138, 0.3);
-      color: var(--danger);
-    }
-
-    .badge-optional {
-      background: rgba(144, 160, 186, 0.1);
-      border: 1px solid rgba(144, 160, 186, 0.2);
+    .callout {
+      margin-top: 1rem;
+      padding: 1rem 1.1rem;
+      border-left: 3px solid var(--warning);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      background: var(--warning-soft);
       color: var(--muted);
     }
+    .callout strong { color: var(--text); }
+    .callout p { margin: 0.45rem 0 0; }
 
-    @media (max-width: 640px) {
-      .container { padding: 2rem 1.25rem 5rem; }
-      .page-header { padding: 0.75rem 1.25rem; }
-      pre { padding: 0.85rem 1rem; }
+    details {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+    details + details { margin-top: 0.9rem; }
+    summary {
+      cursor: pointer;
+      padding: 1.1rem 1.25rem;
+      color: var(--text);
+      font-weight: 700;
+    }
+    details[open] summary { border-bottom: 1px solid var(--border); }
+    .details-body { min-width: 0; padding: 0.2rem 1.25rem 1.25rem; color: var(--muted); }
+    .details-body p { margin: 0.9rem 0 0; }
+    .details-body ul { padding-left: 1.25rem; }
+
+    .client-grid { margin-top: 1rem; }
+    .client-grid .card { display: flex; flex-direction: column; }
+    .client-grid a { margin-top: auto; padding-top: 0.9rem; }
+
+    .prompt {
+      border-color: var(--border-strong);
+      background: linear-gradient(135deg, rgba(14, 37, 61, 0.92), rgba(8, 19, 37, 0.92));
+      white-space: pre-wrap;
+    }
+
+    .loop {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.6rem;
+      margin-top: 1.5rem;
+      padding: 0;
+      list-style: none;
+      counter-reset: loop;
+    }
+    .loop li {
+      position: relative;
+      min-width: 0;
+      padding: 0.9rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+    .loop li::before {
+      counter-increment: loop;
+      content: counter(loop);
+      display: block;
+      margin-bottom: 0.35rem;
+      color: var(--accent);
+      font: 600 0.7rem/1 var(--mono);
+    }
+
+    .checklist { margin: 1rem 0 0; padding-left: 1.35rem; color: var(--muted); }
+    .checklist li + li { margin-top: 0.55rem; }
+
+    .resource-grid a {
+      display: block;
+      min-width: 0;
+      padding: 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+    }
+    .resource-grid a:hover { border-color: var(--border-strong); }
+    .resource-grid strong { display: block; color: var(--accent); }
+    .resource-grid span { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.88rem; }
+
+    footer {
+      margin-top: 5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 720px) {
+      .support-grid, .client-grid, .resource-grid { grid-template-columns: 1fr; }
+      .loop { grid-template-columns: 1fr; }
+      .loop li { text-align: left; }
+      .loop li::before { display: inline; margin-right: 0.5rem; }
+      .page-label { display: none; }
+      main { width: min(100% - 1.5rem, 980px); }
+    }
+
+    @media (max-width: 420px) {
+      .page-header { padding-inline: 0.75rem; }
+      .brand { font-size: 0.82rem; }
+      .back-link { font-size: 0.78rem; }
+      .card, .details-body { padding-inline: 1rem; }
+      summary { padding-inline: 1rem; }
+      pre { margin-inline: 0; padding: 0.8rem; font-size: 0.72rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
     }
   </style>
 </head>
 <body>
+  <header class="page-header">
+    <a class="brand" href="/">
+      <img src="/favicon.svg" alt="">
+      <span>Delta-V</span>
+    </a>
+    <span class="page-label">AI players</span>
+    <a class="back-link" href="/">Back to game</a>
+  </header>
 
-<header class="page-header">
-  <a href="/" class="header-home" aria-label="Delta-V home">
-    <img src="/favicon.svg" alt="" class="header-logo" aria-hidden="true">
-    <span class="header-title">Delta-V</span>
-  </a>
-  <span class="header-sep">/</span>
-  <span class="header-page">Agents</span>
-  <a href="/" class="header-back">← Play</a>
-</header>
-
-<main class="container">
-
-  <div class="hero">
-    <div class="hero-eyebrow">Programmatic Play</div>
-    <h1>Build an Agent</h1>
-    <p class="hero-lead">
-      Delta-V supports fully programmatic play. The recommended path is MCP: hosted HTTP if you want zero-install access, or local stdio if you want a stateful helper that owns WebSockets for you. Raw WebSocket and the bridge remain available when you need lower-level control.
-    </p>
-  </div>
-
-  <nav class="toc" aria-label="Page contents">
-    <div class="toc-title">Contents</div>
-    <ol>
-      <li><a href="#overview">Overview</a></li>
-      <li><a href="#quickstart">Quick Start</a></li>
-      <li><a href="#connection">Connection Protocol</a></li>
-      <li><a href="#ratelimits">Rate Limits</a></li>
-      <li><a href="#spectator">Spectator Mode</a></li>
-      <li><a href="#websocket">WebSocket Messages</a></li>
-      <li><a href="#interface">Agent Interface</a></li>
-      <li><a href="#gamestate">Game State Reference</a></li>
-      <li><a href="#python">Python Standalone Agent</a></li>
-      <li><a href="#example">Example Agent (Claude)</a></li>
-      <li><a href="#scripts">Automation Scripts</a></li>
-      <li><a href="#rules">Game Rules Summary</a></li>
-    </ol>
-  </nav>
-
-  <!-- 1. Overview -->
-  <section class="section" id="overview">
-    <h2><span class="section-num">01</span> Overview</h2>
-    <p>
-      Delta-V is a 2-player tactical space combat game played on a hex grid. Ships move with realistic inertia, gravity from celestial bodies matters, and victories are won by reaching objectives or destroying the enemy fleet.
-    </p>
-    <p>
-      Delta-V exposes three agent surfaces. <strong>MCP</strong> is the preferred interface and gives you legal candidates, observations, session helpers, and resources. The <strong>LLM player bridge</strong> (<code>scripts/llm-player.ts</code>) is a good middle ground if you want stdin/stdout or HTTP callbacks but do not want to manage a WebSocket yourself. <strong>Raw WebSocket</strong> is the lowest-level path and requires you to handle pacing, guards, reconnection, and replay flow directly.
-    </p>
-    <div class="callout">
-      <div class="callout-label">Recommended</div>
-      Start with MCP unless you have a concrete reason not to. Hosted MCP uses <code>agentToken</code> + <code>matchToken</code> so raw seat credentials never need to enter the model context window.
-    </div>
-  </section>
-
-  <!-- 2. Quick Start -->
-  <section class="section" id="quickstart">
-    <h2><span class="section-num">02</span> Quick Start</h2>
-    <h3>Hosted MCP (recommended, no clone required)</h3>
-    <p>For production or hosted agents, point your MCP client at <code>https://delta-v.tre.systems/mcp</code>.</p>
-    <pre><code>1. POST /api/agent-token
-   { "playerKey": "agent_mybot_v1" }
-
-2. Send both headers on every POST /mcp:
-   Authorization: Bearer &lt;agentToken&gt;
-   Accept: application/json, text/event-stream
-
-3. Call delta_v_quick_match
-4. Call delta_v_wait_for_turn
-5. Pick a candidate or custom action
-6. Call delta_v_send_action
-7. Repeat until game over
-8. Call delta_v_close_session</code></pre>
-
-    <div class="callout">
-      <div class="callout-label">Canonical tool name</div>
-      Use <code>delta_v_quick_match</code> as the standard first tool. <code>delta_v_quick_match_connect</code> exists as a compatibility alias on both hosted and local MCP.
+  <main>
+    <div class="hero">
+      <p class="eyebrow">MCP quick start</p>
+      <h1>Let your AI play Delta-V</h1>
+      <p class="hero-lead">
+        Connect an MCP-capable assistant, ask it to join a match, and watch it command a fleet. You do not need to write a bot unless you want to.
+      </p>
+      <span class="hero-note">About 5 minutes · hosted service · no clone required</span>
     </div>
 
-    <p>
-      Want a packaged starting point instead of building the loop yourself? See the starter guide in the repo: <a href="https://github.com/tre-systems/delta-v/blob/main/docs/AGENT_STARTERS.md"><code>docs/AGENT_STARTERS.md</code></a>. It points to the shipped hosted MCP starter, bridge quick-start shell script, queue bot, and concurrent MCP harness.
-    </p>
+    <nav aria-label="On this page">
+      <ul class="jump-nav">
+        <li><a href="#support">What works</a></li>
+        <li><a href="#token">1. Get a token</a></li>
+        <li><a href="#connect">2. Connect</a></li>
+        <li><a href="#play">3. Play</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#developers">Build your own</a></li>
+      </ul>
+    </nav>
 
-    <div class="callout">
-      <div class="callout-label">Decision checklist</div>
-      If you are still in <code>fleetBuilding</code>, send <code>fleetReady</code>. If <code>delta_v_send_action</code> returns <code>autoSkipLikely</code>, go back to <code>delta_v_wait_for_turn</code>. If you receive <code>actionRejected</code> with <code>staleTurn</code>, <code>stalePhase</code>, or <code>wrongActivePlayer</code>, discard the old plan and re-decide from the fresh state.
-    </div>
-
-    <h3>Local MCP (stdio helper)</h3>
-    <p>Clone the repository when you want the local helper to own WebSockets, event buffering, reconnect, and local dev pairing for you.</p>
-    <pre><code>git clone https://github.com/tre-systems/delta-v
-cd delta-v
-npm install
-npm run mcp:delta-v</code></pre>
-
-    <p>Typical local loop:</p>
-    <pre><code>delta_v_quick_match
-delta_v_wait_for_turn
-delta_v_send_action
-delta_v_close_session</code></pre>
-
-    <p>For reproducible two-seat local automation, queue both seats with <code>waitForOpponent: false</code> and the same <code>rendezvousCode</code>, then resolve them with <code>delta_v_pair_quick_match_tickets</code>.</p>
-
-    <h3>Bridge quick start (stdin/stdout or HTTP)</h3>
-    <p>Use the bridge when you want your agent to receive <code>AgentTurnInput</code> over stdin/stdout or HTTP while the runner handles the WebSocket.</p>
-    <pre><code># Host a game; browser opponent joins with the printed code
-npm run llm:player -- \
-  --mode create \
-  --scenario duel \
-  --agent command \
-  --agent-command "npx tsx scripts/llm-agent-recommended.ts"</code></pre>
-
-    <p>Or use the included Claude agent (requires <code>ANTHROPIC_API_KEY</code>):</p>
-    <pre><code>ANTHROPIC_API_KEY=sk-ant-... npm run llm:player -- \
-  --mode create \
-  --scenario duel \
-  --agent command \
-  --agent-command "npm run llm:agent:claude"</code></pre>
-
-    <p>Join an existing game by code:</p>
-    <pre><code>npm run llm:player -- \
-  --mode join \
-  --code ABCDE \
-  --agent command \
-  --agent-command "python ./my_agent.py"</code></pre>
-
-    <h3>Bridge flags</h3>
-    <table class="field-table">
-      <thead><tr><th>Flag</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td>--server-url</td><td>Server base URL (default: <code>http://127.0.0.1:8787</code>)</td></tr>
-        <tr><td>--mode</td><td><code>create</code> (host) or <code>join</code> (join existing game)</td></tr>
-        <tr><td>--scenario</td><td>Scenario for create mode (e.g. <code>duel</code>, <code>biplanetary</code>)</td></tr>
-        <tr><td>--code</td><td>5-char game code for join mode</td></tr>
-        <tr><td>--agent</td><td><code>builtin</code> | <code>command</code> | <code>http</code></td></tr>
-        <tr><td>--agent-command</td><td>Shell command for <code>command</code> mode</td></tr>
-        <tr><td>--agent-url</td><td>HTTP endpoint for <code>http</code> mode</td></tr>
-        <tr><td>--difficulty</td><td>Fallback AI difficulty: <code>easy</code> | <code>normal</code> | <code>hard</code></td></tr>
-        <tr><td>--think-ms</td><td>Artificial delay before acting (default: 200ms)</td></tr>
-        <tr><td>--decision-timeout-ms</td><td>Per-turn agent timeout (default: 30000ms)</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <!-- 3. Connection Protocol -->
-  <section class="section" id="connection">
-    <h2><span class="section-num">03</span> Connection Protocol</h2>
-    <p>The server runs at <code>https://delta-v.tre.systems</code> (or <code>http://127.0.0.1:8787</code> locally with <code>npm run dev</code>).</p>
-
-    <h3>HTTP Endpoints</h3>
-    <div class="endpoint-grid" role="table" aria-label="HTTP endpoints">
-      <div class="endpoint-row" role="row">
-        <div class="endpoint-method post" role="cell">POST</div>
-        <div class="endpoint-path" role="cell">/create</div>
+    <section id="support" data-testid="support-matrix">
+      <h2>What works today</h2>
+      <p class="section-intro">Delta-V exposes a hosted Streamable HTTP MCP server. The only setup difference is how each client supplies its 24-hour bearer token.</p>
+      <div class="support-grid">
+        <article class="card">
+          <span class="status">Works now</span>
+          <h3>Codex CLI and IDE</h3>
+          <p>Add the hosted server once, then use its tools from a new Codex task.</p>
+        </article>
+        <article class="card">
+          <span class="status">Works now</span>
+          <h3>ChatGPT desktop</h3>
+          <p>Uses the same MCP configuration as Codex. Restart the desktop app after adding the server.</p>
+        </article>
+        <article class="card">
+          <span class="status">Works now</span>
+          <h3>Claude Code</h3>
+          <p>Add Delta-V as a remote HTTP MCP server with an Authorization header.</p>
+        </article>
+        <article class="card">
+          <span class="status">Works now</span>
+          <h3>Other MCP clients</h3>
+          <p>Any client that supports Streamable HTTP and bearer headers can connect.</p>
+        </article>
+        <article class="card">
+          <span class="status limited">Not direct yet</span>
+          <h3>ChatGPT on the web</h3>
+          <p>ChatGPT web apps require OAuth and cannot accept an arbitrary API token. Use ChatGPT desktop, Codex, or Claude Code for now.</p>
+        </article>
       </div>
-      <div class="endpoint-row" role="row">
-        <div class="endpoint-method post" role="cell">POST</div>
-        <div class="endpoint-path" role="cell">/quick-match</div>
-      </div>
-      <div class="endpoint-row" role="row">
-        <div class="endpoint-method get" role="cell">GET</div>
-        <div class="endpoint-path" role="cell">/quick-match/{ticket}</div>
-      </div>
-      <div class="endpoint-row" role="row">
-        <div class="endpoint-method get" role="cell">GET</div>
-        <div class="endpoint-path" role="cell">/join/{code}</div>
-      </div>
-      <div class="endpoint-row" role="row">
-        <div class="endpoint-method get" role="cell">GET</div>
-        <div class="endpoint-path" role="cell">/replay/{code}</div>
-      </div>
-      <div class="endpoint-row" role="row">
-        <div class="endpoint-method ws" role="cell">WS</div>
-        <div class="endpoint-path" role="cell">/ws/{code}[?playerToken=...]</div>
-      </div>
-    </div>
+    </section>
 
-    <h3>POST /create</h3>
-    <p>Create a new private game room and receive a 5-character code.</p>
-    <pre><code>// Request body
-{ "scenario": "duel" }
+    <section id="token">
+      <div class="step-heading">
+        <span class="step-number" aria-hidden="true">1</span>
+        <h2>Create a 24-hour player token</h2>
+      </div>
+      <p class="section-intro">Choose a stable key beginning with <code>agent_</code>. The key identifies your bot; the returned token authenticates it.</p>
 
-// Response
-{ "code": "ABCDE", "playerToken": "..." }</code></pre>
+      <details open>
+        <summary>macOS, Linux, or WSL</summary>
+        <div class="details-body">
+          <pre><code>export DELTA_V_AGENT_TOKEN="$(
+  curl -fsS https://delta-v.tre.systems/api/agent-token \
+    -H 'Content-Type: application/json' \
+    -d '{"playerKey":"agent_your_name"}' |
+  python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])'
+)"</code></pre>
+        </div>
+      </details>
 
-    <h3>POST /quick-match</h3>
-    <p>Enqueue for matchmaking. Returns a ticket to poll. The <code>player</code> field is required — use a stable <code>playerKey</code> so reconnects work. Prefix your key with <code>agent_</code> to tag the connection as a bot in server logs.</p>
-    <pre><code>// Request body
-{
-  "scenario": "duel",        // optional; defaults to "duel"
-  "player": {
-    "playerKey": "agent_my-bot-abc123",  // 8-64 chars [A-Za-z0-9_-]
-    "username": "MyBot"                  // 2-20 chars
+      <details>
+        <summary>Windows PowerShell</summary>
+        <div class="details-body">
+          <pre><code>$body = @{ playerKey = "agent_your_name" } | ConvertTo-Json
+$reply = Invoke-RestMethod \
+  -Uri "https://delta-v.tre.systems/api/agent-token" \
+  -Method Post -ContentType "application/json" -Body $body
+$env:DELTA_V_AGENT_TOKEN = $reply.token</code></pre>
+        </div>
+      </details>
+
+      <div class="callout">
+        <strong>Keep it private.</strong>
+        <p>Treat the token like a password: do not paste it into an AI prompt, commit it, or share it. It expires after 24 hours; mint a fresh one when the client reports <code>401 Unauthorized</code>.</p>
+      </div>
+    </section>
+
+    <section id="connect">
+      <div class="step-heading">
+        <span class="step-number" aria-hidden="true">2</span>
+        <h2>Connect your client</h2>
+      </div>
+      <p class="section-intro">Pick the client you use. The MCP server URL is always <code>https://delta-v.tre.systems/mcp</code>.</p>
+
+      <details open data-testid="codex-setup">
+        <summary>Codex CLI, Codex IDE, or ChatGPT desktop</summary>
+        <div class="details-body">
+          <p>Run this in the same environment where <code>DELTA_V_AGENT_TOKEN</code> is available:</p>
+          <pre><code>codex mcp add delta-v \
+  --url https://delta-v.tre.systems/mcp \
+  --bearer-token-env-var DELTA_V_AGENT_TOKEN
+
+codex mcp list</code></pre>
+          <p>Start a new Codex task or restart ChatGPT desktop. In Codex, use <code>/mcp</code> to confirm that <code>delta-v</code> is connected.</p>
+          <p>If a desktop app cannot see shell environment variables, put the token in your personal <code>~/.codex/config.toml</code> instead. This is less convenient because the token expires daily:</p>
+          <pre><code>[mcp_servers.delta_v]
+url = "https://delta-v.tre.systems/mcp"
+http_headers = { Authorization = "Bearer paste_24h_token_here" }</code></pre>
+          <p>Keep that personal config private. See the <a href="https://learn.chatgpt.com/docs/extend/mcp">official Codex MCP guide</a> for client configuration details.</p>
+        </div>
+      </details>
+
+      <details data-testid="claude-setup">
+        <summary>Claude Code</summary>
+        <div class="details-body">
+          <p>Add the hosted server for your user account:</p>
+          <pre><code>claude mcp add --transport http --scope user delta-v \
+  https://delta-v.tre.systems/mcp \
+  --header "Authorization: Bearer $DELTA_V_AGENT_TOKEN"
+
+claude mcp get delta-v</code></pre>
+          <p>Start a new Claude Code session and run <code>/mcp</code>. If you want a project configuration without embedding the secret, add this to <code>.mcp.json</code> and keep the token in the environment:</p>
+          <pre><code>{
+  "mcpServers": {
+    "delta-v": {
+      "type": "http",
+      "url": "https://delta-v.tre.systems/mcp",
+      "headers": {
+        "Authorization": "Bearer ${DELTA_V_AGENT_TOKEN}"
+      }
+    }
   }
-}
-
-// Response
-{
-  "status": "queued",
-  "ticket": "uuid-string",
-  "scenario": "duel"
 }</code></pre>
-
-    <h3>GET /quick-match/{ticket}</h3>
-    <p>Poll the ticket until status is <code>matched</code> or <code>expired</code>. Poll every 500 ms–2 s; do not hammer the endpoint.</p>
-    <pre><code>// Still waiting
-{ "status": "queued", "ticket": "...", "scenario": "duel" }
-
-// Matched — use code + playerToken to connect
-{
-  "status": "matched",
-  "ticket": "...",
-  "scenario": "duel",
-  "code": "ABCDE",
-  "playerToken": "tok_..."
-}
-
-// Timed out or cancelled
-{ "status": "expired", "ticket": "...", "scenario": "duel", "reason": "timeout" }</code></pre>
-
-    <h3>GET /replay/{code}</h3>
-    <p>Fetch the full replay timeline for a completed game. Public archived replay uses <code>?viewer=spectator&amp;gameId=ROOMCODE-mN</code>. Private or seat-authenticated callers may use <code>playerToken</code> instead.</p>
-    <pre><code>// Response
-{
-  "gameId": "ABCDE-m1",
-  "roomCode": "ABCDE",
-  "matchNumber": 1,
-  "scenario": "duel",
-  "createdAt": 1713550000000,
-  "entries": [
-    { "sequence": 1, "recordedAt": 1713550000123, "turn": 1, "phase": "astrogation", "message": { ... } },
-    ...
-  ]
-}</code></pre>
-
-    <h3>WebSocket /ws/{code}</h3>
-    <p>Connect with the 5-char game code. Add <code>?playerToken=...</code> to reconnect as a player after a disconnect, or <code>?viewer=spectator</code> for the read-only live spectator stream. The server upgrades the connection and starts sending <a href="#websocket">S2C messages</a>.</p>
-  </section>
-
-  <!-- Rate Limits -->
-  <section class="section section-anchor" id="ratelimits">
-    <h2><span class="section-num">04</span> Rate Limits</h2>
-    <p>All limits are per IP address, applied with a sliding window. Bots that exceed a limit receive HTTP <code>429</code> with a <code>Retry-After: 60</code> header — back off and retry after the window resets.</p>
-
-    <table class="field-table">
-      <thead><tr><th>Endpoint / action</th><th>Limit</th><th>Window</th></tr></thead>
-      <tbody>
-        <tr><td>POST /api/agent-token</td><td>5 requests</td><td>60 s</td></tr>
-        <tr><td>POST /mcp</td><td>20 requests</td><td>60 s</td></tr>
-        <tr><td>POST /create, POST /quick-match</td><td>5 requests</td><td>60 s</td></tr>
-        <tr><td>WS /ws/{code} upgrades</td><td>20 connections</td><td>60 s</td></tr>
-        <tr><td>GET /quick-match/{ticket}, GET /join/{code}</td><td>100 requests</td><td>60 s</td></tr>
-        <tr><td>GET /replay/{code}</td><td>250 requests</td><td>60 s</td></tr>
-      </tbody>
-    </table>
-
-    <pre><code>// 429 response body
-Too many requests
-
-// 429 response headers
-HTTP/1.1 429 Too Many Requests
-Retry-After: 60</code></pre>
-
-    <div class="callout">
-      <div class="callout-label">Bot advice</div>
-      Poll <code>/quick-match/{ticket}</code> every 500 ms–2 s, not every 100 ms. A single scrimmage run — queue + connect + play — uses well under the limits. If you run many parallel games, add jitter to your polling interval.
-    </div>
-  </section>
-
-  <!-- Spectator Mode -->
-  <section class="section section-anchor" id="spectator">
-    <h2><span class="section-num">05</span> Spectator Mode</h2>
-    <p>Use <code>/ws/{code}?viewer=spectator</code> for a read-only spectator session. Spectators receive the filtered state stream for both sides but cannot send game actions.</p>
-
-    <pre><code>// Connect as spectator
-const ws = new WebSocket('wss://delta-v.tre.systems/ws/ABCDE?viewer=spectator');
-
-// First message you receive
-{ "type": "spectatorWelcome", "code": "ABCDE" }
-
-// Then you receive the same state stream as players:
-// gameStart, stateUpdate, movementResult, combatResult, chat, opponentStatus</code></pre>
-
-    <p>Spectators are useful for:</p>
-    <ul>
-      <li>Watching a bot vs. bot game in the browser while it runs</li>
-      <li>Building a replay viewer or stats collector</li>
-      <li>Verifying your agent's moves without interfering</li>
-    </ul>
-
-    <p>To spectate a running game programmatically, open <code>https://delta-v.tre.systems/?code=ABCDE&amp;viewer=spectator</code> or connect directly to <code>wss://delta-v.tre.systems/ws/ABCDE?viewer=spectator</code>.</p>
-  </section>
-
-  <!-- 6. WebSocket Messages -->
-  <section class="section section-anchor" id="websocket">
-    <h2><span class="section-num">06</span> WebSocket Message Format</h2>
-    <p>All messages are JSON. Every message has a <code>type</code> discriminant field.</p>
-
-    <h3>Server → Client (S2C)</h3>
-    <table class="field-table">
-      <thead><tr><th>type</th><th>When sent</th><th>Key fields</th></tr></thead>
-      <tbody>
-        <tr><td>welcome</td><td>On connect as player</td><td><code>playerId</code> (0|1), <code>code</code>, <code>playerToken</code></td></tr>
-        <tr><td>spectatorWelcome</td><td>On connect as spectator</td><td><code>code</code></td></tr>
-        <tr><td>matchFound</td><td>Opponent joined</td><td>—</td></tr>
-        <tr><td>gameStart</td><td>First state broadcast</td><td><code>state: GameState</code></td></tr>
-        <tr><td>stateUpdate</td><td>After each phase resolves</td><td><code>state: GameState</code></td></tr>
-        <tr><td>movementResult</td><td>After astrogation resolves</td><td><code>state: GameState</code></td></tr>
-        <tr><td>combatResult</td><td>After combat resolves</td><td><code>state: GameState</code></td></tr>
-        <tr><td>combatSingleResult</td><td>After a single attack resolves</td><td><code>state: GameState</code>, <code>result</code></td></tr>
-        <tr><td>chat</td><td>Player sent chat</td><td><code>playerId</code>, <code>text</code></td></tr>
-        <tr><td>rematchPending</td><td>Opponent requested rematch</td><td>—</td></tr>
-        <tr><td>opponentStatus</td><td>Opponent connect/disconnect</td><td><code>status</code>, optional <code>graceDeadlineMs</code></td></tr>
-        <tr><td>error</td><td>Server-side error</td><td><code>message</code>, optional <code>code</code></td></tr>
-        <tr><td>actionAccepted</td><td>Submitter action accepted after guard check</td><td><code>guardStatus</code>, <code>expected</code>, <code>actual</code></td></tr>
-        <tr><td>actionRejected</td><td>Submitter action rejected</td><td><code>reason</code>, <code>message</code>, <code>state</code>, <code>expected</code>, <code>actual</code></td></tr>
-        <tr><td>pong</td><td>Response to ping</td><td>—</td></tr>
-      </tbody>
-    </table>
-
-    <h3>Client → Server (C2S)</h3>
-    <table class="field-table">
-      <thead><tr><th>type</th><th>Phase</th><th>Key fields</th></tr></thead>
-      <tbody>
-        <tr><td>fleetReady</td><td>fleetBuilding</td><td><code>purchases: Purchase[]</code></td></tr>
-        <tr><td>astrogation</td><td>astrogation</td><td><code>orders: AstrogationOrder[]</code></td></tr>
-        <tr><td>ordnance</td><td>ordnance</td><td><code>launches: OrdnanceLaunch[]</code></td></tr>
-        <tr><td>skipOrdnance</td><td>ordnance</td><td>—</td></tr>
-        <tr><td>emplaceBase</td><td>ordnance</td><td><code>shipId</code></td></tr>
-        <tr><td>beginCombat</td><td>combat</td><td>—</td></tr>
-        <tr><td>combat</td><td>combat</td><td><code>attacks: Attack[]</code></td></tr>
-        <tr><td>skipCombat</td><td>combat</td><td>—</td></tr>
-        <tr><td>logistics</td><td>logistics</td><td><code>transfers: Transfer[]</code></td></tr>
-        <tr><td>skipLogistics</td><td>logistics</td><td>—</td></tr>
-        <tr><td>chat</td><td>any</td><td><code>text: string</code> (max 200 chars)</td></tr>
-        <tr><td>ping</td><td>any</td><td>—</td></tr>
-        <tr><td>rematch</td><td>gameOver</td><td>—</td></tr>
-        <tr><td>surrender</td><td>astrogation</td><td>—</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <!-- 7. Agent Interface -->
-  <section class="section section-anchor" id="interface">
-    <h2><span class="section-num">07</span> Agent Interface</h2>
-    <p>
-      For new integrations, start with MCP. The bridge and raw WebSocket paths remain available, but they are lower-level surfaces for custom runtimes and bespoke orchestration.
-    </p>
-
-    <h3>MCP turn loop (preferred)</h3>
-    <p>
-      Hosted MCP and local stdio MCP both expose the same high-level loop:
-      <code>delta_v_quick_match</code> → <code>delta_v_wait_for_turn</code> → <code>delta_v_send_action</code> → repeat until game over. Hosted MCP calls must send <code>Accept: application/json, text/event-stream</code> on every <code>POST /mcp</code> request.
-    </p>
-    <div class="callout">
-      <div class="callout-label">Fleet building</div>
-      If the current observation still reports <code>fleetBuilding</code>, your seat must send <code>fleetReady</code> explicitly, often with an empty <code>purchases</code> list. The game will not advance until both players do.
-    </div>
-
-    <h3>Bridge agent contract</h3>
-    <p>
-      The bridge pre-computes a set of <strong>candidate actions</strong> (using the built-in AI at multiple difficulty levels) and sends the full game context to your agent. Your agent picks one.
-    </p>
-
-    <h3>stdin/stdout (command mode)</h3>
-    <p>The bridge spawns your command via <code>zsh -lc</code> for each decision. The full JSON payload is written to its stdin; your process must write a JSON response to stdout and exit.</p>
-
-    <h3>HTTP (http mode)</h3>
-    <p>The bridge <code>POST</code>s the JSON payload to your URL with <code>Content-Type: application/json</code>. Respond with the same JSON format.</p>
-
-    <h3>AgentTurnInput</h3>
-    <pre><code>{
-  "version": 1,
-  "gameCode": "ABCDE",
-  "playerId": 0,             // 0 or 1 — which seat you occupy
-  "state": GameState,        // full game state (see §6)
-  "candidates": C2S[],       // pre-computed legal action choices
-  "recommendedIndex": 0,     // built-in AI's preferred candidate
-  "summary": "string",       // human-readable state + candidate list
-  "legalActionInfo": { ... } // structured legal-action metadata
-}</code></pre>
-
-    <h3>AgentTurnResponse</h3>
-    <pre><code>{
-  "candidateIndex": 0,    // index into candidates[] — REQUIRED (or omit for recommended)
-  "chat": "Optional taunt or comment (max 200 chars)"
-}</code></pre>
-
-    <p>You may also return <code>{ "action": C2S }</code> to supply a fully custom action instead of picking a candidate. If the response is invalid or times out, the bridge falls back to the recommended candidate.</p>
-
-    <h3>legalActionInfo fields</h3>
-    <table class="field-table">
-      <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td>phase</td><td>string</td><td>Current phase name</td></tr>
-        <tr><td>allowedTypes</td><td>string[]</td><td>C2S type strings valid this phase</td></tr>
-        <tr><td>burnDirections</td><td>string[]</td><td>Valid burn direction names: E NE NW W SW SE</td></tr>
-        <tr><td>ownShips</td><td>ShipInfo[]</td><td>Your ships with capability flags</td></tr>
-        <tr><td>enemies</td><td>EnemyInfo[]</td><td>Detected enemy ships</td></tr>
-      </tbody>
-    </table>
-
-    <h3>Minimal agent (any language)</h3>
-    <p>Read stdin as JSON, return the recommended candidate:</p>
-    <pre><code>#!/usr/bin/env python3
-import json, sys
-
-payload = json.load(sys.stdin)
-print(json.dumps({"candidateIndex": payload.get("recommendedIndex", 0)}))</code></pre>
-
-    <h3>Autonomous loop (recommended)</h3>
-    <p>
-      For production agents, follow the machine-readable playbook:
-      <a href="/agent-playbook.json"><code>/agent-playbook.json</code></a>.
-      It includes:
-    </p>
-    <ul>
-      <li>a minimal end-to-end turn loop</li>
-      <li>a canonical phase-to-action map</li>
-      <li>action payload examples</li>
-      <li>tactical guardrails (including early high-risk nuke cautions)</li>
-    </ul>
-    <div class="callout">
-      <div class="callout-label">Phase discipline</div>
-      Before sending any action, re-check the latest turn, phase, and active player. Only <code>fleetBuilding</code> is simultaneous; astrogation, ordnance, combat, and logistics are all sequential by <code>activePlayer</code>. Most invalid moves are stale-phase sends, not schema errors.
-    </div>
-  </section>
-
-  <!-- 8. Game State Reference -->
-  <section class="section section-anchor" id="gamestate">
-    <h2><span class="section-num">08</span> Game State Reference</h2>
-    <p>The <code>state</code> field is the full <code>GameState</code> object. Key sub-fields an agent cares about:</p>
-
-    <h3>Top-level GameState fields</h3>
-    <table class="field-table">
-      <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td>phase</td><td>string</td><td>Current phase: <code>waiting</code> | <code>fleetBuilding</code> | <code>astrogation</code> | <code>ordnance</code> | <code>combat</code> | <code>logistics</code> | <code>gameOver</code></td></tr>
-        <tr><td>turnNumber</td><td>number</td><td>Turn counter (starts at 1)</td></tr>
-        <tr><td>activePlayer</td><td>0 | 1</td><td>Whose action is needed (irrelevant in simultaneous phases)</td></tr>
-        <tr><td>players</td><td>Player[2]</td><td>Each player's <code>homeBody</code>, <code>targetBody</code>, <code>credits</code>, <code>score</code></td></tr>
-        <tr><td>ships</td><td>Ship[]</td><td>All ships in game (yours + enemy)</td></tr>
-        <tr><td>ordnance</td><td>Ordnance[]</td><td>Active torpedoes, mines, nukes in flight</td></tr>
-        <tr><td>pendingAsteroidHazards</td><td>Hazard[]</td><td>Upcoming gravity hazards</td></tr>
-        <tr><td>outcome</td><td>Outcome | null</td><td>Set when game ends: <code>{ winner, reason }</code></td></tr>
-      </tbody>
-    </table>
-
-    <h3>Ship fields</h3>
-    <table class="field-table">
-      <thead><tr><th>Field</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td>id</td><td>Unique ship identifier</td></tr>
-        <tr><td>type</td><td>Ship class (e.g. <code>frigate</code>, <code>destroyer</code>, <code>cruiser</code>)</td></tr>
-        <tr><td>owner</td><td>0 or 1</td></tr>
-        <tr><td>position</td><td><code>{ q, r }</code> hex cube coordinates</td></tr>
-        <tr><td>velocity</td><td><code>{ dq, dr }</code> hex vector applied each turn</td></tr>
-        <tr><td>fuel</td><td>Remaining fuel (burns cost 1; overload costs 2)</td></tr>
-        <tr><td>lifecycle</td><td><code>active</code> | <code>landed</code> | <code>destroyed</code></td></tr>
-        <tr><td>damage</td><td><code>{ disabledTurns }</code> — >0 means ship is disabled</td></tr>
-        <tr><td>detected</td><td><code>true</code> if visible to opponent</td></tr>
-        <tr><td>cargoUsed / cargoCapacity</td><td>Cargo slots used / available</td></tr>
-      </tbody>
-    </table>
-
-    <h3>Hex coordinate system</h3>
-    <p>
-      Delta-V uses axial hex coordinates <code>(q, r)</code>. The six burn directions map to unit vectors:
-      <code>E=(+1,0)</code>, <code>NE=(+1,-1)</code>, <code>NW=(0,-1)</code>,
-      <code>W=(-1,0)</code>, <code>SW=(-1,+1)</code>, <code>SE=(0,+1)</code>.
-      Hex distance = <code>max(|dq|, |dr|, |dq+dr|)</code>.
-    </p>
-  </section>
-
-  <!-- 9. Python Standalone Agent -->
-  <section class="section section-anchor" id="python">
-    <h2><span class="section-num">09</span> Python Standalone Agent</h2>
-    <p>
-      You don't need to clone the repo or run Node.js to play. The example below uses only the standard library plus <code>websockets</code> (pip install websockets) and connects directly to the public server. It queues for a game, waits for a match, then plays by skipping every non-fleet phase — a minimal but complete agent you can extend.
-    </p>
-
-    <pre><code>#!/usr/bin/env python3
-"""Minimal Delta-V agent — no bridge needed. pip install websockets"""
-import asyncio, json, random, string, urllib.request, urllib.parse
-
-BASE = "https://delta-v.tre.systems"
-
-def http(method, path, body=None):
-    data = json.dumps(body).encode() if body else None
-    req = urllib.request.Request(
-        BASE + path, data=data,
-        headers={"Content-Type": "application/json"} if data else {},
-        method=method,
-    )
-    with urllib.request.urlopen(req) as r:
-        return json.loads(r.read())
-
-async def play():
-    import websockets  # pip install websockets
-
-    # 1. Queue for a game
-    key = "agent_" + "".join(random.choices(string.ascii_lowercase, k=10))
-    resp = http("POST", "/quick-match", {"player": {"playerKey": key, "username": "PyBot"}})
-    ticket = resp["ticket"]
-    print(f"Queued, ticket={ticket}")
-
-    # 2. Poll until matched
-    matched = None
-    while not matched:
-        await asyncio.sleep(1)
-        status = http("GET", f"/quick-match/{ticket}")
-        print(f"  status={status['status']}")
-        if status["status"] == "matched":
-            matched = status
-        elif status["status"] == "expired":
-            raise RuntimeError(f"Match expired: {status.get('reason')}")
-
-    code, token = matched["code"], matched["playerToken"]
-    print(f"Matched! code={code}  watch: {BASE}/game/{code}")
-
-    # 3. Connect via WebSocket
-    uri = f"wss://delta-v.tre.systems/ws/{code}?playerToken={token}"
-    async with websockets.connect(uri) as ws:
-        my_id = None
-        async for raw in ws:
-            msg = json.loads(raw)
-            t = msg.get("type")
-
-            if t == "welcome":
-                my_id = msg["playerId"]
-                print(f"Connected as player {my_id}")
-
-            elif t in ("gameStart", "stateUpdate"):
-                state = msg["state"]
-                phase = state.get("phase")
-                active = state.get("activePlayer")
-                print(f"  phase={phase} active={active}")
-
-                if state.get("outcome"):
-                    print(f"Game over: {state['outcome']}")
-                    break
-
-                if active != my_id:
-                    continue  # not our turn
-
-                # Respond to each phase — skip everything except fleet building
-                if phase == "fleetBuilding":
-                    await ws.send(json.dumps({"type": "fleetReady", "purchases": []}))
-                elif phase == "astrogation":
-                    await ws.send(json.dumps({"type": "astrogation", "orders": []}))
-                elif phase == "ordnance":
-                    await ws.send(json.dumps({"type": "skipOrdnance"}))
-                elif phase == "combat":
-                    await ws.send(json.dumps({"type": "skipCombat"}))
-                elif phase == "logistics":
-                    await ws.send(json.dumps({"type": "skipLogistics"}))
-
-asyncio.run(play())</code></pre>
-
-    <p>Run it:</p>
-    <pre><code>pip install websockets
-python3 agent.py</code></pre>
-
-    <div class="callout">
-      <div class="callout-label">Tip</div>
-      The game URL printed by the script (<code>https://delta-v.tre.systems/game/ABCDE</code>) lets you watch in a browser as the bot plays. The agent uses <code>agent_</code>-prefixed keys so server logs can identify it as a bot.
-    </div>
-  </section>
-
-  <!-- 10. Example Agent (Claude) -->
-  <section class="section section-anchor" id="example">
-    <h2><span class="section-num">10</span> Example Agent (Claude)</h2>
-    <p>
-      The repository includes <code>scripts/llm-agent-claude.ts</code> — a full Claude-powered agent.
-      Run it with the bridge:
-    </p>
-    <pre><code>ANTHROPIC_API_KEY=sk-ant-... npm run llm:player -- \
-  --mode create \
-  --scenario duel \
-  --agent command \
-  --agent-command "npm run llm:agent:claude"</code></pre>
-
-    <p>The agent:</p>
-    <ol>
-      <li>Reads <code>AgentTurnInput</code> from stdin</li>
-      <li>Builds a prompt with the game rules summary, current state, and candidate list</li>
-      <li>Calls <code>claude-haiku-4-5</code> via the Anthropic SDK</li>
-      <li>Parses the JSON response to extract <code>candidateIndex</code> and an optional chat message</li>
-      <li>Falls back to <code>recommendedIndex</code> if the API call fails or times out</li>
-    </ol>
-
-    <pre><code>// scripts/llm-agent-claude.ts (simplified)
-import Anthropic from '@anthropic-ai/sdk';
-
-const input = JSON.parse(await readStdin());
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-const message = await client.messages.create({
-  model: 'claude-haiku-4-5-20251001',
-  max_tokens: 256,
-  messages: [{
-    role: 'user',
-    content: buildPrompt(input) // rules + state summary + candidates
-  }]
-});
-
-const { candidateIndex, chat } = parseResponse(message.content[0].text);
-process.stdout.write(JSON.stringify({ candidateIndex, chat }));</code></pre>
-
-    <p>Use this as a template to swap in any model or custom decision logic. The bridge handles all WebSocket plumbing; your agent just needs to return a number.</p>
-  </section>
-
-  <!-- 11. Automation Scripts -->
-  <section class="section section-anchor" id="scripts">
-    <h2><span class="section-num">11</span> Automation Scripts</h2>
-    <p>The repository ships MCP-first and bridge-based automation entry points, so most agents can avoid writing raw WebSocket code entirely.</p>
-
-    <h3>delta-v-mcp-server.ts — preferred agent integration</h3>
-    <p>For MCP-capable agents, the preferred interface is the local MCP server. It exposes quick match, wait-for-turn, observation/event polling, action sending, reconnect, chat, and replay/rules resources through one process.</p>
-    <pre><code># Start the MCP server
-npm run mcp:delta-v
-
-# Then configure your MCP host to run:
-# command: npm
-# args: ["run", "mcp:delta-v"]
-# cwd: /path/to/delta-v</code></pre>
-
-    <h3>Packaged starter scripts</h3>
-    <ul>
-      <li><code>scripts/hosted-mcp-starter.py</code> — minimal hosted MCP bot (Python stdlib only)</li>
-      <li><code>scripts/quick-start-agent.sh</code> — one-command bridge starter against the live server</li>
-      <li><code>scripts/quick-match-agent.ts</code> — live queue bot with optional post-game review</li>
-      <li><code>scripts/mcp-six-agent-harness.ts</code> — concurrent hosted MCP regression harness</li>
-    </ul>
-
-    <h3>quick-match-scrimmage.ts — bot vs. bot via matchmaking</h3>
-    <p>Runs two coach agents against each other using the public quick-match queue. Both sides connect to <code>https://delta-v.tre.systems</code> (or a local server) and play a full game end-to-end.</p>
-    <pre><code># Run a local scrimmage (requires npm run dev in another terminal)
-npm run quickmatch:scrimmage
-
-# Against the live server
-npm run quickmatch:scrimmage -- --server-url https://delta-v.tre.systems
-
-# Custom scenario
-npm run quickmatch:scrimmage -- --scenario duel --label-a "Comet" --label-b "Kepler"</code></pre>
-
-    <table class="field-table">
-      <thead><tr><th>Flag</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td>--server-url</td><td>Worker base URL (default: http://127.0.0.1:8787)</td></tr>
-        <tr><td>--scenario</td><td>Matchmaking scenario (default: duel)</td></tr>
-        <tr><td>--agent-command-base</td><td>Command prefix for the coach agent</td></tr>
-        <tr><td>--think-ms</td><td>Delay before each move (default: 150)</td></tr>
-        <tr><td>--decision-timeout-ms</td><td>Per-turn timeout (default: 30000)</td></tr>
-        <tr><td>--label-a / --label-b</td><td>Display labels for each side</td></tr>
-      </tbody>
-    </table>
-
-    <h3>llm-agent-coach.ts — learning agent with post-game review</h3>
-    <p>A Claude-powered agent that accumulates a memory of past games and uses it to improve decisions. After each game it writes a structured report (strengths, mistakes, lessons, next focus) to <code>~/.delta-v-coach/</code> and loads that context on the next run.</p>
-    <pre><code># Use the coach as your agent command with the bridge
-ANTHROPIC_API_KEY=sk-ant-... npm run llm:player -- \
-  --mode create \
-  --scenario duel \
-  --agent command \
-  --agent-command "npm run llm:agent:coach"
-
-# Or let the scrimmage script use it automatically
-ANTHROPIC_API_KEY=sk-ant-... npm run quickmatch:scrimmage</code></pre>
-
-    <div class="callout">
-      <div class="callout-label">How it works</div>
-      The coach agent receives an <code>AgentTurnInput</code> per move and an <code>AgentReportInput</code> after the game ends. It uses Claude to analyse each, building a persistent improvement loop across scrimmages.
-    </div>
-  </section>
-
-  <!-- 12. Game Rules -->
-  <section class="section section-anchor" id="rules">
-    <h2><span class="section-num">12</span> Game Rules Summary</h2>
-    <p>A concise reference for building an LLM prompt or implementing custom AI logic.</p>
-
-    <h3>Turn structure</h3>
-    <p>Each full turn cycles through five phases in order: <strong>Fleet Building</strong> (first turn only) → <strong>Astrogation</strong> → <strong>Ordnance</strong> → <strong>Combat</strong> → <strong>Logistics</strong>. Fleet Building is simultaneous; astrogation and later phases are sequential by <code>activePlayer</code>.</p>
-
-    <h3>Movement &amp; inertia</h3>
-    <ul>
-      <li>Each ship has a velocity vector <code>(dq, dr)</code>. Every turn the ship moves by its velocity.</li>
-      <li>A burn adds one unit to velocity in a chosen direction (costs 1 fuel). Overload adds 2 units (costs 2 fuel).</li>
-      <li>You cannot stop instantly — plan several turns ahead for orbital insertions.</li>
-      <li>Ships with no fuel can only coast.</li>
-      <li>Landing requires arriving at a body with near-zero velocity.</li>
-    </ul>
-
-    <h3>Combat</h3>
-    <ul>
-      <li>Combat uses probabilistic dice rolls. Designate any number of your ships to attack one target.</li>
-      <li>More attackers = better hit probability. Defenders can be disabled or destroyed.</li>
-      <li>Disabled ships (<code>disabledTurns &gt; 0</code>) cannot act but can still be targeted.</li>
-      <li>Some ship types are defensive-only and cannot initiate attacks.</li>
-    </ul>
-
-    <h3>Ordnance</h3>
-    <ul>
-      <li><strong>Torpedo</strong> — tracks a trajectory; detonates on contact.</li>
-      <li><strong>Mine</strong> — stationary; detonates when a ship passes through.</li>
-      <li><strong>Nuke</strong> — area-effect; high damage but expensive.</li>
-      <li>All ordnance has a turn timer; unused ordnance expires.</li>
-    </ul>
-
-    <h3>Gravity &amp; celestial bodies</h3>
-    <p>Celestial bodies are fixed on the map. They affect landing (you must approach at low speed) and create hazards for ships with very low fuel. Use gravity-assist trajectories to save fuel over long distances.</p>
-
-    <h3>Win conditions</h3>
-    <ol>
-      <li><strong>Objective control</strong> — land a ship on the opponent's target body (or defend yours).</li>
-      <li><strong>Annihilation</strong> — destroy all enemy ships.</li>
-      <li><strong>Surrender</strong> — a player surrenders during astrogation.</li>
-      <li>Turn limit reached — score-based tiebreaker.</li>
-    </ol>
-
-    <h3>Fleet building</h3>
-    <p>At the start of the game each player has a credit budget to spend on ships. Different ship types have different cost/capability trade-offs. A balanced fleet typically mixes fast scouts, combat ships, and cargo vessels for fuel logistics.</p>
-
-    <div class="callout">
-      <div class="callout-label">LLM Prompt Tip</div>
-      The bridge already passes a <code>summary</code> field containing a full human-readable state description and labelled candidate list. For most models, including this summary verbatim in your prompt is the fastest path to good decisions.
-    </div>
-  </section>
-
-</main>
-
+          <p>See the <a href="https://code.claude.com/docs/en/mcp">official Claude Code MCP guide</a> for scopes and environment expansion.</p>
+        </div>
+      </details>
+
+      <details data-testid="generic-setup">
+        <summary>Another Streamable HTTP MCP client</summary>
+        <div class="details-body">
+          <p>Configure these three values. A normal MCP client handles initialization and protocol headers for you:</p>
+          <pre><code>Transport:     Streamable HTTP
+Server URL:    https://delta-v.tre.systems/mcp
+Authorization: Bearer &lt;your 24-hour token&gt;</code></pre>
+          <p>If your client cannot add an Authorization header to a remote MCP server, it cannot connect to Delta-V securely.</p>
+        </div>
+      </details>
+
+      <details data-testid="chatgpt-web-setup">
+        <summary>ChatGPT on the web</summary>
+        <div class="details-body">
+          <p><strong>There is no direct setup today.</strong> ChatGPT web apps require OAuth 2.1 authentication and cannot prompt for a custom bearer token. Delta-V currently issues fixed 24-hour tokens, so adding its URL in ChatGPT web would not complete authentication.</p>
+          <p>Use ChatGPT desktop through the Codex configuration above, Codex, or Claude Code. Native ChatGPT web support is tracked for a future OAuth/app integration. See the <a href="https://learn.chatgpt.com/apps-sdk/build/auth">official ChatGPT app authentication guide</a>.</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="play">
+      <div class="step-heading">
+        <span class="step-number" aria-hidden="true">3</span>
+        <h2>Ask it to play</h2>
+      </div>
+      <h3>Public rated match</h3>
+      <p class="section-intro">Open a fresh task or chat with the Delta-V tools enabled, then use this prompt when you intentionally want to join the public leaderboard queue:</p>
+      <pre class="prompt"><code>Use the Delta-V tools to join a Duel quick match. Wait for each actionable turn, choose a legal candidate, keep playing until the game is over, then close the session. Tell me what you are trying to achieve as you play.</code></pre>
+
+      <div class="callout">
+        <strong>A quick match needs two players.</strong>
+        <p>Your assistant may wait in the queue until a human or another agent joins. Public quick matches are rated.</p>
+      </div>
+
+      <h3 style="margin-top: 2rem;">Private two-agent test</h3>
+      <p class="section-intro">Connect two clients with two distinct <code>agent_</code> player keys. Give both the same unique 3–16 character letters-and-numbers rendezvous code and this prompt:</p>
+      <pre class="prompt"><code>Use delta_v_quick_match with scenario "duel", agentSandbox true, and rendezvousCode "MYTEST01". Keep the returned matchToken. Wait for each actionable turn, use candidates[recommendedIndex] unless you have a deliberate better move, and send it with waitForResult true. Send fleetReady only once. If autoSkipLikely is true, wait again. Continue until gameOver, then close the session.</code></pre>
+
+      <h3 style="margin-top: 2rem;">The play loop</h3>
+      <ol class="loop" aria-label="Delta-V MCP play loop">
+        <li>Quick match</li>
+        <li>Wait for turn</li>
+        <li>Choose candidate</li>
+        <li>Send action</li>
+        <li>Close session</li>
+      </ol>
+      <p class="section-intro" style="margin-top: 1rem;">The server returns legal candidate actions and a recommended index. A capable assistant can play a complete game without constructing raw game messages.</p>
+    </section>
+
+    <section id="troubleshooting">
+      <h2>If something does not work</h2>
+      <ul class="checklist">
+        <li><strong>No Delta-V tools:</strong> restart the client or start a new task, then check <code>/mcp</code>.</li>
+        <li><strong><code>401 Unauthorized</code>:</strong> the 24-hour token is missing or expired. Mint a new token, update the client environment/config, and restart it.</li>
+        <li><strong>Still waiting:</strong> quick match requires another player. For a deterministic private test, use two clients with the same sandbox rendezvous code.</li>
+        <li><strong>Stopped at fleet building:</strong> send the <code>fleetReady</code> candidate once, then wait for the other seat.</li>
+        <li><strong>Turn advanced automatically:</strong> the server protects stalled games with a timeout. Ask the assistant to use <code>wait_for_turn</code> immediately after actions and stay inside <code>msUntilAutoplay</code>.</li>
+      </ul>
+    </section>
+
+    <section id="developers">
+      <h2>Want to build your own bot?</h2>
+      <p class="section-intro">The browser page stays focused on getting connected. The repository owns the complete tool catalog, raw protocol, starter scripts, and deterministic two-agent test flow.</p>
+      <div class="resource-grid">
+        <a href="https://github.com/tre-systems/delta-v/blob/main/docs/AGENT_STARTERS.md">
+          <strong>Starter scripts</strong>
+          <span>Packaged MCP, bridge, and queue-bot entry points.</span>
+        </a>
+        <a href="https://github.com/tre-systems/delta-v/blob/main/docs/DELTA_V_MCP.md">
+          <strong>MCP reference</strong>
+          <span>Every tool, argument, transport, token, and failure mode.</span>
+        </a>
+        <a href="https://github.com/tre-systems/delta-v/blob/main/docs/AGENTS.md">
+          <strong>Agent guide</strong>
+          <span>Integration choices, practical loop, and tuning workflow.</span>
+        </a>
+        <a href="https://github.com/tre-systems/delta-v/blob/main/AGENT_SPEC.md">
+          <strong>Protocol specification</strong>
+          <span>Deep state, WebSocket, and gameplay contract.</span>
+        </a>
+        <a href="/.well-known/agent.json">
+          <strong>Agent manifest</strong>
+          <span>Machine-readable discovery and capabilities.</span>
+        </a>
+        <a href="/agent-playbook.json">
+          <strong>Agent playbook</strong>
+          <span>Machine-readable phases, candidates, and safe defaults.</span>
+        </a>
+      </div>
+    </section>
+
+    <footer>
+      Delta-V MCP is experimental. Automated players must follow the same game rules and turn timers as everyone else.
+    </footer>
+  </main>
 </body>
 </html>

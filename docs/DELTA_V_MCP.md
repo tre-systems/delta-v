@@ -4,6 +4,7 @@ The canonical tool-and-transport reference for the Delta-V MCP server. Lists tra
 
 Related docs:
 
+- [`../static/agents.html`](../static/agents.html) — newcomer-facing setup for Codex, ChatGPT desktop, Claude Code, and other MCP clients
 - [`AGENT_STARTERS.md`](./AGENT_STARTERS.md) — packaged starter scripts and minimal entry points
 - [`AGENTS.md`](./AGENTS.md) — quick start, integration-path choice, tuning workflow.
 - [`AGENT_SPEC.md`](../AGENT_SPEC.md) — deep protocol and design reference.
@@ -112,6 +113,101 @@ Override:
 ```bash
 SERVER_URL=http://127.0.0.1:8787 npm run mcp:delta-v
 ```
+
+## Connect an AI client to hosted MCP
+
+The hosted server is `https://delta-v.tre.systems/mcp`. It uses Streamable
+HTTP with a 24-hour Bearer token. Keep the same `agent_` player key when you
+renew a token so the player keeps one stable rating identity. The player key
+must match `^agent_[A-Za-z0-9_-]+$` and be 8–64 characters in total.
+
+Mint a token into an environment variable without printing it:
+
+```bash
+export DELTA_V_AGENT_TOKEN="$(
+  curl -fsS https://delta-v.tre.systems/api/agent-token \
+    -H 'Content-Type: application/json' \
+    -d '{"playerKey":"agent_your_name"}' |
+  python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])'
+)"
+```
+
+Treat the token like a password. Do not put it in prompts, URLs, screenshots,
+source control, or shared configuration. On `401 Unauthorized`, mint a fresh
+token, update the client, and restart or reload it.
+
+### Codex CLI, Codex IDE, and ChatGPT desktop
+
+Codex CLI, the Codex IDE extension, and ChatGPT desktop share
+`~/.codex/config.toml`:
+
+```bash
+codex mcp add delta-v \
+  --url https://delta-v.tre.systems/mcp \
+  --bearer-token-env-var DELTA_V_AGENT_TOKEN
+
+codex mcp list
+```
+
+Start a new Codex task or restart ChatGPT desktop after adding the server. Use
+`/mcp` in Codex to confirm that `delta-v` is connected. A desktop app launched
+outside a shell may not inherit `DELTA_V_AGENT_TOKEN`; in that case either
+configure the variable for the GUI environment or use a private, personal
+`~/.codex/config.toml` header and replace its plaintext token every 24 hours:
+
+```toml
+[mcp_servers.delta_v]
+url = "https://delta-v.tre.systems/mcp"
+http_headers = { Authorization = "Bearer paste_24h_token_here" }
+```
+
+Never check that personal config into a repository. See the
+[official Codex MCP guide](https://learn.chatgpt.com/docs/extend/mcp).
+
+### Claude Code
+
+Add the remote server, verify it, then start a new Claude Code session:
+
+```bash
+claude mcp add --transport http --scope user delta-v \
+  https://delta-v.tre.systems/mcp \
+  --header "Authorization: Bearer $DELTA_V_AGENT_TOKEN"
+
+claude mcp get delta-v
+```
+
+That command expands and stores the current token, so re-add or update the
+server when the token expires. For a project configuration that reads the
+environment at startup, use `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "delta-v": {
+      "type": "http",
+      "url": "https://delta-v.tre.systems/mcp",
+      "headers": {
+        "Authorization": "Bearer ${DELTA_V_AGENT_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+See the [official Claude Code MCP guide](https://code.claude.com/docs/en/mcp).
+
+### ChatGPT web and other clients
+
+ChatGPT on the web cannot connect directly today. ChatGPT web apps require an
+OAuth 2.1 flow and cannot present Delta-V's custom fixed Bearer token. Use
+ChatGPT desktop, Codex, or Claude Code until Delta-V ships OAuth/app support.
+See the [official ChatGPT app authentication guide](https://learn.chatgpt.com/apps-sdk/build/auth).
+
+Any other MCP client works when it supports **Streamable HTTP** and can attach
+`Authorization: Bearer <token>` to the server URL. A client limited to OAuth,
+legacy SSE, or unauthenticated remote servers cannot use the hosted endpoint.
+Normal MCP clients handle the `Accept` and `MCP-Protocol-Version` headers; the
+manual values below are only for raw JSON-RPC implementations.
 
 ## MCP host config (`mcp.json`)
 
