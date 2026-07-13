@@ -32,6 +32,7 @@ const loadFetchHandler = (): LoadedServiceWorker => {
   };
   const fetch = vi.fn();
   const self = {
+    location: { origin: 'https://delta-v.test' },
     addEventListener: (type: string, listener: (event: unknown) => void) => {
       if (type === 'fetch') {
         fetchHandler = listener as (event: FetchEventLike) => void;
@@ -90,6 +91,20 @@ describe('service worker fetch handling', () => {
 
     expect(telemetryEvent.respondWith).not.toHaveBeenCalled();
     expect(joinEvent.respondWith).not.toHaveBeenCalled();
+  });
+
+  it('never intercepts OAuth or cross-origin requests', () => {
+    const { fetchHandler } = loadFetchHandler();
+    const oauth = createFetchEvent(
+      'https://delta-v.test/oauth/authorize?request=secret',
+    );
+    const crossOrigin = createFetchEvent('https://example.com/script.js');
+
+    fetchHandler(oauth);
+    fetchHandler(crossOrigin);
+
+    expect(oauth.respondWith).not.toHaveBeenCalled();
+    expect(crossOrigin.respondWith).not.toHaveBeenCalled();
   });
 
   it('intercepts ordinary GET assets with cache logic', () => {

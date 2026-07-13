@@ -688,7 +688,7 @@ See [BACKLOG.md](./BACKLOG.md) for open work. This section captures current arch
 
 **Supply chain:** run `npm audit` before releases; use `npm run update-deps` judiciously and run `verify` after bumps.
 
-**D1 migrations:** treat as **forward-only** unless Cloudflare backup/restore is used; rollback is **redeploy previous Worker + compatible schema**, not automatic down-migration. Current migrations live in [`migrations/`](../migrations/): `0001_create_events.sql`, `0002_match_archive.sql`, `0003_match_archive_listing.sql`, `0004_leaderboard.sql`, `0005_match_archive_official_bot.sql`, `0006_player_recovery.sql`, `0007_match_archive_callsign_snapshot.sql`, `0008_match_archive_visibility.sql`, `0009_player_identity_kind.sql`, `0010_match_rating_archive_retired.sql`.
+**D1 migrations:** treat as **forward-only** unless Cloudflare backup/restore is used; rollback is **redeploy previous Worker + compatible schema**, not automatic down-migration. Current migrations live in [`migrations/`](../migrations/): `0001_create_events.sql`, `0002_match_archive.sql`, `0003_match_archive_listing.sql`, `0004_leaderboard.sql`, `0005_match_archive_official_bot.sql`, `0006_player_recovery.sql`, `0007_match_archive_callsign_snapshot.sql`, `0008_match_archive_visibility.sql`, `0009_player_identity_kind.sql`, `0010_match_rating_archive_retired.sql`, `0011_agent_credentials.sql`.
 
 **Event retention:** `events` rows older than `EVENTS_RETENTION_MS` (**30 days**) are deleted by the daily `scheduled` cron (`wrangler.toml` `crons = ["0 4 * * *"]` → `purgeOldEvents` in [`src/server/reporting.ts`](../src/server/reporting.ts)).
 

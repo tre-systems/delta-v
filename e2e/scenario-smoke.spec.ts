@@ -162,7 +162,8 @@ test.describe('Join as an Agent onboarding', () => {
 
     const body = page.locator('body');
     await expect(body).toContainText('Authenticate your AI');
-    await expect(body).toContainText('Treat the token like a password');
+    await expect(body).toContainText('Save the renewal secret now');
+    await expect(body).toContainText('DELTA_V_AGENT_SECRET');
     await expect(body).toContainText('codex mcp add delta-v');
     await expect(body).toContainText('claude mcp add --transport http');
     await expect(body).toContainText('Authorization: Bearer');

@@ -22,6 +22,7 @@ import uuid
 BASE_URL = os.environ.get("SERVER_URL", "https://delta-v.tre.systems").rstrip("/")
 MCP_URL = f"{BASE_URL}/mcp"
 PLAYER_KEY = os.environ.get("PLAYER_KEY", f"agent_starter_{uuid.uuid4().hex[:12]}")
+AGENT_SECRET = os.environ.get("DELTA_V_AGENT_SECRET")
 USERNAME = os.environ.get("USERNAME", "StarterBot")
 SCENARIO = os.environ.get("SCENARIO", "duel")
 WAIT_TIMEOUT_MS = int(os.environ.get("WAIT_TIMEOUT_MS", "25000"))
@@ -71,7 +72,10 @@ class HostedMcpClient:
     def _issue_agent_token(self) -> str:
         issued = post_json(
             f"{self.base_url}/api/agent-token",
-            {"playerKey": self.player_key},
+            {
+                "playerKey": self.player_key,
+                **({"agentSecret": AGENT_SECRET} if AGENT_SECRET else {}),
+            },
         )
         token = issued.get("token")
         if not isinstance(token, str) or not token:

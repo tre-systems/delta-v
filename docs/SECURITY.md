@@ -22,7 +22,7 @@ The authoritative-server boundary enforces these invariants on every match:
 - `GET /join/:code`, `GET /quick-match/:ticket`, `GET /api/matches`, `GET /api/leaderboard`, and `GET /api/leaderboard/me` share a **join-style** salted hashed-IP probe throttle in the Worker (**100** GETs / 60 s, per isolate). `GET /replay/:code` uses a **separate** replay probe bucket (**250** GETs / 60 s, per isolate) so replay traffic cannot exhaust the join budget.
 - `GET /ws/:code` WebSocket upgrades have a salted hashed-IP in-memory cap (20 upgrades / 60 s, per isolate), reducing repeated socket-churn abuse in lower environments.
 - `POST /telemetry` and `POST /error` are JSON-only with a 4 KB cap and salted hashed-IP window limits, limiting abuse and D1 write amplification in the default path. A daily cron (`purgeOldEvents`) deletes `events` rows older than **30 days**.
-- `POST /api/player-recovery/issue`, `/restore`, and `/revoke` are JSON-only identity endpoints for human callsign recovery. They share the create-class salted hashed-IP throttle and store only one-way recovery-code hashes in D1.
+- `POST /api/agent-token`, `/api/claim-name`, and `POST /api/player-recovery/issue`, `/restore`, and `/revoke` use a streaming 4 KiB body cap before JSON parsing. The recovery endpoints share the create-class salted hashed-IP throttle and store only one-way recovery-code hashes in D1.
 - `POST /mcp` uses Cloudflare's edge `MCP_RATE_LIMITER` binding (20 RPM keyed on `agentToken` hash or salted hashed IP) with a **16 KB body cap** checked before JSON-RPC dispatch ([`packages/mcp-adapter/src/handlers.ts`](../packages/mcp-adapter/src/handlers.ts)).
 - `GET /api/metrics` is **not** a public read surface. It requires `Authorization: Bearer <INTERNAL_METRICS_TOKEN>` in production and exists only for operator-facing aggregate snapshots over D1 telemetry.
 - Worker responses apply a shared hardening baseline: `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: geolocation=(), microphone=(), camera=()`.
@@ -32,7 +32,7 @@ Together these cover host-seat integrity, reconnect safety, and server authority
 
 ## Remote MCP token model
 
-Agents that connect via the hosted MCP endpoint (`POST https://delta-v.tre.systems/mcp`) authenticate through either ChatGPT OAuth 2.1 or a manually minted agent token. Both paths then use a separate, opaque match token so raw room credentials never reach the agent's LLM context.
+Agents that connect via the hosted MCP endpoint (`POST https://delta-v.tre.systems/mcp`) authenticate through either ChatGPT OAuth 2.1 or a manually minted agent token. Manual registration returns a separate, once-disclosed renewal secret; knowing an `agent_…` identifier alone cannot mint a token or rename its callsign. Both paths then use a separate, opaque match token so raw room credentials never reach the agent's LLM context.
 
 ### ChatGPT web OAuth
 
@@ -92,7 +92,8 @@ sequenceDiagram
 
 | Token | Purpose | Lifetime | Carrier | Source |
 |-------|---------|----------|---------|--------|
-| `agentToken` | Long-lived agent identity (embeds `playerKey`) | 24 h, renewable | `Authorization: Bearer …` header | `POST /api/agent-token` |
+| `agentToken` | Active manual-agent identity (embeds `playerKey`) | 24 h, renewable | `Authorization: Bearer …` header | `POST /api/agent-token` after renewal proof |
+| `agentSecret` | Manual-agent renewal proof (D1 stores SHA-256 only) | Until identity is replaced | JSON body on token renewal only | Returned once on first registration or legacy upgrade |
 | OAuth access token | ChatGPT grant identity bound to issuer, MCP audience, `game:play` scope, and server-generated player | 1 h, refreshed automatically | `Authorization: Bearer …` header | `POST /oauth/token` |
 | OAuth refresh token | Rotate the ChatGPT grant without repeating consent | 30 days maximum, rotated on every use | OAuth token exchange only | `POST /oauth/token` |
 | `matchToken` | Per-match credential (HMAC payload with `code` + `playerToken`) | 4 h | Tool args field `matchToken` | `delta_v_quick_match` after either authenticated path |
@@ -105,7 +106,7 @@ The agent, OAuth access, and match tokens are HMAC-SHA-256 signed with `AGENT_TO
 
 Hosted MCP no longer accepts raw `{code, playerToken}` tool args. Agents must mint an `agentToken`, call `delta_v_quick_match` or `delta_v_list_sessions`, and then use the returned `matchToken` (or hosted `sessionId` alias) on later tool calls.
 
-Manual `agentToken` revocation remains coarse: rotate `AGENT_TOKEN_SECRET` to invalidate every issued manual token. OAuth refresh grants can be revoked individually and replayed refresh tokens revoke their whole family; an already issued OAuth access token remains valid only until its one-hour expiry.
+Manual `agentToken` revocation remains coarse: rotate `AGENT_TOKEN_SECRET` to invalidate every issued manual bearer. A leaked renewal secret can be contained by moving to a new manual identity; a dedicated rotation/revocation route is not yet exposed. OAuth refresh grants can be revoked individually and replayed refresh tokens revoke their whole family; an already issued OAuth access token remains valid only until its one-hour expiry.
 
 Implementation: `src/server/auth/` (token signing and manual issuance), `src/server/oauth/` (metadata, consent, code exchange, refresh rotation, and `OAuthDO` persistence), and `packages/mcp-adapter/src/handlers.ts` (Authorization-header validation, OAuth challenges, and matchToken minting + verification on every tool call).
 
@@ -201,7 +202,7 @@ Distinct from competitive integrity — these are paths where a motivated attack
 - Abandoned `/create` rooms still consume a `GameDO` for up to the 5-minute inactivity window, but `archiveRoomState()` now purges match-scoped event/checkpoint residue on timeout. See [OBSERVABILITY.md](./OBSERVABILITY.md#orphan-rooms-and-inactivity-cleanup) for the exact lifecycle and operator signals.
 - `GET /replay/{code}` re-projects the full event stream on every uncached hit. Terminal-state responses are cached (`public, max-age=60, s-maxage=3600` — 1 h at the CDN, 1 min in-browser) so repeated scrapes of finished matches don't hit the DO; mid-match timelines remain `no-store` and still pay the projection cost per request.
 
-Stores **without** automatic application-level retention: D1 `player` (one row per unique playerKey with a claimed username), D1 `player_recovery` (one hashed human recovery code per player until replaced or revoked), D1 `match_rating` (one row per rated match), and per-room DO storage. D1 `events` (30-day purge) and D1 `match_archive` + R2 `matches/{gameId}.json` (180-day purge) both have scheduled purges today (see the "Data retention" section below for operational levers on the rest).
+Stores **without** automatic application-level retention: D1 `player` (one row per unique playerKey with a claimed username), D1 `player_recovery` (one hashed human recovery code per player until replaced or revoked), D1 `agent_credential` (one hashed manual-agent renewal secret), D1 `match_rating` (one row per rated match), and per-room DO storage. D1 `events` (30-day purge) and D1 `match_archive` + R2 `matches/{gameId}.json` (180-day purge) both have scheduled purges today (see the "Data retention" section below for operational levers on the rest).
 
 ### 5. Bot challenge protection (optional)
 

@@ -22,6 +22,8 @@ export interface QuickMatchArgs {
    * POST /api/agent-token then sent as Authorization on `/quick-match`.
    */
   authorizationBearer?: string;
+  /** Renewal secret returned once when a manual agent identity is registered. */
+  agentSecret?: string;
 }
 
 export interface PollQuickMatchTicketArgs {
@@ -60,6 +62,11 @@ export const requireMatchedQuickMatch = (
 
 const DEFAULT_POLL_MS = 1000;
 const DEFAULT_TIMEOUT_MS = 120_000;
+
+// Long-running local runners queue repeatedly. Keep the short-lived bearer in
+// process memory so they do not hit the renewal endpoint before every game.
+// Nothing is written to disk or exposed to the model-facing result.
+const issuedBearerCache = new Map<string, string>();
 
 /** Strip trailing slashes and map WebSocket URLs to HTTP for REST calls. */
 export const normalizeQuickMatchServerUrl = (raw: string): string => {
@@ -147,7 +154,9 @@ export const queueForMatch = async (
     throw new Error(`Unknown scenario: ${args.scenario}`);
   }
 
-  let bearer = args.authorizationBearer;
+  const bearerCacheKey = `${serverUrl}\n${args.playerKey}`;
+  let bearer =
+    args.authorizationBearer ?? issuedBearerCache.get(bearerCacheKey);
   if (args.playerKey.startsWith('agent_') && !bearer) {
     const issued = await fetchJson<{
       ok: boolean;
@@ -156,7 +165,10 @@ export const queueForMatch = async (
     }>(`${serverUrl}/api/agent-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playerKey: args.playerKey }),
+      body: JSON.stringify({
+        playerKey: args.playerKey,
+        ...(args.agentSecret ? { agentSecret: args.agentSecret } : {}),
+      }),
     });
     if (!issued.ok || !issued.token) {
       throw new Error(
@@ -164,6 +176,7 @@ export const queueForMatch = async (
       );
     }
     bearer = issued.token;
+    issuedBearerCache.set(bearerCacheKey, bearer);
   }
 
   const headers: Record<string, string> = {

@@ -1,6 +1,7 @@
 // POST /api/agent-token — Worker route that issues a new agent
-// identity token. Body: { playerKey: "agent_...", claim?: { username } }.
-// Response: { token, expiresAt, playerKey, ttlMs, player? }.
+// identity token. First registration returns both a 24-hour bearer and a
+// one-time-disclosed agentSecret. Renewal requires that secret or a still-valid
+// bearer for the same identity.
 //
 // This is the only public endpoint that mints tokens. The agent treats
 // it the way it would treat an API-key issuance form: hit it once at
@@ -24,12 +25,17 @@ import {
   type PlayerRecord,
 } from '../leaderboard/player-store';
 import { validateUsername } from '../leaderboard/username';
+import { readBoundedJson } from '../request-body';
 import {
   AGENT_TOKEN_DEFAULT_TTL_MS,
+  authorizeAgentCredential,
+  deleteAgentCredential,
+  extractBearerToken,
   isAgentTokenSecretSet,
   issueAgentToken,
   isValidAgentPlayerKey,
   resolveAgentTokenSecret,
+  verifyAgentToken,
 } from './';
 import { MissingAgentTokenSecretError } from './secret';
 
@@ -42,8 +48,11 @@ const missingSecretResponse = (): Response =>
 
 interface IssueBody {
   playerKey?: unknown;
+  agentSecret?: unknown;
   claim?: unknown;
 }
+
+const MAX_AGENT_TOKEN_BODY_BYTES = 4 * 1024;
 
 const extractUsername = (claim: unknown): unknown => {
   if (!claim || typeof claim !== 'object') return undefined;
@@ -82,12 +91,19 @@ export const handleAgentTokenIssue = async (
   if (!isAgentTokenSecretSet(env) && env.DEV_MODE !== '1') {
     return missingSecretResponse();
   }
-  let body: IssueBody;
-  try {
-    body = (await request.json()) as IssueBody;
-  } catch {
-    return jsonError(400, 'invalid_json', 'Invalid JSON body.');
+  const parsed = await readBoundedJson<IssueBody>(
+    request,
+    MAX_AGENT_TOKEN_BODY_BYTES,
+  );
+  if (!parsed.ok) {
+    const tooLarge = parsed.reason === 'body_too_large';
+    return jsonError(
+      tooLarge ? 413 : 400,
+      parsed.reason,
+      tooLarge ? 'Request body is too large.' : 'Invalid JSON body.',
+    );
   }
+  const body = parsed.value;
   if (!isValidAgentPlayerKey(body.playerKey)) {
     return jsonError(
       400,
@@ -96,39 +112,24 @@ export const handleAgentTokenIssue = async (
     );
   }
 
-  let player: PlayerRecord | null = null;
+  if (!env.DB) {
+    return jsonError(
+      503,
+      'identity_store_unavailable',
+      'Agent identity registration is unavailable.',
+    );
+  }
+
   const rawUsername = extractUsername(body.claim);
-  if (rawUsername !== undefined) {
-    const check = validateUsername(rawUsername);
-    if (!check.ok) {
-      const status = check.error === 'reserved' ? 409 : 400;
-      return jsonError(
-        status,
-        `username_${check.error}`,
-        `Invalid username: ${check.error}.`,
-      );
-    }
-    if (!env.DB) {
-      return jsonError(
-        503,
-        'leaderboard_unavailable',
-        'Leaderboard unavailable.',
-      );
-    }
-    const outcome = await claimPlayerName({
-      db: env.DB,
-      playerKey: body.playerKey,
-      username: check.normalised,
-      isAgent: true,
-      now: Date.now(),
-      identityKind: isOfficialQuickMatchBotPlayerKey(body.playerKey)
-        ? 'official_bot'
-        : 'agent',
-    });
-    if (!outcome.ok) {
-      return jsonError(409, 'name_taken', 'Callsign is already taken.');
-    }
-    player = outcome.player;
+  const checkedUsername =
+    rawUsername === undefined ? null : validateUsername(rawUsername);
+  if (checkedUsername && !checkedUsername.ok) {
+    const status = checkedUsername.error === 'reserved' ? 409 : 400;
+    return jsonError(
+      status,
+      `username_${checkedUsername.error}`,
+      `Invalid username: ${checkedUsername.error}.`,
+    );
   }
 
   let secret: string;
@@ -140,6 +141,52 @@ export const handleAgentTokenIssue = async (
     }
     throw error;
   }
+
+  const bearer = extractBearerToken(request.headers.get('Authorization'));
+  const verifiedBearer = bearer
+    ? await verifyAgentToken(bearer, { secret })
+    : null;
+  const validBearer = Boolean(
+    verifiedBearer?.ok && verifiedBearer.payload.playerKey === body.playerKey,
+  );
+  const credential = await authorizeAgentCredential({
+    db: env.DB,
+    playerKey: body.playerKey,
+    presentedSecret: body.agentSecret,
+    validBearer,
+  });
+  if (!credential.ok) {
+    const legacy = credential.reason === 'legacy_upgrade_required';
+    return jsonError(
+      401,
+      credential.reason,
+      legacy
+        ? 'This existing identity must be upgraded once with its current Bearer token. If it has expired, choose a new playerKey.'
+        : 'Supply the agentSecret returned at first registration or a valid Bearer token for this playerKey.',
+    );
+  }
+
+  let player: PlayerRecord | null = null;
+  if (checkedUsername?.ok) {
+    const outcome = await claimPlayerName({
+      db: env.DB,
+      playerKey: body.playerKey,
+      username: checkedUsername.normalised,
+      isAgent: true,
+      now: Date.now(),
+      identityKind: isOfficialQuickMatchBotPlayerKey(body.playerKey)
+        ? 'official_bot'
+        : 'agent',
+    });
+    if (!outcome.ok) {
+      if (credential.created) {
+        await deleteAgentCredential(env.DB, body.playerKey);
+      }
+      return jsonError(409, 'name_taken', 'Callsign is already taken.');
+    }
+    player = outcome.player;
+  }
+
   const { token, expiresAt } = await issueAgentToken({
     secret,
     playerKey: body.playerKey,
@@ -154,8 +201,15 @@ export const handleAgentTokenIssue = async (
       tokenType: 'Bearer',
       usage:
         'Send as `Authorization: Bearer <token>` on every POST /mcp request.',
+      ...(credential.agentSecret
+        ? {
+            agentSecret: credential.agentSecret,
+            agentSecretUsage:
+              'Store this once-disclosed renewal secret outside prompts and source control. Send it as agentSecret when the 24-hour bearer expires.',
+          }
+        : {}),
       ...(player ? { player: toPublicPlayer(player) } : {}),
     },
-    { status: 200 },
+    { status: 200, headers: { 'Cache-Control': 'no-store' } },
   );
 };

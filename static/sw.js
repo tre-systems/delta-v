@@ -38,11 +38,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Never intercept non-GET requests, API routes, or any other dynamic
+  // Never intercept cross-origin traffic, non-GET requests, API routes, or
+  // any other dynamic
   // server endpoints that must always hit the network. Stale-while-
   // revalidate on these silently shows pre-wipe leaderboard / match
   // data and breaks any client expecting fresh authoritative state.
   if (
+    url.origin !== self.location.origin ||
     event.request.method !== 'GET' ||
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/ws/') ||
@@ -51,6 +53,7 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/quick-match') ||
     url.pathname.startsWith('/replay/') ||
     url.pathname === '/mcp' ||
+    url.pathname.startsWith('/oauth/') ||
     url.pathname.startsWith('/healthz') ||
     url.pathname.startsWith('/health') ||
     url.pathname.startsWith('/status') ||
@@ -61,16 +64,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation (HTML): network-first, fallback to cache for offline support
+  // Navigation (HTML): network-first. Only the application shell is written
+  // to Cache Storage; OAuth consent and other dynamic pages must never be
+  // retained even if a future route exclusion is accidentally loosened.
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          if (response.ok && url.pathname === '/') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/', clone));
+          }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => url.pathname === '/' ? caches.match('/') : Response.error())
     );
     return;
   }

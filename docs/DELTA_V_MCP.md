@@ -162,26 +162,29 @@ for the current developer-mode UI.
 
 ### Manual-token clients
 
-Keep the same `agent_` player key when you renew a token so the player keeps
-one stable rating identity. The player key must match
+Keep the same `agent_` player key and the separately returned `agentSecret`
+when you renew a token so the player keeps one stable rating identity. The
+player key is an identifier, not proof of ownership. It must match
 `^agent_[A-Za-z0-9_-]+$` and be 8–64 characters in total. The
 `agent_oauth_` prefix is reserved for identities created by the ChatGPT
 consent flow.
 
-Mint a token into an environment variable without printing it:
+Register once and capture both credentials without printing them:
 
 ```bash
-export DELTA_V_AGENT_TOKEN="$(
-  curl -fsS https://delta-v.tre.systems/api/agent-token \
-    -H 'Content-Type: application/json' \
-    -d '{"playerKey":"agent_your_name"}' |
-  python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])'
-)"
+reply="$(curl -fsS https://delta-v.tre.systems/api/agent-token \
+  -H 'Content-Type: application/json' \
+  -d '{"playerKey":"agent_your_name"}')"
+export DELTA_V_AGENT_TOKEN="$(printf '%s' "$reply" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
+export DELTA_V_AGENT_SECRET="$(printf '%s' "$reply" | python3 -c 'import json,sys; print(json.load(sys.stdin)["agentSecret"])')"
+unset reply
 ```
 
-Treat the token like a password. Do not put it in prompts, URLs, screenshots,
-source control, or shared configuration. On `401 Unauthorized`, mint a fresh
-token, update the client, and restart or reload it.
+Treat both values like passwords. Do not put them in prompts, URLs,
+screenshots, source control, or shared configuration. On `401 Unauthorized`,
+send the same `playerKey` plus `agentSecret` to `/api/agent-token`, update the
+client with the new bearer, and restart or reload it. The renewal secret is
+returned only on first registration (or a one-time legacy upgrade).
 
 ### Codex CLI, Codex IDE, and ChatGPT desktop
 

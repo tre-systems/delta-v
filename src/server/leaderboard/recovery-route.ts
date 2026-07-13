@@ -1,6 +1,7 @@
 import { isValidPlayerKey } from '../../shared/player';
 import type { Env } from '../env';
 import { jsonError } from '../json-errors';
+import { readBoundedJson } from '../request-body';
 import {
   revokePlayerRecovery,
   selectPlayerRecoveryByHash,
@@ -21,12 +22,17 @@ interface RestoreBody {
   recoveryCode?: unknown;
 }
 
-const readJson = async <T>(request: Request): Promise<T | null> => {
-  try {
-    return (await request.json()) as T;
-  } catch {
-    return null;
-  }
+const MAX_IDENTITY_BODY_BYTES = 4 * 1024;
+
+const readJson = async <T>(request: Request): Promise<T | Response> => {
+  const parsed = await readBoundedJson<T>(request, MAX_IDENTITY_BODY_BYTES);
+  if (parsed.ok) return parsed.value;
+  const tooLarge = parsed.reason === 'body_too_large';
+  return jsonError(
+    tooLarge ? 413 : 400,
+    parsed.reason,
+    tooLarge ? 'Request body is too large.' : 'Invalid JSON body.',
+  );
 };
 
 const methodNotAllowed = (): Response =>
@@ -71,9 +77,7 @@ export const handlePlayerRecoveryIssue = async (
   }
 
   const body = await readJson<IssueBody>(request);
-  if (!body) {
-    return jsonError(400, 'invalid_json', 'Invalid JSON body.');
-  }
+  if (body instanceof Response) return body;
 
   const validated = validateHumanPlayerKey(body.playerKey);
   if (!validated.ok) {
@@ -120,9 +124,7 @@ export const handlePlayerRecoveryRestore = async (
   }
 
   const body = await readJson<RestoreBody>(request);
-  if (!body) {
-    return jsonError(400, 'invalid_json', 'Invalid JSON body.');
-  }
+  if (body instanceof Response) return body;
 
   const recoveryCode = normalizeRecoveryCode(body.recoveryCode);
   if (!recoveryCode) {
@@ -171,9 +173,7 @@ export const handlePlayerRecoveryRevoke = async (
   }
 
   const body = await readJson<IssueBody>(request);
-  if (!body) {
-    return jsonError(400, 'invalid_json', 'Invalid JSON body.');
-  }
+  if (body instanceof Response) return body;
 
   const validated = validateHumanPlayerKey(body.playerKey);
   if (!validated.ok) {

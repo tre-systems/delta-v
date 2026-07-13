@@ -11,14 +11,69 @@ const TEST_SECRET = 'issue-route-test-secret-must-be-16-chars';
 const buildMockDb = () => {
   const byKey = new Map<string, Record<string, unknown>>();
   const byName = new Map<string, string>();
+  const credentials = new Map<
+    string,
+    { credential_hash: string; legacy_locked: number }
+  >();
 
   const prepare = vi.fn((sql: string) => {
     const lowered = sql.toLowerCase();
     return {
       bind: (...args: unknown[]) => {
+        if (
+          lowered.startsWith('select') &&
+          lowered.includes('from agent_credential')
+        ) {
+          return {
+            first: async () => {
+              const row = credentials.get(args[0] as string) ?? null;
+              if (!row || args.length < 2) return row;
+              return row.credential_hash === args[1] && row.legacy_locked === 0
+                ? row
+                : null;
+            },
+          };
+        }
         if (lowered.startsWith('select')) {
           return {
             first: async () => byKey.get(args[0] as string) ?? null,
+          };
+        }
+        if (lowered.startsWith('insert into agent_credential')) {
+          const [playerKey, credentialHash] = args as [string, string];
+          return {
+            run: async () => {
+              if (credentials.has(playerKey)) return { meta: { changes: 0 } };
+              credentials.set(playerKey, {
+                credential_hash: credentialHash,
+                legacy_locked: 0,
+              });
+              return { meta: { changes: 1 } };
+            },
+          };
+        }
+        if (lowered.startsWith('update agent_credential')) {
+          const [credentialHash, _rotatedAt, playerKey] = args as [
+            string,
+            number,
+            string,
+          ];
+          return {
+            run: async () => {
+              credentials.set(playerKey, {
+                credential_hash: credentialHash,
+                legacy_locked: 0,
+              });
+              return { meta: { changes: 1 } };
+            },
+          };
+        }
+        if (lowered.startsWith('delete from agent_credential')) {
+          return {
+            run: async () => {
+              const changed = credentials.delete(args[0] as string);
+              return { meta: { changes: changed ? 1 : 0 } };
+            },
           };
         }
         if (lowered.startsWith('insert into player')) {
@@ -76,7 +131,11 @@ const buildMockDb = () => {
     };
   });
 
-  return { db: { prepare } as unknown as D1Database, byKey };
+  return {
+    db: { prepare } as unknown as D1Database,
+    byKey,
+    credentials,
+  };
 };
 
 const env = (db?: D1Database): Env =>
@@ -105,9 +164,10 @@ describe('handleAgentTokenIssue', () => {
   });
 
   it('allows the dev fallback when DEV_MODE=1 is set', async () => {
+    const { db } = buildMockDb();
     const res = await handleAgentTokenIssue(
       post({ playerKey: 'agent_alpha-v1' }),
-      { DEV_MODE: '1' } as unknown as Env,
+      { DEV_MODE: '1', DB: db } as unknown as Env,
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean; token: string };
@@ -149,9 +209,10 @@ describe('handleAgentTokenIssue', () => {
   });
 
   it('issues a valid token for a well-formed agent_ key', async () => {
+    const { db } = buildMockDb();
     const res = await handleAgentTokenIssue(
       post({ playerKey: 'agent_alpha-v1' }),
-      env(),
+      env(db),
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
@@ -161,12 +222,14 @@ describe('handleAgentTokenIssue', () => {
       ttlMs: number;
       playerKey: string;
       tokenType: string;
+      agentSecret: string;
       player?: unknown;
     };
     expect(body.ok).toBe(true);
     expect(body.tokenType).toBe('Bearer');
     expect(body.playerKey).toBe('agent_alpha-v1');
     expect(body.ttlMs).toBe(86_400_000);
+    expect(body.agentSecret).toMatch(/^dv-agent-[A-Za-z0-9_-]{43}$/);
     expect(body.player).toBeUndefined();
 
     const verified = await verifyAgentToken(body.token, {
@@ -263,16 +326,18 @@ describe('handleAgentTokenIssue', () => {
 
   it('renames an existing agent when a different name is claimed', async () => {
     const { db } = buildMockDb();
-    await handleAgentTokenIssue(
+    const first = await handleAgentTokenIssue(
       post({
         playerKey: 'agent_same-xyz',
         claim: { username: 'Original' },
       }),
       env(db),
     );
+    const registered = (await first.json()) as { agentSecret: string };
     const res = await handleAgentTokenIssue(
       post({
         playerKey: 'agent_same-xyz',
+        agentSecret: registered.agentSecret,
         claim: { username: 'Renamed' },
       }),
       env(db),
@@ -291,5 +356,49 @@ describe('handleAgentTokenIssue', () => {
       env(),
     );
     expect(res.status).toBe(503);
+  });
+
+  it('requires proof before renewing an existing manual identity', async () => {
+    const { db } = buildMockDb();
+    const first = await handleAgentTokenIssue(
+      post({ playerKey: 'agent_renew-secure' }),
+      env(db),
+    );
+    const registered = (await first.json()) as {
+      token: string;
+      agentSecret: string;
+    };
+
+    const unauthenticated = await handleAgentTokenIssue(
+      post({ playerKey: 'agent_renew-secure' }),
+      env(db),
+    );
+    expect(unauthenticated.status).toBe(401);
+    expect(await unauthenticated.json()).toMatchObject({
+      error: 'credential_required',
+    });
+
+    const renewed = await handleAgentTokenIssue(
+      post({
+        playerKey: 'agent_renew-secure',
+        agentSecret: registered.agentSecret,
+      }),
+      env(db),
+    );
+    expect(renewed.status).toBe(200);
+    expect(await renewed.json()).not.toHaveProperty('agentSecret');
+
+    const bearerRenewed = await handleAgentTokenIssue(
+      new Request('https://w.test/api/agent-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${registered.token}`,
+        },
+        body: JSON.stringify({ playerKey: 'agent_renew-secure' }),
+      }),
+      env(db),
+    );
+    expect(bearerRenewed.status).toBe(200);
   });
 });

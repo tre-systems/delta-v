@@ -1,6 +1,14 @@
 // Public exports for the agent / match token layer.
 
 export {
+  type AgentCredentialAuthorization,
+  authorizeAgentCredential,
+  deleteAgentCredential,
+  generateAgentSecret,
+  hashAgentSecret,
+  isValidAgentSecret,
+} from './agent-credential';
+export {
   AGENT_TOKEN_DEFAULT_TTL_MS,
   AGENT_TOKEN_KIND,
   type AgentTokenPayload,

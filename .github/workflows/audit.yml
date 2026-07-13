@@ -5,14 +5,19 @@ on:
     - cron: "23 8 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 25
           cache: npm
       - run: npm ci
-      - run: npm audit --omit=dev --audit-level=high
+      # Toolchain vulnerabilities can compromise CI and deployments even when
+      # the affected package is not bundled into the Worker.
+      - run: npm audit --audit-level=high

@@ -1,0 +1,20 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated/local data and explicit non-secret protocol fixtures"
+paths = [
+  '''(^|/)node_modules/''',
+  '''^tmp/''',
+  '''^\.wrangler/''',
+  '''^\.claude/''',
+  '''^\.agents/''',
+  '''^\.codex/''',
+]
+regexTarget = "match"
+regexes = [
+  '''playerKey":"agent_reserved123''',
+  '''playerKey":"unclaimed_probe_20260426''',
+  '''playerKey["']?\s*[:=]\s*["']agent_reserved123''',
+  '''idempotencyKey["']?\s*[:=]\s*["'](?:combat-volley-1|turn5-skipCombat)''',
+]

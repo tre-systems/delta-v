@@ -11,3 +11,10 @@ updates:
       npm-patch-updates:
         update-types:
           - patch
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:15"
+    open-pull-requests-limit: 3

@@ -8,9 +8,9 @@
 //   - let `delta_v_quick_match` enqueue without the agent passing playerKey
 //     in tool args
 //
-// Security model: the token is the credential. Treat like an API key. The
-// playerKey it embeds is not secret on its own (it's logged with every
-// match) — the HMAC signature is what authenticates the bearer. Agents that
+// Security model: the token is the active credential; agentSecret is the
+// separately stored renewal credential. The playerKey it embeds is only an
+// identifier and never authorizes renewal by itself. Agents that
 // leak the token can be revoked by rotating the AGENT_TOKEN_SECRET (which
 // invalidates ALL agent tokens, so it's a heavy hammer; per-token
 // revocation lists are out of scope for v1).

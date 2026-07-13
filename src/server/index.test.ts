@@ -85,8 +85,11 @@ type MockEnv = {
 };
 
 const mockDb = () => {
-  const runFn = vi.fn(async () => ({}));
-  const bindFn = vi.fn(() => ({ run: runFn }));
+  const runFn = vi.fn(async () => ({ meta: { changes: 1 } }));
+  const bindFn = vi.fn(() => ({
+    run: runFn,
+    first: vi.fn(async () => null),
+  }));
   const prepareFn = vi.fn(() => ({ bind: bindFn }));
 
   return {
@@ -96,13 +99,16 @@ const mockDb = () => {
   };
 };
 
-const mockCtx = (): MockExecutionContext => ({
-  waitUntil: vi.fn((p: Promise<unknown>) => {
-    void p.catch(() => {});
-  }),
-  passThroughOnException: vi.fn(),
-  props: {},
-});
+const mockCtx = (): MockExecutionContext =>
+  ({
+    waitUntil: vi.fn((p: Promise<unknown>) => {
+      void p.catch(() => {});
+    }),
+    passThroughOnException: vi.fn(),
+    props: {},
+    // The worker does not consume the runtime tracing API. Keep this fixture
+    // deliberately narrow as workers-types adds optional platform surfaces.
+  }) as unknown as MockExecutionContext;
 
 const findSampledIp = async (): Promise<string> => {
   for (let index = 1; index < 256; index++) {
@@ -1996,7 +2002,7 @@ describe('/api/agent-token rate limiting', () => {
             'Content-Type': 'application/json',
             'cf-connecting-ip': '1.2.3.4',
           },
-          body: JSON.stringify({ playerKey: 'agent_alpha-v1' }),
+          body: JSON.stringify({ playerKey: `agent_alpha-v${i}` }),
         }),
         env as unknown as Env,
         mockCtx(),

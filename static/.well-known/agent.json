@@ -33,10 +33,11 @@
       "id": "agentTokenIssue",
       "method": "POST",
       "path": "/api/agent-token",
-      "description": "Issue a 24h HMAC-signed agentToken bound to the supplied agent_-prefixed playerKey. Send the token as Authorization: Bearer <token> on every /mcp call. Treat like an API key.",
+      "description": "Register a manual agent and issue a 24h HMAC-signed agentToken. First registration also returns a once-disclosed agentSecret; later issuance or callsign changes require that secret or a still-valid Bearer for the same playerKey.",
       "rateLimit": "strict Worker-local 5 per 60 s per hashed IP, plus best-effort Cloudflare CREATE_RATE_LIMITER in production",
       "requestBody": {
-        "playerKey": "string — must match /^agent_[A-Za-z0-9_-]+$/, 8-64 chars"
+        "playerKey": "string — must match /^agent_[A-Za-z0-9_-]+$/, 8-64 chars",
+        "agentSecret": "string — omit on first registration; required on renewal unless Authorization carries a valid current Bearer"
       },
       "response": {
         "ok": "boolean",
@@ -44,7 +45,8 @@
         "expiresAt": "number (ms since epoch)",
         "ttlMs": "number (default 86_400_000)",
         "playerKey": "string (echoed back)",
-        "tokenType": "Bearer"
+        "tokenType": "Bearer",
+        "agentSecret": "string (returned only on first registration or one-time legacy upgrade; store outside prompts and source control)"
       }
     },
     {
@@ -199,7 +201,7 @@
       "mode": "stateless-json",
       "auth": {
         "scheme": "Bearer",
-        "tokenIssuance": "POST /api/agent-token with { playerKey: \"agent_...\" } returns a 24h Bearer token. Send as Authorization: Bearer <token> on every /mcp call.",
+        "tokenIssuance": "First POST /api/agent-token with { playerKey: \"agent_...\" } returns a 24h Bearer and a once-disclosed agentSecret. Renew with { playerKey, agentSecret } or a still-valid Bearer. Send the active Bearer as Authorization on every /mcp call.",
         "required": "Hosted MCP requires Authorization: Bearer <agentToken> on every call. delta_v_quick_match returns an opaque matchToken; pass that matchToken (or the hosted compatibility alias sessionId) to later tools instead of raw match credentials."
       },
       "tools": [
@@ -283,7 +285,7 @@
   "autonomousLoop": {
     "description": "Recommended high-level turn loop for autonomous agents.",
     "steps": [
-      "Hosted MCP (preferred): POST /api/agent-token once, then call delta_v_quick_match and drive the match with delta_v_wait_for_turn / delta_v_send_action using matchToken. Use agentSandbox=true plus a rendezvousCode for smoke or evaluation games.",
+      "Hosted MCP (preferred): register through POST /api/agent-token and save both returned credentials outside the prompt, then call delta_v_quick_match and drive the match with delta_v_wait_for_turn / delta_v_send_action using matchToken. Use agentSandbox=true plus a rendezvousCode for smoke or evaluation games.",
       "Call delta_v_validate_action before custom or risky actions; send a candidate action instead if validation returns valid=false.",
       "If delta_v_send_action returns autoSkipLikely=true, call delta_v_wait_for_turn instead of chaining the returned nextPhase immediately.",
       "During fleetBuilding, always send fleetReady explicitly if the observation still reports that phase.",

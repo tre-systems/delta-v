@@ -4,12 +4,10 @@
 #
 # Docs: https://developers.cloudflare.com/workers/static-assets/headers/
 #
-# NB on `script-src 'unsafe-inline'`: matches.html, leaderboard.html and
-# index.html each carry one inline <script> for page-level boot logic.
-# Static `_headers` can't inject per-request nonces, so until those
-# scripts move to external files (see BACKLOG entry) we allow inline
-# scripts here. All the other headers (X-Frame-Options, HSTS, etc.)
-# are still applied.
+# The three HTML entry points each carry one fixed inline script. Their exact
+# SHA-256 hashes allow only those blocks; arbitrary inline scripts and event
+# handlers remain blocked. Recalculate the matching hash whenever a block
+# changes, and keep this policy aligned with src/server/response-headers.ts.
 
 /*
   X-Frame-Options: DENY
@@ -17,7 +15,7 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://delta-v.tre.systems wss://delta-v.tre.systems ws://delta-v.tre.systems https://cloudflareinsights.com; img-src 'self' data:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-7sYbyU0oFZ+vKvThIJEE2hoVADu43/hbaI51QZmwk9w=' 'sha256-exWhJQ1fybZXsDnEiJEoEzengAWD16d46nJWk6oqAZg=' 'sha256-SFPxWtEMa/gXgiPgsNP9wGSagwHfYNg6IpyRQwTaPjA=' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://delta-v.tre.systems wss://delta-v.tre.systems ws://delta-v.tre.systems https://cloudflareinsights.com; img-src 'self' data:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
 
 # Each build stamps `index.html` with `?v=<contenthash>` for the JS/CSS
 # bundles (see scripts/bundle-style-css.mjs). The hash changes with the

@@ -30,7 +30,7 @@ Plus a D1 database (`DB`) for telemetry + match archive metadata, and an R2 buck
 | `/join/:code` | GET | Preflight join / reconnect validation; returns `{ ok, scenario, seatStatus }` on success |
 | `/replay/:code` | GET | Replay for a specific match: public archived replay via `?viewer=spectator&gameId=ROOMCODE-mN`, or player-authenticated replay via `playerToken` |
 | `/ws/:code` | GET (upgrade) | WebSocket upgrade to the room's `GameDO` |
-| `/api/agent-token` | POST | Issue 24 h HMAC-signed `agentToken`; optional `claim: {username}` binds the agent to a leaderboard row (see [AGENT_SPEC.md](../AGENT_SPEC.md)) |
+| `/api/agent-token` | POST | Register a manual agent and issue a 24 h HMAC-signed `agentToken`; first response also returns a once-disclosed renewal `agentSecret`, required for later mint/rename operations unless a valid Bearer is supplied (see [AGENT_SPEC.md](../AGENT_SPEC.md)) |
 | `/.well-known/oauth-protected-resource`<br>`/.well-known/oauth-protected-resource/mcp` | GET | RFC 9728 metadata for the hosted MCP resource and its `game:play` scope |
 | `/.well-known/oauth-authorization-server` | GET | OAuth authorization-server metadata: authorization/token/revocation endpoints, CIMD, S256 PKCE, and supported grants |
 | `/oauth/authorize` | GET, POST | Validate ChatGPT's Client ID Metadata Document and PKCE request, then show/process bot callsign consent |

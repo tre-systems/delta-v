@@ -17,6 +17,7 @@
 import { isValidPlayerKey } from '../../shared/player';
 import type { Env } from '../env';
 import { jsonError } from '../json-errors';
+import { readBoundedJson } from '../request-body';
 import { claimPlayerName, type PlayerRecord } from './player-store';
 import { isReservedTestUsername, validateUsername } from './username';
 
@@ -24,6 +25,8 @@ interface ClaimBody {
   playerKey?: unknown;
   username?: unknown;
 }
+
+const MAX_IDENTITY_BODY_BYTES = 4 * 1024;
 
 const toPublicPlayer = (
   p: PlayerRecord,
@@ -51,12 +54,19 @@ export const handleClaimName = async (
     });
   }
 
-  let body: ClaimBody;
-  try {
-    body = (await request.json()) as ClaimBody;
-  } catch {
-    return jsonError(400, 'invalid_json', 'Invalid JSON body.');
+  const parsed = await readBoundedJson<ClaimBody>(
+    request,
+    MAX_IDENTITY_BODY_BYTES,
+  );
+  if (!parsed.ok) {
+    const tooLarge = parsed.reason === 'body_too_large';
+    return jsonError(
+      tooLarge ? 413 : 400,
+      parsed.reason,
+      tooLarge ? 'Request body is too large.' : 'Invalid JSON body.',
+    );
   }
+  const body = parsed.value;
 
   // Human keys use the shared playerKey format but must NOT claim the
   // agent_ prefix — that namespace is reserved for the agent-token
