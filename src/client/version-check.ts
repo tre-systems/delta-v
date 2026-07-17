@@ -39,6 +39,13 @@ export interface StartVersionCheckOptions {
   fetchLike?: VersionCheckFetch;
   setIntervalLike?: (fn: () => void, ms: number) => number;
   clearIntervalLike?: (handle: number) => void;
+  documentTarget?: Pick<
+    Document,
+    'addEventListener' | 'removeEventListener' | 'visibilityState'
+  >;
+  windowTarget?: Pick<Window, 'addEventListener' | 'removeEventListener'>;
+  isOnline?: () => boolean;
+  now?: () => number;
   // Resource URL — default /version.json, override in tests or for
   // servers that host the app under a subpath.
   url?: string;
@@ -46,7 +53,8 @@ export interface StartVersionCheckOptions {
 
 export type Dispose = () => void;
 
-const DEFAULT_POLL_INTERVAL_MS = 10 * 60 * 1000;
+const DEFAULT_POLL_INTERVAL_MS = 60 * 60 * 1000;
+const UPDATE_CHECK_COOLDOWN_MS = 60 * 1000;
 
 // Read the assetsHash out of a /version.json response. Returns null when
 // the payload is missing, non-JSON, or lacks a usable hash — a caller
@@ -78,6 +86,10 @@ export const startVersionCheck = (
       ms: number,
     ) => number,
     clearIntervalLike = clearInterval as unknown as (handle: number) => void,
+    documentTarget = typeof document === 'undefined' ? null : document,
+    windowTarget = typeof window === 'undefined' ? null : window,
+    isOnline = () => typeof navigator === 'undefined' || navigator.onLine,
+    now = Date.now,
     url = '/version.json',
   } = options;
 
@@ -88,13 +100,28 @@ export const startVersionCheck = (
   let baseline: string | null = initialHash;
   let disposed = false;
   let notified = false;
+  let polling = false;
+  let lastPollAt = 0;
 
-  const poll = async (): Promise<void> => {
-    if (disposed || notified) return;
+  const poll = async (force = false): Promise<void> => {
+    if (disposed || notified || polling || !isOnline()) return;
+    const pollStartedAt = now();
+    if (
+      !force &&
+      lastPollAt !== 0 &&
+      pollStartedAt - lastPollAt < UPDATE_CHECK_COOLDOWN_MS
+    ) {
+      return;
+    }
+    lastPollAt = pollStartedAt;
+    polling = true;
     try {
       const response = await fetchLike(url, {
         cache: 'no-store',
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          'Cache-Control': 'no-cache',
+        },
       });
       if (!response.ok) return;
       const payload = (await response.json()) as unknown;
@@ -113,19 +140,35 @@ export const startVersionCheck = (
       // Swallow network / parse errors so the poll loop keeps trying;
       // a transient outage must not produce a false "new version"
       // prompt, and the user doesn't need to know the poll failed.
+    } finally {
+      polling = false;
     }
   };
 
-  // Kick off an immediate poll so the baseline is captured quickly.
+  const pollWhenVisible = (): void => {
+    if (!documentTarget || documentTarget.visibilityState === 'visible') {
+      void poll();
+    }
+  };
+
+  // Kick off an immediate poll so the running bundle is compared quickly.
   // The returned promise is intentionally not awaited — the caller
   // should get a synchronous Dispose back.
-  void poll();
+  void poll(true);
   const handle = setIntervalLike(() => {
-    void poll();
+    void poll(true);
   }, pollIntervalMs);
+  documentTarget?.addEventListener('visibilitychange', pollWhenVisible);
+  windowTarget?.addEventListener('focus', pollWhenVisible);
+  windowTarget?.addEventListener('online', pollWhenVisible);
+  windowTarget?.addEventListener('pageshow', pollWhenVisible);
 
   return () => {
     disposed = true;
     clearIntervalLike(handle);
+    documentTarget?.removeEventListener('visibilitychange', pollWhenVisible);
+    windowTarget?.removeEventListener('focus', pollWhenVisible);
+    windowTarget?.removeEventListener('online', pollWhenVisible);
+    windowTarget?.removeEventListener('pageshow', pollWhenVisible);
   };
 };

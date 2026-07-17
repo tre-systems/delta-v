@@ -57,6 +57,13 @@ describe('startVersionCheck', () => {
     await flushPromises();
     expect(onPoll).toHaveBeenCalledWith('aaa');
     expect(onNewVersion).not.toHaveBeenCalled();
+    expect(fetchLike).toHaveBeenCalledWith('/version.json', {
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache',
+      },
+    });
   });
 
   it('fires onNewVersion exactly once when the hash changes', async () => {
@@ -171,5 +178,53 @@ describe('startVersionCheck', () => {
 
     dispose();
     expect(clearIntervalLike).toHaveBeenCalledWith(42);
+  });
+
+  it('checks on resume, focus, reconnect, and pageshow when visible', async () => {
+    let currentTime = 120_000;
+    const fetchLike = vi.fn(() =>
+      Promise.resolve(buildResponse({ assetsHash: 'aaa' })),
+    );
+    const documentTarget = new EventTarget() as Document;
+    let visibility: DocumentVisibilityState = 'visible';
+    Object.defineProperty(documentTarget, 'visibilityState', {
+      configurable: true,
+      get: () => visibility,
+    });
+    const windowTarget = new EventTarget() as Window;
+    const dispose = startVersionCheck({
+      currentHash: 'aaa',
+      documentTarget,
+      fetchLike,
+      now: () => currentTime,
+      onNewVersion: vi.fn(),
+      setIntervalLike: vi.fn(() => 1),
+      clearIntervalLike: vi.fn(),
+      windowTarget,
+    });
+    await flushPromises();
+
+    for (const event of ['visibilitychange', 'focus', 'online', 'pageshow']) {
+      currentTime += 61_000;
+      (event === 'visibilitychange'
+        ? documentTarget
+        : windowTarget
+      ).dispatchEvent(new Event(event));
+      await flushPromises();
+    }
+    expect(fetchLike).toHaveBeenCalledTimes(5);
+
+    visibility = 'hidden';
+    currentTime += 61_000;
+    windowTarget.dispatchEvent(new Event('focus'));
+    await flushPromises();
+    expect(fetchLike).toHaveBeenCalledTimes(5);
+
+    dispose();
+    visibility = 'visible';
+    currentTime += 61_000;
+    windowTarget.dispatchEvent(new Event('online'));
+    await flushPromises();
+    expect(fetchLike).toHaveBeenCalledTimes(5);
   });
 });
