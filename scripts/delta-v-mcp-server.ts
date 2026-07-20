@@ -1680,6 +1680,18 @@ const readBody = (req: IncomingMessage): Promise<string> =>
     req.on('error', reject);
   });
 
+const publicHttpErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    if (error.message.startsWith('wait_for_turn timed out')) {
+      return 'wait_for_turn timed out before it was actionable.';
+    }
+    if (error.message.includes('reached gameOver before becoming actionable')) {
+      return 'Session reached gameOver before becoming actionable.';
+    }
+  }
+  return 'Internal server error';
+};
+
 const main = async (): Promise<void> => {
   const httpIdx = process.argv.indexOf('--http');
   if (httpIdx === -1) {
@@ -1732,7 +1744,7 @@ const main = async (): Promise<void> => {
         err instanceof Error ? (err.stack ?? err.message) : String(err);
       process.stderr.write(`MCP HTTP request failed: ${diagnostic}\n`);
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Internal server error' }));
+      res.end(JSON.stringify({ error: publicHttpErrorMessage(err) }));
     }
   });
 
