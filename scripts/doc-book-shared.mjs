@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { JSDOM } from "jsdom";
 import { marked } from "marked";
 
 export const parts = [
@@ -261,11 +262,10 @@ export function escapeHtml(value) {
 }
 
 export function slugify(value) {
-  return String(value)
+  const text = JSDOM.fragment(String(value)).textContent ?? "";
+  return text
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/<\/?[^>]+>/g, "")
-    .replace(/&[a-z]+;/gi, "")
     .replace(/[`*_~()[\]{}:;,.!?/\\|"'@#$%^&+=<>]/g, " ")
     .toLowerCase()
     .trim()

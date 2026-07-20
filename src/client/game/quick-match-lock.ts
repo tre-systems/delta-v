@@ -1,3 +1,5 @@
+import { createSecureRandomId } from '../secure-random-id';
+
 export interface QuickMatchLockStorageLike {
   getItem: (key: string) => string | null;
   setItem: (key: string, value: string) => void;
@@ -28,14 +30,6 @@ export interface QuickMatchLockDeps {
 const QUICK_MATCH_LOCK_KEY = 'delta-v:quick-match-lock';
 const QUICK_MATCH_TAB_ID_KEY = 'delta-v:quick-match-tab-id';
 const QUICK_MATCH_LOCK_TTL_MS = 15_000;
-
-const createGeneratedTabId = (): string => {
-  if (typeof crypto?.randomUUID === 'function') {
-    return crypto.randomUUID().replace(/-/g, '');
-  }
-
-  return Math.random().toString(36).slice(2, 18);
-};
 
 const loadLockRecord = (
   storage: Pick<QuickMatchLockStorageLike, 'getItem'>,
@@ -95,7 +89,7 @@ export const createQuickMatchLock = (
   deps: QuickMatchLockDeps,
 ): QuickMatchLock => {
   const now = deps.now ?? (() => Date.now());
-  const createTabId = deps.createTabId ?? createGeneratedTabId;
+  const createTabId = deps.createTabId ?? createSecureRandomId;
   const ttlMs = deps.ttlMs ?? QUICK_MATCH_LOCK_TTL_MS;
 
   const tabId = (): string =>

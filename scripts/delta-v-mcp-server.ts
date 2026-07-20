@@ -1728,9 +1728,11 @@ const main = async (): Promise<void> => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result.structuredContent ?? result));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const diagnostic =
+        err instanceof Error ? (err.stack ?? err.message) : String(err);
+      process.stderr.write(`MCP HTTP request failed: ${diagnostic}\n`);
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: msg }));
+      res.end(JSON.stringify({ error: 'Internal server error' }));
     }
   });
 

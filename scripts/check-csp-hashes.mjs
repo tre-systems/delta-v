@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
+import { JSDOM } from 'jsdom';
+
 const pages = [
   'static/index.html',
   'static/leaderboard.html',
@@ -18,7 +20,9 @@ const ownerContents = await Promise.all(
 const failures = [];
 for (const page of pages) {
   const html = await readFile(page, 'utf8');
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+  const scripts = [
+    ...JSDOM.fragment(html).querySelectorAll('script:not([src])'),
+  ];
   if (scripts.length !== 1) {
     failures.push(
       `${page}: expected exactly one inline script, found ${scripts.length}`,
@@ -26,7 +30,7 @@ for (const page of pages) {
     continue;
   }
   const hash = `'sha256-${createHash('sha256')
-    .update(scripts[0][1])
+    .update(scripts[0].textContent ?? '')
     .digest('base64')}'`;
   for (const [owner, content] of ownerContents) {
     if (!content.includes(hash)) {

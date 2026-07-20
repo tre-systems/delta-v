@@ -4,6 +4,7 @@ import {
   normalizeUsername,
   type PublicPlayerProfile,
 } from '../../shared/player';
+import { createSecureRandomId } from '../secure-random-id';
 import {
   deleteStoredPlayerProfile,
   loadStoredPlayerProfile,
@@ -25,19 +26,11 @@ export interface PlayerProfileServiceDeps {
   now?: () => number;
 }
 
-const createGeneratedPlayerKey = (): string => {
-  if (typeof crypto?.randomUUID === 'function') {
-    return crypto.randomUUID().replace(/-/g, '');
-  }
-
-  return Math.random().toString(36).slice(2, 18);
-};
-
 export const createPlayerProfileService = (
   deps: PlayerProfileServiceDeps,
 ): PlayerProfileService => {
   const now = deps.now ?? (() => Date.now());
-  const createPlayerKey = deps.createPlayerKey ?? createGeneratedPlayerKey;
+  const createPlayerKey = deps.createPlayerKey ?? createSecureRandomId;
 
   const ensureProfile = (): StoredPlayerProfile => {
     const existing = loadStoredPlayerProfile(deps.storage);

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { expect, test } from '@playwright/test';
 import {
   closePages,
@@ -105,7 +107,7 @@ test.describe('multiplayer smoke tests', () => {
     const contextB = await browser.newContext();
     const pageA = await contextA.newPage();
     const pageB = await contextB.newPage();
-    const uniqueSuffix = Math.random().toString(36).slice(2, 8);
+    const uniqueSuffix = randomUUID().replaceAll('-', '').slice(0, 6);
 
     const seedProfile = async (
       page: typeof pageA,
