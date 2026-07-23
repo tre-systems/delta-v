@@ -69,13 +69,15 @@ function beforeSend(event: ErrorEvent, _hint: EventHint): ErrorEvent {
 }
 
 const SCANNER_TRANSACTION_PATTERNS = [
-  /^GET \/\./,
-  /^GET \/\+CSCOT\+\//,
-  /^GET \/(?:actuator|application\/logs|explorer|rest\/api|swagger)\//,
-  /^GET \/api\/v1\/namespaces\//,
-  /^GET \/v\d+\/graphql\//,
-  /^GET \/auth\.html$/,
-  /^GET \/.*\.(?:bak|sql)$/,
+  /^(?:GET|HEAD) \/\./,
+  /^(?:GET|HEAD) \/\+CSCOT\+\//,
+  /^(?:GET|HEAD) \/(?:actuator|application\/logs|explorer|rest\/api|swagger)\//,
+  /^(?:GET|HEAD) \/api\/v1\/namespaces\//,
+  /^(?:GET|HEAD) \/v\d+\/graphql\//,
+  /^(?:GET|HEAD) \/auth\.html$/,
+  /^(?:(?:GET|HEAD) )?\/{1,2}[^/?]+\.php(?:[/?]|$)/i,
+  /^(?:(?:GET|HEAD) )?\/(?:_ignition|wp-admin|wp-content|wp-includes)(?:[/?]|$)/i,
+  /^(?:GET|HEAD) \/.*\.(?:bak|sql)$/,
 ];
 
 export function isScannerTransaction(transaction: string | undefined): boolean {

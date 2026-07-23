@@ -13,6 +13,12 @@ describe('Sentry transaction filtering', () => {
     'GET /rest/api/2/project',
     'GET /swagger/v2/api-docs',
     'GET /v4/graphql/schema.json',
+    'GET /2P.php',
+    'GET /wp-login.php',
+    '/ccc.php',
+    'HEAD //edit.php',
+    'GET /_ignition/execute-solution',
+    'GET /wp-includes/blocks/audio/',
   ])('drops scanner probe %s', (transaction) => {
     expect(isScannerTransaction(transaction)).toBe(true);
   });
