@@ -59,18 +59,18 @@
     "@playwright/test": "^1.61.1",
     "@types/node": "^25.6.0",
     "@types/ws": "^8.18.1",
-    "@vitest/coverage-v8": "^4.1.7",
+    "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "0.28.1",
     "fast-check": "^4.9.0",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
-    "marked": "^18.0.6",
+    "marked": "^18.0.7",
     "pdf-lib": "^1.17.1",
     "tsx": "^4.23.1",
     "typescript": "^5.9.3",
     "vitest": "^4.1.7",
     "wrangler": "^4.107.0",
-    "ws": "^8.20.0"
+    "ws": "^8.21.1"
   },
   "dependencies": {
     "@delta-v/mcp-adapter": "workspace:*",
