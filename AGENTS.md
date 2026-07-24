@@ -30,7 +30,7 @@ duplicate long explanations here when a canonical doc already owns the topic.
 | HTTP, WebSocket, state contracts | [docs/PROTOCOL.md](./docs/PROTOCOL.md) |
 | Built-in AI and simulation tuning | [docs/AI.md](./docs/AI.md), [docs/SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) |
 | Browser/manual/exploratory QA | [docs/MANUAL_TEST_PLAN.md](./docs/MANUAL_TEST_PLAN.md), [docs/EXPLORATORY_TESTING.md](./docs/EXPLORATORY_TESTING.md) |
-| Cloudflare data, logs, telemetry | [docs/OBSERVABILITY.md](./docs/OBSERVABILITY.md), [docs/SECURITY.md](./docs/SECURITY.md), [docs/PRIVACY_TECHNICAL.md](./docs/PRIVACY_TECHNICAL.md) |
+| Cloudflare data, logs, telemetry, privacy | [docs/OBSERVABILITY.md](./docs/OBSERVABILITY.md), [docs/SECURITY.md](./docs/SECURITY.md) |
 | External game agents and MCP | [docs/AGENTS.md](./docs/AGENTS.md), [docs/DELTA_V_MCP.md](./docs/DELTA_V_MCP.md), [AGENT_SPEC.md](./AGENT_SPEC.md) |
 | Playing via MCP as a test agent | [.claude/skills/play/SKILL.md](./.claude/skills/play/SKILL.md), [docs/DELTA_V_MCP.md](./docs/DELTA_V_MCP.md) |
 | Current work queue | [docs/BACKLOG.md](./docs/BACKLOG.md) |
@@ -96,7 +96,7 @@ E2E_PORT=8788 npm run test:e2e:smoke
 - Update canonical docs when behavior, routes, schemas, commands, or operating
   procedures change.
 - Keep public protocol changes additive unless the user is explicitly doing a
-  coordinated release. Follow [docs/COORDINATED_RELEASE_CHECKLIST.md](./docs/COORDINATED_RELEASE_CHECKLIST.md)
+  coordinated release. Follow [docs/CONTRIBUTING.md#coordinated-releases](./docs/CONTRIBUTING.md#coordinated-releases)
   for schema or protocol version changes.
 
 ## Data And Operations

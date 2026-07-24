@@ -15,7 +15,7 @@ The authoritative server model is event-sourced: the Durable Object persists a m
 - [5. Current Decisions and Planned Shifts](#5-current-decisions-and-planned-shifts)
 - [6. Client bundle and release hygiene](#6-client-bundle-and-release-hygiene)
 
-**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered "old client / new server" is not supported. Breaking protocol changes need a coordinated deploy; prefer additive JSON fields. When bumping `GameState.schemaVersion`, follow [COORDINATED_RELEASE_CHECKLIST.md](./COORDINATED_RELEASE_CHECKLIST.md).
+**Deployment assumption:** Client and Worker ship as a **single version line** (one deploy updates Worker + static assets). Staggered "old client / new server" is not supported. Breaking protocol changes need a coordinated deploy; prefer additive JSON fields. When bumping `GameState.schemaVersion`, follow [CONTRIBUTING.md § Coordinated releases](./CONTRIBUTING.md#coordinated-releases).
 
 Platform references:
 
@@ -279,54 +279,22 @@ Difficulty tuning is pure data, new scoring dimensions are pure additions, and a
 
 #### Intent-first AI Plans
 
-Passenger and fuel-support decisions now sit on top of the scalar scoring layer
-as **named plans** in `src/shared/ai/plans/`. The purpose is not to replace
-course scoring wholesale; it is to make high-risk doctrine decisions explicit
-before they become small, hard-to-reason-about weight tweaks.
+Passenger and fuel-support decisions sit on top of the scalar scoring layer as
+**named plans** in `src/shared/ai/plans/`. The purpose is not to replace course
+scoring wholesale; it is to make high-risk doctrine decisions explicit before
+they become small, hard-to-reason-about weight tweaks. The shared plan
+vocabulary lives in `src/shared/ai/plans/index.ts`: `PlanIntent` names the
+strategic reason for a choice, `PlanCandidate<TAction>` stores the intent plus a
+comparable `PlanEvaluation` vector, and `chooseBestPlan()` provides
+deterministic selection. Doctrine-level tests assert chosen intents instead of
+only exact burns, and simulation captures record plan decisions.
 
-The shared plan vocabulary lives in `src/shared/ai/plans/index.ts`:
-
-- `PlanIntent` names the strategic reason for a choice.
-- `PlanCandidate<TAction>` stores the intent, concrete action, comparable
-  `PlanEvaluation` vector, and optional diagnostics.
-- `planEvaluation()` constructs full vectors with neutral defaults so a plan
-  only spells out dimensions that carry strategic meaning.
-- `chooseBestPlan()` provides deterministic selection across candidates.
-
-Current named intents with regression coverage:
-
-| Intent | Purpose | Main implementation |
-| --- | --- | --- |
-| `deliverPassengers` | Preserve or start passenger delivery progress instead of drifting or finishing attrition combat. | `plans/passenger/support.ts`, `plans/passenger/combat.ts` |
-| `preserveLandingLine` | Skip combat when a passenger carrier has a one- or two-turn landing line. | `plans/passenger/combat.ts` |
-| `escortCarrier` | Drop objective navigation so an escort screens a threatened passenger carrier. | `plans/passenger/navigation.ts` |
-| `interceptPassengerCarrier` | Convert a stationary pursuit fallback into a named enemy-carrier intercept. | `plans/passenger/intercept.ts` |
-| `supportPassengerCarrier` | Keep a tanker stacked with the passenger carrier by mirroring the carrier burn. | `plans/passenger/support.ts` |
-| `postCarrierLossPursuit` | Release remaining ships to pursue after the passenger objective is gone. | `plans/passenger/navigation.ts`, `plans/passenger/intercept.ts` |
-| `refuelAtReachableBase` | Divert to a planner-reachable refuel base instead of a geometrically tempting but unreachable target. | `plans/navigation.ts` |
-| `defendAgainstOrdnance` | Name anti-ordnance combat target choices. | `plans/combat.ts` |
-| `finishAttrition` | Name disabled-target combat choices. | `plans/combat.ts` |
-| `attackThreat` | Name default combat target choices when no higher doctrine applies. | `plans/combat.ts` |
-| `screenObjectiveRunner` | Name attack grouping that withholds a race/objective ship while cover fires. | `plans/combat.ts` |
-
-The refactor was successful as an architecture change: doctrine-level tests now
-assert chosen intents instead of only exact burns, and simulation captures can
-record plan decisions where the caller supplies them. It did **not** fully solve
-scenario balance. The remaining work is behavior tuning backed by paired
-scorecards and captured states, especially evacuation's P0 skew and convoy's
-remaining fleet-elimination share.
-
-When adding AI behavior now:
-
-1. Promote a captured bad state or add a focused fixture first.
-2. Express doctrine as a named plan when the decision has strategic meaning
-   beyond a local numeric score.
-3. Keep scalar course scoring for low-level burn comparison.
-4. Compare paired seed scorecards before and after; see
-   [SIMULATION_TESTING.md](./SIMULATION_TESTING.md).
-
-The full module map, plan-evaluation convention, change workflow, failure
-triage table, and reporting template are in [AI.md](./AI.md).
+[AI.md](./AI.md) is the owner doc for the AI layer — it holds the full module
+map, the current named-intent catalog, the plan-evaluation convention, the
+change workflow (fixture first, named plan for doctrine, scalar scoring for
+local geometry, paired scorecards before/after), the failure-triage table, and
+the reporting template. Scorecard commands live in
+[SIMULATION_TESTING.md](./SIMULATION_TESTING.md).
 
 #### Engine Mutation Model and RNG Injection
 

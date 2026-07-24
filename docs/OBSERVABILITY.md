@@ -581,7 +581,7 @@ In the Cloudflare Workers **Logs** tab, filter by:
 - **Server:** stores **hashed IP** (`ip_hash`), not raw IP, for client-originated rows.
 - **Chat text** is not written to D1 by default (in-game only).
 
-User-facing policy copy is out of scope here; align any public privacy text with this behavior. See [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md).
+User-facing policy copy is out of scope here; align any public privacy text with this behavior. See [SECURITY.md § Privacy (technical summary)](./SECURITY.md#privacy-technical-summary).
 
 ## Gaps and follow-ups
 

@@ -5,8 +5,7 @@ The canonical tool-and-transport reference for the Delta-V MCP server. Lists tra
 Related docs:
 
 - [`../static/agents.html`](../static/agents.html) — newcomer-facing setup for ChatGPT web, Codex, Claude Code, and other MCP clients
-- [`AGENT_STARTERS.md`](./AGENT_STARTERS.md) — packaged starter scripts and minimal entry points
-- [`AGENTS.md`](./AGENTS.md) — quick start, integration-path choice, tuning workflow.
+- [`AGENTS.md`](./AGENTS.md) — quick start, integration-path choice, packaged starter scripts, tuning workflow.
 - [`AGENT_SPEC.md`](../AGENT_SPEC.md) — deep protocol and design reference.
 - [`SECURITY.md`](./SECURITY.md) — remote MCP token model and canonical rate-limit table.
 

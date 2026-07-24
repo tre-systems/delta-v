@@ -71,16 +71,14 @@ Doc index by purpose, grouped by theme:
 
 | Doc | Purpose |
 | --- | --- |
-| [SECURITY.md](./docs/SECURITY.md) | Integrity, abuse controls, rate limits, data retention |
+| [SECURITY.md](./docs/SECURITY.md) | Integrity, abuse controls, rate limits, data retention, privacy (technical) |
 | [OBSERVABILITY.md](./docs/OBSERVABILITY.md) | Telemetry events, D1 queries, incident triage |
-| [PRIVACY_TECHNICAL.md](./docs/PRIVACY_TECHNICAL.md) | What the stack stores (technical, not legal) |
-| [A11Y.md](./docs/A11Y.md) | DOM accessibility audit checklist |
 
 **Testing**
 
 | Doc | Purpose |
 | --- | --- |
-| [MANUAL_TEST_PLAN.md](./docs/MANUAL_TEST_PLAN.md) | Release / regression manual checks |
+| [MANUAL_TEST_PLAN.md](./docs/MANUAL_TEST_PLAN.md) | Release / regression manual checks and the DOM accessibility audit |
 | [SIMULATION_TESTING.md](./docs/SIMULATION_TESTING.md) | Headless AI simulation and WebSocket load harness |
 | [EXPLORATORY_TESTING.md](./docs/EXPLORATORY_TESTING.md) | Open-ended discovery-pass toolkit and probe recipes |
 
@@ -88,9 +86,7 @@ Doc index by purpose, grouped by theme:
 
 | Doc | Purpose |
 | --- | --- |
-| [REVIEW_METHODS.md](./docs/REVIEW_METHODS.md) | Reusable review types and how to run them |
 | [REVIEW_PLAN.md](./docs/REVIEW_PLAN.md) | Recurring cross-cutting review checklist |
-| [COORDINATED_RELEASE_CHECKLIST.md](./docs/COORDINATED_RELEASE_CHECKLIST.md) | Protocol/schema version bump steps |
 | [BACKLOG.md](./docs/BACKLOG.md) | Remaining actionable work, in priority order |
 
 **Agents and visual identity**

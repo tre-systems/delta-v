@@ -46,11 +46,8 @@ export const parts = [
     files: [
       "docs/SIMULATION_TESTING.md",
       "docs/MANUAL_TEST_PLAN.md",
-      "docs/A11Y.md",
       "docs/OBSERVABILITY.md",
       "docs/SECURITY.md",
-      "docs/PRIVACY_TECHNICAL.md",
-      "docs/COORDINATED_RELEASE_CHECKLIST.md",
     ],
   },
   {
@@ -64,7 +61,6 @@ export const parts = [
     intro:
       "These chapters are deliberately more volatile than the core handbook: exploratory methods, recurring review checklists, and the live backlog snapshot.",
     files: [
-      "docs/REVIEW_METHODS.md",
       "docs/REVIEW_PLAN.md",
       "docs/EXPLORATORY_TESTING.md",
       "docs/BACKLOG.md",
@@ -87,7 +83,7 @@ export const chapterMetadata = {
   },
   "docs/CONTRIBUTING.md": {
     abstract:
-      "The working agreement for local development: hooks, verification commands, and the minimum workflow expected before changes are pushed.",
+      "The working agreement for local development: hooks, verification commands, the coordinated-release checklist, and the minimum workflow expected before changes are pushed.",
     mode: "Contributor reference",
     audience: "Anyone making code or doc changes",
   },
@@ -171,15 +167,9 @@ export const chapterMetadata = {
   },
   "docs/MANUAL_TEST_PLAN.md": {
     abstract:
-      "The hands-on release checklist for verifying shipped behavior across scenarios, UI surfaces, inputs, multiplayer, and recovery paths.",
+      "The hands-on release checklist for verifying shipped behavior across scenarios, UI surfaces, inputs, multiplayer, recovery paths, and the DOM accessibility audit.",
     mode: "Operational checklist",
     audience: "Release and QA readers",
-  },
-  "docs/A11Y.md": {
-    abstract:
-      "The accessibility audit guide for the DOM-facing surfaces around the canvas game board, including scope and review cadence.",
-    mode: "Operational checklist",
-    audience: "UI and accessibility reviewers",
   },
   "docs/OBSERVABILITY.md": {
     abstract:
@@ -189,25 +179,13 @@ export const chapterMetadata = {
   },
   "docs/SECURITY.md": {
     abstract:
-      "A practical security and competitive-integrity review of the current product, including rate limits, trust boundaries, and token flows.",
+      "A practical security and competitive-integrity review of the current product, including rate limits, trust boundaries, token flows, data retention, and the technical privacy summary.",
     mode: "Security reference",
     audience: "Operators, reviewers, and server engineers",
   },
-  "docs/PRIVACY_TECHNICAL.md": {
-    abstract:
-      "The technical record of what user and telemetry data is stored, where it lives, and how long the system keeps it.",
-    mode: "Operational reference",
-    audience: "Operators and privacy reviewers",
-  },
-  "docs/COORDINATED_RELEASE_CHECKLIST.md": {
-    abstract:
-      "The coordination checklist for schema, protocol, replay, and migration changes that must move together in one release line.",
-    mode: "Operational checklist",
-    audience: "Release owners",
-  },
   "docs/AGENTS.md": {
     abstract:
-      "The shortest practical path to a working Delta-V agent, from integration choice to quick-start loops and tuning workflow.",
+      "The shortest practical path to a working Delta-V agent, from integration choice to quick-start loops, packaged starter scripts, and tuning workflow.",
     mode: "Integration guide",
     audience: "Agent builders",
   },
@@ -228,13 +206,6 @@ export const chapterMetadata = {
       "A recurring review worksheet for cross-cutting audits such as security, observability, release hygiene, and CI friction.",
     mode: "Annex worksheet",
     audience: "Maintainers running periodic audits",
-    volatile: true,
-  },
-  "docs/REVIEW_METHODS.md": {
-    abstract:
-      "A portable guide to review types, review workflow, finding formats, and when to use each kind of review.",
-    mode: "Annex guide",
-    audience: "Maintainers creating or running review systems",
     volatile: true,
   },
   "docs/EXPLORATORY_TESTING.md": {

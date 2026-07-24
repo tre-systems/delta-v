@@ -292,6 +292,53 @@ Run when `/server/index.ts` route handlers, public endpoints, or HTTP method han
 
 ---
 
+## Accessibility audit (DOM)
+
+Delta-V uses a Canvas game board. Full non-visual play would require a parallel interface and is not currently in scope. This audit focuses on the accessible parts of the product we do control: menu, lobby, overlays, HUD chrome, fleet builder, chat, and buttons.
+
+**In scope:** `src/client/ui/`, `src/client/dom.ts`, and overlay/lobby controls rendered outside Canvas. **Out of scope (for now):** pointer-first ship/hex interaction on the Canvas board and full keyboard-only tactical play parity.
+
+**Cadence:** run before release candidates, after major UI refactors, and after introducing new modal, form, or HUD interaction patterns.
+
+### Automated a11y checks
+
+Run both automated paths when possible:
+
+1. Lighthouse Accessibility audit on `/`
+2. Playwright + axe baseline: `npm run test:e2e:a11y` — covers menu, menu WCAG2AA contrast, waiting lobby, HUD + help overlay DOM, keyboard activation, focus restore, fleet builder, and desktop log panel. Fails on serious/critical violations. Excludes Canvas; contrast outside the menu remains a manual check (see [Contrast & readability](#contrast-readability-wcag-aa-spot-check)).
+
+**Pass criteria:** no critical/serious accessibility violations on audited views; new violations are either fixed or explicitly documented (e.g. [BACKLOG.md](./BACKLOG.md) when scoping follow-up).
+
+### Manual a11y checklist (pass/fail)
+
+- [ ] **Keyboard order:** Tab order reaches Create/Join and primary actions in expected sequence
+- [ ] **Activation semantics:** Enter/Space activate controls; native `<button>` preferred over clickable `<div>`
+- [ ] **Form naming:** room code/chat inputs have visible labels or correct `aria-label`
+- [ ] **Focus visibility:** keyboard focus ring/outline is visible on all actionable elements
+- [ ] **Modal behavior:** focus is trapped while open and restored to trigger on close
+- [ ] **Contrast:** HUD/overlay text is readable on translucent backgrounds — see the WCAG AA spot-check steps above for glassy panels (help overlay, game-over)
+- [ ] **Status messaging:** important toasts/errors use `role="status"` or `role="alert"` where signal is needed without excessive noise
+
+### Canvas semantics
+
+The tactical map stays `role="application"` with a long `aria-label` so assistive tech exposes it as a single complex control rather than browse-mode noise. To partially offset browse-mode loss, `#hudBoardSummary` (visually hidden, `role="status"`, `aria-live="polite"`) is updated from HUD chrome with high-level board context (turn, phase, objective text). Document Canvas constraints explicitly in PRs/issues when relevant; do not create placeholder "keyboard support" tasks without a concrete product decision and implementation plan.
+
+### Current a11y baseline (audited 2026-05-02)
+
+- Automated: `npm run test:e2e:a11y` passes — 8/8 axe checks on menu, menu WCAG2AA contrast, waiting lobby, in-game HUD + help, keyboard activation of primary nav, help-overlay focus move and restore, fleet-building screen, desktop log panel.
+- Keyboard order: primary flows pass; help, game-over, and reconnect overlays implement Tab focus traps ([hud-chrome-view.ts](../src/client/ui/hud-chrome-view.ts), [overlay-view.ts](../src/client/ui/overlay-view.ts)).
+- Activation semantics: native buttons and radios with `role` attributes; Enter/Space work.
+- Form naming: callsign / room-code / chat inputs have `aria-label` or visible labels.
+- Focus visibility: global `:focus-visible` ring applied at 2px solid accent with 2px offset ([base.css](../static/styles/base.css)).
+- Modal behavior: `#helpOverlay`, `#gameOver`, and `#reconnectOverlay` have both `aria-modal="true"` and Tab focus traps.
+- Contrast: menu WCAG2AA axe contrast passes; `prefers-contrast: more` drops backdrops on HUD / overlays / phase alert / menu; translucent HUD text still needs per-device spot-check on real hardware.
+- Status messaging: 14 `aria-live` regions in [static/index.html](../static/index.html) (hudBoardSummary, callsignStatus, gameCode, toastContainer, phaseAlert, logEntries, logLatestBar, opponentDisconnectOverlay, newVersionBanner, menuOfflineBanner, officialBotOffer, chatCharCounter, logStatusBar, logistics container).
+- Residual product gap: HUD scale remains keyboard-only (`+` / `_`) with no touch-reachable UI. Track this only when user testing or a HUD change makes it a concrete requirement. Full keyboard tactical play on the canvas board remains explicitly out of scope.
+
+When running a new audit, replace the baseline above (date, surfaces checked, automated results, manual checklist summary, new issues) and file concrete, testable follow-ups in [BACKLOG.md](./BACKLOG.md) — prefer specific items over broad "improve accessibility" entries.
+
+---
+
 ## Automated checks
 
 These run in CI and don't replace manual experience checks:

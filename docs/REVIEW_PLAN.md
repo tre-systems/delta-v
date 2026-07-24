@@ -10,7 +10,9 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 **Human-only items** are marked with a `[Human]` tag. Everything else is agent-executable.
 
-**Related docs:** [REVIEW_METHODS.md](./REVIEW_METHODS.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), [BACKLOG.md](./BACKLOG.md), [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md).
+**Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md), [SECURITY.md](./SECURITY.md), [BACKLOG.md](./BACKLOG.md), [MANUAL_TEST_PLAN.md](./MANUAL_TEST_PLAN.md), [EXPLORATORY_TESTING.md](./EXPLORATORY_TESTING.md) (open-ended discovery passes).
+
+**Finding format:** file findings that leave this doc (into [BACKLOG.md](./BACKLOG.md) or an issue) with title, severity, surface, impact, evidence, reproduction, expected vs actual, and suggested next step. Severity reflects user impact, data risk, security exposure, and likelihood — not how annoying the fix is.
 
 ---
 
@@ -33,7 +35,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 
 **Goal:** know what is stored, how long it lives, and whether implementation matches docs.
 
-**Key files:** `src/server/reporting.ts` (`insertEvent`), `migrations/`, `src/client/telemetry.ts`, `src/server/game-do/match-archive.ts`, [OBSERVABILITY.md](./OBSERVABILITY.md), [SECURITY.md](./SECURITY.md), [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md).
+**Key files:** `src/server/reporting.ts` (`insertEvent`), `migrations/`, `src/client/telemetry.ts`, `src/server/game-do/match-archive.ts`, [OBSERVABILITY.md](./OBSERVABILITY.md), [SECURITY.md](./SECURITY.md) (including its privacy summary).
 
 **Scope:** D1 (`events`, `match_archive`), R2 (`matches/{gameId}.json`), DO ephemeral storage, client telemetry, `anonId`/`ip_hash`/UA, chat text.
 
@@ -42,7 +44,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 1. Read `insertEvent` in `src/server/reporting.ts` and `migrations/`; list every event type written to D1. Cross-check against [OBSERVABILITY.md](./OBSERVABILITY.md). **Pass:** doc lists all event types. **Fail:** update the doc.
 2. Read `telemetry.ts`; list every client telemetry payload shape. Cross-check against [OBSERVABILITY.md](./OBSERVABILITY.md). **Pass:** doc lists all payloads. **Fail:** update the doc.
 3. Read `match-archive.ts`; confirm R2 key pattern and what data is stored. Cross-check against [SECURITY.md](./SECURITY.md#data-retention-d1-r2-do). **Pass:** retention policy matches implementation. **Fail:** update the doc or file BACKLOG item.
-4. Grep for `anonId`, `ip_hash`, `ua`, `user-agent`, and `chat` across `src/`; list where PII or user-generated content is persisted. Cross-check against [PRIVACY_TECHNICAL.md](./PRIVACY_TECHNICAL.md). **Pass:** no undocumented PII storage. **Fail:** update the doc.
+4. Grep for `anonId`, `ip_hash`, `ua`, `user-agent`, and `chat` across `src/`; list where PII or user-generated content is persisted. Cross-check against [SECURITY.md § Privacy (technical summary)](./SECURITY.md#privacy-technical-summary). **Pass:** no undocumented PII storage. **Fail:** update the doc.
 
 ---
 
@@ -139,7 +141,7 @@ A **recurring checklist** for reviewing aspects of Delta-V not covered by day-to
 - **i18n:** English-only — [ARCHITECTURE.md](./ARCHITECTURE.md#5-current-decisions-and-planned-shifts).
 - **Protocol compatibility:** same-version deploy — [ARCHITECTURE.md](./ARCHITECTURE.md) sections 1 + 5.
 - **Replay/parity:** covered by coding standard — [CODING_STANDARDS.md](./CODING_STANDARDS.md).
-- **Accessibility:** `[Human]` — manual keyboard/screen-reader audit per [A11Y.md](./A11Y.md); automated checks via `npm run test:e2e:a11y`.
+- **Accessibility:** `[Human]` — manual keyboard/screen-reader audit per [MANUAL_TEST_PLAN.md § Accessibility audit](./MANUAL_TEST_PLAN.md#accessibility-audit-dom); automated checks via `npm run test:e2e:a11y`.
 
 ---
 
