@@ -1,0 +1,116 @@
+digraph SystemOverview {
+  graph [
+    rankdir=TB,
+    bgcolor="#ffffff",
+    pad="0.55",
+    nodesep="0.5",
+    ranksep="0.8",
+    splines=polyline,
+    outputorder=edgesfirst,
+    compound=true,
+    newrank=true,
+    fontname="Avenir",
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><FONT POINT-SIZE="34"><B>System Overview</B></FONT></TD></TR></TABLE>>,
+    labelloc=t,
+    labeljust=c
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    margin="0.21,0.13",
+    fontname="Avenir",
+    fontsize=18,
+    penwidth=2.4,
+    fontcolor="#14213d",
+    color="#2264c7",
+    fillcolor="#eaf3ff:#ffffff",
+    gradientangle=270
+  ];
+
+  edge [
+    color="#263a59",
+    fontname="Avenir",
+    fontsize=13,
+    fontcolor="#3d4a5c",
+    penwidth=2.2,
+    arrowsize=0.78
+  ];
+
+  // ---- Clients ----
+  subgraph cluster_clients {
+    graph [
+      label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="17" COLOR="#1f5fbf"><B>CLIENTS</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="12" COLOR="#496f9f">Humans and agents are peers on the same protocol.</FONT></TD></TR></TABLE>>,
+      labelloc=t, labeljust=l,
+      color="#b9d8ff", fillcolor="#f5f9ff", style="rounded,filled", penwidth=1.8, margin=22
+    ];
+    C1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Browser SPA</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">Canvas renderer + DOM UI + local AI</FONT></TD></TR></TABLE>>];
+    C2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Agents</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">MCP clients, bridge scripts, raw WebSocket</FONT></TD></TR></TABLE>>];
+  }
+
+  // ---- Worker ----
+  subgraph cluster_worker {
+    graph [
+      label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="17" COLOR="#1e6b43"><B>CLOUDFLARE WORKER</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="12" COLOR="#4e7a61">One deploy line: Worker + static assets ship together.</FONT></TD></TR></TABLE>>,
+      labelloc=t, labeljust=l,
+      color="#b8e5c8", fillcolor="#f4fbf6", style="rounded,filled", penwidth=1.8, margin=22
+    ];
+    W1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>HTTP routes</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">create / join / replay / quick-match / api</FONT></TD></TR></TABLE>>, fillcolor="#eaf8ef:#ffffff", color="#22865a"];
+    W2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>MCP adapter</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">POST /mcp — Bearer auth + matchToken</FONT></TD></TR></TABLE>>, fillcolor="#eaf8ef:#ffffff", color="#22865a"];
+
+    subgraph cluster_dos {
+      graph [
+        label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="15" COLOR="#1e6b43"><B>DURABLE OBJECTS</B></FONT></TD></TR></TABLE>>,
+        labelloc=t, labeljust=l,
+        color="#b8e5c8", fillcolor="#eefaf2", style="rounded,filled", penwidth=1.4, margin=18
+      ];
+      D1N [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>GameDO</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">one room per match — sockets, alarms, events</FONT></TD></TR></TABLE>>, fillcolor="#eaf8ef:#ffffff", color="#22865a"];
+      D2N [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>MatchmakerDO</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">singleton quick-match queue</FONT></TD></TR></TABLE>>, fillcolor="#eaf8ef:#ffffff", color="#22865a"];
+      D3N [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>LiveRegistryDO</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">singleton “Live now” registry</FONT></TD></TR></TABLE>>, fillcolor="#eaf8ef:#ffffff", color="#22865a"];
+      D4N [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>OAuthDO</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">singleton OAuth codes + refresh families</FONT></TD></TR></TABLE>>, fillcolor="#eaf8ef:#ffffff", color="#22865a"];
+      { rank=same; D2N; D3N; D4N; }
+    }
+  }
+
+  // ---- Shared engine ----
+  subgraph cluster_engine {
+    graph [
+      label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="17" COLOR="#5f3dc4"><B>SHARED ENGINE (src/shared)</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="12" COLOR="#6f5aa8">Side-effect-free; same code in browser, server, and simulation.</FONT></TD></TR></TABLE>>,
+      labelloc=t, labeljust=l,
+      color="#d0bfff", fillcolor="#f8f7ff", style="rounded,filled", penwidth=1.8, margin=22
+    ];
+    E1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Rules engine</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">clone-on-entry, injected RNG, engine events</FONT></TD></TR></TABLE>>, fillcolor="#f3f0ff:#ffffff", color="#7048e8"];
+    E2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Validation + projection</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">validateClientMessage, event projector, AI + candidates</FONT></TD></TR></TABLE>>, fillcolor="#f3f0ff:#ffffff", color="#7048e8"];
+  }
+
+  // ---- Storage ----
+  subgraph cluster_storage {
+    graph [
+      label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="17" COLOR="#0f766e"><B>STORAGE</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="12" COLOR="#357a74">Event stream is the truth; snapshots are checkpoints.</FONT></TD></TR></TABLE>>,
+      labelloc=t, labeljust=l,
+      color="#99d5cf", fillcolor="#f0fdfa", style="rounded,filled", penwidth=1.8, margin=22
+    ];
+    S1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>DO storage</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">chunked event stream + checkpoints</FONT></TD></TR></TABLE>>, fillcolor="#e6fffb:#ffffff", color="#0f766e"];
+    S2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>D1 (SQLite)</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">events, match_archive, player, match_rating</FONT></TD></TR></TABLE>>, fillcolor="#e6fffb:#ffffff", color="#0f766e"];
+    S3 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>R2 MATCH_ARCHIVE</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="15">matches/{gameId}.json replay archives</FONT></TD></TR></TABLE>>, fillcolor="#e6fffb:#ffffff", color="#0f766e"];
+  }
+
+  // ---- Edges ----
+  C1 -> W1 [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">HTTP + WebSocket</FONT></TD></TR></TABLE>>];
+  C2 -> W2 [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">JSON-RPC + Bearer</FONT></TD></TR></TABLE>>];
+  C2 -> W1 [style=dashed, color="#6b7280"];
+  W1 -> D1N [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">room routes + WS upgrade</FONT></TD></TR></TABLE>>];
+  W1 -> D2N;
+  W1 -> D3N;
+  W1 -> D4N;
+  W2 -> D1N [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">authorized seat actions</FONT></TD></TR></TABLE>>];
+  D2N -> D1N [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">paired seats</FONT></TD></TR></TABLE>>, style=dashed, color="#6b7280"];
+  D1N -> D3N [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">register / deregister</FONT></TD></TR></TABLE>>, style=dashed, color="#6b7280", constraint=false];
+  C1 -> E1 [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">local AI games</FONT></TD></TR></TABLE>>, style=dashed, color="#6b7280"];
+  D1N -> E1 [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">validate + resolve</FONT></TD></TR></TABLE>>];
+  D1N -> E2 [style=dashed, color="#6b7280"];
+  D1N -> S1 [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">append + checkpoint</FONT></TD></TR></TABLE>>];
+  D1N -> S2 [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">telemetry + ratings</FONT></TD></TR></TABLE>>];
+  D1N -> S3 [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">archive on game end</FONT></TD></TR></TABLE>>];
+  W1 -> S2 [label=<<TABLE BORDER="1" CELLBORDER="0" STYLE="ROUNDED" COLOR="#dfe3e9" BGCOLOR="#ffffff" CELLSPACING="0" CELLPADDING="4"><TR><TD><FONT POINT-SIZE="13" COLOR="#6b7280">/telemetry + /error</FONT></TD></TR></TABLE>>, style=dashed, color="#6b7280"];
+}

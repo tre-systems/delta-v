@@ -36,22 +36,7 @@ Agents that connect via the hosted MCP endpoint (`POST https://delta-v.tre.syste
 
 ### ChatGPT web OAuth
 
-```mermaid
-sequenceDiagram
-  participant U as Player browser
-  participant C as ChatGPT
-  participant O as Delta-V OAuth
-  participant MCP as /mcp
-
-  C->>MCP: Discover protected tool
-  MCP-->>C: OAuth metadata challenge
-  C->>O: Authorization code + S256 PKCE request
-  O->>U: Consent + choose bot callsign
-  U->>O: Authorize bot
-  O-->>C: One-time code, then access + refresh tokens
-  C->>MCP: Authorization Bearer OAuth access token
-  MCP->>MCP: Verify issuer, audience, scope, expiry, grant binding
-```
+![Agent token model](./diagrams/agent-token-model.png)
 
 The protected resource is exactly `https://delta-v.tre.systems/mcp` and the only OAuth scope is `game:play`. ChatGPT identifies itself with a Client ID Metadata Document under `https://chatgpt.com/oauth/.../client.json`; the authorization server rejects other production client-ID origins, non-HTTPS redirects, redirects not listed in that document, requests without `resource`, and PKCE methods other than `S256`.
 
@@ -64,31 +49,6 @@ ChatGPT's tool metadata declares OAuth per protected tool, and authentication fa
 ### Manual agent-token flow
 
 Codex, Claude Code, ChatGPT desktop, and generic MCP clients may instead use the manually minted 24-hour agent token flow:
-
-```mermaid
-sequenceDiagram
-  participant A as Agent client
-  participant API as /api/agent-token
-  participant MCP as /mcp
-  participant G as GameDO
-
-  A->>API: POST /api/agent-token
-  API-->>A: agentToken
-  A->>MCP: initialize + Authorization Bearer agentToken
-  A->>MCP: delta_v_quick_match
-  MCP->>G: queue / seat connect
-  G-->>MCP: code + playerToken
-  MCP-->>A: matchToken
-
-  loop each hosted tool call
-    A->>MCP: Bearer agentToken + matchToken
-    MCP->>MCP: verify agentToken signature
-    MCP->>MCP: verify matchToken signature + embedded agent hash
-    MCP->>G: authorized observation / action
-    G-->>MCP: result
-    MCP-->>A: tool response
-  end
-```
 
 | Token | Purpose | Lifetime | Carrier | Source |
 |-------|---------|----------|---------|--------|
@@ -140,23 +100,6 @@ Current status: **acceptable for friendly matches, weak for public matchmaking**
 ### 3. Rate limiting architecture
 
 This is the canonical rate-limit table for the project. Other docs should link here rather than restate values.
-
-```mermaid
-flowchart TB
-  U["client / agent request"] --> E{"edge binding present?"}
-  E -->|yes| EDGE["Cloudflare rate-limit binding"]
-  E -->|no| APP["Worker in-memory gate"]
-  EDGE --> APP
-  APP --> ROUTE{"route class"}
-  ROUTE -->|create / claim / quick-match / agent-token| C["strict salted hashed-IP local bucket"]
-  ROUTE -->|telemetry / error / mcp| B["binding-backed POST gate + body cap"]
-  ROUTE -->|join / replay / leaderboard / upgrades| G["GET / upgrade probe buckets"]
-  C --> DO{"upgrade or action?"}
-  B --> DO
-  G --> DO
-  DO -->|WebSocket upgrade accepted| S["per-socket message limiter"]
-  S --> CHAT["chat cooldown"]
-```
 
 | Endpoint / scope | Limit | Window | Scope | Binding | On exceed |
 | --- | --- | --- | --- | --- | --- |

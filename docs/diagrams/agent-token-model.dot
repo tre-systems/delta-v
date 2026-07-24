@@ -1,0 +1,72 @@
+digraph AgentTokenModel {
+  graph [
+    rankdir=TB,
+    bgcolor="#ffffff",
+    pad="0.55",
+    nodesep="0.5",
+    ranksep="0.7",
+    splines=polyline,
+    compound=true,
+    newrank=true,
+    fontname="Avenir",
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><FONT POINT-SIZE="34"><B>Agent Token Model</B></FONT></TD></TR><TR><TD><FONT POINT-SIZE="14" COLOR="#6b7280">Two identity paths, one opaque per-match credential — raw playerTokens never reach model context</FONT></TD></TR></TABLE>>,
+    labelloc=t,
+    labeljust=c
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    margin="0.21,0.13",
+    fontname="Avenir",
+    fontsize=17,
+    penwidth=2.4,
+    fontcolor="#14213d",
+    color="#22865a",
+    fillcolor="#eaf8ef:#ffffff",
+    gradientangle=270
+  ];
+
+  edge [
+    color="#263a59",
+    fontname="Avenir",
+    fontsize=13,
+    fontcolor="#3d4a5c",
+    penwidth=2.0,
+    arrowsize=0.78
+  ];
+
+  subgraph cluster_oauth {
+    graph [
+      label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="16" COLOR="#1f5fbf"><B>CHATGPT OAUTH 2.1 PATH</B></FONT></TD></TR></TABLE>>,
+      labelloc=t, labeljust=l,
+      color="#b9d8ff", fillcolor="#f5f9ff", style="rounded,filled", penwidth=1.8, margin=20
+    ];
+    O1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>ChatGPT web</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">developer-mode app, CIMD client ID</FONT></TD></TR></TABLE>>, color="#2264c7", fillcolor="#eaf3ff:#ffffff"];
+    O2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Consent + S256 PKCE</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">choose callsign → agent_oauth_… identity</FONT></TD></TR></TABLE>>];
+    O3 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Access token (1 h)</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">refresh 30 d, rotates; hashes in OAuthDO</FONT></TD></TR></TABLE>>];
+    O1 -> O2 -> O3;
+  }
+
+  subgraph cluster_manual {
+    graph [
+      label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="16" COLOR="#1f5fbf"><B>MANUAL PATH (Codex, Claude Code, …)</B></FONT></TD></TR></TABLE>>,
+      labelloc=t, labeljust=l,
+      color="#b9d8ff", fillcolor="#f5f9ff", style="rounded,filled", penwidth=1.8, margin=20
+    ];
+    M1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>POST /api/agent-token</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">playerKey agent_… (5/60 s per hashed IP)</FONT></TD></TR></TABLE>>];
+    M2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>agentToken (24 h)</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">+ once-disclosed agentSecret for renewal</FONT></TD></TR></TABLE>>];
+    M1 -> M2;
+  }
+
+  B1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Authorization: Bearer … on POST /mcp</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">HMAC-SHA-256 verified with AGENT_TOKEN_SECRET; fails closed if unset</FONT></TD></TR></TABLE>>];
+  B2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>delta_v_quick_match</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">agentSandbox: true for unrated evaluation games</FONT></TD></TR></TABLE>>];
+  B3 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>matchToken (4 h)</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">opaque; embeds identity hash — a leaked blob alone cannot be replayed</FONT></TD></TR></TABLE>>];
+  B4 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>In-match tools → GameDO</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">wait_for_turn / get_observation / send_action / chat</FONT></TD></TR></TABLE>>, penwidth=3.0];
+  N1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Raw playerToken</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">held server-side only — never in tool args or prompts</FONT></TD></TR></TABLE>>, color="#c92a2a", fillcolor="#fff5f5:#ffffff", style="rounded,filled,dashed"];
+
+  O3 -> B1 [ltail=cluster_oauth];
+  M2 -> B1 [ltail=cluster_manual];
+  B1 -> B2 -> B3 -> B4;
+  B3 -> N1 [style=dashed, color="#c92a2a", arrowhead=none, label=<<FONT POINT-SIZE="13" COLOR="#c92a2a">wraps</FONT>>];
+}

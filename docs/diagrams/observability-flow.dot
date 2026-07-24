@@ -1,0 +1,81 @@
+digraph ObservabilityFlow {
+  graph [
+    rankdir=TB,
+    bgcolor="#ffffff",
+    pad="0.55",
+    nodesep="0.5",
+    ranksep="0.75",
+    splines=polyline,
+    compound=true,
+    newrank=true,
+    fontname="Avenir",
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><FONT POINT-SIZE="34"><B>Observability Flow</B></FONT></TD></TR><TR><TD><FONT POINT-SIZE="14" COLOR="#6b7280">What Delta-V emits, where it lands, and how operators read it</FONT></TD></TR></TABLE>>,
+    labelloc=t,
+    labeljust=c
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    margin="0.21,0.13",
+    fontname="Avenir",
+    fontsize=17,
+    penwidth=2.4,
+    fontcolor="#14213d",
+    color="#22865a",
+    fillcolor="#eaf8ef:#ffffff",
+    gradientangle=270
+  ];
+
+  edge [
+    color="#263a59",
+    fontname="Avenir",
+    fontsize=13,
+    fontcolor="#3d4a5c",
+    penwidth=2.0,
+    arrowsize=0.78
+  ];
+
+  // Emitters
+  C1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Browser client</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">track() → POST /telemetry · reportError() → POST /error</FONT></TD></TR></TABLE>>, color="#2264c7", fillcolor="#eaf3ff:#ffffff"];
+  W1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Worker gateway</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">rate limits + 4 KB caps; IP → salted ip_hash; reserved-event guard</FONT></TD></TR></TABLE>>];
+  G1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>GameDO + MatchmakerDO reporters</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">lifecycle events (console.log) · side-channel failures (console.error) · ip_hash = 'server'</FONT></TD></TR></TABLE>>];
+
+  // Sinks
+  subgraph cluster_sinks {
+    graph [
+      label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="16" COLOR="#0f766e"><B>SINKS</B></FONT></TD></TR></TABLE>>,
+      labelloc=t, labeljust=l,
+      color="#99d5cf", fillcolor="#f0fdfa", style="rounded,filled", penwidth=1.8, margin=20
+    ];
+    S1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>D1 events</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">telemetry, errors, lifecycle — 30-day rolling window</FONT></TD></TR></TABLE>>, color="#0f766e", fillcolor="#e6fffb:#ffffff"];
+    S2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>D1 match_archive + R2 replay JSON</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">one row + object per completed match — 180-day window</FONT></TD></TR></TABLE>>, color="#0f766e", fillcolor="#e6fffb:#ffffff"];
+    S3 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Workers Logs</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">console output with request metadata</FONT></TD></TR></TABLE>>, color="#0f766e", fillcolor="#e6fffb:#ffffff"];
+  }
+
+  CRON [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Daily cron 04:00</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">purgeOldEvents (30 d) + purgeExpiredMatchArchives (180 d)</FONT></TD></TR></TABLE>>, color="#d39a00", fillcolor="#fff4d1:#fffaf0"];
+
+  // Readers
+  subgraph cluster_readers {
+    graph [
+      label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="16" COLOR="#1f5fbf"><B>OPERATOR READS</B></FONT></TD></TR></TABLE>>,
+      labelloc=t, labeljust=l,
+      color="#b9d8ff", fillcolor="#f5f9ff", style="rounded,filled", penwidth=1.8, margin=20
+    ];
+    R1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>wrangler d1 execute</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">triage + insight queries (OBSERVABILITY.md)</FONT></TD></TR></TABLE>>, color="#2264c7", fillcolor="#eaf3ff:#ffffff"];
+    R2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>wrangler tail</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">live logs — contains real IPs; sanitize before sharing</FONT></TD></TR></TABLE>>, color="#2264c7", fillcolor="#eaf3ff:#ffffff"];
+    R3 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>GET /api/metrics</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">Bearer-gated aggregate snapshot</FONT></TD></TR></TABLE>>, color="#2264c7", fillcolor="#eaf3ff:#ffffff"];
+  }
+
+  C1 -> W1;
+  W1 -> S1;
+  G1 -> S1;
+  G1 -> S3;
+  W1 -> S3 [style=dashed, color="#6b7280"];
+  G1 -> S2 [label=<<FONT POINT-SIZE="13" COLOR="#6b7280">on game end</FONT>>];
+  CRON -> S1 [style=dashed, color="#d39a00"];
+  CRON -> S2 [style=dashed, color="#d39a00"];
+  S1 -> R1 [dir=back];
+  S3 -> R2 [dir=back];
+  S1 -> R3 [dir=back, style=dashed, color="#6b7280"];
+}

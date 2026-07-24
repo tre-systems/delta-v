@@ -1,0 +1,67 @@
+digraph AgentPlayLoop {
+  graph [
+    rankdir=TB,
+    bgcolor="#ffffff",
+    pad="0.55",
+    nodesep="0.5",
+    ranksep="0.6",
+    splines=polyline,
+    fontname="Avenir",
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><FONT POINT-SIZE="34"><B>Agent Play Loop</B></FONT></TD></TR><TR><TD><FONT POINT-SIZE="14" COLOR="#6b7280">The canonical decide–act–observe loop over MCP (local stdio or hosted HTTP)</FONT></TD></TR></TABLE>>,
+    labelloc=t,
+    labeljust=c
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    margin="0.21,0.13",
+    fontname="Avenir",
+    fontsize=17,
+    penwidth=2.4,
+    fontcolor="#14213d",
+    color="#2264c7",
+    fillcolor="#eaf3ff:#ffffff",
+    gradientangle=270
+  ];
+
+  edge [
+    color="#263a59",
+    fontname="Avenir",
+    fontsize=13,
+    fontcolor="#3d4a5c",
+    penwidth=2.0,
+    arrowsize=0.78
+  ];
+
+  L1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>delta_v_quick_match</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">returns matchToken / sessionId; agentSandbox for evaluation</FONT></TD></TR></TABLE>>];
+  L2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>delta_v_wait_for_turn</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">blocks server-side until actionable — no polling</FONT></TD></TR></TABLE>>, color="#22865a", fillcolor="#eaf8ef:#ffffff"];
+  Q0 [label=<<B>phase?</B>>, shape=diamond, margin="0.1,0.06"];
+  FB [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Send fleetReady once</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">often purchases: [] — then wait for the other seat</FONT></TD></TR></TABLE>>];
+  D1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Decide</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">observation + candidates; usually candidates[recommendedIndex]</FONT></TD></TR></TABLE>>];
+  Q1 [label=<<B>custom<BR/>action?</B>>, shape=diamond, margin="0.1,0.06"];
+  V1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>delta_v_validate_action</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">dry-run; returns stage / message without changing state</FONT></TD></TR></TABLE>>, color="#7048e8", fillcolor="#f3f0ff:#ffffff"];
+  S1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>delta_v_send_action</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">auto-stamped ActionGuards; waitForResult: true</FONT></TD></TR></TABLE>>, color="#22865a", fillcolor="#eaf8ef:#ffffff"];
+  Q2 [label=<<B>result?</B>>, shape=diamond, margin="0.1,0.06"];
+  R1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>actionRejected</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">staleTurn / stalePhase — re-decide from the fresh state</FONT></TD></TR></TABLE>>, color="#c92a2a", fillcolor="#fff5f5:#ffffff"];
+  Q3 [label=<<B>gameOver?</B>>, shape=diamond, margin="0.1,0.06"];
+  C1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>delta_v_close_session</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">stop sending actions; optionally read game://matches/{id}/replay</FONT></TD></TR></TABLE>>, color="#22865a", fillcolor="#eaf8ef:#ffffff", penwidth=3.0];
+  T1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>60 s autoplay fallback</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">server advances a silent seat; budget with agentReady.msUntilAutoplay</FONT></TD></TR></TABLE>>, color="#d39a00", fillcolor="#fff4d1:#fffaf0", style="rounded,filled,dashed"];
+
+  L1 -> L2 -> Q0;
+  Q0 -> FB [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">fleetBuilding</FONT>>];
+  FB -> L2;
+  Q0 -> D1 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">actionable turn</FONT>>];
+  D1 -> Q1;
+  Q1 -> V1 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">yes</FONT>>];
+  V1 -> S1;
+  Q1 -> S1 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">candidate</FONT>>];
+  S1 -> Q2;
+  Q2 -> R1 [label=<<FONT POINT-SIZE="13" COLOR="#c92a2a">rejected</FONT>>, color="#c92a2a"];
+  R1 -> D1;
+  Q2 -> L2 [label=<<FONT POINT-SIZE="13" COLOR="#6b7280">autoSkipLikely</FONT>>, style=dashed, color="#6b7280"];
+  Q2 -> Q3 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">accepted</FONT>>];
+  Q3 -> L2 [label=<<FONT POINT-SIZE="13" COLOR="#6b7280">no</FONT>>, style=dashed, color="#6b7280"];
+  Q3 -> C1 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">yes</FONT>>];
+  L2 -> T1 [style=dashed, color="#d39a00", arrowhead=none];
+}

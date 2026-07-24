@@ -1,7 +1,5 @@
 # AI Architecture and Tuning Guide
 
-![Delta-V AI system infographic](./assets/delta-v-ai-system-infographic.png)
-
 This guide is for changing the built-in Delta-V AI safely. It explains the
 current architecture, how to decide whether a behavior belongs in a named plan
 or a scalar score, and the verification loop expected for AI changes.
@@ -43,14 +41,6 @@ The same shared helpers run in every built-in path:
 ## Mental Model
 
 The engine owns legality and resolution. The AI only proposes actions.
-
-```mermaid
-flowchart LR
-  S["GameState + map + rng"] --> A["AI phase helper"]
-  A --> P["proposed action(s)"]
-  P --> E["shared engine validator/resolver"]
-  E --> N["next GameState + events"]
-```
 
 Each phase has a focused helper:
 

@@ -35,6 +35,12 @@ jobs:
       - name: Verify CSP hashes
         run: npm run check:csp
 
+      - name: Install Graphviz
+        run: sudo apt-get update && sudo apt-get install -y graphviz
+
+      - name: Verify doc links and diagrams
+        run: npm run check:doc-links && npm run check:diagrams
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 

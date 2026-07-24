@@ -1,7 +1,5 @@
 # Delta-V Agents: Practical Guide
 
-![Delta-V agent ecosystem infographic](./assets/delta-v-agent-ecosystem-infographic.png)
-
 The fastest path to a working Delta-V agent — integration-path choice, a runnable quick start for each path, packaged starter scripts, the contract your model receives, and a tuning workflow. Start here; read deeper docs only when you need them:
 
 - [AGENT_SPEC.md](../AGENT_SPEC.md) — deep protocol and design reference

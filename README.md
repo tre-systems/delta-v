@@ -98,13 +98,9 @@ Doc index by purpose, grouped by theme:
 | [AGENT_SPEC.md](./AGENT_SPEC.md) | Deep agent protocol and design reference |
 | [LORE.md](./docs/LORE.md) | Ship aesthetics and visual direction |
 
-### Compiled Documentation Book
+### Diagrams
 
-The documentation book compiles every doc in this index into a single consolidated PDF with a cover, parts-break, and table of contents. It is rebuilt with `npm run docs:book`.
-
-| File | Purpose |
-| --- | --- |
-| [`docs/delta-v-documentation-book.pdf`](./docs/delta-v-documentation-book.pdf) | Full book: every canonical Markdown doc and the visual concept boards under `docs/assets/`. Use for reading, printing, or archiving. |
+Architecture and flow diagrams live in [docs/diagrams/](./docs/diagrams/README.md) as Graphviz `.dot` sources with committed PNG renders. Re-render with `npm run diagrams`; CI verifies them with `npm run check:diagrams`.
 
 ### Glossary
 

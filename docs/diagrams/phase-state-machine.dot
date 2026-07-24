@@ -1,0 +1,64 @@
+digraph PhaseStateMachine {
+  graph [
+    rankdir=TB,
+    bgcolor="#ffffff",
+    pad="0.55",
+    nodesep="0.55",
+    ranksep="0.7",
+    splines=true,
+    fontname="Avenir",
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><FONT POINT-SIZE="34"><B>Engine Phase State Machine</B></FONT></TD></TR><TR><TD><FONT POINT-SIZE="14" COLOR="#6b7280">Authoritative GameState.phase — transitions from PHASE_TRANSITIONS in src/shared/types/domain.ts</FONT></TD></TR></TABLE>>,
+    labelloc=t,
+    labeljust=c
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    margin="0.24,0.14",
+    fontname="Avenir",
+    fontsize=18,
+    penwidth=2.4,
+    fontcolor="#14213d",
+    color="#7048e8",
+    fillcolor="#f3f0ff:#ffffff",
+    gradientangle=270
+  ];
+
+  edge [
+    color="#263a59",
+    fontname="Avenir",
+    fontsize=13,
+    fontcolor="#3d4a5c",
+    penwidth=2.0,
+    arrowsize=0.78
+  ];
+
+  waiting       [label=<<B>waiting</B>>, color="#2264c7", fillcolor="#eaf3ff:#ffffff"];
+  fleetBuilding [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>fleetBuilding</B></TD></TR><TR><TD CELLPADDING="3"><FONT POINT-SIZE="14">both seats submit fleetReady</FONT></TD></TR></TABLE>>];
+  astrogation   [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>astrogation</B></TD></TR><TR><TD CELLPADDING="3"><FONT POINT-SIZE="14">burns + movement resolution</FONT></TD></TR></TABLE>>];
+  ordnance      [label=<<B>ordnance</B>>];
+  combat        [label=<<B>combat</B>>];
+  logistics     [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>logistics</B></TD></TR><TR><TD CELLPADDING="3"><FONT POINT-SIZE="14">only when logisticsEnabled</FONT></TD></TR></TABLE>>];
+  gameOver      [label=<<B>gameOver</B>>, color="#22865a", fillcolor="#eaf8ef:#ffffff", penwidth=3.0];
+
+  waiting -> fleetBuilding;
+  waiting -> astrogation [label=<<FONT POINT-SIZE="13" COLOR="#6b7280">no fleet-build scenario</FONT>>];
+  fleetBuilding -> astrogation;
+  astrogation -> ordnance;
+  astrogation -> combat;
+  astrogation -> logistics;
+  astrogation -> astrogation [label=<<FONT POINT-SIZE="13" COLOR="#6b7280">timeout / advance</FONT>>];
+  ordnance -> combat;
+  ordnance -> logistics;
+  ordnance -> astrogation;
+  combat -> logistics;
+  combat -> astrogation;
+  logistics -> astrogation;
+
+  fleetBuilding -> gameOver [style=dashed, color="#c92a2a", fontcolor="#c92a2a"];
+  astrogation -> gameOver [style=dashed, color="#c92a2a"];
+  ordnance -> gameOver [style=dashed, color="#c92a2a"];
+  combat -> gameOver [style=dashed, color="#c92a2a"];
+  logistics -> gameOver [style=dashed, color="#c92a2a", label=<<FONT POINT-SIZE="13" COLOR="#c92a2a">victory check from any in-game phase</FONT>>];
+}

@@ -225,33 +225,6 @@ webSocketMessage(ws: WebSocket, message: string) {
 
 A single C2S action threads these patterns in order:
 
-```mermaid
-sequenceDiagram
-  participant C as Client
-  participant DO as GameDO<br/>(hibernatable)
-  participant S as Storage
-  participant R as R2 / D1
-
-  C->>DO: C2S message (WebSocket)
-  Note over DO: webSocketMessage wakes DO<br/>tags identify player
-
-  DO->>DO: applySocketRateLimit<br/>(Type System chapter)
-  DO->>DO: validateClientMessage<br/>(Type System chapter)
-  DO->>DO: runGameStateAction<br/>→ engine call → engineEvents[]
-
-  rect rgb(230, 240, 255)
-    Note over DO,S: runPublicationPipeline
-    DO->>S: append events (chunked)
-    opt turn boundary
-      DO->>S: save checkpoint
-    end
-    DO->>S: verify projection parity
-    opt game over
-      DO->>R: archive match (R2 + D1)
-    end
-    DO->>DO: restart turn timer
-    DO->>C: broadcastFilteredMessage<br/>(filtered per viewer)
-  end
-```
+![Authoritative action pipeline](../docs/diagrams/action-pipeline.png)
 
 Every step has a single owner, a single reason to exist, and a single place to look when debugging.

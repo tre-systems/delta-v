@@ -1,0 +1,71 @@
+digraph ActionPipeline {
+  graph [
+    rankdir=TB,
+    bgcolor="#ffffff",
+    pad="0.55",
+    nodesep="0.5",
+    ranksep="0.6",
+    splines=polyline,
+    fontname="Avenir",
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><FONT POINT-SIZE="34"><B>Authoritative Action Pipeline</B></FONT></TD></TR><TR><TD><FONT POINT-SIZE="14" COLOR="#6b7280">C2S message → validated engine call → persisted events → one state-bearing broadcast</FONT></TD></TR></TABLE>>,
+    labelloc=t,
+    labeljust=c
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    margin="0.21,0.13",
+    fontname="Avenir",
+    fontsize=17,
+    penwidth=2.4,
+    fontcolor="#14213d",
+    color="#22865a",
+    fillcolor="#eaf8ef:#ffffff",
+    gradientangle=270
+  ];
+
+  edge [
+    color="#263a59",
+    fontname="Avenir",
+    fontsize=13,
+    fontcolor="#3d4a5c",
+    penwidth=2.0,
+    arrowsize=0.78
+  ];
+
+  A1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>C2S action</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">WebSocket frame or MCP tool call</FONT></TD></TR></TABLE>>, color="#2264c7", fillcolor="#eaf3ff:#ffffff"];
+  A2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Per-socket rate limit</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">10 msg/s, then close 1008</FONT></TD></TR></TABLE>>];
+  A3 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>validateClientMessage()</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">shared runtime validation + payload caps</FONT></TD></TR></TABLE>>, color="#7048e8", fillcolor="#f3f0ff:#ffffff"];
+  Q1 [label=<<B>valid?</B>>, shape=diamond, color="#7048e8", fillcolor="#f3f0ff:#ffffff", margin="0.1,0.06"];
+  R1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Typed error S2C</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">rejected, never trusted structurally</FONT></TD></TR></TABLE>>, color="#c92a2a", fillcolor="#fff5f5:#ffffff"];
+  A4 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>dispatchGameStateAction()</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">guards checked (expectedTurn / expectedPhase / idempotencyKey)</FONT></TD></TR></TABLE>>];
+  A5 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Shared engine process*()</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">clone-on-entry, per-match derived RNG, returns state + engineEvents</FONT></TD></TR></TABLE>>, color="#7048e8", fillcolor="#f3f0ff:#ffffff"];
+  Q2 [label=<<B>accepted?</B>>, shape=diamond, color="#7048e8", fillcolor="#f3f0ff:#ffffff", margin="0.1,0.06"];
+  R2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>actionRejected</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">reason + fresh state so the caller can re-decide</FONT></TD></TR></TABLE>>, color="#c92a2a", fillcolor="#fff5f5:#ffffff"];
+
+  subgraph cluster_pub {
+    graph [
+      label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2"><TR><TD ALIGN="LEFT"><FONT POINT-SIZE="16" COLOR="#1e6b43"><B>runPublicationPipeline() — single choke point</B></FONT></TD></TR></TABLE>>,
+      labelloc=t, labeljust=l,
+      color="#b8e5c8", fillcolor="#f4fbf6", style="rounded,filled", penwidth=1.8, margin=20
+    ];
+    P1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Append event envelopes</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">gameId / seq / ts / actor — chunked DO storage</FONT></TD></TR></TABLE>>, color="#0f766e", fillcolor="#e6fffb:#ffffff"];
+    P2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Checkpoint at turn boundary</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">full GameState snapshot</FONT></TD></TR></TABLE>>, color="#0f766e", fillcolor="#e6fffb:#ffffff"];
+    P3 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Parity check</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">projected vs live; mismatch → D1 telemetry, not fatal</FONT></TD></TR></TABLE>>, color="#7048e8", fillcolor="#f3f0ff:#ffffff"];
+    P4 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Archive on game end</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">R2 matches/{gameId}.json + D1 metadata + rating write</FONT></TD></TR></TABLE>>, color="#0f766e", fillcolor="#e6fffb:#ffffff"];
+    P5 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Restart turn timer</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">single multiplexed DO alarm</FONT></TD></TR></TABLE>>, color="#d39a00", fillcolor="#fff4d1:#fffaf0"];
+    P1 -> P2 -> P3 -> P4 -> P5;
+  }
+
+  A6 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Broadcast filtered state</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">filterStateForPlayer per seat + spectators</FONT></TD></TR></TABLE>>];
+  A7 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>One state-bearing S2C</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">client replaces local state wholesale</FONT></TD></TR></TABLE>>, color="#22865a", fillcolor="#eaf8ef:#ffffff", penwidth=3.0];
+
+  A1 -> A2 -> A3 -> Q1;
+  Q1 -> R1 [label=<<FONT POINT-SIZE="13" COLOR="#c92a2a">no</FONT>>, color="#c92a2a"];
+  Q1 -> A4 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">yes</FONT>>];
+  A4 -> A5 -> Q2;
+  Q2 -> R2 [label=<<FONT POINT-SIZE="13" COLOR="#c92a2a">no</FONT>>, color="#c92a2a"];
+  Q2 -> P1 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">yes</FONT>>, lhead=cluster_pub];
+  P5 -> A6 -> A7;
+}

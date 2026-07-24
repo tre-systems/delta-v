@@ -78,18 +78,7 @@ for the security invariants.
 
 ## Room Lifecycle
 
-```mermaid
-flowchart LR
-  A["Create room"] --> B["Join or reconnect check"]
-  B --> C["WebSocket connect"]
-  C --> D{"Both seats present"}
-  D -->|Yes| E["Start game"]
-  D -->|No| C
-  E --> F["Turn loop and state results"]
-  F --> G{"Disconnect"}
-  G -->|No| F
-  G -->|Yes| H["Grace timer -> reconnect or forfeit"]
-```
+![Match lifecycle and recovery](./diagrams/match-lifecycle.png)
 
 ```
 1. POST /create
@@ -122,18 +111,7 @@ Players are seat-based (Player 0 / Player 1). The creator seat is token-protecte
 
 JSON messages over WebSocket. Turn-based, so frequency is low. The snippets below are intentionally concise — `src/shared/types/protocol.ts` is authoritative.
 
-```mermaid
-flowchart LR
-  C2S["Client C2S message"] --> V["runtime validation"]
-  V --> D{"action kind"}
-  D -->|state mutating| E["shared engine / authoritative update"]
-  D -->|auxiliary| A["chat / ping / rematch helpers"]
-  E --> P["append events + checkpoint if needed"]
-  P --> F["filterStateForPlayer / spectator"]
-  A --> F
-  F --> S["single state-bearing S2C result"]
-  S --> C["client replaces local state wholesale"]
-```
+![Authoritative action pipeline](./diagrams/action-pipeline.png)
 
 ### Client → Server (C2S)
 

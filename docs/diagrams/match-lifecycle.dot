@@ -1,0 +1,67 @@
+digraph MatchLifecycle {
+  graph [
+    rankdir=TB,
+    bgcolor="#ffffff",
+    pad="0.55",
+    nodesep="0.5",
+    ranksep="0.62",
+    splines=polyline,
+    fontname="Avenir",
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><FONT POINT-SIZE="34"><B>Match Lifecycle and Recovery</B></FONT></TD></TR><TR><TD><FONT POINT-SIZE="14" COLOR="#6b7280">Room creation → turn loop → disconnect grace → forfeit or event-sourced resume</FONT></TD></TR></TABLE>>,
+    labelloc=t,
+    labeljust=c
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    margin="0.21,0.13",
+    fontname="Avenir",
+    fontsize=17,
+    penwidth=2.4,
+    fontcolor="#14213d",
+    color="#22865a",
+    fillcolor="#eaf8ef:#ffffff",
+    gradientangle=270
+  ];
+
+  edge [
+    color="#263a59",
+    fontname="Avenir",
+    fontsize=13,
+    fontcolor="#3d4a5c",
+    penwidth=2.0,
+    arrowsize=0.78
+  ];
+
+  L1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>POST /create or quick match</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">5-char room code + creator playerToken; scenario locked</FONT></TD></TR></TABLE>>, color="#2264c7", fillcolor="#eaf3ff:#ffffff"];
+  L2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>WebSocket /ws/{code}</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">DO tags socket with seat 0 / 1 / spectator</FONT></TD></TR></TABLE>>];
+  Q1 [label=<<B>both seats<BR/>connected?</B>>, shape=diamond, margin="0.1,0.06"];
+  L3 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>createGame() → gameStart</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">per-match RNG seed persisted</FONT></TD></TR></TABLE>>];
+  L4 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Turn loop</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">C2S action → engine → publish → broadcast</FONT></TD></TR></TABLE>>];
+  Q2 [label=<<B>socket<BR/>drops?</B>>, shape=diamond, margin="0.1,0.06"];
+  G1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>30 s grace alarm</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">disconnect marker + scheduled deadline</FONT></TD></TR></TABLE>>, color="#d39a00", fillcolor="#fff4d1:#fffaf0"];
+  Q3 [label=<<B>reconnect with<BR/>playerToken?</B>>, shape=diamond, margin="0.1,0.06"];
+  P1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Project state</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">latest checkpoint + event tail → welcome + filtered state</FONT></TD></TR></TABLE>>, color="#7048e8", fillcolor="#f3f0ff:#ffffff"];
+  F1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Forfeit</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">grace expired — opponent wins</FONT></TD></TR></TABLE>>, color="#c92a2a", fillcolor="#fff5f5:#ffffff"];
+  E1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>gameOver</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">victory, surrender, timeout, or forfeit</FONT></TD></TR></TABLE>>];
+  E2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Archive + rate</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">R2 replay JSON + D1 match_archive + Glicko-2 write</FONT></TD></TR></TABLE>>, color="#0f766e", fillcolor="#e6fffb:#ffffff", penwidth=3.0];
+  R1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Rematch</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">same room, next gameId (ROOM1-m2)</FONT></TD></TR></TABLE>>, color="#2264c7", fillcolor="#eaf3ff:#ffffff"];
+
+  L1 -> L2 -> Q1;
+  Q1 -> L2 [label=<<FONT POINT-SIZE="13" COLOR="#6b7280">wait</FONT>>, style=dashed, color="#6b7280"];
+  Q1 -> L3 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">yes</FONT>>];
+  L3 -> L4;
+  L4 -> Q2;
+  Q2 -> L4 [label=<<FONT POINT-SIZE="13" COLOR="#6b7280">no</FONT>>, style=dashed, color="#6b7280"];
+  Q2 -> G1 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">yes</FONT>>];
+  G1 -> Q3;
+  Q3 -> P1 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">in time</FONT>>];
+  P1 -> L4;
+  Q3 -> F1 [label=<<FONT POINT-SIZE="13" COLOR="#c92a2a">grace expired</FONT>>, color="#c92a2a"];
+  F1 -> E1;
+  L4 -> E1 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">outcome reached</FONT>>];
+  E1 -> E2;
+  E2 -> R1 [style=dashed, color="#6b7280", label=<<FONT POINT-SIZE="13" COLOR="#6b7280">optional</FONT>>];
+  R1 -> L3 [style=dashed, color="#6b7280"];
+}

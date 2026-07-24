@@ -17,27 +17,6 @@ Related docs:
 | **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Accepts either ChatGPT's OAuth 2.1 access token or a manually minted 24-hour `agentToken` on every call, plus opaque per-match `matchToken` tool args for in-match tools. Hosted also accepts `sessionId` as a compatibility alias for the same opaque token. Clients must send `Accept: application/json, text/event-stream` or the endpoint rejects the call. New clients should initialize with MCP protocol version `2025-11-25` and send `MCP-Protocol-Version: 2025-11-25` on subsequent HTTP requests. The GAME DO now persists hosted seat event buffers so `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` work without Worker memory. `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
 | **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
 
-```mermaid
-flowchart LR
-  subgraph Local["Local MCP"]
-    Host1["MCP host"]
-    StdIO["npm run mcp:delta-v"]
-    WS["Per-session WebSocket"]
-    Host1 --> StdIO --> WS
-  end
-
-  subgraph Hosted["Hosted MCP"]
-    Host2["MCP host"]
-    Auth["OAuth or manual Bearer identity"]
-    HTTP["POST /mcp"]
-    Match["matchToken per live match"]
-    Host2 --> Auth --> HTTP --> Match
-  end
-
-  WS --> Game["Authoritative GameDO"]
-  Match --> Game
-```
-
 ### Stdio quick match: operational notes
 
 Many MCP hosts invoke tools **one at a time** (the next `tools/call` starts after the previous returns). Two `delta_v_quick_match_connect` probes issued in the same assistant step therefore run **sequentially**, not truly in parallel. For two-seat stdio automation, queue both seats with `waitForOpponent: false`, then call `delta_v_pair_quick_match_tickets` with the returned tickets. When you need deterministic pairing without touching the public queue, give both seats the same `rendezvousCode`. Prefer **`npm run mcp:delta-v:http`** when you need truly concurrent ticket issuance from **separate OS processes**.
@@ -58,31 +37,7 @@ browser-local bot identity and asks the player to choose its callsign. Other
 clients use the manual `agentToken` flow shown below. Both paths receive the
 same per-match `matchToken` after matchmaking.
 
-```mermaid
-sequenceDiagram
-  participant Agent as MCP client
-  participant API as POST /api/agent-token
-  participant MCP as POST /mcp
-  participant Game as GameDO
-
-  Agent->>API: playerKey = agent_...
-  API-->>Agent: agentToken
-  Agent->>MCP: initialize + Authorization Bearer
-  Agent->>MCP: delta_v_quick_match
-  MCP->>Game: queue / connect seat
-  Game-->>MCP: matchToken
-  MCP-->>Agent: matchToken
-  loop Match loop
-    Agent->>MCP: wait_for_turn(matchToken)
-    MCP->>Game: observation request
-    Game-->>MCP: observation
-    MCP-->>Agent: observation + candidates
-    Agent->>MCP: send_action(matchToken, action)
-    MCP->>Game: authoritative action
-    Game-->>MCP: result / next observation
-    MCP-->>Agent: action result
-  end
-```
+![Agent token model: OAuth and manual identity paths to a per-match token](./diagrams/agent-token-model.png)
 
 ## Discovery endpoints
 

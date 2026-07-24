@@ -66,8 +66,8 @@ npm run verify
 Use the narrowest check that proves the change:
 
 - Documentation-only: `npm run check:doc-links`. Also run an external link
-  check when changing outbound URLs, and `npm run docs:book` when changing docs
-  included in the compiled book.
+  check when changing outbound URLs, and `npm run diagrams` when changing any
+  `docs/diagrams/*.dot` source (commit the re-rendered PNG alongside it).
 - Shared rules or AI: targeted Vitest, then relevant `npm run simulate -- ...`
   scorecards.
 - UI changes: targeted Vitest where available, then Playwright or browser
@@ -122,7 +122,6 @@ finish turns.
 
 - One owner doc per topic. Link instead of duplicating.
 - If you add or rename Markdown docs, update [README.md](./README.md), this file
-  if relevant, `scripts/check-doc-links.mjs`, and the documentation book
-  metadata in `scripts/doc-book-shared.mjs`.
+  if relevant, and `scripts/check-doc-links.mjs`.
 - Keep [docs/BACKLOG.md](./docs/BACKLOG.md) limited to active or future work.
   Move shipped work into "Verified Not Active" or rely on `git log`.

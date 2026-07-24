@@ -119,3 +119,5 @@ If old HTML is cached at the edge, **`assetsHash`** mismatched against server be
 One owner doc per topic (see [README.md](../README.md#-documentation)). Update docs when behavior or architecture decisions materially change — prefer anchored sections over new files. Recurring review cadence lives in [REVIEW_PLAN.md](./REVIEW_PLAN.md); open work lives in [BACKLOG.md](./BACKLOG.md).
 
 Run `npm run check:doc-links` after doc edits — it walks every `[text](path#anchor)` link under `README.md`, `AGENTS.md`, `AGENT_SPEC.md`, `docs/`, `patterns/`, and `.claude/skills/`, verifying files exist and anchors match heading slugs.
+
+Diagrams are Graphviz `.dot` sources in [docs/diagrams/](./diagrams/README.md) with committed PNG renders (color conventions in that folder's README). After editing a `.dot` file, run `npm run diagrams` (requires `brew install graphviz`) and commit the re-rendered PNG. CI runs `npm run check:diagrams` to verify every source still renders and has its PNG.

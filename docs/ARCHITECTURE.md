@@ -1,7 +1,5 @@
 # Delta-V Architecture & Design Document
 
-![Delta-V system architecture infographic](./assets/delta-v-system-architecture-infographic.png)
-
 The module inventory, data flow, and Durable-Object model for the Delta-V server and shared engine. Read this to learn how a request becomes authoritative state and how state becomes bytes on the wire. Game rules live in [SPEC.md](./SPEC.md); wire format lives in [PROTOCOL.md](./PROTOCOL.md); conventions live in [CODING_STANDARDS.md](./CODING_STANDARDS.md); contributor workflow lives in [CONTRIBUTING.md](./CONTRIBUTING.md); open work lives in [BACKLOG.md](./BACKLOG.md); and the *why* behind the design choices lives in [patterns/](../patterns/README.md).
 
 The authoritative server model is event-sourced: the Durable Object persists a match-scoped event stream plus checkpoints, and recovers authoritative state from checkpoint + event tail (not from a separate persisted `gameState` snapshot slot).
@@ -50,163 +48,31 @@ Four DO classes back the server, bound in [`wrangler.toml`](../wrangler.toml):
 | `LIVE_REGISTRY` | `LiveRegistryDO` | Singleton — "Live now" registry powering `GET /api/matches?status=live` |
 | `OAUTH` | `OAuthDO` | Singleton `global` instance — short-lived authorization requests/codes and rotating ChatGPT refresh-token families |
 
-```mermaid
-flowchart TB
-  W[Cloudflare Worker<br/>src/server/index.ts]
-
-  subgraph GAME[GAME binding: many GameDO instances, one per room]
-    direction LR
-    G1[GameDO<br/>room ABC12]
-    G2[GameDO<br/>room XY345]
-    GN[GameDO<br/>...]
-  end
-
-  subgraph MATCHMAKER[MATCHMAKER binding: one MatchmakerDO singleton]
-    M[MatchmakerDO<br/>global]
-  end
-
-  subgraph LIVE_REGISTRY[LIVE_REGISTRY binding: one LiveRegistryDO singleton]
-    L[LiveRegistryDO]
-  end
-
-  subgraph OAUTH[OAUTH binding: one OAuthDO singleton]
-    O[OAuthDO<br/>global]
-  end
-
-  W -->|POST /quick-match<br/>GET /quick-match/:ticket| M
-  W -->|POST /create<br/>GET /join,replay,ws| GAME
-  W -->|GET /api/matches?status=live| L
-  W -->|OAuth consent,<br/>code and refresh lifecycle| O
-
-  M -.->|once paired<br/>idFromName| GAME
-  GAME -.->|register /<br/>deregister| L
-
-  D[(D1<br/>events<br/>match_archive<br/>player<br/>player_recovery<br/>match_rating)]
-  R[(R2<br/>MATCH_ARCHIVE<br/>matches/*.json)]
-
-  GAME -->|parity mismatch,<br/>engine errors,<br/>match metadata| D
-  GAME -->|full archive<br/>on game end| R
-  W -->|/telemetry, /error| D
-```
+![System overview: clients, Worker, Durable Objects, shared engine, storage](./diagrams/system-overview.png)
 
 `GameDO` carries nearly all game state and is the focus of the rest of this document. The three support DOs are small (`src/server/matchmaker-do.ts`, `src/server/live-registry-do.ts`, and `src/server/oauth/oauth-do.ts`) and each lives behind a singleton binding (`idFromName('global')`) so there's exactly one of each in the cluster.
 
-### Diagrams (Mermaid)
+### Diagrams
 
-These render on GitHub and in many Markdown preview tools. They summarize shapes that are spelled out in prose below.
-
-**Runtime layers (who talks to whom):**
-
-```mermaid
-flowchart TB
-  subgraph Browser
-    UI[DOM UI and signals]
-    CV[Canvas renderer]
-    KERNEL[src/client/game/client-kernel.ts]
-    UI --> KERNEL
-    CV --> KERNEL
-    KERNEL --> TRANSPORT[GameTransport]
-  end
-  TRANSPORT -->|WebSocket| WORKER[src/server/index.ts]
-  WORKER --> DO[GameDO]
-  DO --> ENGINE[src/shared/engine]
-  DO --> STORES[(DO storage / optional R2 / D1 telemetry)]
-```
-
-![Delta-V authoritative match flow infographic](./assets/delta-v-authoritative-match-flow-infographic.png)
+Rendered from Graphviz sources in [docs/diagrams/](./diagrams/README.md); re-render with `npm run diagrams` after editing a `.dot` file. They summarize shapes that are spelled out in prose below.
 
 **Authoritative action path (multiplayer):**
 
-```mermaid
-sequenceDiagram
-  participant C as Client
-  participant W as Worker
-  participant DO as GameDO
-  participant V as validateClientMessage
-  participant A as actions.ts dispatch
-  participant E as Shared engine
-  C->>W: WebSocket /ws/ROOM
-  W->>DO: upgrade request
-  C->>DO: C2S JSON message
-  DO->>DO: applySocketRateLimit
-  DO->>V: parse and validate
-  V-->>DO: C2S union
-  DO->>A: dispatchGameStateAction
-  A->>E: processAstrogation / combat / ...
-  E-->>A: state plus engineEvents
-  A-->>DO: onSuccess
-  DO->>DO: appendEnvelopedEvents saveCheckpoint
-  DO->>DO: publishStateChange broadcastFiltered
-  DO-->>C: S2C state-bearing message
-```
+![Authoritative action pipeline](./diagrams/action-pipeline.png)
 
 **Client command path (local or remote):**
 
-```mermaid
-flowchart LR
-  IN[input.ts] --> IE[game/input-events.ts interpretInput]
-  IE --> CR[game/command-router.ts]
-  CR --> TR[transport.ts]
-  TR -->|local| LG[LocalGameFlow / engine]
-  TR -->|net| WS[WebSocket]
-```
+![Client input flow](./diagrams/client-input-flow.png)
 
 **Engine phase state machine (authoritative `GameState.phase`):**
 
-```mermaid
-stateDiagram-v2
-  [*] --> waiting
-  waiting --> fleetBuilding
-  waiting --> astrogation
-
-  fleetBuilding --> astrogation
-  fleetBuilding --> gameOver
-
-  astrogation --> ordnance
-  astrogation --> logistics
-  astrogation --> combat
-  astrogation --> astrogation: timeout/advance path
-  astrogation --> gameOver
-
-  ordnance --> logistics
-  ordnance --> combat
-  ordnance --> astrogation
-  ordnance --> gameOver
-
-  logistics --> astrogation
-  logistics --> gameOver
-
-  combat --> logistics
-  combat --> astrogation
-  combat --> gameOver
-
-  gameOver --> [*]
-```
+![Engine phase state machine](./diagrams/phase-state-machine.png)
 
 **Event-sourced recovery and replay projection:**
 
-```mermaid
-flowchart TB
-  A[Authoritative action] --> B[Engine returns next state plus engine events]
-  B --> C[Append event envelopes]
-  C --> D[Checkpoint at turn boundaries/end]
+![Match lifecycle and event-sourced recovery](./diagrams/match-lifecycle.png)
 
-  subgraph Rebuild
-    E[Load latest checkpoint]
-    F[Load event tail after checkpoint]
-    G[Project events to current state]
-  end
-
-  D --> E
-  C --> F
-  E --> G
-  F --> G
-
-  G --> H[Reconnect state]
-  G --> I[Replay timeline]
-```
-
-Diagram maintenance rule: when command flow, phase transitions, or persistence/projection behavior changes, update these diagrams in the same PR.
+Diagram maintenance rule: when command flow, phase transitions, or persistence/projection behavior changes, update the affected `.dot` sources in [docs/diagrams/](./diagrams/README.md) and commit the re-rendered PNGs in the same PR.
 
 ### Key Technologies
 
@@ -251,7 +117,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 | `ai/`                                      | Rule-based AI: composable scoring, per-phase decision modules, difficulty config                                         | Game-specific                           |
 | `scenario-capabilities.ts`                 | Derived scenario capability layer (`deriveCapabilities`): defaults + feature predicates for `ScenarioRules`              | Game-specific                           |
 | `engine/game-engine.ts`                    | Barrel re-export for the public engine API                                                                              | Game-specific                           |
-| `engine/engine-events.ts`                  | `EngineEvent` discriminated union (33 granular domain event types)                                                      | Game-specific                           |
+| `engine/engine-events.ts`                  | `EngineEvent` discriminated union (32 granular domain event types)                                                      | Game-specific                           |
 | `engine/event-projector.ts`                | Deterministic projection from persisted `EventEnvelope` stream (+ checkpoints) to `GameState`; used by server and tests | Game-specific                           |
 | `engine/*` phase modules                   | Game creation, fleet building, astrogation, movement, combat, ordnance, logistics, victory, and shared helpers          | Game-specific                           |
 | `engine/turn-advance.ts`                   | Turn advancement: damage recovery, player rotation, reinforcement spawning, fleet conversion                            | Game-specific                           |
@@ -264,7 +130,7 @@ This is the heart of the project. All game rules live in a shared folder, making
 - **`combat.ts`**: Evaluates line-of-sight, calculates combat odds based on velocity/range modifiers, and resolves damage. Mutates ships directly (e.g., `applyDamage`, updating `ship.lifecycle`, heroism flags).
 - **`types/`**: The single source of truth for all data structures (`GameState`, `Ship`, `CombatResult`, network message payloads), split into `domain.ts`, `protocol.ts`, and `scenario.ts` with a barrel re-export. This ensures the client and server never fall out of sync.
 - **Dependency injection**: Engine functions accept `map` and `rng` as parameters so they can be tested without global state or non-determinism — see [Engine Mutation Model and RNG Injection](#engine-mutation-model-and-rng-injection).
-- **Domain event emission**: Turn-resolution engine entry points emit `EngineEvent[]` (33 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
+- **Domain event emission**: Turn-resolution engine entry points emit `EngineEvent[]` (32 granular types: shipMoved, shipCrashed, combatAttack, ordnanceLaunched, phaseChanged, gameOver, committed command events, logistics events, and more) alongside state and animation data. The server reads `result.engineEvents` directly — no server-side event derivation. Movement animation data (`MovementEvent[]`, `ShipMovement[]`) remains separate for client rendering.
 
 #### AI Strategy Design (`src/shared/ai/*`)
 
@@ -505,44 +371,6 @@ A narrow dependency surface is the default.
 All messages are discriminated unions validated at the protocol boundary. Chat payloads are trimmed before validation and blank post-trim messages are rejected, so non-UI clients cannot inject empty log entries. Clients never mutate authoritative state. The server persists authoritative events plus optional checkpoints, and replay/reconnect are derived from that same persisted stream.
 
 ### Multiplayer Session Lifecycle
-
-```mermaid
-sequenceDiagram
-  participant P1 as Player 1 browser
-  participant W as Worker routes
-  participant G as GameDO
-  participant P2 as Player 2 browser
-
-  P1->>W: POST /create
-  W->>G: /init with room code and creator seat
-  G-->>P1: init payload with playerToken
-
-  P2->>W: GET /join/{code}
-  W->>G: join check / seat resolution
-  G-->>P2: join allowed + playerToken
-
-  P1->>G: WebSocket /ws/{code}?playerToken=...
-  P2->>G: WebSocket /ws/{code}?playerToken=...
-  G-->>P1: welcome / gameStart
-  G-->>P2: welcome / gameStart
-
-  loop Turn loop
-    P1->>G: C2S action
-    P2->>G: C2S action
-    G->>G: validate, run engine, append events, checkpoint, reset timers
-    G-->>P1: S2C result / state update
-    G-->>P2: S2C result / state update
-  end
-
-  alt disconnect
-    P1-xG: socket drops
-    G->>G: grace timer
-    P1->>G: reconnect with playerToken
-    G-->>P1: welcome + projected state
-  else grace expires
-    G->>G: forfeit / archive path
-  end
-```
 
 ```
 POST /create → Worker generates room code + creator token → DO /init

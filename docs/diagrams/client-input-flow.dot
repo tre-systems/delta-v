@@ -1,0 +1,53 @@
+digraph ClientInputFlow {
+  graph [
+    rankdir=TB,
+    bgcolor="#ffffff",
+    pad="0.55",
+    nodesep="0.5",
+    ranksep="0.62",
+    splines=polyline,
+    fontname="Avenir",
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><FONT POINT-SIZE="34"><B>Client Input Flow</B></FONT></TD></TR><TR><TD><FONT POINT-SIZE="14" COLOR="#6b7280">Raw browser events → pure interpretation → routed commands → local engine or network</FONT></TD></TR></TABLE>>,
+    labelloc=t,
+    labeljust=c
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    margin="0.21,0.13",
+    fontname="Avenir",
+    fontsize=17,
+    penwidth=2.4,
+    fontcolor="#14213d",
+    color="#2264c7",
+    fillcolor="#eaf3ff:#ffffff",
+    gradientangle=270
+  ];
+
+  edge [
+    color="#263a59",
+    fontname="Avenir",
+    fontsize=13,
+    fontcolor="#3d4a5c",
+    penwidth=2.0,
+    arrowsize=0.78
+  ];
+
+  I1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Mouse / touch / keyboard</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">input.ts — pan, zoom, click; no game knowledge</FONT></TD></TR></TABLE>>];
+  I2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>InputEvent</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">clickHex, hoverHex, key actions</FONT></TD></TR></TABLE>>];
+  I3 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>interpretInput()</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">pure: InputEvent + phase + state → GameCommand[]</FONT></TD></TR></TABLE>>, color="#7048e8", fillcolor="#f3f0ff:#ffffff"];
+  I4 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>dispatchGameCommand()</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">single choke point — planning mutation or submission</FONT></TD></TR></TABLE>>];
+  Q1 [label=<<B>GameTransport</B>>, shape=diamond, margin="0.12,0.08"];
+  T1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Local game flow</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">shared engine in-browser + local AI opponent</FONT></TD></TR></TABLE>>, color="#7048e8", fillcolor="#f3f0ff:#ffffff"];
+  T2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>WebSocket C2S</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">authoritative GameDO resolves and broadcasts</FONT></TD></TR></TABLE>>, color="#22865a", fillcolor="#eaf8ef:#ffffff"];
+  O1 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>applyClientGameState()</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">wholesale state replace — single authoritative apply</FONT></TD></TR></TABLE>>];
+  O2 [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD><B>Renderer + reactive UI</B></TD></TR><TR><TD CELLPADDING="4"><FONT POINT-SIZE="14">Canvas layers + signal-derived DOM visibility</FONT></TD></TR></TABLE>>, penwidth=3.0, color="#22865a", fillcolor="#eaf8ef:#ffffff"];
+
+  I1 -> I2 -> I3 -> I4 -> Q1;
+  Q1 -> T1 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">local AI game</FONT>>];
+  Q1 -> T2 [label=<<FONT POINT-SIZE="13" COLOR="#3d4a5c">online match</FONT>>];
+  T1 -> O1;
+  T2 -> O1 [label=<<FONT POINT-SIZE="13" COLOR="#6b7280">state-bearing S2C</FONT>>];
+  O1 -> O2;
+}
