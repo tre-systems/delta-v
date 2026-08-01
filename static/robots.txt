@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /mcp
+Disallow: /oauth/
+Disallow: /ws/
+
+Sitemap: https://delta-v.tre.systems/sitemap.xml
