@@ -89,6 +89,32 @@ const post = (body: unknown): Request =>
     body: JSON.stringify(body),
   });
 
+const postModern = (method: string, id: number): Request =>
+  new Request('https://w.test/mcp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'MCP-Method': method,
+      'MCP-Protocol-Version': '2026-07-28',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id,
+      method,
+      params: {
+        _meta: {
+          'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+          'io.modelcontextprotocol/clientInfo': {
+            name: 'delta-v-modern-test',
+            version: '0',
+          },
+          'io.modelcontextprotocol/clientCapabilities': {},
+        },
+      },
+    }),
+  });
+
 const findSampledIp = async (): Promise<string> => {
   for (let index = 1; index < 256; index++) {
     const candidate = `10.0.1.${index}`;
@@ -247,6 +273,20 @@ describe('handleMcpHttpRequest', () => {
         serverInfo: expect.objectContaining({ name: 'delta-v-mcp-remote' }),
       }),
     });
+  });
+
+  it('serves 2026-07-28 Stateless MCP without a session handshake', async () => {
+    const { env } = buildEnv(() => new Response('{}'));
+    const res = await handleMcpHttpRequest(postModern('tools/list', 2026), env);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('mcp-session-id')).toBeNull();
+    const body = (await res.json()) as {
+      result: { tools: Array<{ name: string }> };
+    };
+    expect(body.result.tools.map((tool) => tool.name)).toContain(
+      'delta_v_quick_match',
+    );
   });
 
   it('lists the expected tool surface', async () => {

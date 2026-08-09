@@ -464,20 +464,28 @@ const handleAuthorizePost = async (
       username: checked.normalised,
     },
   });
-  return redirectOAuth(stored.redirectUri, { code, state: stored.state }, [
-    clearCookie(
-      OAUTH_CSRF_COOKIE,
-      '/oauth/authorize',
-      new URL(request.url).protocol === 'https:',
-    ),
-    secureCookie(
-      OAUTH_SESSION_COOKIE,
-      sessionToken,
-      OAUTH_SESSION_TTL_MS / 1_000,
-      '/oauth/authorize',
-      new URL(request.url).protocol === 'https:',
-    ),
-  ]);
+  return redirectOAuth(
+    stored.redirectUri,
+    {
+      code,
+      state: stored.state,
+      iss: oauthOrigin(request),
+    },
+    [
+      clearCookie(
+        OAUTH_CSRF_COOKIE,
+        '/oauth/authorize',
+        new URL(request.url).protocol === 'https:',
+      ),
+      secureCookie(
+        OAUTH_SESSION_COOKIE,
+        sessionToken,
+        OAUTH_SESSION_TTL_MS / 1_000,
+        '/oauth/authorize',
+        new URL(request.url).protocol === 'https:',
+      ),
+    ],
+  );
 };
 
 const issueTokenResponse = async (

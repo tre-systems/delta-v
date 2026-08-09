@@ -1,6 +1,6 @@
 # Delta-V MCP Reference
 
-The canonical tool-and-transport reference for the Delta-V MCP server. Lists transports (local stdio / hosted HTTP / local HTTP), every tool and its args, host configuration, and rate limits — the page an agent author consults while wiring things up. Delta-V's hosted transport follows the [Model Context Protocol Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports).
+The canonical tool-and-transport reference for the Delta-V MCP server. Lists transports (local stdio / hosted HTTP / local HTTP), every tool and its args, host configuration, and rate limits — the page an agent author consults while wiring things up. Delta-V's hosted endpoint implements [Stateless MCP](https://modelcontextprotocol.io/seps/2575-stateless-mcp) from protocol revision `2026-07-28` and retains a stateless `2025-11-25` compatibility path.
 
 Related docs:
 
@@ -14,7 +14,7 @@ Related docs:
 | Transport | Entry point | Shape | Session model |
 | --- | --- | --- | --- |
 | **Local stdio** | `npm run mcp:delta-v` | JSON-RPC over stdin/stdout; one subprocess per agent | Stateful: per-session WebSocket + buffered events (`delta_v_list_sessions`, `delta_v_get_events`, `delta_v_reconnect`, `delta_v_close_session`). Outbound responses are **queued** so concurrent tool completions cannot corrupt stdout framing. Many MCP hosts still invoke tools **serially** (next call starts after the prior returns); use **local HTTP** (`npm run mcp:delta-v:http`) when you need concurrent tool requests from **separate processes** or hosts that pipeline multiple `tools/call` before prior responses return. |
-| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Streamable-HTTP JSON-RPC (JSON response, no SSE) | Accepts either ChatGPT's OAuth 2.1 access token or a manually minted 24-hour `agentToken` on every call, plus opaque per-match `matchToken` tool args for in-match tools. Hosted also accepts `sessionId` as a compatibility alias for the same opaque token. Clients must send `Accept: application/json, text/event-stream` or the endpoint rejects the call. New clients should initialize with MCP protocol version `2025-11-25` and send `MCP-Protocol-Version: 2025-11-25` on subsequent HTTP requests. The GAME DO now persists hosted seat event buffers so `delta_v_list_sessions`, `delta_v_get_events`, and `delta_v_close_session` work without Worker memory. `delta_v_get_observation`, `delta_v_wait_for_turn`, and `delta_v_send_action` accept the same optional **`compactState`** flag as local stdio (forwarded to the GAME DO as `compactState=true`). |
+| **Hosted HTTP** | `POST https://delta-v.tre.systems/mcp` | Stateless MCP JSON-RPC (JSON response, no SSE) | Modern clients use the `2026-07-28` per-request envelope with no initialize handshake or `Mcp-Session-Id`. A `2025-11-25` initialize/session-compatible route remains available with the existing single-JSON response shape. Both eras accept either ChatGPT's OAuth 2.1 access token or a manually minted 24-hour `agentToken` on every call, plus opaque per-match `matchToken` tool args for in-match tools. Hosted also accepts `sessionId` as a compatibility alias for the same opaque token. The GAME DO persists hosted seat event buffers, so game continuity does not depend on MCP transport state. |
 | **Local HTTP (dev)** | `npm run mcp:delta-v:http` | Same as hosted, served by the local Worker | Reproduces the hosted flow without deploying |
 
 ### Stdio quick match: operational notes
@@ -79,8 +79,8 @@ SERVER_URL=http://127.0.0.1:8787 npm run mcp:delta-v
 
 ## Connect an AI client to hosted MCP
 
-The hosted server is `https://delta-v.tre.systems/mcp`. It uses Streamable
-HTTP with two authentication paths: ChatGPT web uses OAuth 2.1, while Codex,
+The hosted server is `https://delta-v.tre.systems/mcp`. It uses Stateless MCP
+over HTTP with two authentication paths: ChatGPT web uses OAuth 2.1, while Codex,
 Claude Code, ChatGPT desktop, and generic clients can supply a manually minted
 24-hour Bearer token.
 
@@ -202,7 +202,8 @@ See the [official Claude Code MCP guide](https://code.claude.com/docs/en/mcp).
 
 ### Other clients
 
-Any other MCP client works when it supports **Streamable HTTP** and can attach
+Any other MCP client works when it supports **Stateless MCP** or legacy
+**Streamable HTTP** and can attach
 `Authorization: Bearer <token>` to the server URL. Delta-V's OAuth client
 metadata path is currently restricted to ChatGPT; other clients should use the
 manual token. A client limited to legacy SSE or unauthenticated remote servers
@@ -243,14 +244,20 @@ Fallback when host ignores `cwd`:
 
 ## Hosted JSON-RPC examples
 
-Hosted MCP is plain JSON-RPC over `POST /mcp`. Every request must send:
+Hosted MCP is JSON-RPC over `POST /mcp`. A modern `2026-07-28` client sends the
+protocol revision, method, client identity, and client capabilities with every
+request, so it needs no initialize exchange or session ID. Normal MCP clients
+construct that envelope automatically.
+
+The curl examples below deliberately exercise the retained `2025-11-25`
+compatibility path. Every legacy request must send:
 
 - `Content-Type: application/json`
 - `Accept: application/json, text/event-stream`
 - `Authorization: Bearer <agentToken>`
-- `MCP-Protocol-Version: 2025-11-25` after initialization; examples include it on every request for simplicity.
+- `MCP-Protocol-Version: 2025-11-25` after initialization; the examples include it on every request for simplicity.
 
-Initialize once per client session:
+Initialize once per legacy client session:
 
 ```bash
 curl -s https://delta-v.tre.systems/mcp \

@@ -1,6 +1,6 @@
 export {
   McpServer,
   ResourceTemplate,
-} from '@modelcontextprotocol/sdk/server/mcp.js';
-export { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+} from '@modelcontextprotocol/server';
+export { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 export { z } from 'zod';

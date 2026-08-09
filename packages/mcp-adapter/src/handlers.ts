@@ -15,10 +15,12 @@
 //     accepts sessionId as a compatibility alias for the same opaque token.
 
 import {
+  createMcpHandler,
+  isLegacyRequest,
   McpServer,
   ResourceTemplate,
-} from '@modelcontextprotocol/sdk/server/mcp.js';
-import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
+  WebStandardStreamableHTTPServerTransport,
+} from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import {
   type AgentTokenPayload,
@@ -1158,10 +1160,10 @@ const enforceMcpRateLimit = async (
     : null;
 };
 
-// Per-request entry. Stateless: each request spins up a fresh McpServer +
-// transport, handles the JSON-RPC payload synchronously, and tears down.
-// `enableJsonResponse: true` returns a single JSON object instead of an SSE
-// stream — simpler for agents that only call tools and don't subscribe.
+// Per-request entry. The v2 handler serves modern 2026-07-28 Stateless MCP
+// and keeps a stateless compatibility path for 2025-era clients. Each request
+// gets a fresh McpServer from the same factory and returns one JSON response;
+// this adapter does not expose subscriptions or server-to-client messages.
 export const handleMcpHttpRequest = async (
   request: Request,
   env: Env,
@@ -1256,22 +1258,30 @@ export const handleMcpHttpRequest = async (
         })
       : request;
 
-  const transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
-    enableJsonResponse: true,
+  const serverFactory = () =>
+    buildMcpServer(env, auth.identity, buildOAuthChallenge(request));
+
+  if (await isLegacyRequest(rebuilt)) {
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+    const server = serverFactory();
+    await server.connect(transport);
+    try {
+      return exposeToolSecuritySchemes(await transport.handleRequest(rebuilt));
+    } finally {
+      await transport.close();
+    }
+  }
+
+  const handler = createMcpHandler(serverFactory, {
+    legacy: 'reject',
   });
-  const server = buildMcpServer(
-    env,
-    auth.identity,
-    buildOAuthChallenge(request),
-  );
-  await server.connect(transport);
   try {
-    const response = await transport.handleRequest(rebuilt);
-    await transport.close();
+    const response = await handler.fetch(rebuilt);
     return exposeToolSecuritySchemes(response);
   } catch (error) {
-    await transport.close();
     if (error instanceof MissingAgentTokenSecretError) {
       return Response.json(
         {
@@ -1283,5 +1293,7 @@ export const handleMcpHttpRequest = async (
       );
     }
     throw error;
+  } finally {
+    await handler.close();
   }
 };

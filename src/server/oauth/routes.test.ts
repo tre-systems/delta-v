@@ -169,6 +169,7 @@ describe('OAuth routes', () => {
     const callback = new URL(approval.headers.get('Location') ?? '');
     expect(callback.origin + callback.pathname).toBe(REDIRECT_URI);
     expect(callback.searchParams.get('state')).toBe('state-123');
+    expect(callback.searchParams.get('iss')).toBe(ORIGIN);
     const code = callback.searchParams.get('code');
     expect(code).toBeTruthy();
 
