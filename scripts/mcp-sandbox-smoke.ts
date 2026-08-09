@@ -21,6 +21,7 @@ interface CandidateAction {
 interface QuickMatchQueuedResponse {
   status?: string;
   ticket?: string;
+  matchToken?: string;
   connected?: boolean;
   agentSandbox?: boolean;
 }
@@ -29,6 +30,8 @@ interface QueuedSeat {
   label: string;
   playerKey: string;
   ticket: string;
+  matchToken?: string;
+  hostedClient: HostedMcpClient;
 }
 
 interface PairTicketsResponse {
@@ -150,8 +153,8 @@ const RUN_ID = Date.now().toString(36).toUpperCase();
 
 const usage = `Delta-V MCP sandbox smoke
 
-Runs a two-seat, unrated agent match through the local HTTP MCP bridge, then
-checks hosted MCP match resources on the same target.
+Queues a two-seat, unrated match through hosted Stateless MCP, drives it through
+the local HTTP MCP bridge, then checks hosted MCP match resources.
 
 Usage:
   npm run mcp:sandbox-smoke
@@ -279,13 +282,7 @@ class HostedMcpClient {
         `agent-token issuance failed: ${issued.error ?? issued.message ?? 'unknown'}`,
       );
     }
-    const client = new HostedMcpClient(issued.token);
-    await client.rpc('initialize', {
-      protocolVersion: '2025-11-25',
-      capabilities: {},
-      clientInfo: { name: 'delta-v-mcp-sandbox-smoke', version: '1.0' },
-    });
-    return client;
+    return new HostedMcpClient(issued.token);
   }
 
   async rpc<T>(
@@ -294,19 +291,39 @@ class HostedMcpClient {
     timeoutMs = 30_000,
   ): Promise<T> {
     this.requestId += 1;
+    const headers: Record<string, string> = {
+      Accept: 'application/json, text/event-stream',
+      Authorization: `Bearer ${this.agentToken}`,
+      'MCP-Method': method,
+      'MCP-Protocol-Version': '2026-07-28',
+    };
+    if (
+      (method === 'tools/call' || method === 'prompts/get') &&
+      typeof params?.name === 'string'
+    ) {
+      headers['MCP-Name'] = params.name;
+    } else if (method === 'resources/read' && typeof params?.uri === 'string') {
+      headers['MCP-Name'] = params.uri;
+    }
     const response = await postJson<JsonRpcResponse<T>>(
       new URL('/mcp', SERVER_URL).toString(),
       {
         jsonrpc: '2.0',
         id: this.requestId,
         method,
-        ...(params ? { params } : {}),
+        params: {
+          ...params,
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+            'io.modelcontextprotocol/clientInfo': {
+              name: 'delta-v-mcp-sandbox-smoke',
+              version: '1.0',
+            },
+            'io.modelcontextprotocol/clientCapabilities': {},
+          },
+        },
       },
-      {
-        Accept: 'application/json, text/event-stream',
-        Authorization: `Bearer ${this.agentToken}`,
-        'MCP-Protocol-Version': '2025-11-25',
-      },
+      headers,
       timeoutMs,
     );
     if (response.error) {
@@ -403,13 +420,12 @@ const queueSeat = async (
   rendezvousCode: string,
 ): Promise<QueuedSeat> => {
   const playerKey = `agent_smoke_${label.toLowerCase()}_${RUN_ID.toLowerCase()}`;
-  const queued = await callTool<QuickMatchQueuedResponse>(
-    'delta_v_quick_match_connect',
+  const hostedClient = await HostedMcpClient.create(playerKey);
+  const queued = await hostedClient.callTool<QuickMatchQueuedResponse>(
+    'delta_v_quick_match',
     {
-      serverUrl: SERVER_URL,
       scenario: SCENARIO,
       username: `Smoke-${label}`,
-      playerKey,
       rendezvousCode,
       agentSandbox: true,
       waitForOpponent: false,
@@ -423,15 +439,12 @@ const queueSeat = async (
       `Seat ${label} did not return a ticket: ${JSON.stringify(queued)}`,
     );
   }
-  if (queued.status !== 'queued' && queued.connected !== true) {
-    throw new Error(
-      `Seat ${label} returned neither queued nor connected: ${JSON.stringify(queued)}`,
-    );
-  }
   return {
     label,
     playerKey,
     ticket: queued.ticket,
+    matchToken: queued.matchToken,
+    hostedClient,
   };
 };
 
@@ -647,7 +660,7 @@ const assertHostedResourceReads = async (
     return { checked: false, resources: [] };
   }
 
-  const client = await HostedMcpClient.create(seat.playerKey);
+  const client = seat.hostedClient;
   let matchToken: string | null = null;
   try {
     const listed = await client.rpc<HostedResourceListResult>(
@@ -786,7 +799,13 @@ const main = async (): Promise<void> => {
     }
     sessionIds = [paired.left.sessionId, paired.right.sessionId];
     await assertHiddenFromPublicLive(paired.code, issues);
-    const hostedResources = await assertHostedResourceReads(leftSeat, issues);
+    const hostedSeat = [leftSeat, rightSeat].find(
+      (seat) => typeof seat.matchToken === 'string',
+    );
+    if (!hostedSeat) {
+      throw new Error('Neither hosted quick-match seat returned a match token');
+    }
+    const hostedResources = await assertHostedResourceReads(hostedSeat, issues);
 
     const stop = { actions: 0, done: false };
     const [leftResult, rightResult] = await Promise.all([
