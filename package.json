@@ -57,7 +57,7 @@
     "@biomejs/biome": "2.4.15",
     "@cloudflare/workers-types": "^4.20260702.1",
     "@playwright/test": "^1.61.1",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.9.1",
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "0.28.2",
@@ -65,7 +65,7 @@
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
     "tsx": "^4.23.12",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.7",
     "wrangler": "^4.107.0",
     "ws": "^8.21.3"
