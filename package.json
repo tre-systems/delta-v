@@ -56,7 +56,7 @@
     "@axe-core/playwright": "^4.12.1",
     "@biomejs/biome": "2.4.15",
     "@cloudflare/workers-types": "^4.20260702.1",
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^25.9.1",
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.1.10",
