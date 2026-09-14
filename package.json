@@ -52,7 +52,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.99.0",
+    "@anthropic-ai/sdk": "^0.125.0",
     "@axe-core/playwright": "^4.12.1",
     "@biomejs/biome": "2.4.15",
     "@cloudflare/workers-types": "^4.20260702.1",
