@@ -2,7 +2,7 @@ export type BoundedBodyResult<T> =
   | { ok: true; value: T }
   | { ok: false; reason: 'body_too_large' | 'invalid_json' };
 
-const readBoundedText = async (
+export const readBoundedText = async (
   request: Request,
   maxBytes: number,
 ): Promise<{ ok: true; value: string } | { ok: false }> => {

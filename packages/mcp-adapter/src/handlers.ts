@@ -48,6 +48,7 @@ import {
   hashIp,
   logSampledOperationalEvent,
 } from '../../../src/server/reporting';
+import { readBoundedText } from '../../../src/server/request-body';
 import {
   type AgentTurnInput,
   buildLeaderboardAgentsResourceDocument,
@@ -76,6 +77,7 @@ import { queueRemoteMatch } from './quick-match';
 // burn server CPU on parsing. Kept below Cloudflare's Worker request
 // body cap so this rejection short-circuits transport-level handling.
 const MCP_MAX_BODY_BYTES = 16 * 1024;
+const MCP_MAX_TOOL_INPUT_ELEMENTS = 2000;
 const MCP_RATE_LIMIT = 20;
 const MCP_RATE_LIMIT_WINDOW_MS = 60_000;
 const MCP_RATE_LIMIT_MAP_MAX_KEYS = 2000;
@@ -386,6 +388,7 @@ export const buildMcpServer = (
   const server = new McpServer(
     { name: 'delta-v-mcp-remote', version: '0.1.0' },
     {
+      maxToolInputElements: MCP_MAX_TOOL_INPUT_ELEMENTS,
       instructions:
         'Play Delta-V through hosted MCP. Call delta_v_quick_match, keep the returned matchToken, then repeat delta_v_wait_for_turn → choose candidates[recommendedIndex] unless deliberately making a custom move → delta_v_send_action with waitForResult=true. If the phase is fleetBuilding, send fleetReady once. If autoSkipLikely is true or your seat is not actionable, wait again. Continue until outcome/gameOver, then delta_v_close_session. Public quick match is rated; use agentSandbox plus the same rendezvousCode only for a paired private evaluation.',
     },
@@ -1212,18 +1215,12 @@ export const handleMcpHttpRequest = async (
       );
     }
     try {
-      body = await request.text();
+      const bounded = await readBoundedText(request, MCP_MAX_BODY_BYTES);
+      if (!bounded.ok)
+        return Response.json({ error: 'payload_too_large' }, { status: 413 });
+      body = bounded.value;
     } catch {
       return Response.json({ error: 'bad_body' }, { status: 400 });
-    }
-    if (body.length > MCP_MAX_BODY_BYTES) {
-      return Response.json(
-        {
-          error: 'payload_too_large',
-          message: `MCP request body exceeds the ${MCP_MAX_BODY_BYTES}-byte cap.`,
-        },
-        { status: 413 },
-      );
     }
   }
 
@@ -1261,10 +1258,15 @@ export const handleMcpHttpRequest = async (
   const serverFactory = () =>
     buildMcpServer(env, auth.identity, buildOAuthChallenge(request));
 
-  if (await isLegacyRequest(rebuilt)) {
+  if (
+    await isLegacyRequest(rebuilt, undefined, {
+      maxRequestBodySize: MCP_MAX_BODY_BYTES,
+    })
+  ) {
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
+      maxRequestBodySize: MCP_MAX_BODY_BYTES,
     });
     const server = serverFactory();
     await server.connect(transport);
@@ -1277,6 +1279,7 @@ export const handleMcpHttpRequest = async (
 
   const handler = createMcpHandler(serverFactory, {
     legacy: 'reject',
+    maxRequestBodySize: MCP_MAX_BODY_BYTES,
   });
   try {
     const response = await handler.fetch(rebuilt);

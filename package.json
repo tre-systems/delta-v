@@ -59,14 +59,14 @@
     "@playwright/test": "^1.62.1",
     "@types/node": "^25.9.1",
     "@types/ws": "^8.18.1",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "4.1.12",
     "esbuild": "0.28.2",
     "fast-check": "^4.9.0",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
     "tsx": "^4.23.13",
     "typescript": "^6.0.3",
-    "vitest": "4.1.11",
+    "vitest": "4.1.12",
     "wrangler": "^4.107.0",
     "ws": "^8.21.3"
   },
@@ -76,10 +76,10 @@
   },
   "overrides": {
     "@hono/node-server": "2.0.11",
-    "body-parser": "2.3.0",
+    "body-parser": "2.4.0",
     "fast-uri": "4.1.2",
     "sharp": "0.35.5",
-    "undici": "7.29.1",
+    "undici": "7.30.1",
     "source-map-js": "1.2.2"
   }
 }

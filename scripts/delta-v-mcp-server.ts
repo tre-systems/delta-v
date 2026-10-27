@@ -616,6 +616,7 @@ const server = new McpServer(
     version: '0.1.0',
   },
   {
+    maxToolInputElements: 2000,
     instructions:
       'Play Delta-V through local MCP. Call delta_v_quick_match, keep the returned sessionId, then repeat delta_v_wait_for_turn → choose candidates[recommendedIndex] unless deliberately making a custom move → delta_v_send_action with waitForResult=true. If the phase is fleetBuilding, send fleetReady once. If autoSkipLikely is true or your seat is not actionable, wait again. Continue until outcome/gameOver, then delta_v_close_session. Use delta_v_reconnect if the local game socket drops.',
   },
