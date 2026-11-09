@@ -118,6 +118,10 @@ paired-local flow in that skill when testing agent behavior; it avoids the
 public quick-match queue and proves both seats can connect, observe, act, and
 finish turns.
 
+Codex discovers [.agents/skills/play/SKILL.md](./.agents/skills/play/SKILL.md),
+which routes to the same maintained guide. Its local MCP launcher is configured
+in [.codex/config.toml](./.codex/config.toml).
+
 ## Documentation Maintenance
 
 - One owner doc per topic. Link instead of duplicating.

@@ -95,6 +95,7 @@ Doc index by purpose, grouped by theme:
 | --- | --- |
 | [AGENTS.md](./docs/AGENTS.md) | Practical guide for building Delta-V agents |
 | [DELTA_V_MCP.md](./docs/DELTA_V_MCP.md) | MCP tool reference and host configuration |
+| [Codex play skill](./.agents/skills/play/SKILL.md) | Codex entry point for the shared MCP play guide |
 | [AGENT_SPEC.md](./AGENT_SPEC.md) | Deep agent protocol and design reference |
 | [LORE.md](./docs/LORE.md) | Ship aesthetics and visual direction |
 

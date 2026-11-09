@@ -69,6 +69,11 @@ For local MCP, `{id}` is the `sessionId` / local `matchToken` alias. For hosted 
 npm run mcp:delta-v
 ```
 
+For Codex opened in this repository, [`.codex/config.toml`](../.codex/config.toml)
+starts the same local stdio server. The [Codex play skill](../.agents/skills/play/SKILL.md)
+reads the shared play guide, including the fleet-ready guard that waits after
+submission until the other seat is ready.
+
 Default server URL: `https://delta-v.tre.systems`
 
 Override:

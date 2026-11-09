@@ -1,0 +1,3 @@
+[mcp_servers.delta-v]
+command = "npm"
+args = ["run", "mcp:delta-v"]
